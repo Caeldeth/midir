@@ -53,6 +53,18 @@ describe('createSessionTracker', () => {
     ])
   })
 
+  it('carries the capture time, not the time it handled the bytes', () => {
+    // Everything above this layer runs on capture time, so a recording
+    // replays exactly as it was captured rather than all at once.
+    const { tracker, events } = collect()
+    tracker.onOpen?.(LOBBY)
+    tracker.onChunk?.({
+      ...chunkOf('lobby', [ServerOpcode.VersionCheck, 0x00, ...u32(0), 0x02, 0x00]),
+      timestampMs: 1_700_000_000_000
+    })
+    expect(events[0]?.timestampMs).toBe(1_700_000_000_000)
+  })
+
   it('ignores bytes for a connection it is not following', () => {
     const { tracker, events } = collect()
     tracker.onChunk?.(chunkOf('unknown', [ServerOpcode.RemoveInventory, 1]))

@@ -6,7 +6,36 @@ Retail is the only target. Hybrasyl is not supported.
 
 ## The rules that make this app what it is
 
-**Midir is read-only. It never sends a packet, never connects to the game server, and never modifies the client, its memory, or its files.** Capture is passive, through Npcap. Do not add a proxy, an injected DLL, or a client patch. If a feature seems to need one, stop and ask.
+**Midir reads from the wire and acts through the client.** The two halves have different rules, and
+the split is the charter. It replaced a plain "read-only" rule on 2026-07-23, when DA Walker and DA
+Speaker were folded in — see `docs/plans/00-overview.md` for what changed and why.
+
+**Reading is passive, and stays passive.** Capture is through Npcap and nothing else. Midir does not
+read the client's memory, and must not start: DA Walker used `ReadProcessMemory` and a pointer table
+only because it had no protocol decode. Midir has one, so the map, the coordinates, the slots, and
+the bank all come off the wire. A pointer table for one build is also a maintenance debt that a wire
+format is not.
+
+**Acting is through the client's own input queue by default.** Midir posts keys and clicks to the
+game window, exactly as DA Walker and DA Speaker do. It sends no packet in this mode, the client
+validates every action, and nothing happens that a player could not do by hand.
+
+**A forged packet is allowed per feature, and it is not cheap.** It is the right answer only where
+driving the UI is genuinely unreliable — a dialog step, not a footstep. Know the cost before
+choosing it: Midir cannot write into the client's own TCP socket, so a forged packet means a
+**proxy** (the client connects to Midir, Midir connects to the server), a full encrypt path, the
+client-direction integrity bytes, the submission terminator, the dialog wrapper for `0x39`/`0x3A`,
+and re-numbering of everything downstream. That ends the "no proxy" rule, so it is a spike before it
+is a feature. **Nothing sends a packet until that spike lands** (WP18).
+
+**These stay forbidden, whichever mode a feature uses:** no injected DLL, no client patch, no write
+to the client's memory or files, and no read of its memory.
+
+**Every driving feature ships off, with a stop that always works.** Off by default, one obvious
+global stop, and it stops on losing the game window. Midir must never automate a credential dialog
+or a password field.
+
+If a feature seems to need something this section forbids, stop and ask.
 
 **Decryption needs the handshake.** Every cipher input is on the wire in the clear or is a constant: the startup key, the seed-table selector and key from `SVersionCheck` (S→C `0x00`, transform None), and the character name from `STransferServer` (S→C `0x03`, transform None) which seeds the MD5 session key. Because each encrypted packet carries its own sequence and seed bytes, decryption is **stateless per packet** — a dropped packet does not break the next one. But Midir must be running **before** the player logs in. That is a first-class UI state, not an error.
 
@@ -17,6 +46,14 @@ Two limits are known and stated, not fixed. The scrubber **stops recording a con
 **Commits carry no AI co-author trailer.** Sabrael is the only contributor to this repo. This overrides any global `Co-Authored-By` preference.
 
 **Documentation and comments follow ASD-STE100 Simplified Technical English.** One instruction per sentence, present tense, active voice, short sentences, no idioms.
+
+## Work packages
+
+`docs/plans/` holds the work packages. **`docs/plans/00-overview.md` is the index — read it before
+any WP**, and `00a-backlog.md` is the register of everything known and not scheduled, each entry
+with the trigger that would promote it. Shipped WP docs live in `docs/plans/complete/`; planned ones
+stay at the top level. WP1 to WP6 and WP8 to WP11 are retrospective records of what shipped, not
+plans written first. This file stays the law; a WP doc has to agree with it.
 
 ## Canonical references (read these first)
 
@@ -101,11 +138,14 @@ Aliases: `@renderer` to `src/renderer/src`, `@shared` to `src/shared`.
 
 - **`SStatus 0x08` is flag-gated.** The byte after the opcode selects which blocks follow (`0x20` core stats, `0x10` health and mana, `0x08` experience and currency, `0x04` combat modifiers, `0x01` mail state, `0xC0` privilege level). A partial update must **merge** into the stored record. It must not replace it.
 - **Trailing bytes are not fields.** The retail parsers stop at the last field they read. A decoder must accept a body that is longer than the fields it consumes.
-- **The retail protocol has no bank opcode.** Bank contents arrive as NPC dialog: `SScreenMenu 0x2F`, menu type 4, **pursuit `0x56`**. The pursuit is a server-wide constant, not a per-NPC dialog id — three bank NPCs used it, and a *shop* buy list from one of those same NPCs used `0x4a`. The row is `[u16 sprite][u8 color][u32 count][string8 name][string8 desc]`; both protocol sources call that `u32` a price, but in a bank it is the **quantity held**. Bank data is opportunistic — it updates only when the player opens the bank. Always show the "as of" time.
-- **An empty bank sends no reply at all**, so silence is identical to never having opened one, to a missed packet, and to capture starting late. **Never render a bank as empty.** It is read or not read. See `protocol/decode/dialog.ts`.
+- **The retail protocol has no bank opcode.** Bank contents arrive as NPC dialog: `SScreenMenu 0x2F`, menu type 4, **pursuit `0x56`**. The pursuit is a server-wide constant, not a per-NPC dialog id — three bank NPCs used it, and a _shop_ buy list from one of those same NPCs used `0x4a`. The row is `[u16 sprite][u8 color][u32 count][string8 name][string8 desc]`; both protocol sources call that `u32` a price, but in a bank it is the **quantity held**. Bank data is opportunistic — it updates only when the player opens the bank. Always show the "as of" time.
+- **An empty bank sends no reply at all**, so silence on its own is identical to never having opened one, to a missed packet, and to capture starting late. **The player's request is what tells them apart.** `CMerchant 0x39` pursuit `0x45` is "withdraw item", and a request with no list behind it, on a connection that lost no bytes, is an empty bank. That is the only thing that may render one as empty; a record with no bank at all is still unread, never empty. The wait is `BANK_REPLY_WINDOW_MS` in `model/character.ts`, against observed replies of 119 to 253 ms. See `protocol/decode/dialog.ts`.
+- **Client opcodes `0x39` and `0x3A` carry a second layer under the transform.** The dialog-response inner wrapper is a random header, a custom CRC16, and an incrementing XOR, and only these two opcodes have it. A body that decrypts cleanly and matches no known layout is this, not a decrypt bug. The CRC is the proof the outer key was right. See `protocol/dialogWrapper.ts` and `protocol/crc16.ts`, whose CRC16 is **not** CRC-16/XMODEM.
 - **The two directions have separate transform tables and separate sequence counters.** Do not share one counter.
 - **Logging off is two packets, and only the second one counts.** `CClientExit 0x0B` sends `endSignal = 1` when the quit dialog opens and `endSignal = 0` when the player confirms. Reading them the other way round reports a player gone every time they open the prompt and change their mind. The connection close is the signal that always arrives, because a client that crashes sends no exit packet at all — handle both.
 - **A logged-in character belongs to its connection, not to the service.** `captureService` keys live characters by connection id so a close or an exit clears the right one. This is also what a future multi-client mode needs; only `CaptureStatus` still narrows it to one name.
+- **The record runs on capture time, not on the wall clock.** `TrackedEvent.timestampMs` carries the time the bytes were captured, and everything above the source seam uses it. They are the same during a live capture and very different during a replay, where the wall clock would collapse a whole evening into one second and break anything that measures elapsed time.
+- **A field the store schema does not name is dropped on load, silently.** Add every new `CharacterRecord` field to `characterSchema`. The bank was missing from it, so every reading was lost at the next start. `mergeCharacter` is the other half: a fresh login knows nothing about the bank, so it must not replace one, and the write queue merges the same way the file does.
 
 ## Verifying changes
 

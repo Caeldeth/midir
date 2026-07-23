@@ -42,6 +42,20 @@ export function transformFor(opcode: number, direction: Direction): Transform {
 }
 
 /**
+ * The client opcodes that carry the dialog-response inner wrapper under their
+ * transform. There are only two, and nothing in the server direction has one.
+ *
+ * This is a transport rule, like the transform tables above. See
+ * dialogWrapper.ts for the layout.
+ */
+export const DIALOG_WRAPPED_CLIENT_OPCODES: ReadonlySet<number> = new Set([0x39, 0x3a])
+
+/** True when `opcode` carries the inner wrapper in `direction`. */
+export function isDialogWrapped(opcode: number, direction: Direction): boolean {
+  return direction === 'clientToServer' && DIALOG_WRAPPED_CLIENT_OPCODES.has(opcode)
+}
+
+/**
  * The greeting the server sends on a new connection.
  *
  * It is a standard binary frame on the wire, but the client consumes it with
@@ -90,6 +104,10 @@ export const ClientOpcode = {
   ClientJoin: 0x10,
   /** Replaces a password. Carries two of them. See scrub.ts. */
   ChangePassword: 0x26,
+  /** Answers an NPC menu. Wrapped. See decode/merchant.ts. */
+  MerchantResponse: 0x39,
+  /** Answers an NPC conversation step. Wrapped. See decode/merchant.ts. */
+  PursuitResponse: 0x3a,
   /** Submits a replacement password. Wire format unknown. See scrub.ts. */
   NewPassword: 0x27,
   /** Verifies a one-time password. Wire format unknown. See scrub.ts. */

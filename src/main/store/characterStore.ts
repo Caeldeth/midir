@@ -80,6 +80,26 @@ const appearanceSchema = z.object({
 
 const slotsSchema = z.record(z.string(), itemSchema)
 
+const bankEntrySchema = z.object({
+  name: z.string(),
+  sprite: z.number(),
+  color: z.number(),
+  count: z.number()
+})
+
+/**
+ * The bank as it was when the player last looked.
+ *
+ * `npcName` is absent for an empty reading, because the banker names itself
+ * only inside the list packet. `items` may be empty, and that is a reading in
+ * its own right: the player asked and the bank held nothing.
+ */
+const bankSchema = z.object({
+  readAtMs: z.number(),
+  npcName: z.string().optional(),
+  items: z.array(bankEntrySchema)
+})
+
 const characterSchema = z.object({
   name: z.string().min(1),
   lastSeenMs: z.number(),
@@ -93,7 +113,10 @@ const characterSchema = z.object({
   guild: z.string(),
   guildRank: z.string(),
   displayClass: z.string(),
-  hasMail: z.boolean()
+  hasMail: z.boolean(),
+  // A field missing from this schema is dropped on load, silently. The bank
+  // was missing here, so every bank Midir read was lost at the next start.
+  bank: bankSchema.optional()
 })
 
 /** The whole file: characters by name. */
@@ -150,22 +173,48 @@ export function createCharacterStore(
   })
 }
 
-/** Put `record` into `file`, replacing any earlier record of the same name. */
+/**
+ * Put `record` into `file`, replacing any earlier record of the same name.
+ *
+ * Two fields survive the replacement, because a fresh login does not know
+ * them:
+ *
+ *   - the earliest first-seen time, which no single session can know;
+ *   - the bank, which is read only when the player visits a banker. Every
+ *     other part of the record arrives again at each login, so replacing it is
+ *     right. A record with no bank has not read one this session, which is not
+ *     the same as reading an empty one — an empty reading does replace.
+ */
 export function withCharacter(file: CharacterFile, record: CharacterRecord): CharacterFile {
-  const existing = file.characters[record.name]
   return {
     ...file,
     characters: {
       ...file.characters,
-      // Keep the earliest first-seen time across sessions.
-      [record.name]: {
-        ...record,
-        firstSeenMs:
-          existing === undefined
-            ? record.firstSeenMs
-            : Math.min(existing.firstSeenMs, record.firstSeenMs)
-      }
+      [record.name]: mergeCharacter(file.characters[record.name], record)
     }
+  }
+}
+
+/**
+ * Combine an earlier record of one character with a newer one.
+ *
+ * Anyone who replaces a record must go through this, including a queue that
+ * coalesces two writes for the same character before either reaches the file.
+ * A newer record from a fresh login knows nothing about the bank, and dropping
+ * it there loses the reading just as surely as writing it out would.
+ */
+export function mergeCharacter(
+  existing: CharacterRecord | undefined,
+  record: CharacterRecord
+): CharacterRecord {
+  const bank = record.bank ?? existing?.bank
+  return {
+    ...record,
+    firstSeenMs:
+      existing === undefined
+        ? record.firstSeenMs
+        : Math.min(existing.firstSeenMs, record.firstSeenMs),
+    ...(bank !== undefined ? { bank } : {})
   }
 }
 

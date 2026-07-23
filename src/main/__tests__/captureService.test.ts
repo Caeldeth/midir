@@ -6,12 +6,18 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { CharacterRecord, CaptureStatus } from '../../shared/types'
 import { createRecorder } from '../capture/recorder'
 import { createReplaySource } from '../capture/replaySource'
-import { encodeChunk, parseRecording, type RecordingLine } from '../capture/recording'
+import {
+  encodeChunk,
+  parseRecording,
+  type RecordingChunk,
+  type RecordingLine
+} from '../capture/recording'
 import type { ConnectionInfo, PacketSource, StreamChunk } from '../capture/source'
 import { createCaptureService } from '../captureService'
 import { ClientOpcode, ServerOpcode } from '../protocol/opcodes'
 import { createCharacterStore } from '../store/characterStore'
 import {
+  clientSessionBody,
   frameOf,
   redirectBody,
   sessionBody,
@@ -172,6 +178,8 @@ describe('createCaptureService', () => {
     await rm(directory, { recursive: true, force: true })
   })
 
+  // The clock is fixed because nothing above the source seam reads it any
+  // more: the record runs on the capture time each chunk carries.
   function build(lines: RecordingLine[]): {
     service: ReturnType<typeof createCaptureService>
     statuses: CaptureStatus[]
@@ -353,6 +361,104 @@ describe('createCaptureService', () => {
     const file = await store.load()
     expect(Object.keys(file.characters)).toEqual([CHARACTER])
     expect(file.characters[CHARACTER]?.stats.level).toBe(99)
+  })
+
+  describe('the bank the player asked for', () => {
+    /**
+     * A live CMerchant 0x39 with its dialog wrapper still on, asking a banker
+     * for the withdraw list. The wrapper's CRC covers the body only, so these
+     * bytes stand in any session.
+     */
+    const WRAPPED_BANK_REQUEST = [
+      0x39, 0xb7, 0xca, 0xb2, 0xba, 0x4c, 0x79, 0x6b, 0x6b, 0x6c, 0x72, 0x01, 0x6f, 0x35, 0x00, 0x39
+    ]
+
+    const bankRequest = (timestampMs: number): RecordingLine =>
+      encodeChunk({
+        connectionId: WORLD.id,
+        direction: 'clientToServer',
+        bytes: Uint8Array.from(
+          frameOf(
+            clientSessionBody({
+              plaintext: WRAPPED_BANK_REQUEST,
+              keyName: CHARACTER,
+              saltSelector: 3
+            })
+          )
+        ),
+        timestampMs,
+        gap: false
+      })
+
+    /** A server packet Midir does not model, such as a heartbeat. */
+    const unmodelled = (sequence: number, timestampMs: number): RecordingLine =>
+      encodeChunk(
+        chunk(
+          WORLD,
+          sessionBody({
+            plaintext: [0x1a, 0x00],
+            keyName: CHARACTER,
+            saltSelector: 3,
+            sequence
+          }),
+          timestampMs
+        )
+      )
+
+    it('records an empty bank when the request goes unanswered', async () => {
+      // 0x1a is a server packet Midir does not model. Its opcode is in the
+      // clear, so it is known not to be the bank list and the wait survives it.
+      const { service, store } = build([
+        ...loginRecording(),
+        bankRequest(2300),
+        unmodelled(3, 4500)
+      ])
+      await service.start('adapter')
+      await service.flush()
+
+      const saved = (await store.load()).characters[CHARACTER]
+      expect(saved?.bank).toBeDefined()
+      expect(saved?.bank?.items).toEqual([])
+      await service.stop()
+    })
+
+    it('records nothing when the request is the last thing on the connection', async () => {
+      // Nothing followed it, so the wait never ran out and the close came too
+      // soon after. A bank Midir is unsure of stays unread.
+      const { service, store } = build([...loginRecording(), bankRequest(2300)])
+      await service.start('adapter')
+      await service.flush()
+
+      expect((await store.load()).characters[CHARACTER]?.bank).toBeUndefined()
+      await service.stop()
+    })
+
+    it('records an empty bank when the player asks and then logs off', async () => {
+      // The quit dialog is the packet that settles it. A close carries no time
+      // of its own, so it can only settle a wait some earlier packet ran out.
+      const { service, store } = build([
+        ...loginRecording(),
+        bankRequest(2300),
+        encodeChunk(clientChunk(WORLD, exitBody(0), 4500)),
+        { kind: 'close', id: WORLD.id, timestampMs: 4600 }
+      ])
+      await service.start('adapter')
+      await service.flush()
+
+      expect((await store.load()).characters[CHARACTER]?.bank?.items).toEqual([])
+      await service.stop()
+    })
+
+    it('says nothing when bytes were lost after the request', async () => {
+      // A missed list looks exactly like an empty bank on the wire.
+      const lostChunk: RecordingChunk = { ...(unmodelled(3, 4500) as RecordingChunk), gap: true }
+      const { service, store } = build([...loginRecording(), bankRequest(2300), lostChunk])
+      await service.start('adapter')
+      await service.flush()
+
+      expect((await store.load()).characters[CHARACTER]?.bank).toBeUndefined()
+      await service.stop()
+    })
   })
 
   describe('logging off', () => {

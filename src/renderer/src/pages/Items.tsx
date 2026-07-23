@@ -14,6 +14,7 @@ import {
   Typography
 } from '@mui/material'
 import Guidance from '@renderer/components/Guidance'
+import ItemIcon from '@renderer/components/ItemIcon'
 import ItemTooltip from '@renderer/components/ItemTooltip'
 import { formatAgo, formatNumber, plural } from '@renderer/lib/format'
 import { useCharacterStore } from '@renderer/store/characterStore'
@@ -180,7 +181,12 @@ function Items(): React.JSX.Element {
             <TableBody>
               {shown.map((entry) => (
                 <TableRow key={entry.name} hover>
-                  <TableCell sx={{ fontWeight: 'medium' }}>{entry.name}</TableCell>
+                  <TableCell sx={{ fontWeight: 'medium' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <ItemIcon sprite={entry.sprite} />
+                      {entry.name}
+                    </Box>
+                  </TableCell>
                   <TableCell align="right" sx={{ fontVariantNumeric: 'tabular-nums' }}>
                     {formatNumber(entry.totalCount)}
                   </TableCell>

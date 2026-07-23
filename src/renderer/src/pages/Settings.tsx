@@ -14,6 +14,7 @@ import {
 import ThemePicker from '@renderer/components/ThemePicker'
 import { formatNumber } from '@renderer/lib/format'
 import { useCaptureStore } from '@renderer/store/captureStore'
+import { useIconsStore } from '@renderer/store/iconsStore'
 import { useSettingsStore } from '@renderer/store/settingsStore'
 import { MAX_RECORDING_CAP_MB } from '@shared/types'
 import React, { useEffect } from 'react'
@@ -40,6 +41,10 @@ function Settings(): React.JSX.Element {
   const setRecordSessions = useSettingsStore((s) => s.setRecordSessions)
   const recordingCapMb = useSettingsStore((s) => s.recordingCapMb)
   const setRecordingCapMb = useSettingsStore((s) => s.setRecordingCapMb)
+  const darkAgesPath = useSettingsStore((s) => s.darkAgesPath)
+  const setDarkAgesPath = useSettingsStore((s) => s.setDarkAgesPath)
+  const iconsEnabled = useIconsStore((s) => s.enabled)
+  const refreshIcons = useIconsStore((s) => s.refresh)
 
   const availability = useCaptureStore((s) => s.availability)
   const status = useCaptureStore((s) => s.status)
@@ -55,6 +60,22 @@ function Settings(): React.JSX.Element {
 
   const devices = availability?.devices ?? []
   const canCapture = availability?.available === true
+
+  const chooseDarkAgesFolder = async (): Promise<void> => {
+    const path = await window.api.icons.chooseFolder()
+    if (path === null) return
+    setDarkAgesPath(path)
+    // Re-probe now, so re-picking the same folder after adding legend.dat still
+    // updates the on/off note.
+    void refreshIcons()
+  }
+
+  const iconStatus = (): string => {
+    if (darkAgesPath === undefined || darkAgesPath === '')
+      return 'Icons are off. No folder is chosen.'
+    if (iconsEnabled) return 'Icons are on.'
+    return 'Icons are off. No legend.dat is in this folder.'
+  }
 
   return (
     <Box sx={{ p: 2.5, overflow: 'auto' }}>
@@ -196,6 +217,42 @@ function Settings(): React.JSX.Element {
             Choose the theme Midir uses.
           </Typography>
           <ThemePicker value={theme} onChange={setTheme} />
+        </Paper>
+
+        <Paper sx={cardSx} data-testid="icon-settings">
+          <Typography variant="h6" sx={headingSx}>
+            Item icons
+          </Typography>
+          <Typography variant="body2" sx={descriptionSx}>
+            Midir can draw each item&apos;s own icon from your Dark Ages files. Point it at your
+            Dark Ages folder, the one that holds legend.dat. Midir reads that file only to draw
+            icons, and never changes it. This is optional: with no folder set, every list reads
+            exactly as it does now.
+          </Typography>
+
+          <TextField
+            fullWidth
+            size="small"
+            label="Dark Ages folder"
+            value={darkAgesPath ?? ''}
+            placeholder="No folder chosen"
+            slotProps={{ htmlInput: { readOnly: true, 'aria-label': 'Dark Ages folder' } }}
+            sx={{ mb: 2 }}
+          />
+
+          <Stack direction="row" sx={{ gap: 1.5, alignItems: 'center', mb: 2 }}>
+            <Button variant="contained" onClick={() => void chooseDarkAgesFolder()}>
+              Choose folder
+            </Button>
+            {darkAgesPath !== undefined && darkAgesPath !== '' ? (
+              <Button onClick={() => setDarkAgesPath(undefined)}>Clear</Button>
+            ) : null}
+          </Stack>
+
+          <Box sx={{ flexGrow: 1 }} />
+          <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+            {iconStatus()}
+          </Typography>
         </Paper>
       </Box>
     </Box>

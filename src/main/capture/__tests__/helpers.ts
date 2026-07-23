@@ -62,6 +62,41 @@ export function sessionBody(options: {
 }
 
 /**
+ * Build a client-direction session-key body.
+ *
+ * Like the startup form below, the four integrity bytes are left as zeros: the
+ * client's own receive path does not check them and Midir does not either.
+ */
+export function clientSessionBody(options: {
+  plaintext: number[] | Uint8Array
+  keyName: string
+  saltSelector?: number
+  sequence?: number
+  seed16?: number
+  seed8?: number
+}): number[] {
+  const saltSelector = options.saltSelector ?? 0
+  const sequence = options.sequence ?? 0
+  const seed16 = options.seed16 ?? 0x0100
+  const seed8 = options.seed8 ?? 0x64
+  const key = selectSessionKey(buildMd5Source(options.keyName), seed16, seed8)
+
+  const plaintext = [...options.plaintext]
+  const payload = Uint8Array.from(plaintext.slice(1))
+  applyXorTransform(payload, key, saltTable(saltSelector), sequence)
+
+  const body = new Uint8Array(2 + payload.length + CLIENT_INTEGRITY_LENGTH + SEED_TRAILER_LENGTH)
+  body[0] = plaintext[0]!
+  body[1] = sequence
+  body.set(payload, 2)
+  const at = body.length - SEED_TRAILER_LENGTH
+  body[at] = (seed16 & 0xff) ^ 0x70
+  body[at + 1] = seed8 ^ 0x23
+  body[at + 2] = ((seed16 >> 8) & 0xff) ^ 0x74
+  return [...body]
+}
+
+/**
  * Build a client-direction startup-key body.
  *
  * The client direction carries four integrity bytes between the payload and

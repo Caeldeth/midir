@@ -5,18 +5,20 @@
  * import it and call it directly. `registerHandlers` wires each one to its
  * channel with the supplied `ipcMain` and `BrowserWindow`.
  */
-import type { BrowserWindow as BrowserWindowType, IpcMain, Shell } from 'electron'
+import type { BrowserWindow as BrowserWindowType, Dialog, IpcMain, Shell } from 'electron'
 import type { CaptureService } from '../captureService'
 import type { CharacterStore } from '../store/characterStore'
 import type { createSettingsManager } from '../settingsManager'
 import { registerCaptureHandlers, type CaptureHandlerContext } from './capture'
 import { registerCharacterHandlers, type CharacterHandlerContext } from './characters'
 import { registerDiagnosticsHandlers, type DiagnosticsHandlerContext } from './diagnostics'
+import { registerIconsHandlers } from './icons'
 import { registerSettingsHandlers, type SettingsHandlerContext } from './settings'
 
 export * from './capture'
 export * from './characters'
 export * from './diagnostics'
+export * from './icons'
 export * from './settings'
 
 export interface HandlerContext
@@ -36,6 +38,12 @@ export interface HandlerContext
    * splash.
    */
   onAppReady?: () => void
+  /**
+   * Arm the live Dark Ages folder the icon service reads. index.ts wires this
+   * to the `darkAgesPath` variable, so a probe that finds `legend.dat` lets the
+   * service serve before the settings save lands.
+   */
+  updateDarkAgesPath?: (path: string) => void
 }
 
 interface RegisterDeps {
@@ -43,10 +51,12 @@ interface RegisterDeps {
   BrowserWindow: typeof BrowserWindowType
   /** Used to open a folder Midir owns. */
   shell: Shell
+  /** Used for the Dark Ages folder picker. */
+  dialog: Dialog
 }
 
 export function registerHandlers(deps: RegisterDeps, ctx: HandlerContext): void {
-  const { ipcMain, BrowserWindow, shell } = deps
+  const { ipcMain, BrowserWindow, shell, dialog } = deps
 
   // Window controls. These keep the legacy unprefixed names.
   ipcMain.on('minimize-window', (e) => {
@@ -73,4 +83,5 @@ export function registerHandlers(deps: RegisterDeps, ctx: HandlerContext): void 
   registerCaptureHandlers(ipcMain, ctx)
   registerCharacterHandlers(ipcMain, ctx)
   registerDiagnosticsHandlers(ipcMain, shell, ctx)
+  registerIconsHandlers(ipcMain, dialog, BrowserWindow, ctx.updateDarkAgesPath)
 }

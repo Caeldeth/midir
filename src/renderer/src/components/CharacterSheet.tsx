@@ -22,6 +22,7 @@ import {
 } from '@renderer/lib/format'
 import { EQUIPMENT_SLOT_ORDER, INVENTORY_SLOT_COUNT } from '@shared/labels'
 import type { CharacterRecord, ItemRef } from '@shared/types'
+import ItemIcon from '@renderer/components/ItemIcon'
 import React from 'react'
 
 /**
@@ -78,15 +79,18 @@ function ItemLine({ item }: { item: ItemRef }): React.JSX.Element {
   const durability = formatDurability(item.durability, item.maxDurability)
   return (
     <Tooltip title={durability === '' ? item.name : `${item.name} — durability ${durability}`}>
-      <Typography variant="body2" noWrap sx={{ minWidth: 0 }}>
-        {item.name}
-        {item.canStack && item.count > 1 ? (
-          <Typography component="span" variant="body2" sx={{ color: 'text.secondary' }}>
-            {' '}
-            [{formatNumber(item.count)}]
-          </Typography>
-        ) : null}
-      </Typography>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, minWidth: 0 }}>
+        <ItemIcon sprite={item.sprite} color={item.color} />
+        <Typography variant="body2" noWrap sx={{ minWidth: 0 }}>
+          {item.name}
+          {item.canStack && item.count > 1 ? (
+            <Typography component="span" variant="body2" sx={{ color: 'text.secondary' }}>
+              {' '}
+              [{formatNumber(item.count)}]
+            </Typography>
+          ) : null}
+        </Typography>
+      </Box>
     </Tooltip>
   )
 }
@@ -204,21 +208,33 @@ function CharacterSheet({ record }: { record: CharacterRecord }): React.JSX.Elem
           Bank
         </Typography>
         {record.bank === undefined ? (
-          // Never say "empty". An empty bank sends no reply at all, so silence
-          // and an empty bank look identical on the wire. Saying "empty" here
-          // would be a claim Midir cannot make. See decode/dialog.ts.
+          // An unread bank is never called empty. An empty bank sends no reply
+          // at all, so only the player's own request tells the two apart, and a
+          // record with no bank at all has no such request behind it. See
+          // decode/dialog.ts.
           <Typography variant="body2" sx={{ color: 'text.secondary' }}>
             Not read yet. Midir fills this when you visit a banker and choose &ldquo;Withdraw
             Item&rdquo;.
           </Typography>
+        ) : record.bank.items.length === 0 ? (
+          // Midir saw the request and no list came back, so the bank was empty
+          // when the player looked.
+          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+            Empty when you last looked{record.bank.npcName ? `, at ${record.bank.npcName}` : ''} ·{' '}
+            {formatAgo(record.bank.readAtMs)}
+          </Typography>
         ) : (
           <>
             <Typography variant="caption" sx={{ color: 'text.secondary', mb: 1 }}>
-              {plural(record.bank.items.length, 'item')} at {record.bank.npcName} · read{' '}
+              {plural(record.bank.items.length, 'item')}
+              {record.bank.npcName ? ` at ${record.bank.npcName}` : ''} · read{' '}
               {formatAgo(record.bank.readAtMs)}
             </Typography>
             {record.bank.items.map((item) => (
-              <Box key={`${item.name}-${item.sprite}`} sx={{ display: 'flex', gap: 1.5, py: 0.25 }}>
+              <Box
+                key={`${item.name}-${item.sprite}`}
+                sx={{ display: 'flex', alignItems: 'center', gap: 1.5, py: 0.25 }}
+              >
                 <Typography
                   variant="body2"
                   sx={{
@@ -230,6 +246,7 @@ function CharacterSheet({ record }: { record: CharacterRecord }): React.JSX.Elem
                 >
                   {item.count > 1 ? `×${formatNumber(item.count)}` : ''}
                 </Typography>
+                <ItemIcon sprite={item.sprite} color={item.color} />
                 <Typography variant="body2">{item.name}</Typography>
               </Box>
             ))}

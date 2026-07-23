@@ -25,6 +25,14 @@ export interface TrackedEvent {
   connection: ConnectionInfo
   /** The name the session key was built from, when it is known. */
   keyName: string | undefined
+  /**
+   * When the bytes were captured, in milliseconds since the epoch.
+   *
+   * This is capture time, not the time the event was handled. They are the
+   * same during a live capture and very different during a replay, and
+   * everything above this layer must run from a recording as if it were live.
+   */
+  timestampMs: number
   event: SessionEvent
 }
 
@@ -117,6 +125,7 @@ export function createSessionTracker(onEvent: (event: TrackedEvent) => void): Se
         onEvent({
           connection: tracked.info,
           keyName: tracked.session.state.keyName,
+          timestampMs: chunk.timestampMs,
           event
         })
       }

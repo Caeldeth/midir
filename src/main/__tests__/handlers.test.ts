@@ -103,6 +103,15 @@ describe('settings handlers', () => {
     expect(ctx.settingsManager.save).toHaveBeenCalledWith(settings)
   })
 
+  it('saves the optional Dark Ages folder and notifies the listener', async () => {
+    const ctx = settingsContext()
+    const onSettingsSaved = vi.fn()
+    const settings = { ...DEFAULT_SETTINGS, darkAgesPath: 'C:/Dark Ages' }
+    await saveSettings({ ...ctx, onSettingsSaved }, settings)
+    expect(ctx.settingsManager.save).toHaveBeenCalledWith(settings)
+    expect(onSettingsSaved).toHaveBeenCalledWith(settings)
+  })
+
   it('rejects an unknown theme and saves nothing', async () => {
     const ctx = settingsContext()
     await expect(saveSettings(ctx, { ...DEFAULT_SETTINGS, theme: 'neon' })).rejects.toThrow(

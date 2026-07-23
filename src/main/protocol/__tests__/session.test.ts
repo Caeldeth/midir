@@ -80,6 +80,48 @@ function startupBody(plaintext: number[], sequence = 0, key = STARTUP_KEY): Uint
   return body
 }
 
+/**
+ * Build a client-direction session-key body.
+ *
+ * The client direction adds four integrity bytes before the seed trailer. The
+ * client's own receive path does not check them and Midir does not either, so
+ * a test can leave them zero.
+ */
+function clientSessionBody(options: {
+  plaintext: number[] | Uint8Array
+  keyName?: string
+  sequence?: number
+  seed16?: number
+  seed8?: number
+}): Uint8Array {
+  const sequence = options.sequence ?? 0
+  const seed16 = options.seed16 ?? 0x0100
+  const seed8 = options.seed8 ?? 0x64
+  const key = selectSessionKey(buildMd5Source(options.keyName ?? CHARACTER), seed16, seed8)
+
+  const plaintext = [...options.plaintext]
+  const payload = Uint8Array.from(plaintext.slice(1))
+  applyXorTransform(payload, key, saltTable(0), sequence)
+
+  const body = new Uint8Array(2 + payload.length + 4 + SEED_TRAILER_LENGTH)
+  body[0] = plaintext[0]!
+  body[1] = sequence
+  body.set(payload, 2)
+  const at = body.length - SEED_TRAILER_LENGTH
+  body[at] = (seed16 & 0xff) ^ 0x70
+  body[at + 1] = seed8 ^ 0x23
+  body[at + 2] = ((seed16 >> 8) & 0xff) ^ 0x74
+  return body
+}
+
+/**
+ * A live CMerchant 0x39 after the session transform came off and before the
+ * dialog wrapper did. It asks a banker for the withdraw list.
+ */
+const WRAPPED_BANK_REQUEST = Uint8Array.from([
+  0x39, 0xb7, 0xca, 0xb2, 0xba, 0x4c, 0x79, 0x6b, 0x6b, 0x6c, 0x72, 0x01, 0x6f, 0x35, 0x00, 0x39
+])
+
 const REMOVE_INVENTORY = [ServerOpcode.RemoveInventory, 7]
 
 const packets = (events: SessionEvent[]): PacketEvent[] =>
@@ -246,6 +288,29 @@ describe('createProtocolSession', () => {
     const [event] = unreadable(session.push(S2C, frame(greeting)))
     expect(event!.reason).toBe('greeting')
     expect(event!.name).toBe('Hello')
+  })
+
+  it('takes the dialog wrapper off a client menu answer', () => {
+    const session = createProtocolSession({ keyName: CHARACTER })
+    const body = clientSessionBody({ plaintext: WRAPPED_BANK_REQUEST })
+    const [event] = packets(session.push(C2S, frame(body)))
+    expect(event!.packet).toMatchObject({
+      kind: 'merchantResponse',
+      objectId: 0x1f6f,
+      pursuit: 0x45
+    })
+    // The body kept for the inspector is the plaintext, wrapper and all off.
+    expect([...event!.body]).toEqual([0x39, 0x01, 0x00, 0x00, 0x1f, 0x6f, 0x00, 0x45])
+  })
+
+  it('reports a wrapped packet it cannot unwrap as a decryption failure', () => {
+    // The wrong key gives a clean decrypt and a wrapper that does not verify.
+    // That is what a connection Midir joined late looks like.
+    const session = createProtocolSession({ keyName: 'Somebody Else' })
+    const body = clientSessionBody({ plaintext: WRAPPED_BANK_REQUEST, keyName: CHARACTER })
+    const [event] = unreadable(session.push(C2S, frame(body)))
+    expect(event!.reason).toBe('decryptFailed')
+    expect(event!.error).toMatch(/wrapper/)
   })
 
   it('reports a decode failure without stopping the next packet', () => {

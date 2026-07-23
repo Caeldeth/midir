@@ -39,6 +39,12 @@ const api: MidirApi = {
     save: (settings: MidirSettings): Promise<void> => ipcRenderer.invoke('settings:save', settings)
   },
 
+  icons: {
+    chooseFolder: (): Promise<string | null> => ipcRenderer.invoke('icons:chooseFolder'),
+    probe: (path: string): Promise<{ legendFound: boolean }> =>
+      ipcRenderer.invoke('icons:probe', path)
+  },
+
   capture: {
     availability: (): Promise<CaptureAvailability> => ipcRenderer.invoke('capture:availability'),
     start: (device: string): Promise<CaptureStatus> => ipcRenderer.invoke('capture:start', device),

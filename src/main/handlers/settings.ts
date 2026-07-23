@@ -7,6 +7,11 @@ import type { createSettingsManager } from '../settingsManager'
 export interface SettingsHandlerContext {
   settingsManager: ReturnType<typeof createSettingsManager>
   log: Logger
+  /**
+   * Called after a save lands, with the saved settings. index.ts uses it to
+   * keep the live `darkAgesPath` the icon service reads in step with the file.
+   */
+  onSettingsSaved?: (settings: MidirSettings) => void
 }
 
 /** Every payload that crosses from the renderer is checked here. */
@@ -16,7 +21,9 @@ export const settingsSchema = z.object({
   autoStartCapture: z.boolean(),
   recordSessions: z.boolean(),
   // Zero means no limit. The maximum only stops an absurd value reaching disk.
-  recordingCapMb: z.number().int().min(0).max(MAX_RECORDING_CAP_MB)
+  recordingCapMb: z.number().int().min(0).max(MAX_RECORDING_CAP_MB),
+  // The Dark Ages install folder. Optional, and only used to draw item icons.
+  darkAgesPath: z.string().optional()
 })
 
 export async function loadSettings(ctx: SettingsHandlerContext): Promise<MidirSettings> {
@@ -29,7 +36,9 @@ export async function saveSettings(ctx: SettingsHandlerContext, settings: unknow
     ctx.log.error('settings', `Rejected an invalid payload: ${parsed.error.message}`)
     throw new Error('Invalid settings payload')
   }
-  await ctx.settingsManager.save(parsed.data as MidirSettings)
+  const valid = parsed.data as MidirSettings
+  await ctx.settingsManager.save(valid)
+  ctx.onSettingsSaved?.(valid)
 }
 
 export function registerSettingsHandlers(ipcMain: IpcMain, ctx: SettingsHandlerContext): void {
