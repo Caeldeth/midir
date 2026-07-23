@@ -148,6 +148,37 @@ describe('naming the character', () => {
     expect(isIdentified(run([fullStatus]))).toBe(false)
   })
 
+  it('never files the pre-login placeholder as a character', () => {
+    // The connections before the world server are keyed from a placeholder.
+    // It is a real key seed and a real nobody.
+    for (const placeholder of ['socket', 'socket[256]', 'socket[295]', 'SOCKET[1]']) {
+      const state = run([fullStatus, item(1, 'Stick')], { keyName: placeholder })
+      expect(state.name, placeholder).toBeNull()
+      expect(isIdentified(state), placeholder).toBe(false)
+      expect(state.record.name, placeholder).toBe('')
+    }
+  })
+
+  it('still files a name that merely contains the word socket', () => {
+    // The rule matches the placeholder's shape, not the word.
+    expect(run([fullStatus], { keyName: 'Socketeer' }).name).toBe('Socketeer')
+    expect(run([fullStatus], { keyName: 'socket[295]x' }).name).toBe('socket[295]x')
+  })
+
+  it('needs the server to have described the character, not just named it', () => {
+    // Traffic that carries a key but says nothing about a character must not
+    // file one. This is the shape of a pre-login connection.
+    const named = run([{ kind: 'versionCheck', subtype: 1 }], { keyName: 'Taurael' })
+    expect(named.name).toBe('Taurael')
+    expect(named.hasCharacterData).toBe(false)
+    expect(isIdentified(named)).toBe(false)
+
+    // One packet describing the character is enough.
+    const described = run([fullStatus], { from: named, keyName: 'Taurael' })
+    expect(described.hasCharacterData).toBe(true)
+    expect(isIdentified(described)).toBe(true)
+  })
+
   it('takes the name from the redirect the session key was built from', () => {
     const state = run([fullStatus], { keyName: CHARACTER })
     expect(state.name).toBe(CHARACTER)

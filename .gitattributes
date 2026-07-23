@@ -1,0 +1,23 @@
+# Line endings are LF everywhere, in the repository and in the working tree.
+# .editorconfig asks for this; these rules enforce it, so an editor or a script
+# on Windows cannot turn a one-line change into a whole-file diff.
+* text=auto eol=lf
+
+# Windows batch files are read by cmd.exe, which wants CRLF.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Never touch binary content.
+*.png binary
+*.jpg binary
+*.ico binary
+*.icns binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.otf binary
+*.node binary
+*.exe binary
+*.dll binary
+*.lib binary
+*.pdb binary

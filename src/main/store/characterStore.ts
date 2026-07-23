@@ -2,6 +2,7 @@ import { join } from 'node:path'
 import { z } from 'zod'
 import type { CharacterRecord } from '../../shared/character'
 import { createJsonStore, type JsonStore, type JsonStoreFailure } from '../jsonStore'
+import { isPlaceholderName } from '../protocol/decode'
 
 /**
  * Where the character records live.
@@ -111,6 +112,21 @@ export function emptyCharacterFile(): CharacterFile {
 }
 
 /**
+ * Drop any character whose name is the client's pre-login placeholder.
+ *
+ * Midir used to file `socket[295]` and its like as characters. They are not
+ * people, so they are removed on load and the file is written back without
+ * them the next time it is saved.
+ */
+export function withoutPlaceholders(file: CharacterFile): CharacterFile {
+  const names = Object.keys(file.characters).filter((name) => isPlaceholderName(name))
+  if (names.length === 0) return file
+  const characters = { ...file.characters }
+  for (const name of names) delete characters[name]
+  return { ...file, characters }
+}
+
+/**
  * Open the character store under `directory`.
  *
  * `onFailure` receives a breadcrumb when a file heals or is quarantined, so
@@ -125,7 +141,7 @@ export function createCharacterStore(
     fallback: emptyCharacterFile,
     normalize: (raw) => {
       const parsed = fileSchema.safeParse(raw)
-      return parsed.success ? (parsed.data as CharacterFile) : null
+      return parsed.success ? withoutPlaceholders(parsed.data as CharacterFile) : null
     },
     backup: true,
     quarantine: true,

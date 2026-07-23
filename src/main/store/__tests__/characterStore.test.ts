@@ -9,7 +9,8 @@ import {
   createCharacterStore,
   emptyCharacterFile,
   withCharacter,
-  withoutCharacter
+  withoutCharacter,
+  withoutPlaceholders
 } from '../characterStore'
 
 describe('withCharacter', () => {
@@ -51,6 +52,22 @@ describe('withoutCharacter', () => {
   it('returns the same file when the name is absent', () => {
     const file = withCharacter(emptyCharacterFile(), emptyCharacter('Sabrael', 1))
     expect(withoutCharacter(file, 'Nobody')).toBe(file)
+  })
+})
+
+describe('withoutPlaceholders', () => {
+  it('removes the pre-login placeholder and keeps real characters', () => {
+    const file = withCharacter(
+      withCharacter(emptyCharacterFile(), emptyCharacter('socket[295]', 1)),
+      emptyCharacter('Taurael', 2)
+    )
+    const cleaned = withoutPlaceholders(file)
+    expect(Object.keys(cleaned.characters)).toEqual(['Taurael'])
+  })
+
+  it('returns the same file when there is nothing to remove', () => {
+    const file = withCharacter(emptyCharacterFile(), emptyCharacter('Taurael', 1))
+    expect(withoutPlaceholders(file)).toBe(file)
   })
 })
 
@@ -130,6 +147,24 @@ describe('createCharacterStore', () => {
     await writeFile(path, JSON.stringify({ version: 1, characters: { a: { name: 5 } } }), 'utf8')
     const store = createCharacterStore(directory)
     expect(await store.load()).toEqual(emptyCharacterFile())
+  })
+
+  it('drops a placeholder character an older build had saved', async () => {
+    // Midir used to file socket[295] as a character. Loading must clean it up
+    // rather than leaving a ghost in the list forever.
+    await writeFile(
+      path,
+      JSON.stringify({
+        version: 1,
+        characters: {
+          'socket[295]': emptyCharacter('socket[295]', 1),
+          Taurael: emptyCharacter('Taurael', 2)
+        }
+      }),
+      'utf8'
+    )
+    const loaded = await createCharacterStore(directory).load()
+    expect(Object.keys(loaded.characters)).toEqual(['Taurael'])
   })
 
   it('rejects a file from a version it does not know', async () => {

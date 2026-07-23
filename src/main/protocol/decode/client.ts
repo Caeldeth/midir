@@ -67,11 +67,11 @@ export function decodeClientTransfer(body: Uint8Array): ClientTransfer {
 }
 
 /**
- * True when `name` could be a character name.
+ * True when `name` could be a name at all.
  *
  * A name recovered from a source Midir is not certain of, such as the opaque
- * redirect token, must be checked before it is used. A wrong name does not
- * fail loudly: it silently decrypts every later packet into rubbish.
+ * handoff token, must be checked before it is used. A wrong name does not fail
+ * loudly: it silently decrypts every later packet into rubbish.
  */
 export function looksLikeCharacterName(name: string): boolean {
   if (name.length === 0 || name.length > 32) return false
@@ -81,4 +81,20 @@ export function looksLikeCharacterName(name: string): boolean {
     if (code < 0x20 || code > 0x7e) return false
   }
   return true
+}
+
+/**
+ * True when `name` is the client's stand-in for "nobody has logged in yet".
+ *
+ * The connections before the world server carry a placeholder in place of a
+ * character name. Retail sends `socket[295]` and similar; Hybrasyl sends
+ * `socket`, and `socket[256]` appears in the reference capture. The number
+ * varies, so match the shape rather than any one value.
+ *
+ * The placeholder is still the real seed for that connection's session key, so
+ * it must be kept for decryption. It is only wrong as an identity: there is no
+ * such character, and saving one would put a ghost in the character list.
+ */
+export function isPlaceholderName(name: string): boolean {
+  return /^socket(\[\d+\])?$/i.test(name.trim())
 }

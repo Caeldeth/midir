@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { decodeClientTransfer, parseRedirectToken } from '../../protocol/decode'
+import { decodeClientTransfer, isPlaceholderName, parseRedirectToken } from '../../protocol/decode'
 import { ClientOpcode, ServerOpcode } from '../../protocol/opcodes'
 import type { PacketEvent } from '../../protocol/session'
 import type { ConnectionInfo, StreamChunk } from '../source'
@@ -203,5 +203,35 @@ describe('the tracker keys a connection from the client transfer', () => {
     tracker.onChunk?.(chunk(REAL_TRANSFER, 'clientToServer'))
     expect([...tracker.activeConnections()]).toHaveLength(1)
     expect(tracker.keyNameOf(world.id)).toBe(CHARACTER)
+  })
+})
+
+describe('the pre-login placeholder', () => {
+  it('is used as a key seed but never becomes a character', () => {
+    // The lobby hop is keyed from a placeholder such as socket[295]. Midir
+    // must decrypt with it and must not file a character called that.
+    const lobbyTransfer = [
+      ClientOpcode.ClientJoin,
+      0x02,
+      0x09,
+      ...CONNECTION_KEY,
+      0x0b,
+      ...[...'socket[295]'].map((c) => c.charCodeAt(0)),
+      0x00,
+      0x00,
+      0x10,
+      0x67,
+      0x00
+    ]
+
+    const packet = decodeClientTransfer(Uint8Array.from(lobbyTransfer))
+    expect(packet.name).toBe('socket[295]')
+    expect(isPlaceholderName(packet.name!)).toBe(true)
+
+    // The session still takes it, because it is the real seed for this hop.
+    const tracker = createSessionTracker(() => undefined)
+    tracker.onOpen?.(world)
+    tracker.onChunk?.(chunk(lobbyTransfer, 'clientToServer'))
+    expect(tracker.keyNameOf(world.id)).toBe('socket[295]')
   })
 })

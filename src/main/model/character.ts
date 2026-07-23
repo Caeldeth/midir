@@ -1,4 +1,4 @@
-import type { DecodedPacket } from '../protocol/decode'
+import { isPlaceholderName, type DecodedPacket } from '../protocol/decode'
 import { FIRST_EQUIPMENT_SLOT, INVENTORY_SLOT_COUNT, LAST_EQUIPMENT_SLOT } from '../protocol/types'
 import { emptyCharacter, type CharacterRecord, type ItemRef } from '../../shared/character'
 
@@ -22,8 +22,16 @@ export interface CharacterSession {
   userId: number | null
   /** The name, once known. Until then the record is unnamed. */
   name: string | null
-  /** True when the name came from a drawn entity rather than a redirect. */
+  /** True when the name came from a drawn entity rather than a token. */
   nameIsConfirmed: boolean
+  /**
+   * True once the server has described this character at all: statistics, an
+   * item, a profile, or our own drawn entity.
+   *
+   * A name on its own is not a character. The connections before the world
+   * server are keyed from a placeholder, and they never describe anybody.
+   */
+  hasCharacterData: boolean
   record: CharacterRecord
 }
 
@@ -45,6 +53,7 @@ export function newSession(startedAtMs: number): CharacterSession {
     userId: null,
     name: null,
     nameIsConfirmed: false,
+    hasCharacterData: false,
     record: emptyCharacter('', startedAtMs)
   }
 }
@@ -54,12 +63,21 @@ export function reduce(state: CharacterSession, input: ReducerInput): CharacterS
   const named = applyName(state, input)
   const record = applyPacket(named.record, input, named)
   if (record === named.record) return named
-  return { ...named, record: { ...record, lastSeenMs: input.timestampMs } }
+  return {
+    ...named,
+    hasCharacterData: true,
+    record: { ...record, lastSeenMs: input.timestampMs }
+  }
 }
 
-/** True once the record describes a character that can be saved. */
+/**
+ * True once the record describes a character that is worth saving.
+ *
+ * Both halves matter. A record with no name cannot be filed, and a name with
+ * no record behind it is the pre-login placeholder, which is nobody.
+ */
 export function isIdentified(state: CharacterSession): boolean {
-  return state.name !== null && state.name.length > 0
+  return state.name !== null && state.name.length > 0 && state.hasCharacterData
 }
 
 // ---------------------------------------------------------------------------
@@ -89,10 +107,19 @@ function applyName(state: CharacterSession, input: ReducerInput): CharacterSessi
     return { ...state, userId: packet.userId }
   }
 
-  // The redirect's name seeded the session key for this connection, so on the
+  // The token's name seeded the session key for this connection, so on the
   // world connection it is the character name. Accept it until an entity
   // confirms one.
-  if (!state.nameIsConfirmed && input.keyName !== undefined && input.keyName.length > 0) {
+  //
+  // The connections before the world server are keyed from a placeholder such
+  // as `socket[295]`. That value is a real key seed and a real nobody, so it
+  // is used for decryption and never as an identity.
+  if (
+    !state.nameIsConfirmed &&
+    input.keyName !== undefined &&
+    input.keyName.length > 0 &&
+    !isPlaceholderName(input.keyName)
+  ) {
     if (state.name === input.keyName) return state
     return { ...state, name: input.keyName, record: { ...state.record, name: input.keyName } }
   }

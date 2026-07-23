@@ -27,3 +27,8 @@ Keep entries user-facing — internal refactors/tests show up in the appended au
 - A capture indicator in the title bar. It says whether Midir is stopped, listening, or reading a named character.
 - A clear warning when Midir starts after you log in. Midir learns each session's keys from the login handshake, so it has to be running first.
 - Settings for the network adapter, for starting capture when Midir opens, and for the theme.
+- Session recording, for working out a packet Midir does not understand yet. A recording holds everything the client and the server exchanged, including your character name and your password, so treat the file as private.
+
+### Fixed
+
+- The pre-login placeholder is no longer saved as a character. The connections before the world server are keyed from a stand-in name such as `socket[295]`; it is a real encryption seed but nobody at all. A placeholder saved by an earlier build is removed the next time Midir loads.
