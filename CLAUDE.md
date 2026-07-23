@@ -10,6 +10,8 @@ Retail is the only target. Hybrasyl is not supported.
 
 **Decryption needs the handshake.** Every cipher input is on the wire in the clear or is a constant: the startup key, the seed-table selector and key from `SVersionCheck` (S→C `0x00`, transform None), and the character name from `STransferServer` (S→C `0x03`, transform None) which seeds the MD5 session key. Because each encrypted packet carries its own sequence and seed bytes, decryption is **stateless per packet** — a dropped packet does not break the next one. But Midir must be running **before** the player logs in. That is a first-class UI state, not an error.
 
+**A session recording never holds the account password.** `capture/scrub.ts` removes the whole CLogin `0x03` frame from every recording before it is written. The frame is found without a key, because the header states its length and the cipher leaves the opcode in the clear. Dropping a packet is safe: decryption is stateless per packet, and the character name comes from CTransferServer `0x10`. Do not add a recorder path that bypasses this.
+
 **Commits carry no AI co-author trailer.** Sabrael is the only contributor to this repo. This overrides any global `Co-Authored-By` preference.
 
 **Documentation and comments follow ASD-STE100 Simplified Technical English.** One instruction per sentence, present tense, active voice, short sentences, no idioms.
