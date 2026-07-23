@@ -2,7 +2,7 @@ import { createWriteStream, type WriteStream } from 'node:fs'
 import { mkdir } from 'node:fs/promises'
 import { dirname } from 'node:path'
 import { encodeChunk, RECORDING_VERSION, serialiseLine, type RecordingLine } from './recording'
-import { createLoginScrubber, type StreamScrubber } from './scrub'
+import { createSecretScrubber, type StreamScrubber } from './scrub'
 import type { CaptureSink, ConnectionInfo, StreamChunk } from './source'
 
 /**
@@ -16,9 +16,9 @@ import type { CaptureSink, ConnectionInfo, StreamChunk } from './source'
  * the character name and that session's encryption keys. It is private data,
  * and recording is off unless the user turns it on.
  *
- * One thing is left out on purpose. The CLogin packet carries the account
- * password, so every recorder removes that packet before it writes. See
- * scrub.ts. Nothing else is changed.
+ * Some things are left out on purpose. Three client packets carry an account
+ * password, so every recorder removes them before it writes. See scrub.ts.
+ * Nothing else is changed.
  */
 
 export interface Recorder extends CaptureSink {
@@ -54,12 +54,12 @@ export async function createRecorder(path: string, options: RecorderOptions): Pr
     lines++
   }
 
-  /** Return the chunk to write. The client direction loses its CLogin frame. */
+  /** Return the chunk to write. The client direction loses its secrets. */
   function scrubbed(chunk: StreamChunk): StreamChunk {
     if (chunk.direction !== 'clientToServer') return chunk
     let scrubber = scrubbers.get(chunk.connectionId)
     if (scrubber === undefined) {
-      scrubber = createLoginScrubber()
+      scrubber = createSecretScrubber()
       scrubbers.set(chunk.connectionId, scrubber)
     }
     // A gap invalidates the byte counts the walk is holding.

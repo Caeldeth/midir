@@ -32,7 +32,7 @@ Keep entries user-facing — internal refactors/tests show up in the appended au
 
 ### Security
 
-- A session recording no longer holds your account password. Midir removes the login packet before it writes the file. Delete any recording made by an earlier build: the password in it can be recovered.
+- A session recording no longer holds your account password. Midir removes every packet that carries one before it writes the file: signing in, creating an account, and changing a password. Creating an account also sends your email address, which goes the same way. Delete any recording made by an earlier build: the password in it can be recovered.
 
 ### Fixed
 
