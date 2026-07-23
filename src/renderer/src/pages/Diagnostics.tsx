@@ -40,9 +40,37 @@ import React, { useEffect, useMemo, useState } from 'react'
  * delete one says so.
  */
 
-const cardSx = { p: 3, display: 'flex', flexDirection: 'column', minHeight: 0 } as const
+// `flexShrink: 0` keeps a card at its content height. Without it the two cards
+// compete for the column and the shorter one is squeezed.
+const cardSx = { p: 3, display: 'flex', flexDirection: 'column', flexShrink: 0 } as const
 const headingSx = { color: 'text.button', fontWeight: 'bold' } as const
 const descriptionSx = { color: 'text.secondary', mb: 2 } as const
+
+/**
+ * How tall the log panel is, in pixels.
+ *
+ * It holds about twenty-five lines, which is enough to read a launch without
+ * scrolling. A quiet launch writes two lines, and a panel sized to those two
+ * is not worth opening.
+ */
+const LOG_HEIGHT = 420
+
+/**
+ * The log panel.
+ *
+ * A fixed height, not a share of the column. Two lines and two thousand give
+ * the same panel: the lines scroll inside it, the card never grows past the
+ * page, and the recordings card below does not move every time a line arrives.
+ */
+const panelSx = {
+  height: LOG_HEIGHT,
+  overflow: 'auto',
+  bgcolor: 'background.paperDark',
+  border: 1,
+  borderColor: 'divider',
+  borderRadius: 1,
+  p: 1
+} as const
 
 /** The colour each level takes, so a failure is found by scanning. */
 const LEVEL_COLOR: Record<LogLevel, string> = {
@@ -91,7 +119,7 @@ function LogSection(): React.JSX.Element {
   }
 
   return (
-    <Paper sx={{ ...cardSx, flex: 1, minHeight: 320 }} data-testid="log-section">
+    <Paper sx={cardSx} data-testid="log-section">
       <Typography variant="h6" sx={headingSx}>
         Log
       </Typography>
@@ -167,26 +195,19 @@ function LogSection(): React.JSX.Element {
       </Stack>
 
       {shown.length === 0 ? (
-        <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-          {entries.length === 0
-            ? 'This session has written nothing yet.'
-            : 'No line matches the filter.'}
-        </Typography>
+        // The empty state fills the same panel, so the card does not jump when
+        // the first line arrives or the filter clears.
+        <Box sx={{ ...panelSx, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+            {entries.length === 0
+              ? 'This session has written nothing yet.'
+              : 'No line matches the filter.'}
+          </Typography>
+        </Box>
       ) : (
         <Box
           data-testid="log-lines"
-          sx={{
-            flex: 1,
-            minHeight: 200,
-            overflow: 'auto',
-            fontFamily: 'monospace',
-            fontSize: '0.78rem',
-            bgcolor: 'background.paperDark',
-            border: 1,
-            borderColor: 'divider',
-            borderRadius: 1,
-            p: 1
-          }}
+          sx={{ ...panelSx, fontFamily: 'monospace', fontSize: '0.78rem' }}
         >
           {shown.map((entry, index) => (
             <Box
@@ -325,7 +346,20 @@ function Diagnostics(): React.JSX.Element {
   }, [refresh])
 
   return (
-    <Box sx={{ p: 2.5, overflow: 'auto', display: 'flex', flexDirection: 'column', gap: 3 }}>
+    // `flex: 1` with `minHeight: 0` makes this the element that scrolls. As a
+    // plain flex child it sized to its content instead, and the cards ran off
+    // the bottom of the window.
+    <Box
+      sx={{
+        flex: 1,
+        minHeight: 0,
+        p: 2.5,
+        overflow: 'auto',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 3
+      }}
+    >
       {error !== null ? <Alert severity="error">{error}</Alert> : null}
       <LogSection />
       <RecordingsSection />
