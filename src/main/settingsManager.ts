@@ -6,7 +6,17 @@ function withDefaults(data: Partial<MidirSettings>): MidirSettings {
   return {
     theme: THEME_NAMES.includes(data.theme as ThemeName)
       ? (data.theme as ThemeName)
-      : DEFAULT_SETTINGS.theme
+      : DEFAULT_SETTINGS.theme,
+    captureDevice:
+      typeof data.captureDevice === 'string' ? data.captureDevice : DEFAULT_SETTINGS.captureDevice,
+    autoStartCapture:
+      typeof data.autoStartCapture === 'boolean'
+        ? data.autoStartCapture
+        : DEFAULT_SETTINGS.autoStartCapture,
+    recordSessions:
+      typeof data.recordSessions === 'boolean'
+        ? data.recordSessions
+        : DEFAULT_SETTINGS.recordSessions
   }
 }
 

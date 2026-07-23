@@ -3,6 +3,9 @@ import { DEFAULT_SETTINGS, type MidirSettings, type ThemeName } from '@shared/ty
 
 interface SettingsActions {
   setTheme: (name: ThemeName) => void
+  setCaptureDevice: (device: string) => void
+  setAutoStartCapture: (value: boolean) => void
+  setRecordSessions: (value: boolean) => void
   hydrate: () => Promise<void>
 }
 
@@ -26,6 +29,9 @@ export const useSettingsStore = create<SettingsStore>((set) => ({
   ...DEFAULT_SETTINGS,
 
   setTheme: (name) => set({ theme: name }),
+  setCaptureDevice: (device) => set({ captureDevice: device }),
+  setAutoStartCapture: (value) => set({ autoStartCapture: value }),
+  setRecordSessions: (value) => set({ recordSessions: value }),
 
   hydrate: async () => {
     const loaded = await window.api.settings.load()
@@ -55,9 +61,9 @@ useSettingsStore.subscribe((state) => {
   if (saveTimer) clearTimeout(saveTimer)
   saveTimer = setTimeout(() => {
     if (typeof window === 'undefined' || !window.api?.settings) return
-    const { theme } = state
+    const { theme, captureDevice, autoStartCapture, recordSessions } = state
     window.api.settings
-      .save({ theme })
+      .save({ theme, captureDevice, autoStartCapture, recordSessions })
       .catch((err) => console.error('[settings] save IPC failed:', err))
   }, 200)
 })
