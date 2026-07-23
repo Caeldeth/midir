@@ -27,6 +27,7 @@ Keep entries user-facing — internal refactors/tests show up in the appended au
 - A capture indicator in the title bar. It says whether Midir is stopped, listening, or reading a named character.
 - A clear warning when Midir starts after you log in. Midir learns each session's keys from the login handshake, so it has to be running first.
 - Settings for the network adapter, for starting capture when Midir opens, and for the theme.
+- An Items view: every item across every character, searchable by name. Each row gives the total, the characters that hold it, the slot each one is in, and how long ago that character was last read.
 - Session recording, for working out a packet Midir does not understand yet. A recording holds everything the client and the server exchanged, including your character name, so treat the file as private.
 
 ### Security
