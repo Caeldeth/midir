@@ -1,0 +1,49 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  overflow: hidden;
+  user-select: none;
+}
+
+/* Scrollbar colors are CSS variables driven by the active MUI theme.
+   App.tsx sets --scrollbar-thumb / --scrollbar-thumb-hover /
+   --scrollbar-track on :root from theme.palette.background.* whenever
+   the theme changes. The fallbacks below match hybrasyl so the very
+   first paint (before App's effect runs) doesn't flash a default
+   browser scrollbar. */
+:root {
+  --scrollbar-thumb: #1e5e56;
+  --scrollbar-thumb-hover: #3a9e90;
+  --scrollbar-track: rgba(2, 5, 10, 0.95);
+}
+::-webkit-scrollbar {
+  width: 14px;
+  height: 12px;
+}
+::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+  border-left: 6px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb {
+  background-color: var(--scrollbar-thumb);
+  border-radius: 6px;
+  border-left: 6px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--scrollbar-thumb-hover);
+}
+::-webkit-scrollbar-corner {
+  background: transparent;
+}

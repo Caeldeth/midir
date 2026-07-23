@@ -1,0 +1,27 @@
+{
+  "actionButtons": {
+    "commands": [
+      {
+        "name": "> test",
+        "command": "npm run test"
+      },
+      {
+        "name": "> test:coverage",
+        "command": "npm run test:coverage"
+      },
+      {
+        "name": "> typecheck",
+        "command": "npm run typecheck"
+      },
+      {
+        "name": "> dev",
+        "command": "npm run dev"
+      },
+      {
+        "name": "> build:win:portable",
+        "command": "npm run build:win:portable"
+      },
+    ],
+    "loadNpmCommands": false
+  }
+}

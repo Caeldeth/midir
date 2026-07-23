@@ -1,0 +1,62 @@
+appId: co.eris.midir
+productName: Midir
+icon: resources/midir.png
+directories:
+  buildResources: build
+files:
+  - '!**/.vscode/*'
+  - '!src/*'
+  - '!electron.vite.config.{js,ts,mjs,cjs}'
+  - '!{.eslintignore,eslint.config.mjs,.prettierignore,.prettierrc.yaml,dev-app-update.yml,CHANGELOG.md,README.md}'
+  - '!{.env,.env.*,.npmrc,pnpm-lock.yaml}'
+  # The scaffold excludes above miss every other dev tree in the repo root, so
+  # they are packaged into app.asar unless they are named here. `resources/**`
+  # must survive — it is asarUnpack'd and holds splash.html and the icon.
+  - '!{coverage,e2e,test-results,playwright-report,docs,scripts,.claude,.agents,.codex,.github}/*'
+  - '!{CLAUDE.md,playwright.config.mjs,vitest.config.mjs}'
+  - '!**/*.tsbuildinfo'
+  - '!tsconfig*.json'
+asarUnpack:
+  - resources/**
+win:
+  executableName: midir
+  target:
+    - target: nsis
+      arch:
+        - x64
+    - target: portable
+      arch:
+        - x64
+nsis:
+  artifactName: ${name}-${version}-setup.${ext}
+  shortcutName: ${productName}
+  uninstallDisplayName: ${productName}
+  createDesktopShortcut: always
+portable:
+  artifactName: ${name}-${version}-portable.${ext}
+mac:
+  category: public.app-category.developer-tools
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
+  target:
+    - target: dmg
+      arch:
+        - universal
+  notarize: true
+dmg:
+  artifactName: ${name}-${version}.${ext}
+linux:
+  target:
+    - AppImage
+    - deb
+  maintainer: Caeldeth
+  category: Utility
+appImage:
+  artifactName: ${name}-${version}.${ext}
+publish:
+  provider: github
+  owner: Caeldeth
+  repo: midir
+npmRebuild: false

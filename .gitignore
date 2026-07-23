@@ -1,0 +1,13 @@
+node_modules
+dist
+out
+coverage
+*.tsbuildinfo
+*.log
+.DS_Store
+.vite
+
+# Playwright (e2e)
+test-results
+playwright-report
+playwright/.cache
