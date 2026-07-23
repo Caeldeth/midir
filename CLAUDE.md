@@ -18,6 +18,14 @@ Two limits are known and stated, not fixed. The scrubber **stops recording a con
 
 **Documentation and comments follow ASD-STE100 Simplified Technical English.** One instruction per sentence, present tense, active voice, short sentences, no idioms.
 
+## Work packages
+
+`docs/plans/` holds the work packages. **`docs/plans/00-overview.md` is the index — read it before
+any WP**, and `00a-backlog.md` is the register of everything known and not scheduled, each entry
+with the trigger that would promote it. Shipped WP docs live in `docs/plans/complete/`; planned ones
+stay at the top level. WP1 to WP6 and WP8 to WP11 are retrospective records of what shipped, not
+plans written first. This file stays the law; a WP doc has to agree with it.
+
 ## Canonical references (read these first)
 
 - **Retail protocol, house description** — the document repo's `docs/protocol/`. Per-opcode files under `client/` and `server/`, plus `WIRE-FORMATS.md`, `OPCODE-MAP.md`, `CLIENT-FRAMING.md`, and `DISCREPANCIES.md`. Many entries carry binary verification against the USDA client and note which paths are dead in that build. **Where the two sources disagree, follow this one.**
@@ -101,7 +109,7 @@ Aliases: `@renderer` to `src/renderer/src`, `@shared` to `src/shared`.
 
 - **`SStatus 0x08` is flag-gated.** The byte after the opcode selects which blocks follow (`0x20` core stats, `0x10` health and mana, `0x08` experience and currency, `0x04` combat modifiers, `0x01` mail state, `0xC0` privilege level). A partial update must **merge** into the stored record. It must not replace it.
 - **Trailing bytes are not fields.** The retail parsers stop at the last field they read. A decoder must accept a body that is longer than the fields it consumes.
-- **The retail protocol has no bank opcode.** Bank contents arrive as NPC dialog: `SScreenMenu 0x2F`, menu type 4, **pursuit `0x56`**. The pursuit is a server-wide constant, not a per-NPC dialog id — three bank NPCs used it, and a *shop* buy list from one of those same NPCs used `0x4a`. The row is `[u16 sprite][u8 color][u32 count][string8 name][string8 desc]`; both protocol sources call that `u32` a price, but in a bank it is the **quantity held**. Bank data is opportunistic — it updates only when the player opens the bank. Always show the "as of" time.
+- **The retail protocol has no bank opcode.** Bank contents arrive as NPC dialog: `SScreenMenu 0x2F`, menu type 4, **pursuit `0x56`**. The pursuit is a server-wide constant, not a per-NPC dialog id — three bank NPCs used it, and a _shop_ buy list from one of those same NPCs used `0x4a`. The row is `[u16 sprite][u8 color][u32 count][string8 name][string8 desc]`; both protocol sources call that `u32` a price, but in a bank it is the **quantity held**. Bank data is opportunistic — it updates only when the player opens the bank. Always show the "as of" time.
 - **An empty bank sends no reply at all**, so silence on its own is identical to never having opened one, to a missed packet, and to capture starting late. **The player's request is what tells them apart.** `CMerchant 0x39` pursuit `0x45` is "withdraw item", and a request with no list behind it, on a connection that lost no bytes, is an empty bank. That is the only thing that may render one as empty; a record with no bank at all is still unread, never empty. The wait is `BANK_REPLY_WINDOW_MS` in `model/character.ts`, against observed replies of 119 to 253 ms. See `protocol/decode/dialog.ts`.
 - **Client opcodes `0x39` and `0x3A` carry a second layer under the transform.** The dialog-response inner wrapper is a random header, a custom CRC16, and an incrementing XOR, and only these two opcodes have it. A body that decrypts cleanly and matches no known layout is this, not a decrypt bug. The CRC is the proof the outer key was right. See `protocol/dialogWrapper.ts` and `protocol/crc16.ts`, whose CRC16 is **not** CRC-16/XMODEM.
 - **The two directions have separate transform tables and separate sequence counters.** Do not share one counter.
