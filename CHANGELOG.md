@@ -27,8 +27,11 @@ Keep entries user-facing — internal refactors/tests show up in the appended au
 - A capture indicator in the title bar. It says whether Midir is stopped, listening, or reading a named character.
 - A clear warning when Midir starts after you log in. Midir learns each session's keys from the login handshake, so it has to be running first.
 - Settings for the network adapter, for starting capture when Midir opens, and for the theme.
-- An Items view: every item across every character, searchable by name. Each row gives the total, the characters that hold it, the slot each one is in, and how long ago that character was last read.
+- An Items view: every item across every character, searchable by name. Each row gives the total and names each character that holds it once, whatever the number of slots. Hover a name for the slot, the durability, and how long ago that character was last read.
 - Session recording, for working out a packet Midir does not understand yet. A recording holds everything the client and the server exchanged, including your character name, so treat the file as private.
+- A Diagnostics view. It reads Midir's own log, which you can filter by level or by text and copy into a bug report, and it lists your session recordings with their size and start time.
+- A log file under `%LOCALAPPDATA%\Erisco\Midir\logs`. Midir writes one file each time it opens and keeps the last ten. An installed build has no console, so this is how a failure can be reported at all. A failure in the window is written there too, and no longer leaves a blank screen.
+- A limit on the disk that recordings use. Midir deletes the oldest ones when a capture starts, and never the one it is writing. The limit is a setting; the default is 1024 MB and zero means no limit. You can also delete recordings one at a time, or all at once, in Diagnostics.
 
 ### Security
 

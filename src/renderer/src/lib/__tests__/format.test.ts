@@ -4,6 +4,7 @@ import {
   elementName,
   equipmentSlotName,
   formatAgo,
+  formatBytes,
   formatDurability,
   formatNumber,
   formatSigned,
@@ -84,5 +85,24 @@ describe('formatDurability', () => {
 
   it('shows nothing for an item that has no durability', () => {
     expect(formatDurability(0, 0)).toBe('')
+  })
+})
+
+describe('formatBytes', () => {
+  it('uses the largest unit that keeps the number readable', () => {
+    expect(formatBytes(512)).toBe('512 B')
+    expect(formatBytes(2048)).toBe('2.0 KB')
+    expect(formatBytes(5 * 1024 * 1024)).toBe('5.0 MB')
+    expect(formatBytes(1.5 * 1024 * 1024 * 1024)).toBe('1.5 GB')
+  })
+
+  it('shows bytes as whole things', () => {
+    expect(formatBytes(1023)).toBe('1023 B')
+  })
+
+  it('reads an empty or impossible size as nothing', () => {
+    expect(formatBytes(0)).toBe('0 B')
+    expect(formatBytes(-5)).toBe('0 B')
+    expect(formatBytes(Number.NaN)).toBe('0 B')
   })
 })

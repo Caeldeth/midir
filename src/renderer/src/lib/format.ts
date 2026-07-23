@@ -61,6 +61,26 @@ export function formatAgo(timestampMs: number, nowMs: number = Date.now()): stri
   return `${days} day${days === 1 ? '' : 's'} ago`
 }
 
+const SIZE_UNITS = ['B', 'KB', 'MB', 'GB', 'TB']
+
+/**
+ * A file size in the largest unit that keeps it readable.
+ *
+ * The recordings list needs this. A session file is anything from a few
+ * kilobytes to hundreds of megabytes, and a raw byte count answers nothing.
+ */
+export function formatBytes(bytes: number): string {
+  if (!Number.isFinite(bytes) || bytes <= 0) return '0 B'
+  let value = bytes
+  let unit = 0
+  while (value >= 1024 && unit < SIZE_UNITS.length - 1) {
+    value /= 1024
+    unit++
+  }
+  // Bytes are whole things. Everything above them reads better with one place.
+  return `${unit === 0 ? Math.round(value) : value.toFixed(1)} ${SIZE_UNITS[unit]}`
+}
+
 /** A durability as "current / maximum", or an empty string when it has none. */
 export function formatDurability(durability: number, maxDurability: number): string {
   if (maxDurability === 0) return ''

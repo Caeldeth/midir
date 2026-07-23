@@ -1,6 +1,18 @@
 import { join } from 'path'
 import { promises as fs } from 'fs'
-import { DEFAULT_SETTINGS, THEME_NAMES, type MidirSettings, type ThemeName } from '../shared/types'
+import {
+  DEFAULT_SETTINGS,
+  MAX_RECORDING_CAP_MB,
+  THEME_NAMES,
+  type MidirSettings,
+  type ThemeName
+} from '../shared/types'
+import { messageOf, type Logger } from './log'
+
+/** Keep a cap that came from an edited file inside the range the app accepts. */
+function clampCap(value: number): number {
+  return Math.min(MAX_RECORDING_CAP_MB, Math.max(0, Math.floor(value)))
+}
 
 function withDefaults(data: Partial<MidirSettings>): MidirSettings {
   return {
@@ -16,7 +28,11 @@ function withDefaults(data: Partial<MidirSettings>): MidirSettings {
     recordSessions:
       typeof data.recordSessions === 'boolean'
         ? data.recordSessions
-        : DEFAULT_SETTINGS.recordSessions
+        : DEFAULT_SETTINGS.recordSessions,
+    recordingCapMb:
+      typeof data.recordingCapMb === 'number' && Number.isFinite(data.recordingCapMb)
+        ? clampCap(data.recordingCapMb)
+        : DEFAULT_SETTINGS.recordingCapMb
   }
 }
 
@@ -54,7 +70,12 @@ async function renameWithRetry(src: string, dest: string, retries = 3, delay = 5
   await fs.rename(src, dest)
 }
 
-export function createSettingsManager(userDataPath: string) {
+/**
+ * `log` is optional so a test can build a manager without one. The app always
+ * passes it, because a settings file that will not load is exactly the failure
+ * a user cannot see in a packaged build.
+ */
+export function createSettingsManager(userDataPath: string, log?: Logger) {
   const primary = join(userDataPath, 'settings.json')
   const backup = join(userDataPath, 'settings.bak.json')
   const tmp = join(userDataPath, 'settings.tmp.json')
@@ -63,15 +84,15 @@ export function createSettingsManager(userDataPath: string) {
     let data = await tryReadJson(primary)
     if (data) return withDefaults(data)
 
-    console.warn('settings.json unreadable, trying backup')
+    log?.warn('settings', 'settings.json is unreadable. Trying the backup.')
     data = await tryReadJson(backup)
     if (data) {
-      console.warn('Recovered settings from backup')
+      log?.warn('settings', 'Recovered the settings from the backup.')
       await save(withDefaults(data))
       return withDefaults(data)
     }
 
-    console.warn('No valid settings found, using defaults')
+    log?.warn('settings', 'No valid settings were found. Using the defaults.')
     return { ...DEFAULT_SETTINGS }
   }
 
@@ -99,7 +120,7 @@ export function createSettingsManager(userDataPath: string) {
       () => doSave(settings),
       () => doSave(settings)
     )
-    op.catch((err) => console.error('[settings] save failed:', err))
+    op.catch((err) => log?.error('settings', `The save failed: ${messageOf(err)}`))
     saveQueue = op.catch(() => {})
     return op
   }
