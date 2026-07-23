@@ -4,7 +4,11 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig(({ command }) => ({
   main: {
-    plugins: [externalizeDepsPlugin()]
+    plugins: [externalizeDepsPlugin()],
+    build: {
+      // The native addon must stay outside the bundle and be loaded from disk.
+      rollupOptions: { external: ['da-pcap'] }
+    }
   },
   preload: {
     plugins: [externalizeDepsPlugin()]
