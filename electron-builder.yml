@@ -16,8 +16,14 @@ files:
   - '!{CLAUDE.md,playwright.config.mjs,vitest.config.mjs}'
   - '!**/*.tsbuildinfo'
   - '!tsconfig*.json'
+  # The addon's sources and build recipe are not needed at run time.
+  - '!packages/da-pcap/src/**'
+  - '!packages/da-pcap/binding.gyp'
 asarUnpack:
   - resources/**
+  # A native module cannot be loaded from inside an asar archive.
+  - node_modules/da-pcap/build/**
+  - packages/da-pcap/build/**
 win:
   executableName: midir
   target:
@@ -60,3 +66,4 @@ publish:
   owner: Caeldeth
   repo: midir
 npmRebuild: false
+beforeBuild: npx @electron/rebuild -f -w da-pcap
