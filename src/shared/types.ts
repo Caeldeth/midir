@@ -69,6 +69,8 @@ export interface CaptureStatus {
   device?: string
   /** The character being decoded now. */
   characterName?: string
+  /** The file this session is being recorded to, when recording is on. */
+  recordingPath?: string
   /** How many of the game client's connections are being followed. */
   connections: number
   /** How many packets have been decoded since capture started. */

@@ -1,4 +1,5 @@
-import { ServerOpcode } from '../opcodes'
+import { ClientOpcode, ServerOpcode } from '../opcodes'
+import { decodeLogin, type ClientLogin } from './client'
 import {
   decodeDrawHumanObjects,
   decodeSelfLook,
@@ -27,11 +28,13 @@ import {
 } from './items'
 
 export * from './character'
+export * from './client'
 export * from './handshake'
 export * from './items'
 
-/** A server packet Midir models. */
+/** A packet Midir models, in either direction. */
 export type DecodedPacket =
+  | ClientLogin
   | VersionCheck
   | TransferServer
   | UserAppearance
@@ -58,9 +61,28 @@ const DECODERS = new Map<number, Decoder>([
   [ServerOpcode.SelfLook, decodeSelfLook]
 ])
 
+const CLIENT_DECODERS = new Map<number, Decoder>([[ClientOpcode.Login, decodeLogin]])
+
 /** True while Midir has a decoder for `opcode`. */
 export function hasServerDecoder(opcode: number): boolean {
   return DECODERS.has(opcode)
+}
+
+/** True while Midir has a decoder for a client-direction `opcode`. */
+export function hasClientDecoder(opcode: number): boolean {
+  return CLIENT_DECODERS.has(opcode)
+}
+
+/**
+ * Decode one plaintext client body, opcode first.
+ *
+ * Returns null when Midir does not model the opcode, which is the usual case:
+ * Midir reads the client's side only to learn the character name.
+ */
+export function decodeClientPacket(body: Uint8Array): DecodedPacket | null {
+  if (body.length === 0) return null
+  const decoder = CLIENT_DECODERS.get(body[0]!)
+  return decoder ? decoder(body) : null
 }
 
 /**

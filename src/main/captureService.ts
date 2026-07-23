@@ -1,6 +1,8 @@
 import type { CharacterRecord } from '../shared/character'
 import type { CaptureStatus } from '../shared/types'
-import type { PacketSource } from './capture/source'
+import type { Recorder } from './capture/recorder'
+import { teeSink } from './capture/recorder'
+import type { CaptureSink, PacketSource } from './capture/source'
 import { createSessionTracker, type TrackedEvent } from './capture/tracker'
 import { isIdentified, newSession, reduce, type CharacterSession } from './model/character'
 import { withCharacter, type CharacterStore } from './store/characterStore'
@@ -27,6 +29,15 @@ export interface CaptureServiceOptions {
   now?: () => number
   /** How long to wait before writing a changed record to disk. */
   saveDebounceMs?: number
+  /**
+   * Start a recording for this capture, or return null to record nothing.
+   *
+   * A recording holds everything the client and server exchanged, including
+   * the character name and that session's keys, so it is off unless the user
+   * turns it on. It is the tool for pinning a packet whose shape is not known
+   * yet, because it makes one live session repeatable forever.
+   */
+  createRecorder?: (startedAtMs: number) => Promise<Recorder | null>
 }
 
 /** How long to gather changes before writing. A login is a burst of packets. */
@@ -52,6 +63,7 @@ export function createCaptureService(options: CaptureServiceOptions): CaptureSer
 
   let source: PacketSource | undefined
   let device: string | undefined
+  let recorder: Recorder | null = null
   let saveTimer: NodeJS.Timeout | undefined
   let decodedCount = 0
   let unreadableCount = 0
@@ -75,6 +87,7 @@ export function createCaptureService(options: CaptureServiceOptions): CaptureSer
       missedHandshake,
       ...(device !== undefined ? { device } : {}),
       ...(currentCharacter !== undefined ? { characterName: currentCharacter } : {}),
+      ...(recorder !== null ? { recordingPath: recorder.path } : {}),
       ...(lastError !== undefined ? { error: lastError } : {})
     }
   }
@@ -151,27 +164,36 @@ export function createCaptureService(options: CaptureServiceOptions): CaptureSer
       tracker.clear()
 
       device = nextDevice
+      recorder = (await options.createRecorder?.(now())) ?? null
+
+      const decode: CaptureSink = {
+        onOpen: (connection) => {
+          tracker.onOpen?.(connection)
+          connectionCount = tracker.activeConnections().length
+          publishStatus()
+        },
+        onChunk: (chunk) => tracker.onChunk?.(chunk),
+        onClose: (connection) => {
+          tracker.onClose?.(connection)
+          sessions.delete(connection.id)
+          connectionCount = tracker.activeConnections().length
+          publishStatus()
+        },
+        onError: (error) => {
+          lastError = error.message
+          publishStatus()
+        }
+      }
+      // Record the raw stream beside decoding it, never instead of it, so a
+      // recording is a faithful copy of the session that was read.
+      const sink = recorder === null ? decode : teeSink(recorder, decode)
+
       const next = createSource(nextDevice)
       try {
-        await next.start({
-          onOpen: (connection) => {
-            tracker.onOpen?.(connection)
-            connectionCount = tracker.activeConnections().length
-            publishStatus()
-          },
-          onChunk: (chunk) => tracker.onChunk?.(chunk),
-          onClose: (connection) => {
-            tracker.onClose?.(connection)
-            sessions.delete(connection.id)
-            connectionCount = tracker.activeConnections().length
-            publishStatus()
-          },
-          onError: (error) => {
-            lastError = error.message
-            publishStatus()
-          }
-        })
+        await next.start(sink)
       } catch (error) {
+        await recorder?.close()
+        recorder = null
         device = undefined
         lastError = error instanceof Error ? error.message : String(error)
         publishStatus()
@@ -188,11 +210,15 @@ export function createCaptureService(options: CaptureServiceOptions): CaptureSer
         saveTimer = undefined
       }
       const running = source
+      const writing = recorder
       source = undefined
       device = undefined
+      recorder = null
       currentCharacter = undefined
       connectionCount = 0
+      // Stop the source first, so no event arrives after the file is closed.
       if (running !== undefined) await running.stop()
+      await writing?.close()
       tracker.clear()
       sessions.clear()
       await flush()

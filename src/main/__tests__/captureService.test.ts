@@ -1,10 +1,12 @@
+import { readFileSync } from 'node:fs'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { CharacterRecord, CaptureStatus } from '../../shared/types'
+import { createRecorder } from '../capture/recorder'
 import { createReplaySource } from '../capture/replaySource'
-import { encodeChunk, type RecordingLine } from '../capture/recording'
+import { encodeChunk, parseRecording, type RecordingLine } from '../capture/recording'
 import type { ConnectionInfo, PacketSource, StreamChunk } from '../capture/source'
 import { createCaptureService } from '../captureService'
 import { ServerOpcode } from '../protocol/opcodes'
@@ -274,6 +276,47 @@ describe('createCaptureService', () => {
     await expect(service.start('adapter')).rejects.toThrow('Npcap is not installed.')
     expect(service.status().running).toBe(false)
     expect(statuses.at(-1)?.error).toBe('Npcap is not installed.')
+  })
+
+  it('records a session to a file that replays into the same character', async () => {
+    // The recording is the tool for pinning a packet whose shape is unknown,
+    // so it has to be a faithful copy of what was decoded, not a summary.
+    const path = join(directory, 'recorded.ndjson')
+    const store = createCharacterStore(join(directory, 'store'))
+    const service = createCaptureService({
+      store,
+      createSource: (): PacketSource => createReplaySource(loginRecording()),
+      createRecorder: (startedAtMs) => createRecorder(path, { startedAtMs }),
+      saveDebounceMs: 0
+    })
+
+    await service.start('adapter')
+    expect(service.status().recordingPath).toBe(path)
+    await service.stop()
+
+    // Replay what was written, into a fresh store.
+    const replayStore = createCharacterStore(join(directory, 'replay'))
+    const replayService = createCaptureService({
+      store: replayStore,
+      createSource: (): PacketSource =>
+        createReplaySource(parseRecording(readFileSync(path, 'utf8'))),
+      saveDebounceMs: 0
+    })
+    await replayService.start('adapter')
+    await replayService.stop()
+
+    const original = (await store.load()).characters[CHARACTER]
+    const replayed = (await replayStore.load()).characters[CHARACTER]
+    expect(replayed).toBeDefined()
+    expect(replayed?.stats).toEqual(original?.stats)
+    expect(replayed?.inventory).toEqual(original?.inventory)
+  })
+
+  it('records nothing unless asked, and says so in the status', async () => {
+    const { service } = build(loginRecording())
+    await service.start('adapter')
+    expect(service.status().recordingPath).toBeUndefined()
+    await service.stop()
   })
 
   it('keeps the record when the same character logs in twice', async () => {

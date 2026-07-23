@@ -34,6 +34,8 @@ function Settings(): React.JSX.Element {
   const setCaptureDevice = useSettingsStore((s) => s.setCaptureDevice)
   const autoStartCapture = useSettingsStore((s) => s.autoStartCapture)
   const setAutoStartCapture = useSettingsStore((s) => s.setAutoStartCapture)
+  const recordSessions = useSettingsStore((s) => s.recordSessions)
+  const setRecordSessions = useSettingsStore((s) => s.setRecordSessions)
 
   const availability = useCaptureStore((s) => s.availability)
   const status = useCaptureStore((s) => s.status)
@@ -134,6 +136,23 @@ function Settings(): React.JSX.Element {
             label="Start capturing when Midir opens"
           />
 
+          <FormControlLabel
+            control={
+              <Switch
+                checked={recordSessions}
+                onChange={(event) => setRecordSessions(event.target.checked)}
+                disabled={status.running}
+              />
+            }
+            label="Record sessions to a file"
+          />
+          <Typography variant="caption" sx={{ color: 'text.secondary', ml: 6, mt: -0.5 }}>
+            A recording lets a session be replayed later, which is how a packet Midir does not
+            understand yet gets worked out. It holds everything the client and the server exchanged,
+            including your character name and that session&apos;s keys, so treat it as private.
+            Recording starts on the next capture.
+          </Typography>
+
           <Box sx={{ flexGrow: 1 }} />
           <Typography variant="caption" sx={{ color: 'text.secondary', mt: 2 }}>
             {status.running
@@ -144,6 +163,11 @@ function Settings(): React.JSX.Element {
                 )} not read`
               : 'Capture is stopped.'}
           </Typography>
+          {status.recordingPath !== undefined ? (
+            <Typography variant="caption" sx={{ color: 'text.secondary', mt: 0.5 }}>
+              Recording to {status.recordingPath}
+            </Typography>
+          ) : null}
         </Paper>
 
         <Paper sx={cardSx}>

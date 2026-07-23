@@ -33,6 +33,8 @@ export interface SessionTracker extends CaptureSink {
   activeConnections(): ConnectionInfo[]
   /** The name the session key was built from on `connectionId`. */
   keyNameOf(connectionId: string): string | undefined
+  /** The name from the most recent login, which seeds every later hop. */
+  loginName(): string | undefined
   /** Forget every connection and every waiting redirect. */
   clear(): void
 }
@@ -53,6 +55,12 @@ export function createSessionTracker(onEvent: (event: TrackedEvent) => void): Se
   const connections = new Map<string, TrackedConnection>()
   /** Redirects seen but not yet claimed, keyed by `address:port`. */
   const pendingRedirects = new Map<string, ProtocolSession>()
+  /**
+   * The name from the most recent CLogin. The client keeps using it for every
+   * later hop, so the world connection needs it even though the login happened
+   * on the connection before.
+   */
+  let lastLoginName: string | undefined
 
   function destinationKey(address: string, port: number): string {
     return `${address}:${port}`
@@ -66,9 +74,10 @@ export function createSessionTracker(onEvent: (event: TrackedEvent) => void): Se
       return waiting
     }
     // No redirect pointed here. This is the first connection of a login, or
-    // Midir started in the middle of a session. Either way, start from the
-    // client's own defaults and wait for the handshake.
-    return createProtocolSession()
+    // Midir started in the middle of a session. Start from the client's own
+    // defaults, but carry a name already learned from a login: on retail the
+    // redirect token is opaque, so CLogin is the only reliable source.
+    return createProtocolSession(lastLoginName !== undefined ? { keyName: lastLoginName } : {})
   }
 
   function open(info: ConnectionInfo): TrackedConnection {
@@ -91,11 +100,19 @@ export function createSessionTracker(onEvent: (event: TrackedEvent) => void): Se
       if (chunk.gap) tracked.session.reset()
 
       for (const event of tracked.session.push(chunk.direction, chunk.bytes)) {
+        // The player submitted a name. Every connection after this one is
+        // keyed from it, so remember it before the redirect arrives.
+        if (event.type === 'packet' && event.packet.kind === 'login') {
+          lastLoginName = event.packet.name
+        }
         // A redirect describes the NEXT connection. Park its cipher state
         // under the destination it names, ready for the connection to come.
         if (event.type === 'packet' && event.packet.kind === 'transferServer') {
           const { address, port } = event.packet
-          pendingRedirects.set(destinationKey(address, port), sessionFromRedirect(event.packet))
+          pendingRedirects.set(
+            destinationKey(address, port),
+            sessionFromRedirect(event.packet, lastLoginName)
+          )
         }
         onEvent({
           connection: tracked.info,
@@ -120,10 +137,15 @@ export function createSessionTracker(onEvent: (event: TrackedEvent) => void): Se
       return connections.get(connectionId)?.session.state.keyName
     },
 
+    loginName(): string | undefined {
+      return lastLoginName
+    },
+
     clear(): void {
       for (const tracked of connections.values()) tracked.session.reset()
       connections.clear()
       pendingRedirects.clear()
+      lastLoginName = undefined
     }
   }
 }

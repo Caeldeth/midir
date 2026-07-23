@@ -6,7 +6,13 @@ import {
   type CipherState,
   type Direction
 } from './cipher'
-import { decodeServerPacket, type DecodedPacket, type TransferServer } from './decode'
+import {
+  decodeClientPacket,
+  decodeServerPacket,
+  looksLikeCharacterName,
+  type DecodedPacket,
+  type TransferServer
+} from './decode'
 import { createFrameReader, type FrameReader } from './frame'
 import { opcodeName, SERVER_HELLO, transformFor, type Transform } from './opcodes'
 
@@ -129,14 +135,17 @@ export function createProtocolSession(options: SessionOptions = {}): ProtocolSes
       return { ...base, type: 'unreadable', reason, error: messageOf(error) }
     }
 
-    if (direction !== 'serverToClient') {
-      return { ...base, type: 'unreadable', reason: 'notModelled', body }
-    }
-
     try {
-      const packet = decodeServerPacket(body)
+      const packet =
+        direction === 'serverToClient' ? decodeServerPacket(body) : decodeClientPacket(body)
       if (packet === null) {
         return { ...base, type: 'unreadable', reason: 'notModelled', body }
+      }
+      // The name the player submitted is what the client feeds into its own
+      // key setup, so it is the authoritative seed for this connection's
+      // session key. It arrives under the startup key, which is a constant.
+      if (packet.kind === 'login' && looksLikeCharacterName(packet.name)) {
+        applyKeyName(state, packet.name)
       }
       // A redirect carries the cipher state for the NEXT connection, not this
       // one. Only SVersionCheck changes the state of the connection it arrives
@@ -203,16 +212,27 @@ function messageOf(error: unknown): string {
 /**
  * Build the session for the connection a redirect points at.
  *
- * The redirect token carries the salt selector, the startup key, and the name
- * for the destination. At the login to world hop that name is the character
- * name, which is what seeds the session key.
+ * **The redirect token is opaque to the retail client**, which copies it into
+ * its next CTransferServer without reading it. The layout Midir parses was
+ * recovered from a loopback capture, so it holds for a Hybrasyl-style server
+ * and may not hold for retail.
+ *
+ * `knownName` therefore wins when it is given. It comes from CLogin, which is
+ * the value the client itself passes to its key setup. A name taken from the
+ * token is used only as a fallback, and only when it could be a name at all: a
+ * wrong name does not fail loudly, it silently decrypts everything after it
+ * into rubbish.
  */
-export function sessionFromRedirect(redirect: TransferServer): ProtocolSession {
+export function sessionFromRedirect(redirect: TransferServer, knownName?: string): ProtocolSession {
+  const tokenName =
+    redirect.name !== undefined && looksLikeCharacterName(redirect.name) ? redirect.name : undefined
+  const keyName = knownName ?? tokenName
+
   return createProtocolSession({
     ...(redirect.saltSelector !== undefined ? { saltSelector: redirect.saltSelector } : {}),
     ...(redirect.startupKey !== undefined && redirect.startupKey.length > 0
       ? { startupKey: redirect.startupKey }
       : {}),
-    ...(redirect.name !== undefined && redirect.name.length > 0 ? { keyName: redirect.name } : {})
+    ...(keyName !== undefined ? { keyName } : {})
   })
 }

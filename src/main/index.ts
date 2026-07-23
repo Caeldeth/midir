@@ -4,6 +4,7 @@ import { copyFileSync, existsSync, mkdirSync } from 'fs'
 import { join } from 'path'
 import type { CaptureAvailability } from '../shared/types'
 import { createPcapSource, loadPcapApi, type PcapApi } from './capture/pcapSource'
+import { createRecorder, type Recorder } from './capture/recorder'
 import { createCaptureService } from './captureService'
 import {
   CAPTURE_STATUS_CHANNEL,
@@ -107,12 +108,37 @@ const characterStore = createCharacterStore(settingsPath, (failure) => {
   console.error(`[characters] ${failure.stage}: ${failure.path} — ${failure.message}`)
 })
 
+/** Where a recorded session is written. */
+const recordingsPath = join(settingsPath, 'recordings')
+
+/**
+ * Start a recording, but only when the user asked for one. The setting is read
+ * fresh at every start, so turning it on takes effect on the next capture.
+ */
+async function startRecordingIfWanted(startedAtMs: number): Promise<Recorder | null> {
+  try {
+    const settings = await settingsManager.load()
+    if (!settings.recordSessions) return null
+    const stamp = new Date(startedAtMs).toISOString().replace(/[:.]/g, '-')
+    return await createRecorder(join(recordingsPath, `session-${stamp}.ndjson`), {
+      startedAtMs,
+      note: `Midir ${app.getVersion()}`
+    })
+  } catch (error) {
+    // A recording is a developer aid. Failing to write one must never stop
+    // the capture the user actually asked for.
+    console.error('[capture] could not start recording:', error)
+    return null
+  }
+}
+
 const captureService = createCaptureService({
   store: characterStore,
   createSource: (device) => {
     if (pcap === null) throw new Error(pcapLoadError ?? 'Packet capture is unavailable.')
     return createPcapSource({ device, api: pcap })
   },
+  createRecorder: startRecordingIfWanted,
   onStatus: (status) => pushToRenderer(CAPTURE_STATUS_CHANNEL, status),
   onCharacter: (record) => pushToRenderer(CHARACTER_CHANGED_CHANNEL, record)
 })
