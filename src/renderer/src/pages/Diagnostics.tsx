@@ -40,7 +40,9 @@ import React, { useEffect, useMemo, useState } from 'react'
  * delete one says so.
  */
 
-const cardSx = { p: 3, display: 'flex', flexDirection: 'column', minHeight: 0 } as const
+// `flexShrink: 0` keeps a card at its content height. Without it the two cards
+// compete for the column and the shorter one is squeezed.
+const cardSx = { p: 3, display: 'flex', flexDirection: 'column', flexShrink: 0 } as const
 const headingSx = { color: 'text.button', fontWeight: 'bold' } as const
 const descriptionSx = { color: 'text.secondary', mb: 2 } as const
 
@@ -91,7 +93,7 @@ function LogSection(): React.JSX.Element {
   }
 
   return (
-    <Paper sx={{ ...cardSx, flex: 1, minHeight: 320 }} data-testid="log-section">
+    <Paper sx={cardSx} data-testid="log-section">
       <Typography variant="h6" sx={headingSx}>
         Log
       </Typography>
@@ -176,8 +178,9 @@ function LogSection(): React.JSX.Element {
         <Box
           data-testid="log-lines"
           sx={{
-            flex: 1,
-            minHeight: 200,
+            // A bounded height, not a share of the column. The lines scroll
+            // inside the card; a long log used to grow the card past the page.
+            maxHeight: 420,
             overflow: 'auto',
             fontFamily: 'monospace',
             fontSize: '0.78rem',
@@ -325,7 +328,20 @@ function Diagnostics(): React.JSX.Element {
   }, [refresh])
 
   return (
-    <Box sx={{ p: 2.5, overflow: 'auto', display: 'flex', flexDirection: 'column', gap: 3 }}>
+    // `flex: 1` with `minHeight: 0` makes this the element that scrolls. As a
+    // plain flex child it sized to its content instead, and the cards ran off
+    // the bottom of the window.
+    <Box
+      sx={{
+        flex: 1,
+        minHeight: 0,
+        p: 2.5,
+        overflow: 'auto',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 3
+      }}
+    >
       {error !== null ? <Alert severity="error">{error}</Alert> : null}
       <LogSection />
       <RecordingsSection />
