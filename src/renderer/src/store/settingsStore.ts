@@ -7,6 +7,7 @@ interface SettingsActions {
   setAutoStartCapture: (value: boolean) => void
   setRecordSessions: (value: boolean) => void
   setRecordingCapMb: (value: number) => void
+  setDarkAgesPath: (value: string | undefined) => void
   hydrate: () => Promise<void>
 }
 
@@ -34,6 +35,8 @@ export const useSettingsStore = create<SettingsStore>((set) => ({
   setAutoStartCapture: (value) => set({ autoStartCapture: value }),
   setRecordSessions: (value) => set({ recordSessions: value }),
   setRecordingCapMb: (value) => set({ recordingCapMb: value }),
+  // An empty pick clears the folder, which turns icons off.
+  setDarkAgesPath: (value) => set({ darkAgesPath: value === '' ? undefined : value }),
 
   hydrate: async () => {
     const loaded = await window.api.settings.load()
@@ -63,9 +66,17 @@ useSettingsStore.subscribe((state) => {
   if (saveTimer) clearTimeout(saveTimer)
   saveTimer = setTimeout(() => {
     if (typeof window === 'undefined' || !window.api?.settings) return
-    const { theme, captureDevice, autoStartCapture, recordSessions, recordingCapMb } = state
+    const { theme, captureDevice, autoStartCapture, recordSessions, recordingCapMb, darkAgesPath } =
+      state
     window.api.settings
-      .save({ theme, captureDevice, autoStartCapture, recordSessions, recordingCapMb })
+      .save({
+        theme,
+        captureDevice,
+        autoStartCapture,
+        recordSessions,
+        recordingCapMb,
+        darkAgesPath
+      })
       .catch((err) =>
         // Main owns the log. A failure here is exactly the one a packaged
         // build used to lose, because the renderer has no console either.

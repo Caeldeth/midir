@@ -22,6 +22,7 @@ import {
 } from '@renderer/lib/format'
 import { EQUIPMENT_SLOT_ORDER, INVENTORY_SLOT_COUNT } from '@shared/labels'
 import type { CharacterRecord, ItemRef } from '@shared/types'
+import ItemIcon from '@renderer/components/ItemIcon'
 import React from 'react'
 
 /**
@@ -78,15 +79,18 @@ function ItemLine({ item }: { item: ItemRef }): React.JSX.Element {
   const durability = formatDurability(item.durability, item.maxDurability)
   return (
     <Tooltip title={durability === '' ? item.name : `${item.name} — durability ${durability}`}>
-      <Typography variant="body2" noWrap sx={{ minWidth: 0 }}>
-        {item.name}
-        {item.canStack && item.count > 1 ? (
-          <Typography component="span" variant="body2" sx={{ color: 'text.secondary' }}>
-            {' '}
-            [{formatNumber(item.count)}]
-          </Typography>
-        ) : null}
-      </Typography>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, minWidth: 0 }}>
+        <ItemIcon sprite={item.sprite} color={item.color} />
+        <Typography variant="body2" noWrap sx={{ minWidth: 0 }}>
+          {item.name}
+          {item.canStack && item.count > 1 ? (
+            <Typography component="span" variant="body2" sx={{ color: 'text.secondary' }}>
+              {' '}
+              [{formatNumber(item.count)}]
+            </Typography>
+          ) : null}
+        </Typography>
+      </Box>
     </Tooltip>
   )
 }
@@ -227,7 +231,10 @@ function CharacterSheet({ record }: { record: CharacterRecord }): React.JSX.Elem
               {formatAgo(record.bank.readAtMs)}
             </Typography>
             {record.bank.items.map((item) => (
-              <Box key={`${item.name}-${item.sprite}`} sx={{ display: 'flex', gap: 1.5, py: 0.25 }}>
+              <Box
+                key={`${item.name}-${item.sprite}`}
+                sx={{ display: 'flex', alignItems: 'center', gap: 1.5, py: 0.25 }}
+              >
                 <Typography
                   variant="body2"
                   sx={{
@@ -239,6 +246,7 @@ function CharacterSheet({ record }: { record: CharacterRecord }): React.JSX.Elem
                 >
                   {item.count > 1 ? `×${formatNumber(item.count)}` : ''}
                 </Typography>
+                <ItemIcon sprite={item.sprite} color={item.color} />
                 <Typography variant="body2">{item.name}</Typography>
               </Box>
             ))}

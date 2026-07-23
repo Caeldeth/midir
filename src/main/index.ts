@@ -1,9 +1,11 @@
 import { electronApp, is, optimizer } from '@electron-toolkit/utils'
-import { app, BrowserWindow, ipcMain, shell } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, protocol, shell } from 'electron'
 import { copyFileSync, existsSync, mkdirSync } from 'fs'
 import { join } from 'path'
 import type { CaptureAvailability } from '../shared/types'
 import { createPcapSource, loadPcapApi, type PcapApi } from './capture/pcapSource'
+import { createIconService } from './icons/iconService'
+import { registerIconProtocol } from './icons/protocol'
 import { createRecorder, type Recorder } from './capture/recorder'
 import { createCaptureService } from './captureService'
 import {
@@ -48,6 +50,17 @@ function migrateSettingsFromRoaming(): void {
   }
 }
 migrateSettingsFromRoaming()
+
+// The item-icon scheme must be declared privileged before the app is ready, so
+// an `<img src="midir-icon://...">` can load it. The handler is installed after
+// the app is ready (see whenReady). Icons are decoration over a complete
+// record; the scheme carries no data the renderer could not do without.
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme: 'midir-icon',
+    privileges: { standard: true, secure: true, supportFetchAPI: true, bypassCSP: true }
+  }
+])
 
 // Startup splash: shown immediately at boot, torn down once the renderer signals
 // `app:ready` (settings hydrated). A safety timeout backstops a renderer that
@@ -174,6 +187,22 @@ const captureService = createCaptureService({
   onCharacter: (record) => pushToRenderer(CHARACTER_CHANGED_CHANNEL, record)
 })
 
+// The Dark Ages folder the icon service reads. It is kept live here: loaded
+// once at startup and updated on every settings save, so a folder chosen in
+// Settings takes effect without a restart. The service opens legend.dat lazily,
+// on the first icon request, so an unset or wrong path costs nothing until then.
+let darkAgesPath: string | undefined
+void settingsManager
+  .load()
+  .then((settings) => {
+    darkAgesPath = settings.darkAgesPath
+  })
+  .catch(() => {
+    /* the settings manager already logged; icons simply stay off */
+  })
+
+const iconService = createIconService({ getDarkAgesPath: () => darkAgesPath, log })
+
 const ctx: HandlerContext = {
   settingsPath,
   settingsManager,
@@ -183,7 +212,13 @@ const ctx: HandlerContext = {
   characterStore,
   log,
   logsPath,
-  recordingsPath
+  recordingsPath,
+  onSettingsSaved: (settings) => {
+    darkAgesPath = settings.darkAgesPath
+  },
+  updateDarkAgesPath: (path) => {
+    darkAgesPath = path
+  }
 }
 
 function revealMainWindow(): void {
@@ -245,6 +280,10 @@ app.whenReady().then(() => {
   // shows the generic Electron icon and name in the taskbar.
   electronApp.setAppUserModelId('co.eris.midir')
 
+  // Install the item-icon handler now the app is ready. The scheme was declared
+  // privileged before this (see registerSchemesAsPrivileged above).
+  registerIconProtocol(protocol, iconService, log)
+
   app.on('browser-window-created', (_, window) => {
     optimizer.watchWindowShortcuts(window)
   })
@@ -280,4 +319,4 @@ app.on('before-quit', (event) => {
   void captureService.stop().finally(() => app.quit())
 })
 
-registerHandlers({ ipcMain, BrowserWindow, shell }, ctx)
+registerHandlers({ ipcMain, BrowserWindow, shell, dialog }, ctx)

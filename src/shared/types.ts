@@ -40,6 +40,13 @@ export interface MidirSettings {
    * deleted.
    */
   recordingCapMb: number
+  /**
+   * The Dark Ages install folder, the one that holds `legend.dat`. Midir reads
+   * it only to draw item icons. It is optional: when it is unset, or holds no
+   * `legend.dat`, icons stay off and every view renders exactly as it does with
+   * no game installed.
+   */
+  darkAgesPath?: string
 }
 
 /** The largest cap the settings accept, in megabytes. */
@@ -128,6 +135,18 @@ export interface MidirApi {
   settings: {
     load: () => Promise<MidirSettings>
     save: (settings: MidirSettings) => Promise<void>
+  }
+
+  /**
+   * Item icons, drawn from the game's own `legend.dat`. The pixels arrive over
+   * the `midir-icon://` protocol, not through this bridge; these two calls only
+   * pick the folder and report whether icons are on.
+   */
+  icons: {
+    /** Open a folder picker for the Dark Ages install. Returns the path, or null. */
+    chooseFolder: () => Promise<string | null>
+    /** Whether `legend.dat` is present in `path`. Drives the Settings on/off note. */
+    probe: (path: string) => Promise<{ legendFound: boolean }>
   }
 
   capture: {
