@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import type { DecodedPacket } from '../../protocol/decode'
-import { isIdentified, newSession, reduce, type CharacterSession } from '../character'
+import { BANK_WITHDRAW_REQUEST_PURSUIT, type DecodedPacket } from '../../protocol/decode'
+import {
+  BANK_REPLY_WINDOW_MS,
+  isIdentified,
+  newSession,
+  reduce,
+  resolvePendingBank,
+  type CharacterSession
+} from '../character'
 
 const CHARACTER = 'Sabrael'
 const USER_ID = 0x0000beef
@@ -541,5 +548,110 @@ describe('the bank', () => {
     const state = run([fullStatus, bankPacket([])], { keyName: CHARACTER })
     expect(state.record.bank).not.toBeUndefined()
     expect(state.record.bank!.items).toEqual([])
+  })
+})
+
+describe('the bank the player asked for', () => {
+  const BANKER = 0x1f6f
+
+  const request = (pursuit = BANK_WITHDRAW_REQUEST_PURSUIT): DecodedPacket => ({
+    kind: 'merchantResponse',
+    objectType: 1,
+    objectId: BANKER,
+    pursuit,
+    tail: new Uint8Array(0)
+  })
+
+  const bankList = (): DecodedPacket => ({
+    kind: 'bankContents',
+    sourceId: BANKER,
+    npcName: 'Antonio',
+    items: [{ name: 'Stick', sprite: 1, color: 0, count: 4 }]
+  })
+
+  /** A packet that says nothing about this record, such as somebody else. */
+  const idle: DecodedPacket = drawSelf('Someone', 0x1234)
+
+  /** Apply one packet at an exact time. */
+  function at(
+    state: CharacterSession,
+    packet: DecodedPacket,
+    timestampMs: number,
+    sawLoss = false
+  ): CharacterSession {
+    return reduce(state, { packet, timestampMs, keyName: CHARACTER, sawLoss })
+  }
+
+  const started = (): CharacterSession => at(newSession(1000), fullStatus, 1000)
+
+  it('waits rather than deciding when the request goes out', () => {
+    const state = at(started(), request(), 2000)
+    expect(state.record.bank).toBeUndefined()
+    expect(state.pendingBank).toMatchObject({ atMs: 2000, objectId: BANKER })
+  })
+
+  it('fills the bank when the list arrives, and stops waiting', () => {
+    const asked = at(started(), request(), 2000)
+    const answered = at(asked, bankList(), 2200)
+    expect(answered.record.bank!.items).toHaveLength(1)
+    expect(answered.pendingBank).toBeUndefined()
+  })
+
+  it('records an empty bank once the wait has passed', () => {
+    // The request is the evidence. Nothing came back, so the bank was empty,
+    // and the reading belongs to the moment the player looked.
+    const asked = at(started(), request(), 2000)
+    const later = at(asked, idle, 2000 + BANK_REPLY_WINDOW_MS)
+    expect(later.record.bank).toMatchObject({ readAtMs: 2000 })
+    expect(later.record.bank!.items).toEqual([])
+    expect(later.record.bank!.npcName).toBeUndefined()
+    expect(later.pendingBank).toBeUndefined()
+  })
+
+  it('keeps waiting while the wait has not passed', () => {
+    const asked = at(started(), request(), 2000)
+    const soon = at(asked, idle, 2000 + BANK_REPLY_WINDOW_MS - 1)
+    expect(soon.record.bank).toBeUndefined()
+    expect(soon.pendingBank).not.toBeUndefined()
+  })
+
+  it('ignores a request to a menu that is not the bank', () => {
+    // Pursuit 0x40 is a shop's buy list from the same NPC.
+    const state = at(started(), request(0x40), 2000)
+    expect(state.pendingBank).toBeUndefined()
+  })
+
+  it('says nothing at all when bytes were lost', () => {
+    // A missed list looks exactly like an empty bank. Neither may be claimed.
+    const asked = at(started(), request(), 2000)
+    const lossy = at(asked, idle, 2100, true)
+    const later = at(lossy, idle, 2000 + BANK_REPLY_WINDOW_MS)
+    expect(later.record.bank).toBeUndefined()
+    expect(later.pendingBank).toBeUndefined()
+  })
+
+  it('leaves an earlier reading alone while it waits', () => {
+    const read = at(started(), bankList(), 1500)
+    const asked = at(read, request(), 2000)
+    expect(asked.record.bank!.items).toHaveLength(1)
+  })
+
+  it('settles a request the connection ended on', () => {
+    const asked = at(started(), request(), 2000)
+    const settled = resolvePendingBank(asked, 2000 + BANK_REPLY_WINDOW_MS)
+    expect(settled.record.bank).toMatchObject({ readAtMs: 2000 })
+    expect(settled.record.bank!.items).toEqual([])
+    expect(settled.pendingBank).toBeUndefined()
+  })
+
+  it('leaves a request alone when the connection ended sooner than the wait', () => {
+    // The list could still have been on its way.
+    const asked = at(started(), request(), 2000)
+    expect(resolvePendingBank(asked, 2100)).toBe(asked)
+  })
+
+  it('does nothing on close when nothing was asked for', () => {
+    const state = started()
+    expect(resolvePendingBank(state, 9999)).toBe(state)
   })
 })

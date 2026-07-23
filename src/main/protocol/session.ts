@@ -14,8 +14,9 @@ import {
   type RedirectToken,
   type TransferServer
 } from './decode'
+import { unwrapDialogResponse } from './dialogWrapper'
 import { createFrameReader, type FrameReader } from './frame'
-import { opcodeName, SERVER_HELLO, transformFor, type Transform } from './opcodes'
+import { isDialogWrapped, opcodeName, SERVER_HELLO, transformFor, type Transform } from './opcodes'
 
 /**
  * One TCP connection between the game client and a game server.
@@ -209,6 +210,24 @@ function applyToken(state: SessionState, token: RedirectToken): void {
 }
 
 function plaintextOf(
+  frame: Uint8Array,
+  transform: Transform,
+  state: CipherState,
+  direction: Direction
+): Uint8Array {
+  const decrypted = decryptOf(frame, transform, state, direction)
+  if (!isDialogWrapped(decrypted[0]!, direction)) return decrypted
+
+  // Two client opcodes carry a second layer under the transform. Without it
+  // the body decrypts cleanly and still matches no known layout.
+  const plain = unwrapDialogResponse(decrypted)
+  if (plain === null) {
+    throw new Error('dialog wrapper CRC did not match; this connection’s key is probably wrong')
+  }
+  return plain
+}
+
+function decryptOf(
   frame: Uint8Array,
   transform: Transform,
   state: CipherState,

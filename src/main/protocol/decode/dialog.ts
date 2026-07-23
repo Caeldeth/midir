@@ -32,18 +32,43 @@ import { PacketReader } from '../reader'
  * The field is the same offset with a different meaning per dialog, so this
  * decoder names it for the only dialog it reads.
  *
- * ## An empty bank sends nothing
+ * ## An empty bank sends nothing, and the request is what proves it
  *
  * A player whose bank holds nothing gets no reply at all — no menu, no
- * message. Two characters in one capture asked the same NPC the same way and
- * only the one with items got an answer. **Silence is therefore not evidence
- * of an empty bank**, because it is identical to never having opened one, to a
- * missed packet, and to capture starting late. Nothing downstream may render a
- * bank as empty; it is either read or not read.
+ * message. Silence alone is therefore not evidence of an empty bank: it is
+ * identical to never having opened one, to a missed packet, and to capture
+ * starting late.
+ *
+ * **The player's own request separates them.** CMerchant 0x39 carries the
+ * pursuit below, and Midir can read it now that the dialog inner wrapper is
+ * off. A request with no list behind it, on a connection that lost no bytes,
+ * is an empty bank. Nothing else may render a bank as empty. See
+ * model/character.ts, which owns that rule and its timing.
  */
 
 /** The pursuit id the server uses for the "withdraw item" list. */
 export const BANK_WITHDRAW_PURSUIT = 0x56
+
+/**
+ * The pursuit id the client sends to ask a banker for that list.
+ *
+ * Like the reply pursuit, it is a server-wide constant and not a per-NPC
+ * dialog id. Six requests in one capture settle it:
+ *
+ *   Taurael   at Antonio (0x1f6f)  0x39 pursuit 0x45  ->  0x2F type 4, 21 rows
+ *   Angelique at Drave   (0x2ab5)  0x39 pursuit 0x45  ->  0x2F type 4, 53 rows
+ *   Arachne   at Cassidy (0x1ba9)  0x39 pursuit 0x45  ->  0x2F type 4, 45 rows
+ *   Paelrohm  at Antonio (0x1f6f)  0x39 pursuit 0x45  ->  0x2F type 4, 49 rows
+ *   Paelrohm  at Antonio (0x1f6f)  0x39 pursuit 0x40  ->  0x2F type 4, pursuit
+ *                                                          0x4a, a shop list
+ *   Gabrael   at Antonio (0x1f6f)  0x39 pursuit 0x45  ->  nothing
+ *
+ * The fifth row is the control. It is the same NPC as the first and the
+ * fourth, and its buy list answers a different request pursuit with a
+ * different reply pursuit, so neither constant belongs to the NPC. The sixth
+ * row is the empty bank.
+ */
+export const BANK_WITHDRAW_REQUEST_PURSUIT = 0x45
 
 /** The menu types that carry a server-owned item list. Type 10 is an alias. */
 const ITEM_LIST_MENU_TYPES = new Set([4, 10])

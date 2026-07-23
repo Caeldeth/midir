@@ -1,4 +1,8 @@
-import { isPlaceholderName, type DecodedPacket } from '../protocol/decode'
+import {
+  BANK_WITHDRAW_REQUEST_PURSUIT,
+  isPlaceholderName,
+  type DecodedPacket
+} from '../protocol/decode'
 import { FIRST_EQUIPMENT_SLOT, INVENTORY_SLOT_COUNT, LAST_EQUIPMENT_SLOT } from '../protocol/types'
 import { emptyCharacter, type CharacterRecord, type ItemRef } from '../../shared/character'
 
@@ -16,6 +20,26 @@ import { emptyCharacter, type CharacterRecord, type ItemRef } from '../../shared
  *    name two ways, and prefers the stronger one.
  */
 
+/**
+ * How long to wait for the bank list after the player asks for it.
+ *
+ * An empty bank sends no reply at all, so the wait is what turns the player's
+ * request into an answer. Live captures put every answered request between 119
+ * and 253 ms. The nearest packet that could be mistaken for a late reply was
+ * an NPC main menu 3.2 seconds later, and it is a different menu type. Two
+ * seconds is therefore about ten times the observed reply time and still well
+ * clear of anything else.
+ */
+export const BANK_REPLY_WINDOW_MS = 2000
+
+/** A bank list the player has asked for and Midir is still waiting on. */
+interface PendingBank {
+  /** When the request went out. This is the time the reading belongs to. */
+  atMs: number
+  /** The banker the request went to. */
+  objectId: number
+}
+
 /** What the reducer holds between packets. */
 export interface CharacterSession {
   /** The player's own world entity id, once SUserAppearance has said. */
@@ -32,6 +56,8 @@ export interface CharacterSession {
    * server are keyed from a placeholder, and they never describe anybody.
    */
   hasCharacterData: boolean
+  /** A bank list asked for but not yet answered. */
+  pendingBank?: PendingBank
   record: CharacterRecord
 }
 
@@ -45,6 +71,13 @@ export interface ReducerInput {
    * redirect. It is a good first answer, and a drawn entity overrides it.
    */
   keyName?: string | undefined
+  /**
+   * True when bytes were lost on this connection since the previous packet.
+   *
+   * A lost packet must never become an empty bank. Silence after a loss says
+   * nothing at all, so it cancels the wait rather than answering it.
+   */
+  sawLoss?: boolean | undefined
 }
 
 /** Start a fresh session. Call this for each new world connection. */
@@ -61,10 +94,12 @@ export function newSession(startedAtMs: number): CharacterSession {
 /** Apply one packet. Returns a new state and never changes the old one. */
 export function reduce(state: CharacterSession, input: ReducerInput): CharacterSession {
   const named = applyName(state, input)
-  const record = applyPacket(named.record, input, named)
-  if (record === named.record) return named
+  const wait = applyBankWait(named, input)
+  const record = applyPacket(wait.record, input, named)
+  const session = withPendingBank(named, wait.pendingBank)
+  if (record === named.record) return session
   return {
-    ...named,
+    ...session,
     hasCharacterData: true,
     record: { ...record, lastSeenMs: input.timestampMs }
   }
@@ -78,6 +113,89 @@ export function reduce(state: CharacterSession, input: ReducerInput): CharacterS
  */
 export function isIdentified(state: CharacterSession): boolean {
   return state.name !== null && state.name.length > 0 && state.hasCharacterData
+}
+
+// ---------------------------------------------------------------------------
+// The bank the player asked for
+// ---------------------------------------------------------------------------
+
+/** What the wait decided: what to keep waiting for, and the record it leaves. */
+interface BankWait {
+  pendingBank: PendingBank | undefined
+  record: CharacterRecord
+}
+
+/**
+ * Decide what the player's bank request means so far.
+ *
+ * The bank is the one thing the server answers with silence. It sends the
+ * whole list when the bank holds something and sends nothing at all when it
+ * holds nothing, so only the request tells the two apart:
+ *
+ *   request, then the list          the bank holds what the list says
+ *   request, then nothing, waited   the bank is empty
+ *   request, then a lost packet     nothing is known; drop the request
+ *   no request                      nothing is known; the bank is unread
+ *
+ * The reading is stamped with the time of the **request**, not the time the
+ * wait ran out. That is the moment the player looked.
+ */
+function applyBankWait(state: CharacterSession, input: ReducerInput): BankWait {
+  const { packet } = input
+  const pending = state.pendingBank
+
+  // Bytes were lost. Silence after a loss is not evidence of anything.
+  if (input.sawLoss === true) return { pendingBank: undefined, record: state.record }
+
+  if (packet.kind === 'merchantResponse' && packet.pursuit === BANK_WITHDRAW_REQUEST_PURSUIT) {
+    return {
+      pendingBank: { atMs: input.timestampMs, objectId: packet.objectId },
+      record: state.record
+    }
+  }
+
+  // The list arrived. applyPacket stores it.
+  if (packet.kind === 'bankContents') return { pendingBank: undefined, record: state.record }
+
+  if (pending !== undefined && input.timestampMs - pending.atMs >= BANK_REPLY_WINDOW_MS) {
+    return { pendingBank: undefined, record: withEmptyBank(state.record, pending.atMs) }
+  }
+
+  return { pendingBank: pending, record: state.record }
+}
+
+/**
+ * Settle a request the connection ended on.
+ *
+ * The world server sends a heartbeat every few seconds, so a request normally
+ * runs out of wait against an ordinary packet. This closes the one hole left:
+ * a player who asks an empty bank and logs off at once. The wait still has to
+ * have passed, because a connection that ends sooner than that could have been
+ * carrying the list.
+ */
+export function resolvePendingBank(state: CharacterSession, nowMs: number): CharacterSession {
+  const pending = state.pendingBank
+  if (pending === undefined) return state
+  if (nowMs - pending.atMs < BANK_REPLY_WINDOW_MS) return state
+  const settled = withPendingBank(state, undefined)
+  return { ...settled, record: withEmptyBank(state.record, pending.atMs) }
+}
+
+function withEmptyBank(record: CharacterRecord, readAtMs: number): CharacterRecord {
+  return { ...record, bank: { readAtMs, items: [] } }
+}
+
+function withPendingBank(
+  state: CharacterSession,
+  pending: PendingBank | undefined
+): CharacterSession {
+  if (pending === state.pendingBank) return state
+  if (pending === undefined) {
+    const next = { ...state }
+    delete next.pendingBank
+    return next
+  }
+  return { ...state, pendingBank: pending }
 }
 
 // ---------------------------------------------------------------------------

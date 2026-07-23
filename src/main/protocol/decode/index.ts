@@ -25,6 +25,12 @@ import {
 } from './handshake'
 import { decodeBankContents, type BankContents } from './dialog'
 import {
+  decodeMerchantResponse,
+  decodePursuitResponse,
+  type MerchantResponse,
+  type PursuitResponse
+} from './merchant'
+import {
   decodeAddEquip,
   decodeAddInventory,
   decodeRemoveEquip,
@@ -40,6 +46,7 @@ export * from './client'
 export * from './dialog'
 export * from './handshake'
 export * from './items'
+export * from './merchant'
 
 /** A packet Midir models, in either direction. */
 export type DecodedPacket =
@@ -57,6 +64,8 @@ export type DecodedPacket =
   | SelfLook
   | BankContents
   | ClientExit
+  | MerchantResponse
+  | PursuitResponse
 
 /**
  * A decoder returns null when the body is an opcode Midir models but a variant
@@ -82,7 +91,9 @@ const DECODERS = new Map<number, Decoder>([
 const CLIENT_DECODERS = new Map<number, Decoder>([
   [ClientOpcode.Login, decodeLogin],
   [ClientOpcode.ClientJoin, decodeClientTransfer],
-  [ClientOpcode.ClientExit, decodeClientExit]
+  [ClientOpcode.ClientExit, decodeClientExit],
+  [ClientOpcode.MerchantResponse, decodeMerchantResponse],
+  [ClientOpcode.PursuitResponse, decodePursuitResponse]
 ])
 
 /** True while Midir has a decoder for `opcode`. */

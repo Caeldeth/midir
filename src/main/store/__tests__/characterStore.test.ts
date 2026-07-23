@@ -36,6 +36,31 @@ describe('withCharacter', () => {
     expect(file.characters['Sabrael']?.firstSeenMs).toBe(1000)
   })
 
+  it('keeps a bank a later login knows nothing about', () => {
+    // Every other field arrives again at each login. The bank does not: it is
+    // read only when the player visits a banker, so a fresh login must not
+    // wipe it.
+    const bank = { readAtMs: 500, npcName: 'Antonio', items: [] }
+    const read = { ...emptyCharacter('Sabrael', 1000), bank }
+    const later = emptyCharacter('Sabrael', 90000)
+    const file = withCharacter(withCharacter(emptyCharacterFile(), read), later)
+    expect(file.characters['Sabrael']?.bank).toEqual(bank)
+  })
+
+  it('lets a newer reading replace an older one, empty or not', () => {
+    const first = {
+      ...emptyCharacter('Sabrael', 1000),
+      bank: {
+        readAtMs: 500,
+        npcName: 'Antonio',
+        items: [{ name: 'Stick', sprite: 1, color: 0, count: 4 }]
+      }
+    }
+    const emptied = { ...emptyCharacter('Sabrael', 2000), bank: { readAtMs: 1900, items: [] } }
+    const file = withCharacter(withCharacter(emptyCharacterFile(), first), emptied)
+    expect(file.characters['Sabrael']?.bank).toEqual({ readAtMs: 1900, items: [] })
+  })
+
   it('does not change the file it was given', () => {
     const file = emptyCharacterFile()
     withCharacter(file, emptyCharacter('Sabrael', 1))
@@ -95,6 +120,39 @@ describe('createCharacterStore', () => {
 
     const reopened = createCharacterStore(directory)
     expect((await reopened.load()).characters['Sabrael']?.title).toBe('Grand Master')
+  })
+
+  it('keeps a bank across a restart', async () => {
+    // The bank was absent from the schema, so every reading was dropped on
+    // load. A bank is read only when the player visits a banker, so losing one
+    // costs the user a trip to the bank.
+    const record = {
+      ...emptyCharacter('Sabrael', 1000),
+      bank: {
+        readAtMs: 900,
+        npcName: 'Antonio',
+        items: [{ name: 'Stick', sprite: 3, color: 0, count: 4 }]
+      }
+    }
+    const store = createCharacterStore(directory)
+    await store.update((file) => withCharacter(file, record))
+
+    const reopened = createCharacterStore(directory)
+    expect((await reopened.load()).characters['Sabrael']?.bank).toEqual(record.bank)
+  })
+
+  it('keeps a bank the player found empty', async () => {
+    // An empty reading has no banker name and no rows, and it still means
+    // something: the player looked and the bank held nothing.
+    const record = { ...emptyCharacter('Sabrael', 1000), bank: { readAtMs: 900, items: [] } }
+    const store = createCharacterStore(directory)
+    await store.update((file) => withCharacter(file, record))
+
+    const reopened = createCharacterStore(directory)
+    expect((await reopened.load()).characters['Sabrael']?.bank).toEqual({
+      readAtMs: 900,
+      items: []
+    })
   })
 
   it('writes readable JSON', async () => {

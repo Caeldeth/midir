@@ -123,6 +123,19 @@ describe('CharacterSheet', () => {
     expect(screen.queryByText(/No items in the bank/i)).not.toBeInTheDocument()
   })
 
+  it('says a bank was empty when the player asked and nothing came back', () => {
+    // This is the other case, and it is a reading rather than a silence: the
+    // request is on the wire, so Midir knows the player looked.
+    const record = {
+      ...emptyCharacter('Sabrael', Date.now()),
+      bank: { readAtMs: Date.now() - 60 * 60 * 1000, items: [] }
+    }
+    render(<CharacterSheet record={record} />)
+
+    expect(screen.getByText(/Empty when you last looked/)).toBeInTheDocument()
+    expect(screen.queryByText(/Not read yet/)).not.toBeInTheDocument()
+  })
+
   it('shows the bank with the banker and how old the reading is', () => {
     const record = {
       ...emptyCharacter('Sabrael', Date.now()),

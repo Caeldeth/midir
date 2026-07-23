@@ -108,19 +108,29 @@ export interface CharacterRecord {
    * rest of the record and must always be shown with its own time.
    *
    * `undefined` means Midir has never read this character's bank. It does not
-   * mean the bank is empty: an empty bank sends no reply at all, so the two
-   * are indistinguishable on the wire. Nothing may render an unread bank as an
-   * empty one. See decode/dialog.ts.
+   * mean the bank is empty. An empty bank sends no reply at all, so only the
+   * player's own request tells the two apart, and Midir must have seen it.
+   * Nothing may render an unread bank as an empty one. See decode/dialog.ts
+   * and model/character.ts.
+   *
+   * An `items` list with nothing in it is the other case: the player asked and
+   * the bank held nothing.
    */
   bank?: BankSnapshot
 }
 
 /** The bank as it was at one moment. */
 export interface BankSnapshot {
-  /** When this list arrived. Every count is true only as of then. */
+  /**
+   * When the player looked. Every count is true only as of then. An empty
+   * reading carries the time of the request, because no reply ever came.
+   */
   readAtMs: number
-  /** The banker the list came from, for example "Antonio". */
-  npcName: string
+  /**
+   * The banker the list came from, for example "Antonio". An empty reading has
+   * no name: the banker names itself only inside the list packet.
+   */
+  npcName?: string
   /** One entry for each distinct item, in the order the server sent them. */
   items: BankEntry[]
 }

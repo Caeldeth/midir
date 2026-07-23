@@ -204,17 +204,26 @@ function CharacterSheet({ record }: { record: CharacterRecord }): React.JSX.Elem
           Bank
         </Typography>
         {record.bank === undefined ? (
-          // Never say "empty". An empty bank sends no reply at all, so silence
-          // and an empty bank look identical on the wire. Saying "empty" here
-          // would be a claim Midir cannot make. See decode/dialog.ts.
+          // An unread bank is never called empty. An empty bank sends no reply
+          // at all, so only the player's own request tells the two apart, and a
+          // record with no bank at all has no such request behind it. See
+          // decode/dialog.ts.
           <Typography variant="body2" sx={{ color: 'text.secondary' }}>
             Not read yet. Midir fills this when you visit a banker and choose &ldquo;Withdraw
             Item&rdquo;.
           </Typography>
+        ) : record.bank.items.length === 0 ? (
+          // Midir saw the request and no list came back, so the bank was empty
+          // when the player looked.
+          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+            Empty when you last looked{record.bank.npcName ? `, at ${record.bank.npcName}` : ''} ·{' '}
+            {formatAgo(record.bank.readAtMs)}
+          </Typography>
         ) : (
           <>
             <Typography variant="caption" sx={{ color: 'text.secondary', mb: 1 }}>
-              {plural(record.bank.items.length, 'item')} at {record.bank.npcName} · read{' '}
+              {plural(record.bank.items.length, 'item')}
+              {record.bank.npcName ? ` at ${record.bank.npcName}` : ''} · read{' '}
               {formatAgo(record.bank.readAtMs)}
             </Typography>
             {record.bank.items.map((item) => (
