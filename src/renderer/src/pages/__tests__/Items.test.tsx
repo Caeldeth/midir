@@ -47,6 +47,18 @@ describe('the Items page', () => {
     expect(await screen.findByText('No items yet')).toBeInTheDocument()
   })
 
+  it('guides rather than showing an empty search when a character holds nothing', async () => {
+    // One SStatus files a record, and it arrives before the first item
+    // packet. That character used to reach the "no item matches" branch with
+    // an empty query, which read as a failed search nobody had run.
+    window.api.characters.list = vi.fn(async () => [character('Newborn')])
+    render(<Items />)
+
+    expect(await screen.findByText('No items yet')).toBeInTheDocument()
+    expect(screen.queryByText(/No item matches/)).not.toBeInTheDocument()
+    expect(screen.getByText(/has not read an item/)).toBeInTheDocument()
+  })
+
   it('lists every item across every character', async () => {
     await renderWith([SABRAEL, FINTAN])
     expect(screen.getByText('Raw Fish')).toBeInTheDocument()

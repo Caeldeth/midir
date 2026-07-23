@@ -78,13 +78,20 @@ function Items(): React.JSX.Element {
   const shown = useMemo(() => filterItems(index, query), [index, query])
   const summary = useMemo(() => summariseItems(shown), [shown])
 
-  if (characters.length === 0) {
+  // Gate on the index, not the character list. A recorded character can hold
+  // no items at all: one SStatus is enough to file a record, and it arrives
+  // before the first item packet. Gating on the list showed that character a
+  // search result of "no item matches" against a search nobody had typed.
+  if (index.length === 0) {
     return (
       <Guidance
         title="No items yet"
         detail={
-          'Turn capture on, then log in to Dark Ages. Everything your characters carry and wear ' +
-          'is indexed here.'
+          characters.length === 0
+            ? 'Turn capture on, then log in to Dark Ages. Everything your characters carry and ' +
+              'wear is indexed here.'
+            : 'Midir has not read an item for any character yet. The index fills as the world ' +
+              'sends your inventory.'
         }
       />
     )
