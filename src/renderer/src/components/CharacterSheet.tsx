@@ -17,7 +17,8 @@ import {
   formatNumber,
   formatSigned,
   legendIconName,
-  nationName
+  nationName,
+  plural
 } from '@renderer/lib/format'
 import { EQUIPMENT_SLOT_ORDER, INVENTORY_SLOT_COUNT } from '@shared/labels'
 import type { CharacterRecord, ItemRef } from '@shared/types'
@@ -195,6 +196,44 @@ function CharacterSheet({ record }: { record: CharacterRecord }): React.JSX.Elem
           <Typography variant="body2" sx={{ color: 'text.secondary' }}>
             Nothing equipped yet.
           </Typography>
+        )}
+      </Paper>
+
+      <Paper sx={cardSx}>
+        <Typography variant="h6" sx={headingSx}>
+          Bank
+        </Typography>
+        {record.bank === undefined ? (
+          // Never say "empty". An empty bank sends no reply at all, so silence
+          // and an empty bank look identical on the wire. Saying "empty" here
+          // would be a claim Midir cannot make. See decode/dialog.ts.
+          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+            Not read yet. Midir fills this when you visit a banker and choose &ldquo;Withdraw
+            Item&rdquo;.
+          </Typography>
+        ) : (
+          <>
+            <Typography variant="caption" sx={{ color: 'text.secondary', mb: 1 }}>
+              {plural(record.bank.items.length, 'item')} at {record.bank.npcName} · read{' '}
+              {formatAgo(record.bank.readAtMs)}
+            </Typography>
+            {record.bank.items.map((item) => (
+              <Box key={`${item.name}-${item.sprite}`} sx={{ display: 'flex', gap: 1.5, py: 0.25 }}>
+                <Typography
+                  variant="body2"
+                  sx={{
+                    color: 'text.secondary',
+                    minWidth: 32,
+                    textAlign: 'right',
+                    fontVariantNumeric: 'tabular-nums'
+                  }}
+                >
+                  {item.count > 1 ? `×${formatNumber(item.count)}` : ''}
+                </Typography>
+                <Typography variant="body2">{item.name}</Typography>
+              </Box>
+            ))}
+          </>
         )}
       </Paper>
 

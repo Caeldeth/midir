@@ -101,7 +101,8 @@ Aliases: `@renderer` to `src/renderer/src`, `@shared` to `src/shared`.
 
 - **`SStatus 0x08` is flag-gated.** The byte after the opcode selects which blocks follow (`0x20` core stats, `0x10` health and mana, `0x08` experience and currency, `0x04` combat modifiers, `0x01` mail state, `0xC0` privilege level). A partial update must **merge** into the stored record. It must not replace it.
 - **Trailing bytes are not fields.** The retail parsers stop at the last field they read. A decoder must accept a body that is longer than the fields it consumes.
-- **The retail protocol has no bank opcode.** Bank contents arrive as NPC dialog (`SScreenMenu 0x2F`, `SPursuitMessage 0x30`). Bank data is opportunistic — it updates when the player opens the bank. Always show the "as of" time.
+- **The retail protocol has no bank opcode.** Bank contents arrive as NPC dialog: `SScreenMenu 0x2F`, menu type 4, **pursuit `0x56`**. The pursuit is a server-wide constant, not a per-NPC dialog id — three bank NPCs used it, and a *shop* buy list from one of those same NPCs used `0x4a`. The row is `[u16 sprite][u8 color][u32 count][string8 name][string8 desc]`; both protocol sources call that `u32` a price, but in a bank it is the **quantity held**. Bank data is opportunistic — it updates only when the player opens the bank. Always show the "as of" time.
+- **An empty bank sends no reply at all**, so silence is identical to never having opened one, to a missed packet, and to capture starting late. **Never render a bank as empty.** It is read or not read. See `protocol/decode/dialog.ts`.
 - **The two directions have separate transform tables and separate sequence counters.** Do not share one counter.
 
 ## Verifying changes

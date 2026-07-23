@@ -19,6 +19,11 @@ import React from 'react'
 const DURABILITY_DARK = '#6495ed'
 const DURABILITY_LIGHT = '#2f4f8f'
 
+/** When the bank rows in this holder were read. */
+function bankReadAtMs(holder: ItemHolder): number {
+  return Math.max(...holder.holdings.filter((h) => h.place === 'bank').map((h) => h.lastSeenMs))
+}
+
 interface ItemTooltipProps {
   itemName: string
   holder: ItemHolder
@@ -34,7 +39,11 @@ function SlotLine({
   durabilityColor: string
 }): React.JSX.Element {
   const where =
-    holding.place === 'equipment' ? equipmentSlotName(holding.slot) : `Pack slot ${holding.slot}`
+    holding.place === 'equipment'
+      ? equipmentSlotName(holding.slot)
+      : holding.place === 'bank'
+        ? 'In the bank'
+        : `Pack slot ${holding.slot}`
   const durability = formatDurability(holding.durability, holding.maxDurability)
 
   return (
@@ -104,6 +113,13 @@ function ItemTooltip({ itemName, holder, children }: ItemTooltipProps): React.JS
           <Typography variant="caption" sx={{ color: 'text.disabled', mt: 0.5 }}>
             Last read {formatAgo(holder.lastSeenMs)}
           </Typography>
+          {holder.banked ? (
+            // The bank is read only when the player opens it, so its age is
+            // its own and usually older than the rest of the record.
+            <Typography variant="caption" sx={{ color: 'text.disabled' }}>
+              Bank read {formatAgo(bankReadAtMs(holder))}
+            </Typography>
+          ) : null}
         </Box>
       }
     >

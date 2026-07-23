@@ -174,6 +174,18 @@ function applyPacket(
         ...record,
         appearance: { ...record.appearance, characterClass: packet.characterClass }
       }
+    case 'bankContents':
+      // The whole list arrives at once, so it replaces what was there rather
+      // than merging. A merge would keep an item the player has since
+      // withdrawn, and the bank has no per-item update to correct it with.
+      return {
+        ...record,
+        bank: {
+          readAtMs: input.timestampMs,
+          npcName: packet.npcName,
+          items: packet.items.map((item) => ({ ...item }))
+        }
+      }
     case 'drawHumanObjects':
       // The world draws every player in view. Only our own entity describes
       // this character; anyone else's sprites belong to them.

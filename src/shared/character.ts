@@ -100,6 +100,38 @@ export interface CharacterRecord {
   displayClass: string
   /** Whether the character had unread mail when last seen. */
   hasMail: boolean
+  /**
+   * What the bank held the last time the player opened it.
+   *
+   * The retail protocol has no bank opcode, so this fills only when the player
+   * chooses "Withdraw Item" at a banker. It is therefore far staler than the
+   * rest of the record and must always be shown with its own time.
+   *
+   * `undefined` means Midir has never read this character's bank. It does not
+   * mean the bank is empty: an empty bank sends no reply at all, so the two
+   * are indistinguishable on the wire. Nothing may render an unread bank as an
+   * empty one. See decode/dialog.ts.
+   */
+  bank?: BankSnapshot
+}
+
+/** The bank as it was at one moment. */
+export interface BankSnapshot {
+  /** When this list arrived. Every count is true only as of then. */
+  readAtMs: number
+  /** The banker the list came from, for example "Antonio". */
+  npcName: string
+  /** One entry for each distinct item, in the order the server sent them. */
+  items: BankEntry[]
+}
+
+/** One item the bank holds. */
+export interface BankEntry {
+  name: string
+  sprite: number
+  color: number
+  /** How many the bank held. */
+  count: number
 }
 
 /** A character with nothing known yet. */

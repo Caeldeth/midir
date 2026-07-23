@@ -16,6 +16,7 @@ import {
   type TransferServer,
   type VersionCheck
 } from './handshake'
+import { decodeBankContents, type BankContents } from './dialog'
 import {
   decodeAddEquip,
   decodeAddInventory,
@@ -29,6 +30,7 @@ import {
 
 export * from './character'
 export * from './client'
+export * from './dialog'
 export * from './handshake'
 export * from './items'
 
@@ -46,8 +48,14 @@ export type DecodedPacket =
   | RemoveEquip
   | DrawHumanObjects
   | SelfLook
+  | BankContents
 
-type Decoder = (body: Uint8Array) => DecodedPacket
+/**
+ * A decoder returns null when the body is an opcode Midir models but a variant
+ * it does not read. SScreenMenu is the case: every NPC conversation uses it,
+ * and only the bank list is data.
+ */
+type Decoder = (body: Uint8Array) => DecodedPacket | null
 
 const DECODERS = new Map<number, Decoder>([
   [ServerOpcode.VersionCheck, decodeVersionCheck],
@@ -59,7 +67,8 @@ const DECODERS = new Map<number, Decoder>([
   [ServerOpcode.AddEquip, decodeAddEquip],
   [ServerOpcode.RemoveEquip, decodeRemoveEquip],
   [ServerOpcode.DrawHumanObjects, decodeDrawHumanObjects],
-  [ServerOpcode.SelfLook, decodeSelfLook]
+  [ServerOpcode.SelfLook, decodeSelfLook],
+  [ServerOpcode.ScreenMenu, decodeBankContents]
 ])
 
 const CLIENT_DECODERS = new Map<number, Decoder>([
