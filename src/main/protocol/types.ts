@@ -1,93 +1,21 @@
 /**
- * Enumerations the protocol carries as single bytes.
+ * Protocol constants that are not shared with the renderer.
  *
- * Source: darkages-741-re/docs/network/protocol-types.md. Where that document
- * marks a name as "project-owner protocol vocabulary", the number is recovered
- * from the client and the name is a label. Midir keeps the raw number in every
- * decoded packet, so an unknown or relabelled value is never lost.
+ * The name tables for classes, nations, elements, legend icons, and equipment
+ * slots live in `src/shared/labels.ts`, because the renderer shows them too.
+ * They are re-exported here so the protocol layer reads as one thing.
  */
 
-/** Equipment slots. Wire value 0 is a sentinel; 1 through 18 are real slots. */
-export const EQUIPMENT_SLOT_NAMES: Readonly<Record<number, string>> = {
-  1: 'Weapon',
-  2: 'Armor',
-  3: 'Shield',
-  4: 'Helmet',
-  5: 'Earrings',
-  6: 'Necklace',
-  7: 'Left Ring',
-  8: 'Right Ring',
-  9: 'Left Gauntlet',
-  10: 'Right Gauntlet',
-  11: 'Belt',
-  12: 'Greaves',
-  13: 'Boots',
-  14: 'Accessory 1',
-  15: 'Overcoat',
-  16: 'Over Helm',
-  17: 'Accessory 2',
-  18: 'Accessory 3'
-}
-
-/** The lowest and highest real equipment slot values. */
-export const FIRST_EQUIPMENT_SLOT = 1
-export const LAST_EQUIPMENT_SLOT = 18
-
-/** The number of inventory slots. Slot 60 holds the client's synthetic gold item. */
-export const INVENTORY_SLOT_COUNT = 60
-
-export const CHARACTER_CLASS_NAMES: Readonly<Record<number, string>> = {
-  0: 'Peasant',
-  1: 'Warrior',
-  2: 'Rogue',
-  3: 'Wizard',
-  4: 'Priest',
-  5: 'Monk'
-}
-
-export const NATION_NAMES: Readonly<Record<number, string>> = {
-  0: 'None',
-  1: 'Suomi',
-  3: 'Loures',
-  4: 'Mileth',
-  5: 'Tagor',
-  6: 'Rucesion',
-  7: 'Noes',
-  9: 'Piet',
-  11: 'Abel',
-  12: 'Undine'
-}
-
-/** Legend mark icons. Value 8 is a sentinel, not a ninth drawable icon. */
-export const LEGEND_ICON_NAMES: Readonly<Record<number, string>> = {
-  0: 'Aisling',
-  1: 'Warrior',
-  2: 'Rogue',
-  3: 'Wizard',
-  4: 'Priest',
-  5: 'Monk',
-  6: 'Heart',
-  7: 'Victory',
-  8: 'None'
-}
-
-export const ELEMENT_NAMES: Readonly<Record<number, string>> = {
-  0: 'None',
-  1: 'Fire',
-  2: 'Water',
-  3: 'Wind',
-  4: 'Earth',
-  5: 'Light',
-  6: 'Dark',
-  7: 'Wood',
-  8: 'Metal',
-  9: 'Undead'
-}
-
-/** Return the label for `value`, or a readable fallback that keeps the number. */
-export function labelFor(names: Readonly<Record<number, string>>, value: number): string {
-  return names[value] ?? `Unknown (${value})`
-}
+export {
+  CHARACTER_CLASS_NAMES,
+  ELEMENT_NAMES,
+  EQUIPMENT_SLOT_NAMES,
+  FIRST_EQUIPMENT_SLOT,
+  INVENTORY_SLOT_COUNT,
+  LAST_EQUIPMENT_SLOT,
+  LEGEND_ICON_NAMES,
+  NATION_NAMES
+} from '../../shared/labels'
 
 /** The head sprite value that marks a monster disguise in SDrawHumanObjects. */
 export const MONSTER_DISGUISE_HEAD_SPRITE = 0xffff

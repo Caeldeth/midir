@@ -1,12 +1,11 @@
 import { test, expect } from '@playwright/test'
 import { launchApp, getMainWindow } from './helpers.js'
 
-// The settings round-trip end to end: change the theme in the Home selector,
+// The settings round-trip end to end: change the theme on the Settings page,
 // wait for the debounced save to reach disk, relaunch against the same userData
 // dir, and assert it hydrated. This spans renderer store → debounced IPC save →
 // atomic disk write → next launch's load() → hydrate() → rendered UI — the whole
-// path no single unit test covers. The Home theme selector exists precisely to
-// exercise this; swap it for a real setting once the app has one.
+// path no single unit test covers.
 
 test.describe('Settings persist across a restart', () => {
   let electronApp
@@ -20,7 +19,10 @@ test.describe('Settings persist across a restart', () => {
     ;({ electronApp, localAppData } = await launchApp())
     let page = await getMainWindow(electronApp)
 
-    // Pick a non-default theme (default is hybrasyl). The Home Select has an
+    // The theme picker lives on the Settings tab.
+    await page.getByRole('tab', { name: 'Settings' }).click()
+
+    // Pick a non-default theme (default is hybrasyl). The Select has an
     // explicit labelId, so its combobox has the accessible name "Theme".
     await page.getByRole('combobox', { name: 'Theme' }).click()
     await page.getByRole('option', { name: 'Mundanes', exact: true }).click()
@@ -45,6 +47,7 @@ test.describe('Settings persist across a restart', () => {
 
     // …and it's actually applied in the hydrated UI.
     await expect(page.getByTestId('app-root')).toHaveAttribute('data-theme', 'mundanes')
+    await page.getByRole('tab', { name: 'Settings' }).click()
     await expect(page.getByRole('combobox', { name: 'Theme' })).toHaveText('Mundanes')
   })
 })

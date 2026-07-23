@@ -18,3 +18,12 @@ Keep entries user-facing — internal refactors/tests show up in the appended au
 -->
 
 ## [Unreleased]
+
+### Added
+
+- Passive packet capture through Npcap. Midir reads the game client's own TCP connections and never sends a packet, never connects to the game server, and never changes the client.
+- A live character sheet: statistics, health and mana, equipped items, inventory, visible appearance, legend marks, gold, title, and guild. It fills as the packets arrive.
+- A character list. Every character you log in on is recorded and kept, with the time it was last seen.
+- A capture indicator in the title bar. It says whether Midir is stopped, listening, or reading a named character.
+- A clear warning when Midir starts after you log in. Midir learns each session's keys from the login handshake, so it has to be running first.
+- Settings for the network adapter, for starting capture when Midir opens, and for the theme.

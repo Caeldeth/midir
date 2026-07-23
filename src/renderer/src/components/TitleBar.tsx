@@ -5,6 +5,7 @@ import RemoveIcon from '@mui/icons-material/Remove'
 import CropSquareIcon from '@mui/icons-material/CropSquare'
 import CloseIcon from '@mui/icons-material/Close'
 import { PLAIN_CHROME_THEMES } from '@shared/types'
+import CaptureIndicator from '@renderer/components/CaptureIndicator'
 import { useSettingsStore } from '@renderer/store/settingsStore'
 
 // Shared shadow vocabulary for the title bar. KEYLINE is the crisp four-way
@@ -100,6 +101,8 @@ function TitleBar(): React.JSX.Element {
       </Typography>
 
       <Box sx={{ flexGrow: 1 }} />
+
+      <CaptureIndicator />
 
       <Tooltip title="Minimize">
         <IconButton

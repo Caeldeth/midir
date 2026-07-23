@@ -12,8 +12,13 @@ import {
 } from '@renderer/themes'
 import type { ThemeName } from '@shared/types'
 import { useSettingsStore } from '@renderer/store/settingsStore'
+import { useCaptureStore } from '@renderer/store/captureStore'
+import { useCharacterStore } from '@renderer/store/characterStore'
 import TitleBar from '@renderer/components/TitleBar'
-import Home from '@renderer/pages/Home'
+import NavBar, { type ViewName } from '@renderer/components/NavBar'
+import Live from '@renderer/pages/Live'
+import Characters from '@renderer/pages/Characters'
+import Settings from '@renderer/pages/Settings'
 
 const themes: Record<ThemeName, Theme> = {
   hybrasyl: hybrasylTheme,
@@ -28,6 +33,7 @@ function App(): React.JSX.Element {
   const themeName = useSettingsStore((s) => s.theme)
   const theme = themes[themeName] ?? hybrasylTheme
   const hydrateSettings = useSettingsStore((s) => s.hydrate)
+  const [view, setView] = useState<ViewName>('live')
 
   // Block first paint of the actual UI until settings.json has been read.
   // Otherwise we'd flash the default theme/UI for ~10-50ms before
@@ -46,6 +52,30 @@ function App(): React.JSX.Element {
       cancelled = true
     }
   }, [hydrateSettings])
+
+  // Mirror the pushes from main for as long as the app is open.
+  useEffect(() => {
+    const stopStatus = useCaptureStore.getState().subscribe()
+    const stopCharacters = useCharacterStore.getState().subscribe()
+    return () => {
+      stopStatus()
+      stopCharacters()
+    }
+  }, [])
+
+  // Read the current state once the settings are in, then start capture if the
+  // user asked for that. Starting before hydration would use an empty adapter.
+  useEffect(() => {
+    if (!hydrated) return
+    void (async () => {
+      await useCaptureStore.getState().refresh()
+      await useCharacterStore.getState().refresh()
+      const { captureDevice, autoStartCapture } = useSettingsStore.getState()
+      if (autoStartCapture && captureDevice !== '' && !useCaptureStore.getState().status.running) {
+        await useCaptureStore.getState().start(captureDevice)
+      }
+    })()
+  }, [hydrated])
 
   // Push scrollbar colors onto :root as CSS variables so the chrome
   // tracks the active theme. assets/main.css consumes these.
@@ -71,7 +101,14 @@ function App(): React.JSX.Element {
       >
         <TitleBar />
         {hydrated ? (
-          <Home />
+          <>
+            <NavBar value={view} onChange={setView} />
+            <Box sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+              {view === 'live' ? <Live onOpenSettings={() => setView('settings')} /> : null}
+              {view === 'characters' ? <Characters /> : null}
+              {view === 'settings' ? <Settings /> : null}
+            </Box>
+          </>
         ) : (
           <Box
             data-testid="app-hydrating"
