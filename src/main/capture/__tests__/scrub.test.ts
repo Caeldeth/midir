@@ -2,6 +2,7 @@ import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { FRAME_MARKER } from '../../protocol/frame'
 import { ClientOpcode, ServerOpcode } from '../../protocol/opcodes'
 import { createRecorder } from '../recorder'
 import { decodeChunk, parseRecording, type RecordingChunk } from '../recording'
@@ -53,14 +54,15 @@ describe('the set of packets to scrub', () => {
     ['0x03 Login', ClientOpcode.Login],
     ['0x15 CheckPassword', ClientOpcode.CheckPassword],
     ['0x26 ChangePassword', ClientOpcode.ChangePassword],
-    ['0x27 NewPassword', ClientOpcode.NewPassword]
+    ['0x27 NewPassword', ClientOpcode.NewPassword],
+    ['0x8F Otp', ClientOpcode.Otp]
   ])('holds %s', (_name, opcode) => {
     expect(SECRET_BEARING_CLIENT_OPCODES.has(opcode)).toBe(true)
   })
 
   it('leaves a packet that carries no credential alone', () => {
-    // 0x28 aborts a password change. 0x8F is Legends of Darkness only.
-    for (const opcode of [ClientOpcode.ClientJoin, ClientOpcode.Version, 0x28, 0x8f]) {
+    // 0x28 only closes the change-password pane, and sends nothing.
+    for (const opcode of [ClientOpcode.ClientJoin, ClientOpcode.Version, 0x28]) {
       expect(SECRET_BEARING_CLIENT_OPCODES.has(opcode)).toBe(false)
     }
   })
@@ -71,7 +73,8 @@ describe('the credential scrubber', () => {
     ['0x02 CreateA', ClientOpcode.NewUser],
     ['0x15 CheckPassword', ClientOpcode.CheckPassword],
     ['0x26 ChangePassword', ClientOpcode.ChangePassword],
-    ['0x27 NewPassword', ClientOpcode.NewPassword]
+    ['0x27 NewPassword', ClientOpcode.NewPassword],
+    ['0x8F Otp', ClientOpcode.Otp]
   ])('removes %s as well as the login', (_name, opcode) => {
     const secret = frameOf(
       startupBody({
@@ -123,13 +126,33 @@ describe('the credential scrubber', () => {
     expect(push(scrubber, bytes)).toEqual(bytes)
   })
 
-  it('forgets its place when the stream has a gap', () => {
+  it('writes nothing more once the stream has a gap', () => {
+    const scrubber = createSecretScrubber()
+    push(scrubber, otherFrame())
+    scrubber.onGap()
+    expect(push(scrubber, otherFrame())).toEqual([])
+    expect(push(scrubber, otherFrame())).toEqual([])
+  })
+
+  it('does not write the rest of a credential frame that a gap cut in half', () => {
+    // The bytes after a hole are the rest of that frame's payload. The walk
+    // has lost the count that would have discarded them, so passing them on
+    // would write recoverable password material.
     const scrubber = createSecretScrubber()
     const frame = loginFrame()
-    // Half of a CLogin frame, then the reader is told bytes went missing.
-    push(scrubber, frame.slice(0, 8))
-    scrubber.reset()
-    expect(push(scrubber, otherFrame())).toEqual(otherFrame())
+    expect(push(scrubber, frame.slice(0, 6))).toEqual([])
+    scrubber.onGap()
+    expect(push(scrubber, frame.slice(14))).toEqual([])
+  })
+
+  it('does not let a stray marker after a gap carry a credential frame through', () => {
+    // Encrypted payload bytes are near-uniform, so 0xAA turns up about every
+    // 256 bytes. Read as a header it can claim up to 65535 bytes, which the
+    // walk would once have copied without looking at them.
+    const scrubber = createSecretScrubber()
+    scrubber.onGap()
+    const falseHeader = [0x00, FRAME_MARKER, 0x01, 0x00]
+    expect(push(scrubber, [...falseHeader, ...loginFrame()])).toEqual([])
   })
 })
 
@@ -170,6 +193,28 @@ describe('a recording', () => {
     const text = await readFile(path, 'utf8')
     expect(text).not.toContain(PASSWORD)
     expect(text).not.toContain(Buffer.from(PASSWORD, 'latin1').toString('base64'))
+  })
+
+  it('holds no password when a gap cuts the login packet in half', async () => {
+    // The reachable leak this guards: TCP reassembly gives up mid-frame, and
+    // the tail of the login packet arrives as if it were fresh stream.
+    const path = join(directory, 'gap.ndjson')
+    const recorder = await createRecorder(path, { startedAtMs: 0, now: () => 1 })
+    const frame = loginFrame()
+    const send = (bytes: number[], gap: boolean): void =>
+      recorder.onChunk?.({
+        connectionId: LOGIN.id,
+        direction: 'clientToServer',
+        bytes: Uint8Array.from(bytes),
+        timestampMs: 1200,
+        gap
+      })
+
+    send(frame.slice(0, 6), false)
+    send(frame.slice(14), true)
+    await recorder.close()
+
+    expect((await chunksOf(path)).flatMap((chunk) => [...chunk.bytes])).toEqual([])
   })
 
   it('leaves the server direction alone', async () => {

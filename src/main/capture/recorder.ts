@@ -62,8 +62,9 @@ export async function createRecorder(path: string, options: RecorderOptions): Pr
       scrubber = createSecretScrubber()
       scrubbers.set(chunk.connectionId, scrubber)
     }
-    // A gap invalidates the byte counts the walk is holding.
-    if (chunk.gap) scrubber.reset()
+    // A gap invalidates the byte counts the walk is holding. The scrubber
+    // then stops writing this direction rather than guess. See scrub.ts.
+    if (chunk.gap) scrubber.onGap()
     return { ...chunk, bytes: scrubber.push(chunk.bytes) }
   }
 

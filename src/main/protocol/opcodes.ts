@@ -89,7 +89,9 @@ export const ClientOpcode = {
   /** Replaces a password. Carries two of them. See scrub.ts. */
   ChangePassword: 0x26,
   /** Submits a replacement password. Wire format unknown. See scrub.ts. */
-  NewPassword: 0x27
+  NewPassword: 0x27,
+  /** Verifies a one-time password. Wire format unknown. See scrub.ts. */
+  Otp: 0x8f
 } as const
 
 const SERVER_OPCODE_NAMES = new Map<number, string>(
