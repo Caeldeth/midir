@@ -35,6 +35,26 @@ export interface ItemHolding {
   lastSeenMs: number
 }
 
+/**
+ * Every holding of one item by one character.
+ *
+ * A character can hold the same item in several slots: two of a stack in the
+ * pack and one worn. The list answers "which of my characters has this?", so
+ * one character is one answer. The slots stay on the holder, and the interface
+ * shows them when the user asks for the detail.
+ */
+export interface ItemHolder {
+  character: string
+  /** The total this character holds, across every slot. */
+  totalCount: number
+  /** True when the character wears at least one. */
+  equipped: boolean
+  /** When Midir last read this character. The total is true as of then. */
+  lastSeenMs: number
+  /** Each slot the character holds it in, equipment first. */
+  holdings: ItemHolding[]
+}
+
 /** Every holding of one item, across every character. */
 export interface ItemIndexEntry {
   /** The item name, as the server wrote it. This is the grouping key. */
@@ -43,11 +63,10 @@ export interface ItemIndexEntry {
   sprite: number
   /** The total across every character. */
   totalCount: number
-  /** How many characters hold at least one. */
-  characterCount: number
   /** The most recent time any holder was seen. */
   lastSeenMs: number
-  holdings: ItemHolding[]
+  /** One entry for each character that holds the item, in name order. */
+  holders: ItemHolder[]
 }
 
 /** Equipment before inventory, so a worn item is listed first. */
@@ -82,6 +101,33 @@ function compareHoldings(left: ItemHolding, right: ItemHolding): number {
   const place = PLACE_ORDER[left.place] - PLACE_ORDER[right.place]
   if (place !== 0) return place
   return left.slot - right.slot
+}
+
+/**
+ * Group one item's holdings by the character that holds them.
+ *
+ * The holdings arrive sorted by character, then equipment before inventory,
+ * then slot, so one pass keeps that order inside each holder as well.
+ */
+function groupByCharacter(holdings: readonly ItemHolding[]): ItemHolder[] {
+  const holders: ItemHolder[] = []
+  for (const holding of holdings) {
+    const last = holders[holders.length - 1]
+    if (last !== undefined && last.character === holding.character) {
+      last.totalCount += holding.count
+      last.equipped = last.equipped || holding.place === 'equipment'
+      last.holdings.push(holding)
+      continue
+    }
+    holders.push({
+      character: holding.character,
+      totalCount: holding.count,
+      equipped: holding.place === 'equipment',
+      lastSeenMs: holding.lastSeenMs,
+      holdings: [holding]
+    })
+  }
+  return holders
 }
 
 /**
@@ -129,9 +175,8 @@ export function buildItemIndex(records: readonly CharacterRecord[]): ItemIndexEn
       name,
       sprite: group.sprite,
       totalCount: holdings.reduce((sum, holding) => sum + holding.count, 0),
-      characterCount: new Set(holdings.map((holding) => holding.character)).size,
       lastSeenMs: holdings.reduce((latest, holding) => Math.max(latest, holding.lastSeenMs), 0),
-      holdings
+      holders: groupByCharacter(holdings)
     })
   }
 
@@ -165,7 +210,7 @@ export function summariseItems(entries: readonly ItemIndexEntry[]): ItemIndexSum
   let totalCount = 0
   for (const entry of entries) {
     totalCount += entry.totalCount
-    for (const holding of entry.holdings) characters.add(holding.character)
+    for (const holder of entry.holders) characters.add(holder.character)
   }
   return { itemCount: entries.length, totalCount, characterCount: characters.size }
 }

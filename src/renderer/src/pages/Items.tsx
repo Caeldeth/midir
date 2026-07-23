@@ -1,7 +1,7 @@
+import CheckroomOutlinedIcon from '@mui/icons-material/CheckroomOutlined'
 import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined'
 import {
   Box,
-  Chip,
   InputAdornment,
   Table,
   TableBody,
@@ -10,19 +10,13 @@ import {
   TableHead,
   TableRow,
   TextField,
-  Tooltip,
   Typography
 } from '@mui/material'
 import Guidance from '@renderer/components/Guidance'
-import {
-  equipmentSlotName,
-  formatAgo,
-  formatDurability,
-  formatNumber,
-  plural
-} from '@renderer/lib/format'
+import ItemTooltip from '@renderer/components/ItemTooltip'
+import { formatAgo, formatNumber, plural } from '@renderer/lib/format'
 import { useCharacterStore } from '@renderer/store/characterStore'
-import { buildItemIndex, filterItems, summariseItems, type ItemHolding } from '@shared/items'
+import { buildItemIndex, filterItems, summariseItems, type ItemHolder } from '@shared/items'
 import React, { useEffect, useMemo, useState } from 'react'
 
 /**
@@ -37,31 +31,59 @@ import React, { useEffect, useMemo, useState } from 'react'
  * read as a count from now.
  */
 
-/** Append the count when a holding has more than one. One rule, two subjects. */
-function withCount(text: string, count: number): string {
-  return count > 1 ? `${text} × ${formatNumber(count)}` : text
-}
-
-function HolderChip({ holding }: { holding: ItemHolding }): React.JSX.Element {
-  const where =
-    holding.place === 'equipment' ? equipmentSlotName(holding.slot) : `Slot ${holding.slot}`
-  const durability = formatDurability(holding.durability, holding.maxDurability)
-  const detail = [
-    withCount(where, holding.count),
-    durability === '' ? '' : `durability ${durability}`,
-    `last seen ${formatAgo(holding.lastSeenMs)}`
-  ]
-    .filter((part) => part !== '')
-    .join(' · ')
-
+/**
+ * One character that holds the item.
+ *
+ * One character is one answer, however many slots they keep it in. The name
+ * carries the weight, the total sits beside it in a dimmer tone, and a worn
+ * item takes a small mark. The slots are in the tooltip, because they are the
+ * detail a player asks for and not the answer they came for.
+ */
+function HolderTag({
+  itemName,
+  holder
+}: {
+  itemName: string
+  holder: ItemHolder
+}): React.JSX.Element {
   return (
-    <Tooltip title={detail}>
-      <Chip
-        size="small"
-        variant={holding.place === 'equipment' ? 'filled' : 'outlined'}
-        label={withCount(holding.character, holding.count)}
-      />
-    </Tooltip>
+    <ItemTooltip itemName={itemName} holder={holder}>
+      <Box
+        component="span"
+        tabIndex={0}
+        data-testid="item-holder"
+        sx={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 0.5,
+          cursor: 'default',
+          borderRadius: 1,
+          px: 0.5,
+          '&:hover, &:focus-visible': { bgcolor: 'action.hover' },
+          '&:focus-visible': { outline: 'none' }
+        }}
+      >
+        {holder.equipped ? (
+          <CheckroomOutlinedIcon
+            fontSize="inherit"
+            aria-label="worn"
+            sx={{ color: 'text.link', fontSize: '0.9em' }}
+          />
+        ) : null}
+        <Typography component="span" variant="body2" sx={{ fontWeight: 'medium' }}>
+          {holder.character}
+        </Typography>
+        {holder.totalCount > 1 ? (
+          <Typography
+            component="span"
+            variant="body2"
+            sx={{ color: 'text.secondary', fontVariantNumeric: 'tabular-nums' }}
+          >
+            ×{formatNumber(holder.totalCount)}
+          </Typography>
+        ) : null}
+      </Box>
+    </ItemTooltip>
   )
 }
 
@@ -155,12 +177,25 @@ function Items(): React.JSX.Element {
                     {formatNumber(entry.totalCount)}
                   </TableCell>
                   <TableCell>
-                    <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap' }}>
-                      {entry.holdings.map((holding) => (
-                        <HolderChip
-                          key={`${holding.character}-${holding.place}-${holding.slot}`}
-                          holding={holding}
-                        />
+                    <Box
+                      sx={{
+                        display: 'flex',
+                        flexWrap: 'wrap',
+                        alignItems: 'center',
+                        columnGap: 1,
+                        rowGap: 0.25,
+                        // A thin rule between names, so the list reads as one
+                        // sentence instead of a row of separate objects.
+                        '& > span + span': {
+                          borderLeft: 1,
+                          borderColor: 'divider',
+                          pl: 1,
+                          ml: -0.5
+                        }
+                      }}
+                    >
+                      {entry.holders.map((holder) => (
+                        <HolderTag key={holder.character} itemName={entry.name} holder={holder} />
                       ))}
                     </Box>
                   </TableCell>

@@ -44,8 +44,8 @@ describe('buildItemIndex', () => {
     ])
 
     expect(index).toHaveLength(1)
-    expect(index[0]).toMatchObject({ name: 'Stick', totalCount: 2, characterCount: 2 })
-    expect(index[0]!.holdings.map((holding) => holding.character)).toEqual(['Fintan', 'Sabrael'])
+    expect(index[0]).toMatchObject({ name: 'Stick', totalCount: 2 })
+    expect(index[0]!.holders.map((holder) => holder.character)).toEqual(['Fintan', 'Sabrael'])
   })
 
   it('adds up a stack rather than counting the slot', () => {
@@ -56,7 +56,8 @@ describe('buildItemIndex', () => {
       character('Fintan', { inventory: { 2: item('Hemloch', { count: 2, canStack: true }) } })
     ])
 
-    expect(index[0]).toMatchObject({ name: 'Hemloch', totalCount: 42, characterCount: 2 })
+    expect(index[0]).toMatchObject({ name: 'Hemloch', totalCount: 42 })
+    expect(index[0]!.holders).toHaveLength(2)
   })
 
   it('counts an item once when the server sent no quantity', () => {
@@ -72,7 +73,31 @@ describe('buildItemIndex', () => {
     const index = buildItemIndex([
       character('Sabrael', { inventory: { 1: item('Stick'), 2: item('Stick') } })
     ])
-    expect(index[0]).toMatchObject({ totalCount: 2, characterCount: 1 })
+    expect(index[0]!.totalCount).toBe(2)
+  })
+
+  it('gives one character one holder, whatever the slot count', () => {
+    // The list answers "which of my characters has this?", so a character that
+    // keeps an item in three slots is still one answer.
+    const index = buildItemIndex([
+      character('Sabrael', {
+        equipment: { 1: item('Stick') },
+        inventory: { 2: item('Stick'), 5: item('Stick', { count: 3, canStack: true }) }
+      })
+    ])
+
+    expect(index[0]!.holders).toHaveLength(1)
+    expect(index[0]!.holders[0]).toMatchObject({
+      character: 'Sabrael',
+      totalCount: 5,
+      equipped: true
+    })
+    expect(index[0]!.holders[0]!.holdings).toHaveLength(3)
+  })
+
+  it('marks a holder that carries the item but does not wear it', () => {
+    const index = buildItemIndex([character('Sabrael', { inventory: { 2: item('Stick') } })])
+    expect(index[0]!.holders[0]!.equipped).toBe(false)
   })
 
   it('lists a worn item beside a carried one', () => {
@@ -83,8 +108,9 @@ describe('buildItemIndex', () => {
       })
     ])
 
-    expect(index[0]!.holdings.map((holding) => holding.place)).toEqual(['equipment', 'inventory'])
-    expect(index[0]!.holdings.map((holding) => holding.slot)).toEqual([1, 7])
+    const holdings = index[0]!.holders[0]!.holdings
+    expect(holdings.map((holding) => holding.place)).toEqual(['equipment', 'inventory'])
+    expect(holdings.map((holding) => holding.slot)).toEqual([1, 7])
   })
 
   it('groups two dye colours of one item and keeps each colour', () => {
@@ -95,7 +121,7 @@ describe('buildItemIndex', () => {
     ])
 
     expect(index).toHaveLength(1)
-    expect(index[0]!.holdings.map((holding) => holding.color)).toEqual([3, 9])
+    expect(index[0]!.holders[0]!.holdings.map((holding) => holding.color)).toEqual([3, 9])
   })
 
   it('keeps durability, so a worn item can be told from a fresh one', () => {
@@ -105,7 +131,10 @@ describe('buildItemIndex', () => {
       })
     ])
 
-    expect(index[0]!.holdings[0]).toMatchObject({ durability: 2912, maxDurability: 3000 })
+    expect(index[0]!.holders[0]!.holdings[0]).toMatchObject({
+      durability: 2912,
+      maxDurability: 3000
+    })
   })
 
   it('sorts items by name, ignoring case', () => {
@@ -125,7 +154,7 @@ describe('buildItemIndex', () => {
     ])
 
     expect(index[0]!.lastSeenMs).toBe(9000)
-    expect(index[0]!.holdings.map((holding) => holding.lastSeenMs)).toEqual([9000, 5000])
+    expect(index[0]!.holders.map((holder) => holder.lastSeenMs)).toEqual([9000, 5000])
   })
 })
 

@@ -70,8 +70,45 @@ describe('the Items page', () => {
     await renderWith([SABRAEL, FINTAN])
     const row = screen.getByText('Raw Fish').closest('tr')!
     expect(within(row).getByText('70')).toBeInTheDocument()
-    expect(within(row).getByText('Fintan × 5')).toBeInTheDocument()
-    expect(within(row).getByText('Sabrael × 65')).toBeInTheDocument()
+    expect(
+      within(row)
+        .getAllByTestId('item-holder')
+        .map((tag) => tag.textContent)
+    ).toEqual(['Fintan×5', 'Sabrael×65'])
+  })
+
+  it('names a character once, however many slots hold the item', async () => {
+    // One character is one answer. Three slots used to draw three separate
+    // labels for the same person, which read as three different holders.
+    const hoarder = character('Taurael', {
+      equipment: { 1: item('Claw') },
+      inventory: { 2: item('Claw'), 6: item('Claw') }
+    })
+    await renderWith([hoarder])
+
+    const row = screen.getByText('Claw').closest('tr')!
+    const holders = within(row).getAllByTestId('item-holder')
+    expect(holders).toHaveLength(1)
+    expect(holders[0]).toHaveTextContent('Taurael×3')
+  })
+
+  it('marks a worn item, and leaves a carried one unmarked', async () => {
+    await renderWith([SABRAEL, FINTAN])
+    const worn = screen.getByText('Staff of Ages').closest('tr')!
+    expect(within(worn).getByLabelText('worn')).toBeInTheDocument()
+
+    const carried = screen.getByText('Raw Fish').closest('tr')!
+    expect(within(carried).queryByLabelText('worn')).not.toBeInTheDocument()
+  })
+
+  it('gives the slot and durability on hover, not in the row', async () => {
+    await renderWith([SABRAEL])
+    const row = screen.getByText('Staff of Ages').closest('tr')!
+    await userEvent.hover(within(row).getByTestId('item-holder'))
+
+    const tooltip = await screen.findByRole('tooltip')
+    expect(tooltip).toHaveTextContent('400 / 500')
+    expect(tooltip).toHaveTextContent('Sabrael')
   })
 
   it('summarises what is on screen', async () => {
