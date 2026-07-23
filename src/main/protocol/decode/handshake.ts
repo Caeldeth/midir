@@ -100,12 +100,33 @@ export function decodeTransferServer(body: Uint8Array): TransferServer {
   return { kind: 'transferServer', address, port, token, ...parsed }
 }
 
-function parseRedirectToken(
-  token: Uint8Array
-): Pick<TransferServer, 'saltSelector' | 'startupKey' | 'name' | 'redirectId'> {
+/** What a handoff token holds, when it parses. */
+export interface RedirectToken {
+  saltSelector?: number
+  startupKey?: Uint8Array
+  name?: string
+  redirectId?: number
+}
+
+/**
+ * Parse a handoff token.
+ *
+ * Layout: `[u8 saltSelector][u8 keyLength][key][string8 name][u32 redirectId]`.
+ *
+ * This is the whole cipher state for one connection: which salt table, which
+ * startup key, and the name the session key is built from. Confirmed against a
+ * live retail capture, where the same token appears on the lobby and the world
+ * connection and its key decrypts every startup-mode packet on both.
+ *
+ * A token that does not fit is returned empty rather than throwing. The retail
+ * client never reads this field, so nothing guarantees its shape forever.
+ */
+export function parseRedirectToken(token: Uint8Array): RedirectToken {
   try {
     const reader = new PacketReader(token)
     const saltSelector = reader.u8()
+    // Ten salt tables exist. Anything else means this is not a token.
+    if (saltSelector > 9) return {}
     const startupKey = reader.bytes(reader.u8())
     const name = reader.string8()
     const redirectId = reader.u32()

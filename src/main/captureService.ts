@@ -114,10 +114,15 @@ export function createCaptureService(options: CaptureServiceOptions): CaptureSer
   function handleEvent(tracked: TrackedEvent): void {
     if (tracked.event.type !== 'packet') {
       unreadableCount++
-      // A session packet Midir cannot read means the handshake was missed.
-      // That is the one failure the user must be told about, because the fix
-      // is to start Midir before logging in.
-      if (tracked.event.reason === 'noSessionKey') {
+      // A session packet Midir cannot read means it never saw that
+      // connection's keys. That is worth telling the user about, because the
+      // fix is to start Midir before logging in.
+      //
+      // It is only worth telling them while nothing is being read. Capture
+      // started during an earlier session leaves a few unreadable packets on
+      // the connection that was already open; once the player logs in again
+      // that connection is history and the warning would be a lie.
+      if (tracked.event.reason === 'noSessionKey' && currentCharacter === undefined) {
         if (!missedHandshake) {
           missedHandshake = true
           publishStatus()
@@ -144,6 +149,8 @@ export function createCaptureService(options: CaptureServiceOptions): CaptureSer
 
     if (currentCharacter !== after.record.name) {
       currentCharacter = after.record.name
+      // Whatever could not be read before belonged to a session that is over.
+      missedHandshake = false
       publishStatus()
     }
   }

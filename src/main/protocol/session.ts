@@ -11,6 +11,7 @@ import {
   decodeServerPacket,
   looksLikeCharacterName,
   type DecodedPacket,
+  type RedirectToken,
   type TransferServer
 } from './decode'
 import { createFrameReader, type FrameReader } from './frame'
@@ -141,9 +142,15 @@ export function createProtocolSession(options: SessionOptions = {}): ProtocolSes
       if (packet === null) {
         return { ...base, type: 'unreadable', reason: 'notModelled', body }
       }
+      // The client proves itself to each server it connects to by returning
+      // the handoff token unchanged. That token is the whole cipher state for
+      // THIS connection, and it is raw. It is the most reliable source Midir
+      // has, because it does not depend on having captured the server's side
+      // of a handshake that may have happened before capture started.
+      if (packet.kind === 'clientTransfer') applyToken(state, packet)
+
       // The name the player submitted is what the client feeds into its own
-      // key setup, so it is the authoritative seed for this connection's
-      // session key. It arrives under the startup key, which is a constant.
+      // key setup. It is a second source for the same value.
       if (packet.kind === 'login' && looksLikeCharacterName(packet.name)) {
         applyKeyName(state, packet.name)
       }
@@ -185,8 +192,20 @@ export function createProtocolSession(options: SessionOptions = {}): ProtocolSes
 }
 
 function applyKeyName(state: SessionState, name: string): void {
+  if (state.keyName === name) return
   state.keyName = name
   state.md5Source = buildMd5Source(name)
+}
+
+/** Install the salt selector, the startup key, and the name from a token. */
+function applyToken(state: SessionState, token: RedirectToken): void {
+  if (token.saltSelector !== undefined) state.saltSelector = token.saltSelector
+  if (token.startupKey !== undefined && token.startupKey.length > 0) {
+    state.startupKey = token.startupKey
+  }
+  if (token.name !== undefined && looksLikeCharacterName(token.name)) {
+    applyKeyName(state, token.name)
+  }
 }
 
 function plaintextOf(

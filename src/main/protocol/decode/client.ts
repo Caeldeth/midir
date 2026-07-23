@@ -1,4 +1,5 @@
 import { PacketReader } from '../reader'
+import { parseRedirectToken, type RedirectToken } from './handshake'
 
 /**
  * The client-to-server packets Midir reads.
@@ -30,6 +31,39 @@ export interface ClientLogin {
  */
 export function decodeLogin(body: Uint8Array): ClientLogin {
   return { kind: 'login', name: new PacketReader(body, 1).string8() }
+}
+
+/**
+ * CTransferServer 0x10. The client proving who it is to a server it has just
+ * connected to.
+ *
+ * **This is where Midir gets its keys.** The packet is raw, so it needs
+ * nothing to read it, and the client sends it on every connection it makes:
+ * the lobby, the login server, and the world server. It returns the handoff
+ * token unchanged, and that token holds the salt selector, the startup key,
+ * and the character name for the connection it arrives on.
+ *
+ * That makes it strictly better than watching for the server's redirect. The
+ * redirect describes a connection that has not opened yet, and it is easy to
+ * miss: a live retail capture that began after the redirect still carried this
+ * packet on all three connections, and its key decrypted every one of them.
+ */
+export interface ClientTransfer extends RedirectToken {
+  kind: 'clientTransfer'
+  /** The token as sent, kept whether or not it parsed. */
+  token: Uint8Array
+}
+
+/**
+ * Decode CTransferServer 0x10.
+ *
+ * Body: `[u8 opcode][token][u8 terminator]`. The terminator is appended by the
+ * client's submission layer. The token parser reads a fixed set of fields and
+ * stops, so the trailing byte needs no special handling.
+ */
+export function decodeClientTransfer(body: Uint8Array): ClientTransfer {
+  const token = body.slice(1)
+  return { kind: 'clientTransfer', token, ...parseRedirectToken(token) }
 }
 
 /**

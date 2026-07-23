@@ -287,6 +287,26 @@ describe('decodeStatus', () => {
 })
 
 describe('decodeAddInventory', () => {
+  it('reads the maximum durability before the current one', () => {
+    // Two sources disagreed here. A live retail capture settled it: four worn
+    // items arrived with the first value round and the second below it.
+    const body = bytes(
+      ServerOpcode.AddInventory,
+      1,
+      ...u16(0x1234),
+      0,
+      ...str8('Desert Skewer'),
+      ...u32(1),
+      0x00,
+      ...u32(560000),
+      ...u32(559925)
+    )
+    const item = decodeAddInventory(body)
+    expect(item.maxDurability).toBe(560000)
+    expect(item.durability).toBe(559925)
+    expect(item.durability).toBeLessThanOrEqual(item.maxDurability)
+  })
+
   it('reads every field in wire order', () => {
     const body = bytes(
       ServerOpcode.AddInventory,
@@ -296,8 +316,8 @@ describe('decodeAddInventory', () => {
       ...str8('Blue Dragon Scale Mail'),
       ...u32(1), // quantity
       0x00, // cannot stack
-      ...u32(9500), // durability
-      ...u32(10000) // maximum durability
+      ...u32(10000), // maximum durability comes first
+      ...u32(9500) // current durability
     )
     expect(decodeAddInventory(body)).toEqual({
       kind: 'addInventory',
@@ -377,8 +397,8 @@ describe('decodeAddEquip', () => {
       3,
       ...str8('Staff of Ages'),
       0x00, // the byte the client advances over without checking
-      ...u32(400),
-      ...u32(500)
+      ...u32(500), // maximum durability comes first
+      ...u32(400) // current durability
     )
     expect(decodeAddEquip(body)).toEqual({
       kind: 'addEquip',

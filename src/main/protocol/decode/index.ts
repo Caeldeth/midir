@@ -1,5 +1,5 @@
 import { ClientOpcode, ServerOpcode } from '../opcodes'
-import { decodeLogin, type ClientLogin } from './client'
+import { decodeClientTransfer, decodeLogin, type ClientLogin, type ClientTransfer } from './client'
 import {
   decodeDrawHumanObjects,
   decodeSelfLook,
@@ -35,6 +35,7 @@ export * from './items'
 /** A packet Midir models, in either direction. */
 export type DecodedPacket =
   | ClientLogin
+  | ClientTransfer
   | VersionCheck
   | TransferServer
   | UserAppearance
@@ -61,7 +62,10 @@ const DECODERS = new Map<number, Decoder>([
   [ServerOpcode.SelfLook, decodeSelfLook]
 ])
 
-const CLIENT_DECODERS = new Map<number, Decoder>([[ClientOpcode.Login, decodeLogin]])
+const CLIENT_DECODERS = new Map<number, Decoder>([
+  [ClientOpcode.Login, decodeLogin],
+  [ClientOpcode.ClientJoin, decodeClientTransfer]
+])
 
 /** True while Midir has a decoder for `opcode`. */
 export function hasServerDecoder(opcode: number): boolean {
