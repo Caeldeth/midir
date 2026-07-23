@@ -54,6 +54,16 @@ entry with no trigger is a non-goal, and it is recorded here so it is not propos
   to grow a rule rather than a second special case. Recorded because the special case is easy to
   copy and the general rule is not obvious. _Trigger:_ the second field.
 
+## UI and rendering
+
+- **Item lists are not virtualized, and icons flash into place.** WP7 draws each item icon as an
+  `<img>` that fetches over `midir-icon://` and shows once it loads, so an icon appears a moment
+  after its row. A long Items index or inventory also renders every row at once. A future WP would
+  virtualize the long lists (the Items index and the inventory), and warm the icon cache for the
+  rows about to show, so an icon is present before its row paints. The icon service already caches
+  each rendered PNG in memory, so a warm pass is a read ahead, not new decode work. _Trigger:_ the
+  flash being distracting on a real list, or an item index large enough to drop frames on scroll.
+
 ## Reporting and release
 
 - **The bug report to cernunnos.** The Diagnostics ring buffer was built to be attached to one.

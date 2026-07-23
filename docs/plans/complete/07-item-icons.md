@@ -1,7 +1,16 @@
 # WP7 — item icons via dalib-ts
 
 **Size:** M. **Depends on:** WP6 (the index carries `sprite` and `color`), WP9 (bank rows carry them
-too). Read `00-overview.md` first. **PLANNED — the one gap in the shipped run.**
+too). Read `00-overview.md` first. **COMPLETE.**
+
+**As built.** The icon path is `main/icons/`: `itemSprite.ts` (the pure id arithmetic),
+`png.ts` (a small PNG encoder), `iconService.ts` (the lazy archive open, the caches, and the
+dalib-ts render), and `protocol.ts` (the `midir-icon://` handler). The renderer draws
+`<img src="midir-icon://item/<sprite>/<color>">` through `components/ItemIcon.tsx`, gated on
+`store/iconsStore.ts`. The sprite id and colour ride in the URL **path**, not the host: the scheme
+is registered `standard`, so a numeric host is read as a 32-bit IPv4 address and rewritten (sprite
+32774 became `0.0.128.6`). `@eriscorp/dalib-ts` is a **local `file:` dependency** for now
+(`../dalib-ts`); swap it for the published `^2.2.0` before release.
 
 ## Goal
 

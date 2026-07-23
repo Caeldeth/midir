@@ -115,7 +115,7 @@ WP1 (scaffold)   COMPLETE
       │    └── WP4 (character record, reducer, store)   COMPLETE
       │         ├── WP5 (character sheet, live view, settings)   COMPLETE
       │         │    ├── WP6 (cross-character item index + credential scrub)   COMPLETE
-      │         │    │    └── WP7 (item icons via dalib-ts)   PLANNED — 07-item-icons.md
+      │         │    │    └── WP7 (item icons via dalib-ts)   COMPLETE — complete/07-item-icons.md
       │         │    └── WP8 (diagnostics log + recordings)   COMPLETE
       │         ├── WP9 (bank from the NPC dialog)   COMPLETE
       │         ├── WP10 (live character lifecycle / logoff)   COMPLETE
@@ -133,8 +133,9 @@ WP14 (position and map, off the wire)   PLANNED — what WP15 steers by
 WP18 (the packet-send spike)   PLANNED — gates every forged packet; WP17 is the only caller waiting
 ```
 
-WP7 is the one gap in the shipped run. It was specified, deferred for the protocol work that kept
-paying better, and the WPs after it kept their numbers rather than closing the hole.
+WP7 was the one gap in the shipped run. It was specified, deferred for the protocol work that kept
+paying better, and the WPs after it kept their numbers rather than closing the hole. It is now
+built: item icons come off the game's own `legend.dat`, drawn through a privileged protocol.
 
 ## Work packages
 
@@ -146,7 +147,7 @@ paying better, and the WPs after it kept their numbers rather than closing the h
 | WP4  | M    | The character record and its store        | COMPLETE — `complete/04-character-record.md` |
 | WP5  | M    | The character sheet and the live view     | COMPLETE — `complete/05-character-sheet.md`  |
 | WP6  | M    | Cross-character item index, and the scrub | COMPLETE — `complete/06-item-index.md`       |
-| WP7  | M    | Item icons via dalib-ts                   | PLANNED — `07-item-icons.md`                 |
+| WP7  | M    | Item icons via dalib-ts                   | COMPLETE — `complete/07-item-icons.md`       |
 | WP8  | M    | Diagnostics log and recordings            | COMPLETE — `complete/08-diagnostics.md`      |
 | WP9  | M    | The bank, out of the NPC dialog           | COMPLETE — `complete/09-bank.md`             |
 | WP10 | S    | The live character's lifecycle            | COMPLETE — `complete/10-live-lifecycle.md`   |
