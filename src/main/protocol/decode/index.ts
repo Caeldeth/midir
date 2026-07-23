@@ -1,5 +1,12 @@
 import { ClientOpcode, ServerOpcode } from '../opcodes'
-import { decodeClientTransfer, decodeLogin, type ClientLogin, type ClientTransfer } from './client'
+import {
+  decodeClientExit,
+  decodeClientTransfer,
+  decodeLogin,
+  type ClientExit,
+  type ClientLogin,
+  type ClientTransfer
+} from './client'
 import {
   decodeDrawHumanObjects,
   decodeSelfLook,
@@ -49,6 +56,7 @@ export type DecodedPacket =
   | DrawHumanObjects
   | SelfLook
   | BankContents
+  | ClientExit
 
 /**
  * A decoder returns null when the body is an opcode Midir models but a variant
@@ -73,7 +81,8 @@ const DECODERS = new Map<number, Decoder>([
 
 const CLIENT_DECODERS = new Map<number, Decoder>([
   [ClientOpcode.Login, decodeLogin],
-  [ClientOpcode.ClientJoin, decodeClientTransfer]
+  [ClientOpcode.ClientJoin, decodeClientTransfer],
+  [ClientOpcode.ClientExit, decodeClientExit]
 ])
 
 /** True while Midir has a decoder for `opcode`. */

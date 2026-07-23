@@ -83,6 +83,8 @@ export const ClientOpcode = {
   NewUser: 0x02,
   /** Signs in. Carries a password. See scrub.ts. */
   Login: 0x03,
+  /** Announces the quit dialog, then confirms the exit. See decode/client.ts. */
+  ClientExit: 0x0b,
   /** Checks a password. Wire format unknown. See scrub.ts. */
   CheckPassword: 0x15,
   ClientJoin: 0x10,

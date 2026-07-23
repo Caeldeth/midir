@@ -60,6 +60,19 @@ export function createCaptureService(options: CaptureServiceOptions): CaptureSer
   const sessions = new Map<string, CharacterSession>()
   /** Records changed but not yet written, by character name. */
   const unsaved = new Map<string, CharacterRecord>()
+  /**
+   * Who is logged in, by connection.
+   *
+   * The character belongs to its connection, not to the service. A player who
+   * logs off leaves the connection behind, and the status has to follow. This
+   * used to be a single name that nothing ever cleared, so a character stayed
+   * "logged in" until capture stopped.
+   *
+   * A map rather than one name because one day it will hold more than one:
+   * two clients running at once are two live connections, and this shape
+   * already describes that. Only `status` still narrows it to one.
+   */
+  const liveCharacters = new Map<string, string>()
 
   let source: PacketSource | undefined
   let device: string | undefined
@@ -70,23 +83,30 @@ export function createCaptureService(options: CaptureServiceOptions): CaptureSer
   let missedHandshake = false
   let lastError: string | undefined
   let connectionCount = 0
-  let currentCharacter: string | undefined
+
+  /**
+   * The character to name in the status.
+   *
+   * The most recent login wins while several are live, because the status has
+   * room for one name. Nothing else depends on the choice.
+   */
+  function currentCharacter(): string | undefined {
+    let latest: string | undefined
+    for (const name of liveCharacters.values()) latest = name
+    return latest
+  }
 
   function status(): CaptureStatus {
+    const character = currentCharacter()
     return {
       running: source !== undefined,
-      state:
-        source === undefined
-          ? 'stopped'
-          : currentCharacter !== undefined
-            ? 'decoding'
-            : 'listening',
+      state: source === undefined ? 'stopped' : character !== undefined ? 'decoding' : 'listening',
       connections: connectionCount,
       decodedCount,
       unreadableCount,
       missedHandshake,
       ...(device !== undefined ? { device } : {}),
-      ...(currentCharacter !== undefined ? { characterName: currentCharacter } : {}),
+      ...(character !== undefined ? { characterName: character } : {}),
       ...(recorder !== null ? { recordingPath: recorder.path } : {}),
       ...(lastError !== undefined ? { error: lastError } : {})
     }
@@ -122,7 +142,7 @@ export function createCaptureService(options: CaptureServiceOptions): CaptureSer
       // started during an earlier session leaves a few unreadable packets on
       // the connection that was already open; once the player logs in again
       // that connection is history and the warning would be a lie.
-      if (tracked.event.reason === 'noSessionKey' && currentCharacter === undefined) {
+      if (tracked.event.reason === 'noSessionKey' && currentCharacter() === undefined) {
         if (!missedHandshake) {
           missedHandshake = true
           publishStatus()
@@ -133,6 +153,15 @@ export function createCaptureService(options: CaptureServiceOptions): CaptureSer
 
     decodedCount++
     const id = tracked.connection.id
+
+    // The player confirmed the quit dialog. The connection usually closes a
+    // moment later, but say so now: the close can be missed, and a passive
+    // capture has no other way to learn that a session ended.
+    if (tracked.event.packet.kind === 'clientExit') {
+      if (tracked.event.packet.confirmed && liveCharacters.delete(id)) publishStatus()
+      return
+    }
+
     const before = sessions.get(id) ?? newSession(tracked.connection.openedAtMs)
     const after = reduce(before, {
       packet: tracked.event.packet,
@@ -147,8 +176,8 @@ export function createCaptureService(options: CaptureServiceOptions): CaptureSer
     scheduleSave()
     onCharacter?.(after.record)
 
-    if (currentCharacter !== after.record.name) {
-      currentCharacter = after.record.name
+    if (liveCharacters.get(id) !== after.record.name) {
+      liveCharacters.set(id, after.record.name)
       // Whatever could not be read before belonged to a session that is over.
       missedHandshake = false
       publishStatus()
@@ -165,8 +194,8 @@ export function createCaptureService(options: CaptureServiceOptions): CaptureSer
       unreadableCount = 0
       missedHandshake = false
       lastError = undefined
-      currentCharacter = undefined
       connectionCount = 0
+      liveCharacters.clear()
       sessions.clear()
       tracker.clear()
 
@@ -183,6 +212,10 @@ export function createCaptureService(options: CaptureServiceOptions): CaptureSer
         onClose: (connection) => {
           tracker.onClose?.(connection)
           sessions.delete(connection.id)
+          // The character goes with the connection. This is the signal that
+          // always arrives: a client that crashes or is killed sends no exit
+          // packet, but its connection still ends.
+          liveCharacters.delete(connection.id)
           connectionCount = tracker.activeConnections().length
           publishStatus()
         },
@@ -221,7 +254,7 @@ export function createCaptureService(options: CaptureServiceOptions): CaptureSer
       source = undefined
       device = undefined
       recorder = null
-      currentCharacter = undefined
+      liveCharacters.clear()
       connectionCount = 0
       // Stop the source first, so no event arrives after the file is closed.
       if (running !== undefined) await running.stop()
