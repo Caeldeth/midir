@@ -3,7 +3,6 @@ import {
   Box,
   Chip,
   InputAdornment,
-  Paper,
   Table,
   TableBody,
   TableCell,
@@ -14,7 +13,14 @@ import {
   Tooltip,
   Typography
 } from '@mui/material'
-import { equipmentSlotName, formatAgo, formatDurability, formatNumber } from '@renderer/lib/format'
+import Guidance from '@renderer/components/Guidance'
+import {
+  equipmentSlotName,
+  formatAgo,
+  formatDurability,
+  formatNumber,
+  plural
+} from '@renderer/lib/format'
 import { useCharacterStore } from '@renderer/store/characterStore'
 import { buildItemIndex, filterItems, summariseItems, type ItemHolding } from '@shared/items'
 import React, { useEffect, useMemo, useState } from 'react'
@@ -31,17 +37,17 @@ import React, { useEffect, useMemo, useState } from 'react'
  * read as a count from now.
  */
 
-/** How a single holding reads: where it is, and how many. */
-function holdingLabel(holding: ItemHolding): string {
-  const where =
-    holding.place === 'equipment' ? equipmentSlotName(holding.slot) : `Slot ${holding.slot}`
-  return holding.count > 1 ? `${where} × ${formatNumber(holding.count)}` : where
+/** Append the count when a holding has more than one. One rule, two subjects. */
+function withCount(text: string, count: number): string {
+  return count > 1 ? `${text} × ${formatNumber(count)}` : text
 }
 
 function HolderChip({ holding }: { holding: ItemHolding }): React.JSX.Element {
+  const where =
+    holding.place === 'equipment' ? equipmentSlotName(holding.slot) : `Slot ${holding.slot}`
   const durability = formatDurability(holding.durability, holding.maxDurability)
   const detail = [
-    holdingLabel(holding),
+    withCount(where, holding.count),
     durability === '' ? '' : `durability ${durability}`,
     `last seen ${formatAgo(holding.lastSeenMs)}`
   ]
@@ -53,11 +59,7 @@ function HolderChip({ holding }: { holding: ItemHolding }): React.JSX.Element {
       <Chip
         size="small"
         variant={holding.place === 'equipment' ? 'filled' : 'outlined'}
-        label={
-          holding.count > 1
-            ? `${holding.character} × ${formatNumber(holding.count)}`
-            : holding.character
-        }
+        label={withCount(holding.character, holding.count)}
       />
     </Tooltip>
   )
@@ -78,17 +80,13 @@ function Items(): React.JSX.Element {
 
   if (characters.length === 0) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
-        <Paper sx={{ p: 4, maxWidth: 620, textAlign: 'center' }}>
-          <Typography variant="h5" gutterBottom>
-            No items yet
-          </Typography>
-          <Typography variant="body1" sx={{ color: 'text.secondary' }}>
-            Turn capture on, then log in to Dark Ages. Everything your characters carry and wear is
-            indexed here.
-          </Typography>
-        </Paper>
-      </Box>
+      <Guidance
+        title="No items yet"
+        detail={
+          'Turn capture on, then log in to Dark Ages. Everything your characters carry and wear ' +
+          'is indexed here.'
+        }
+      />
     )
   }
 
@@ -123,9 +121,7 @@ function Items(): React.JSX.Element {
           }}
         />
         <Typography variant="body2" sx={{ color: 'text.secondary' }} data-testid="item-summary">
-          {formatNumber(summary.itemCount)} item{summary.itemCount === 1 ? '' : 's'} ·{' '}
-          {formatNumber(summary.totalCount)} held across {formatNumber(summary.characterCount)}{' '}
-          character{summary.characterCount === 1 ? '' : 's'}
+          {`${plural(summary.itemCount, 'item')} · ${formatNumber(summary.totalCount)} held across ${plural(summary.characterCount, 'character')}`}
         </Typography>
       </Box>
 

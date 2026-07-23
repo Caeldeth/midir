@@ -64,9 +64,16 @@ function countOf(count: number): number {
   return count > 0 ? count : 1
 }
 
-/** Compare two names the way a reader expects, ignoring case. */
+/**
+ * Compare two names the way a reader expects, ignoring case.
+ *
+ * The collator is built once. Passing options to `localeCompare` builds a new
+ * one for every comparison, which dominates the cost of a whole index build.
+ */
+const COLLATOR = new Intl.Collator(undefined, { sensitivity: 'base' })
+
 function byName(left: string, right: string): number {
-  return left.localeCompare(right, undefined, { sensitivity: 'base' })
+  return COLLATOR.compare(left, right)
 }
 
 function compareHoldings(left: ItemHolding, right: ItemHolding): number {
@@ -85,12 +92,14 @@ function compareHoldings(left: ItemHolding, right: ItemHolding): number {
  * holding, so nothing is lost.
  */
 export function buildItemIndex(records: readonly CharacterRecord[]): ItemIndexEntry[] {
-  const sprites = new Map<string, number>()
-  const grouped = new Map<string, ItemHolding[]>()
+  const grouped = new Map<string, { sprite: number; holdings: ItemHolding[] }>()
 
   for (const record of records) {
-    for (const place of ['equipment', 'inventory'] as const) {
-      const slots = place === 'equipment' ? record.equipment : record.inventory
+    // The place and its slots are one choice. A bank adds a row here.
+    for (const [place, slots] of [
+      ['equipment', record.equipment],
+      ['inventory', record.inventory]
+    ] as const) {
       for (const [slot, item] of Object.entries(slots)) {
         const holding: ItemHolding = {
           character: record.name,
@@ -102,23 +111,23 @@ export function buildItemIndex(records: readonly CharacterRecord[]): ItemIndexEn
           maxDurability: item.maxDurability,
           lastSeenMs: record.lastSeenMs
         }
-        const existing = grouped.get(item.name)
-        if (existing === undefined) {
-          grouped.set(item.name, [holding])
-          sprites.set(item.name, item.sprite)
+        const group = grouped.get(item.name)
+        if (group === undefined) {
+          grouped.set(item.name, { sprite: item.sprite, holdings: [holding] })
         } else {
-          existing.push(holding)
+          group.holdings.push(holding)
         }
       }
     }
   }
 
   const entries: ItemIndexEntry[] = []
-  for (const [name, holdings] of grouped) {
+  for (const [name, group] of grouped) {
+    const { holdings } = group
     holdings.sort(compareHoldings)
     entries.push({
       name,
-      sprite: sprites.get(name) ?? 0,
+      sprite: group.sprite,
       totalCount: holdings.reduce((sum, holding) => sum + holding.count, 0),
       characterCount: new Set(holdings.map((holding) => holding.character)).size,
       lastSeenMs: holdings.reduce((latest, holding) => Math.max(latest, holding.lastSeenMs), 0),

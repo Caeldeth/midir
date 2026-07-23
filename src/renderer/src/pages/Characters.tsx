@@ -1,16 +1,7 @@
 import DeleteOutlinedIcon from '@mui/icons-material/DeleteOutlined'
-import {
-  Box,
-  Button,
-  IconButton,
-  List,
-  ListItemButton,
-  ListItemText,
-  Paper,
-  Tooltip,
-  Typography
-} from '@mui/material'
+import { Box, Button, IconButton, List, ListItemButton, ListItemText, Tooltip } from '@mui/material'
 import CharacterSheet from '@renderer/components/CharacterSheet'
+import Guidance from '@renderer/components/Guidance'
 import { characterClassName, formatAgo, formatNumber } from '@renderer/lib/format'
 import { findCharacter, useCharacterStore } from '@renderer/store/characterStore'
 import React, { useEffect } from 'react'
@@ -40,16 +31,10 @@ function Characters(): React.JSX.Element {
 
   if (characters.length === 0) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
-        <Paper sx={{ p: 4, maxWidth: 620, textAlign: 'center' }}>
-          <Typography variant="h5" gutterBottom>
-            No characters yet
-          </Typography>
-          <Typography variant="body1" sx={{ color: 'text.secondary' }}>
-            Turn capture on, then log in to Dark Ages. Every character you play is recorded here.
-          </Typography>
-        </Paper>
-      </Box>
+      <Guidance
+        title="No characters yet"
+        detail="Turn capture on, then log in to Dark Ages. Every character you play is recorded here."
+      />
     )
   }
 

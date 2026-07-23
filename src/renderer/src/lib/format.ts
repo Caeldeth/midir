@@ -15,6 +15,11 @@ export function formatNumber(value: number): string {
   return NUMBER.format(value)
 }
 
+/** A count and its noun: "1 item", "3 items". English plurals only. */
+export function plural(count: number, noun: string): string {
+  return `${formatNumber(count)} ${noun}${count === 1 ? '' : 's'}`
+}
+
 /** A signed number, so an armour class of -10 reads as an improvement. */
 export function formatSigned(value: number): string {
   return value > 0 ? `+${formatNumber(value)}` : formatNumber(value)
