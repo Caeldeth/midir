@@ -33,6 +33,16 @@ entry with no trigger is a non-goal, and it is recorded here so it is not propos
   connection, so the decode path is ready. Only `CaptureStatus` narrows it to one name — that is
   WP12, and it is scheduled.
 
+## The assistants — known and deferred
+
+- **Reconstruct the walker's route graph from ceridwen.** WP15 ships on the hand-made
+  `WorldMap.dat` imported from DA Walker. Ceridwen (`Repos/ceridwen/xml/maps/`) already holds the
+  same graph as authored XML — `<Warp>` edges with `<MapTarget>` destinations — plus NPC positions
+  the `.dat` lacks, which WP17 would want for "walk to this NPC". **Caveat:** ceridwen is Hybrasyl
+  data and Midir is retail-only, so a ceridwen-built graph must be verified against retail (map-id
+  correspondence, or the positions WP14 reads on a live session), not trusted as a drop-in.
+  _Trigger:_ the hand-made graph going stale, or WP17 wanting NPC coordinates. See WP15.
+
 ## Data and durability
 
 - **Nothing prunes a character record.** A character deleted on the server stays in the file

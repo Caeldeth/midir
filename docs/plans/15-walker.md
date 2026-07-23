@@ -14,11 +14,37 @@ allows. It is the largest assistant and the one WP17 is built on.
 
 - **Keep the route graph.** `WorldMap.dat` is a text file of nodes: a map id, a name, and for each
   neighbour the destination map and the tile that warps to it. It is a hand-built map of how the
-  world connects, and it is the expensive part — years of somebody walking the world. Import it;
-  do not rebuild it.
+  world connects, and it is the expensive part — years of somebody walking the world. Import it for
+  now; do not rebuild it by hand. **It may be reconstructable later — see the note below** — but
+  that is a future improvement, not a reason to delay this WP.
 - **Keep the shape of the search.** `InitDistRouteTables`, `BPath`, `FindAndMoveToClosest`,
   `doorWalk` — an all-pairs table over the map graph, then a walk within each map.
 - **Drop the memory reads.** `MapNum`, `Coords` and the rest of the pointer table are WP14 now.
+
+## The route graph may be reconstructable from ceridwen (future)
+
+`WorldMap.dat` is hand-made, which makes it both valuable and stale-prone: it is only as current as
+whoever last walked the world. **Ceridwen already holds the same graph as authored data.** Each map
+XML carries its warps as source:
+
+```xml
+<Warp X="11" Y="5"><MapTarget X="2" Y="7">Path Temple 6</MapTarget></Warp>
+```
+
+That is a node (the map), an edge (the warp tile), and its destination — the exact structure the
+`.dat` encodes — and the map XML also carries NPC positions (`<Npc Name="Donnan" X="2" Y="5"/>`),
+which is what WP17's "walk to Antonio" needs and `WorldMap.dat` does not have at all. 231 maps, 80
+with warps, in `Repos/ceridwen/xml/maps/`.
+
+**The catch, and why this is a note and not the plan:** ceridwen is **Hybrasyl** world data, and
+Midir is retail-only (settled decision 5). The two worlds are close but not proven identical — map
+ids and warp layouts can differ — so a ceridwen-built graph is a reconstruction to **verify against
+retail**, not a drop-in. It would need either a retail↔ceridwen map-id correspondence, or checking
+against the positions WP14 reads off the wire on a real retail session.
+
+So: ship WP15 on the imported `WorldMap.dat`. Treat a ceridwen-derived graph as a later WP that
+earns its place when the hand-made graph goes stale or when WP17 wants NPC coordinates the `.dat`
+cannot give. Recorded in `00a-backlog.md`.
 
 ## The one way to get this wrong
 
