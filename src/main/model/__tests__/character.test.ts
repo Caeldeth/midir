@@ -490,3 +490,56 @@ describe('the reducer as a whole', () => {
     expect(state.record.appearance.hairColor).toBe(9)
   })
 })
+
+describe('the bank', () => {
+  const bankPacket = (
+    items: { name: string; count: number }[],
+    npcName = 'Antonio'
+  ): DecodedPacket => ({
+    kind: 'bankContents',
+    sourceId: 0x1f6f,
+    npcName,
+    items: items.map((item) => ({ name: item.name, sprite: 1, color: 0, count: item.count }))
+  })
+
+  it('is absent until a bank list arrives', () => {
+    // An unread bank is not an empty one, so there is nothing to record yet.
+    const state = run([fullStatus], { keyName: CHARACTER })
+    expect(state.record.bank).toBeUndefined()
+  })
+
+  it('records what the bank held, the banker, and when it was read', () => {
+    const state = run([fullStatus, bankPacket([{ name: 'Stick', count: 4 }])], {
+      keyName: CHARACTER,
+      startMs: 5000
+    })
+
+    expect(state.record.bank).toMatchObject({ npcName: 'Antonio', readAtMs: 5020 })
+    expect(state.record.bank!.items).toEqual([{ name: 'Stick', sprite: 1, color: 0, count: 4 }])
+  })
+
+  it('replaces the list rather than merging it', () => {
+    // The whole bank arrives at once. Merging would keep an item the player
+    // has since withdrawn, and there is no per-item update to correct it.
+    const state = run(
+      [
+        fullStatus,
+        bankPacket([
+          { name: 'Stick', count: 4 },
+          { name: 'Beryl', count: 1 }
+        ]),
+        bankPacket([{ name: 'Beryl', count: 1 }])
+      ],
+      { keyName: CHARACTER }
+    )
+
+    expect(state.record.bank!.items.map((entry) => entry.name)).toEqual(['Beryl'])
+  })
+
+  it('records a bank that came back with nothing in it', () => {
+    // Distinct from never having read one. Silence never reaches the reducer.
+    const state = run([fullStatus, bankPacket([])], { keyName: CHARACTER })
+    expect(state.record.bank).not.toBeUndefined()
+    expect(state.record.bank!.items).toEqual([])
+  })
+})

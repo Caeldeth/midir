@@ -111,6 +111,38 @@ describe('CharacterSheet', () => {
     expect(screen.getByText('No legend marks seen yet.')).toBeInTheDocument()
   })
 
+  it('never calls an unread bank an empty one', () => {
+    // An empty bank sends no reply at all, so silence and an empty bank are
+    // the same on the wire. Saying "empty" here would be a claim Midir cannot
+    // make, and it would read as "you have nothing" to a player who does.
+    const bare = emptyCharacter('Newborn', Date.now())
+    render(<CharacterSheet record={bare} />)
+
+    expect(screen.getByText(/Not read yet/)).toBeInTheDocument()
+    expect(screen.queryByText(/bank is empty/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/No items in the bank/i)).not.toBeInTheDocument()
+  })
+
+  it('shows the bank with the banker and how old the reading is', () => {
+    const record = {
+      ...emptyCharacter('Sabrael', Date.now()),
+      bank: {
+        readAtMs: Date.now() - 3 * 24 * 60 * 60 * 1000,
+        npcName: 'Drave',
+        items: [
+          { name: 'Andor Aiquilon', sprite: 0x87ee, color: 0, count: 10 },
+          { name: 'Bent Crux', sprite: 0x8053, color: 0, count: 1 }
+        ]
+      }
+    }
+    render(<CharacterSheet record={record} />)
+
+    expect(screen.getByText('Andor Aiquilon')).toBeInTheDocument()
+    expect(screen.getByText('×10')).toBeInTheDocument()
+    expect(screen.getByText(/Drave/)).toBeInTheDocument()
+    expect(screen.getByText(/3 days ago/)).toBeInTheDocument()
+  })
+
   it('does not crash when the maximums are zero', () => {
     // A record with only a name has no maximum health, so the bars must not
     // divide by zero.

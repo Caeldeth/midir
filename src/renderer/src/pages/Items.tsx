@@ -1,3 +1,4 @@
+import AccountBalanceOutlinedIcon from '@mui/icons-material/AccountBalanceOutlined'
 import CheckroomOutlinedIcon from '@mui/icons-material/CheckroomOutlined'
 import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined'
 import {
@@ -68,6 +69,13 @@ function HolderTag({
             fontSize="inherit"
             aria-label="worn"
             sx={{ color: 'text.link', fontSize: '0.9em' }}
+          />
+        ) : null}
+        {holder.banked ? (
+          <AccountBalanceOutlinedIcon
+            fontSize="inherit"
+            aria-label="in the bank"
+            sx={{ color: 'text.secondary', fontSize: '0.9em' }}
           />
         ) : null}
         <Typography component="span" variant="body2" sx={{ fontWeight: 'medium' }}>

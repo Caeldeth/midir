@@ -20,6 +20,7 @@ interface CharacterOptions {
   lastSeenMs?: number
   inventory?: Record<number, ItemRef>
   equipment?: Record<number, ItemRef>
+  bank?: CharacterRecord['bank']
 }
 
 function character(name: string, options: CharacterOptions = {}): CharacterRecord {
@@ -28,7 +29,22 @@ function character(name: string, options: CharacterOptions = {}): CharacterRecor
     ...record,
     lastSeenMs: options.lastSeenMs ?? 1000,
     inventory: options.inventory ?? {},
-    equipment: options.equipment ?? {}
+    equipment: options.equipment ?? {},
+    ...(options.bank !== undefined ? { bank: options.bank } : {})
+  }
+}
+
+/** A bank snapshot with only the fields a test cares about. */
+function bank(items: { name: string; count?: number }[], readAtMs = 500): CharacterRecord['bank'] {
+  return {
+    readAtMs,
+    npcName: 'Antonio',
+    items: items.map((item) => ({
+      name: item.name,
+      sprite: 1,
+      color: 0,
+      count: item.count ?? 1
+    }))
   }
 }
 
@@ -155,6 +171,70 @@ describe('buildItemIndex', () => {
 
     expect(index[0]!.lastSeenMs).toBe(9000)
     expect(index[0]!.holders.map((holder) => holder.lastSeenMs)).toEqual([9000, 5000])
+  })
+})
+
+describe('the bank in the index', () => {
+  it('counts a banked item alongside a carried one', () => {
+    const index = buildItemIndex([
+      character('Sabrael', {
+        inventory: { 1: item('Stick') },
+        bank: bank([{ name: 'Stick', count: 4 }])
+      })
+    ])
+
+    expect(index).toHaveLength(1)
+    expect(index[0]!.totalCount).toBe(5)
+    expect(index[0]!.holders).toHaveLength(1)
+    expect(index[0]!.holders[0]).toMatchObject({ totalCount: 5, banked: true, equipped: false })
+  })
+
+  it('leaves a character with no bank out, rather than treating it as empty', () => {
+    // An empty bank sends no reply at all, so an unread bank and an empty one
+    // are the same on the wire. The index must claim neither.
+    const index = buildItemIndex([character('Sabrael', { inventory: { 1: item('Stick') } })])
+    expect(index[0]!.holders[0]!.banked).toBe(false)
+  })
+
+  it('carries the time the bank was read, not the time the character was seen', () => {
+    // A bank read weeks ago must not read as a count from today.
+    const index = buildItemIndex([
+      character('Sabrael', { lastSeenMs: 9000, bank: bank([{ name: 'Stick' }], 500) })
+    ])
+    expect(index[0]!.holders[0]!.holdings[0]!.lastSeenMs).toBe(500)
+  })
+
+  it('keeps a holder as fresh as its freshest holding', () => {
+    // The character was seen today and their bank was read long ago. The
+    // holder is not stale just because part of it is.
+    const index = buildItemIndex([
+      character('Sabrael', {
+        lastSeenMs: 9000,
+        inventory: { 1: item('Stick') },
+        bank: bank([{ name: 'Stick' }], 500)
+      })
+    ])
+    expect(index[0]!.holders[0]!.lastSeenMs).toBe(9000)
+  })
+
+  it('lists a worn item, then a carried one, then a stored one', () => {
+    const index = buildItemIndex([
+      character('Sabrael', {
+        equipment: { 1: item('Claw') },
+        inventory: { 7: item('Claw') },
+        bank: bank([{ name: 'Claw' }])
+      })
+    ])
+    expect(index[0]!.holders[0]!.holdings.map((h) => h.place)).toEqual([
+      'equipment',
+      'inventory',
+      'bank'
+    ])
+  })
+
+  it('finds an item that only the bank holds', () => {
+    const index = buildItemIndex([character('Sabrael', { bank: bank([{ name: 'Beryl' }]) })])
+    expect(index.map((entry) => entry.name)).toEqual(['Beryl'])
   })
 })
 

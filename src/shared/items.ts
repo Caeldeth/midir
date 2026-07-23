@@ -16,14 +16,25 @@ import type { CharacterRecord } from './character'
  * it. A stale count read as a live one is worse than no count at all.
  */
 
-/** Where a held item sits. */
-export type ItemPlace = 'equipment' | 'inventory'
+/**
+ * Where a held item sits.
+ *
+ * `bank` is different in kind from the other two. Equipment and inventory
+ * arrive unprompted as the player plays, so they are as fresh as the record.
+ * The bank arrives only when the player opens it at a banker, so a bank
+ * holding can be months older than the character record that carries it. Every
+ * surface must show its own age.
+ */
+export type ItemPlace = 'equipment' | 'inventory' | 'bank'
 
 /** One item, held by one character, in one slot. */
 export interface ItemHolding {
   character: string
   place: ItemPlace
-  /** An EquipmentSlot value for equipment, or an inventory slot number. */
+  /**
+   * An EquipmentSlot value for equipment, or an inventory slot number. The
+   * bank has no slots, so a bank holding uses its position in the list.
+   */
   slot: number
   /** How many are in this slot. It is 1 for an item that cannot stack. */
   count: number
@@ -31,7 +42,11 @@ export interface ItemHolding {
   color: number
   durability: number
   maxDurability: number
-  /** When Midir last read this character. The count is true as of then. */
+  /**
+   * When this holding was read. Equipment and inventory carry the time the
+   * character was last seen; a bank holding carries the time the bank was
+   * opened, which is usually much earlier.
+   */
   lastSeenMs: number
 }
 
@@ -49,6 +64,8 @@ export interface ItemHolder {
   totalCount: number
   /** True when the character wears at least one. */
   equipped: boolean
+  /** True when at least one of these is in the bank rather than on the character. */
+  banked: boolean
   /** When Midir last read this character. The total is true as of then. */
   lastSeenMs: number
   /** Each slot the character holds it in, equipment first. */
@@ -69,8 +86,8 @@ export interface ItemIndexEntry {
   holders: ItemHolder[]
 }
 
-/** Equipment before inventory, so a worn item is listed first. */
-const PLACE_ORDER: Record<ItemPlace, number> = { equipment: 0, inventory: 1 }
+/** Worn first, then carried, then stored. */
+const PLACE_ORDER: Record<ItemPlace, number> = { equipment: 0, inventory: 1, bank: 2 }
 
 /**
  * A holding's count.
@@ -116,6 +133,10 @@ function groupByCharacter(holdings: readonly ItemHolding[]): ItemHolder[] {
     if (last !== undefined && last.character === holding.character) {
       last.totalCount += holding.count
       last.equipped = last.equipped || holding.place === 'equipment'
+      last.banked = last.banked || holding.place === 'bank'
+      // The holder is as fresh as its freshest holding. A bank read weeks ago
+      // must not make a character look stale when they were seen today.
+      last.lastSeenMs = Math.max(last.lastSeenMs, holding.lastSeenMs)
       last.holdings.push(holding)
       continue
     }
@@ -123,6 +144,7 @@ function groupByCharacter(holdings: readonly ItemHolding[]): ItemHolder[] {
       character: holding.character,
       totalCount: holding.count,
       equipped: holding.place === 'equipment',
+      banked: holding.place === 'bank',
       lastSeenMs: holding.lastSeenMs,
       holdings: [holding]
     })
@@ -137,8 +159,17 @@ function groupByCharacter(holdings: readonly ItemHolding[]): ItemHolder[] {
  * Two dye colours of the same item are one entry; the colour is kept on each
  * holding, so nothing is lost.
  */
+type Grouped = Map<string, { sprite: number; holdings: ItemHolding[] }>
+
+/** File one holding under its item name, starting the group when it is new. */
+function add(grouped: Grouped, name: string, sprite: number, holding: ItemHolding): void {
+  const group = grouped.get(name)
+  if (group === undefined) grouped.set(name, { sprite, holdings: [holding] })
+  else group.holdings.push(holding)
+}
+
 export function buildItemIndex(records: readonly CharacterRecord[]): ItemIndexEntry[] {
-  const grouped = new Map<string, { sprite: number; holdings: ItemHolding[] }>()
+  const grouped: Grouped = new Map()
 
   for (const record of records) {
     // The place and its slots are one choice. A bank adds a row here.
@@ -147,7 +178,7 @@ export function buildItemIndex(records: readonly CharacterRecord[]): ItemIndexEn
       ['inventory', record.inventory]
     ] as const) {
       for (const [slot, item] of Object.entries(slots)) {
-        const holding: ItemHolding = {
+        add(grouped, item.name, item.sprite, {
           character: record.name,
           place,
           slot: Number(slot),
@@ -156,14 +187,26 @@ export function buildItemIndex(records: readonly CharacterRecord[]): ItemIndexEn
           durability: item.durability,
           maxDurability: item.maxDurability,
           lastSeenMs: record.lastSeenMs
-        }
-        const group = grouped.get(item.name)
-        if (group === undefined) {
-          grouped.set(item.name, { sprite: item.sprite, holdings: [holding] })
-        } else {
-          group.holdings.push(holding)
-        }
+        })
       }
+    }
+
+    // The bank, when the player has opened one. It carries the time it was
+    // read, not the time the character was seen, because the two can be far
+    // apart. A record with no bank has never had one read; it is not empty.
+    if (record.bank !== undefined) {
+      record.bank.items.forEach((item, index) => {
+        add(grouped, item.name, item.sprite, {
+          character: record.name,
+          place: 'bank',
+          slot: index,
+          count: countOf(item.count),
+          color: item.color,
+          durability: 0,
+          maxDurability: 0,
+          lastSeenMs: record.bank!.readAtMs
+        })
+      })
     }
   }
 
