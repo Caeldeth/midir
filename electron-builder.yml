@@ -19,6 +19,17 @@ files:
   # The addon's sources and build recipe are not needed at run time.
   - '!packages/da-pcap/src/**'
   - '!packages/da-pcap/binding.gyp'
+  # node-gyp leaves about 11 MB of compiler intermediates beside the 205 KB
+  # addon, and the addon is packaged twice. Only the .node file is loaded at
+  # run time, so drop the rest.
+  #
+  # Every pattern here must stay negative. electron-builder replaces its
+  # default include set as soon as one positive pattern appears, which drops
+  # out/ and resources/ from the package.
+  - '!**/da-pcap/build/Release/obj/**'
+  - '!**/da-pcap/build/Release/*.{exp,iobj,ipdb,lib,pdb}'
+  - '!**/da-pcap/build/*.{sln,gypi,vcxproj,filters}'
+  - '!**/da-pcap/build/*.vcxproj.filters'
 asarUnpack:
   - resources/**
   # A native module cannot be loaded from inside an asar archive.

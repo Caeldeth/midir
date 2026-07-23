@@ -19,13 +19,10 @@ test.describe('Settings persist across a restart', () => {
     ;({ electronApp, localAppData } = await launchApp())
     let page = await getMainWindow(electronApp)
 
-    // The theme picker lives on the Settings tab.
+    // The theme picker lives on the Settings tab. It is a radiogroup of
+    // preview cards, one radio per theme, not a dropdown.
     await page.getByRole('tab', { name: 'Settings' }).click()
-
-    // Pick a non-default theme (default is hybrasyl). The Select has an
-    // explicit labelId, so its combobox has the accessible name "Theme".
-    await page.getByRole('combobox', { name: 'Theme' }).click()
-    await page.getByRole('option', { name: 'Mundanes', exact: true }).click()
+    await page.getByRole('radio', { name: 'Mundanes (light)' }).click()
 
     // Wait until the write has actually landed on disk — settings.load() reads
     // settings.json back through the main process, so this confirms persistence
@@ -48,6 +45,9 @@ test.describe('Settings persist across a restart', () => {
     // …and it's actually applied in the hydrated UI.
     await expect(page.getByTestId('app-root')).toHaveAttribute('data-theme', 'mundanes')
     await page.getByRole('tab', { name: 'Settings' }).click()
-    await expect(page.getByRole('combobox', { name: 'Theme' })).toHaveText('Mundanes')
+    await expect(page.getByRole('radio', { name: 'Mundanes (light)' })).toHaveAttribute(
+      'aria-checked',
+      'true'
+    )
   })
 })
