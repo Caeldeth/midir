@@ -26,8 +26,9 @@ entry with no trigger is a non-goal, and it is recorded here so it is not propos
   shape is recoverable only from the server's dialog state. Six forms are documented.
   _Trigger:_ a feature that needs an answer's argument, such as reading the quantity a player typed.
   Note that `0x3A`'s argument **is** self-describing and is already decoded.
-- **`SPursuitMessage 0x30`.** Every NPC conversation that is not a menu. Unread, and Midir has no
-  use for it yet. _Trigger:_ a data source that turns out to live in a text dialog.
+- **`SPursuitMessage 0x30`.** Every NPC conversation that is not a menu. **Promoted 2026-07-23 —
+  this is now WP17's first job**, because a dialog automation cannot act on a conversation it cannot
+  read. The trigger that fired was the Clout Assistant, not a data source.
 - **Multi-client decoding below the status line.** `captureService` already keys live characters by
   connection, so the decode path is ready. Only `CaptureStatus` narrows it to one name — that is
   WP12, and it is scheduled.
@@ -61,8 +62,18 @@ entry with no trigger is a non-goal, and it is recorded here so it is not propos
 
 ## Non-goals (no trigger — these stay out)
 
-- **Anything that sends a packet, injects, or patches the client.** The charter. A feature that
-  needs one is refused, not deferred.
+- **Reading the client's memory.** DA Walker did; Midir does not and will not. The wire carries what
+  the pointer table pointed at, and a pointer table is a debt against one build. See WP14.
+- **Injecting a library, patching the client, or writing its memory or files.** Refused, not
+  deferred, in every mode.
+- **Sending a forged packet before WP18 lands**, and never for movement or chat. Settled decision 3:
+  keys are the default, a packet is a per-feature exception, and the exception is gated on a
+  spike that has not run.
+- **Automating a credential dialog**, including the protected ID and password pursuit. Every
+  assistant stops when it sees one.
+- **Unattended or scheduled automation.** Every assistant runs because the user started it and can
+  watch it. A scheduler is a different tool with a different risk, and it would need its own
+  decision.
 - **Hybrasyl support.** Retail is the target. Hybrasyl's server is a sibling project with its own
   tools; supporting both would make every protocol decision a compatibility argument.
 - **Reading a credential, even one Midir could read.** `CLogin`'s password field is deliberately not

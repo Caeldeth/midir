@@ -42,7 +42,8 @@ per-opcode decoders, and the per-connection session that joins them.
 
 ## What it deliberately did not do
 
-- No encrypt path, ever. Midir has nothing to send.
+- No encrypt path. **Amended 2026-07-23:** "ever" became "not yet" when the charter changed. The
+  transform is its own inverse, so the cipher is not what stands in the way — delivery is. See WP18.
 - No verification of the client direction's four integrity bytes. They are selected MD5 digest
   bytes, and the client's own receive path does not check them either.
 - The greeting `0x7E` is reported unreadable rather than decrypted: the client consumes it with its

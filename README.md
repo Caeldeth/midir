@@ -9,13 +9,24 @@ Two views come out of that record:
 
 Think of Altoholic for World of Warcraft, for Dark Ages.
 
-## Read-only by design
+Three assistants use the same record, and each is off until you turn it on:
 
-Midir listens. It does not speak.
+- **Walker** — walk to a place you name, across maps, by the route the world allows.
+- **Speaker** — say a line of text on an interval you set.
+- **Clout Assistant** — walk to the right NPC, then work the dialog for you.
 
-- It never sends a packet and never connects to the game server.
-- It never modifies the game client, its memory, or its files.
-- It captures with Npcap, the same driver that Wireshark uses.
+They replace DA Walker and DA Speaker, two long-standing community tools that read the game's memory to do less.
+
+## How Midir works with the client
+
+Midir reads from the network and acts through the game's own window.
+
+- **It reads passively.** Capture is with Npcap, the same driver that Wireshark uses. Midir does not read the game's memory and does not need to — the map, your position, your items, and your bank are all on the wire.
+- **It acts as you do.** The assistant features post keys and clicks to the game window. The client checks every action, and nothing happens that you could not do by hand.
+- **It never modifies the game client, its memory, or its files.** No injected library, no patch.
+- **Every assistant feature is off until you turn it on**, and one stop halts all of them.
+
+Automating a game is against most operators' terms of service. Turning an assistant feature on is your decision and your risk.
 
 ## Requirements
 
@@ -31,16 +42,16 @@ Midir learns the encryption keys from the login handshake. If you start Midir in
 
 ## Commands
 
-| Script | What it does |
-| --- | --- |
-| `npm run dev` | Launch with HMR |
-| `npm run typecheck` | `tsc --build` (node and web projects) |
-| `npm run lint` / `lint:check` | ESLint (flat config), with and without `--fix` |
-| `npm test` / `test:coverage` | Vitest (node and jsdom projects) |
-| `npm run e2e` / `e2e:only` | Playwright E2E on the built app (with and without a rebuild first) |
-| `npm run build:win` | Package Windows nsis and portable |
-| `npm run build:win:portable` | Portable exe only |
-| `npm run build:unpack` | Unpacked build for local smoke tests |
+| Script                        | What it does                                                       |
+| ----------------------------- | ------------------------------------------------------------------ |
+| `npm run dev`                 | Launch with HMR                                                    |
+| `npm run typecheck`           | `tsc --build` (node and web projects)                              |
+| `npm run lint` / `lint:check` | ESLint (flat config), with and without `--fix`                     |
+| `npm test` / `test:coverage`  | Vitest (node and jsdom projects)                                   |
+| `npm run e2e` / `e2e:only`    | Playwright E2E on the built app (with and without a rebuild first) |
+| `npm run build:win`           | Package Windows nsis and portable                                  |
+| `npm run build:win:portable`  | Portable exe only                                                  |
+| `npm run build:unpack`        | Unpacked build for local smoke tests                               |
 
 Run this gate green before you commit: `npm run typecheck && npm run lint:check && npm test && npm run build`.
 

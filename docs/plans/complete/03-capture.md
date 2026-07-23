@@ -38,7 +38,9 @@ Bytes, from the wire to the protocol layer, without touching the game.
 
 ## What it deliberately did not do
 
-- No proxy, no injection, no client change. The charter.
+- No proxy, no injection, no client change. The charter as it stood. **Amended 2026-07-23:** the
+  injection and client-change halves still hold absolutely; the proxy is now conditional on WP18's
+  spike, which exists because a forged packet needs one.
 - No IPv6, and no reassembly of out-of-order segments beyond what the stream needs — a gap is
   reported, not repaired.
 - The addon does not filter by process itself; the service asks for the connection table and

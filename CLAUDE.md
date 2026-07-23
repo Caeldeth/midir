@@ -6,7 +6,36 @@ Retail is the only target. Hybrasyl is not supported.
 
 ## The rules that make this app what it is
 
-**Midir is read-only. It never sends a packet, never connects to the game server, and never modifies the client, its memory, or its files.** Capture is passive, through Npcap. Do not add a proxy, an injected DLL, or a client patch. If a feature seems to need one, stop and ask.
+**Midir reads from the wire and acts through the client.** The two halves have different rules, and
+the split is the charter. It replaced a plain "read-only" rule on 2026-07-23, when DA Walker and DA
+Speaker were folded in — see `docs/plans/00-overview.md` for what changed and why.
+
+**Reading is passive, and stays passive.** Capture is through Npcap and nothing else. Midir does not
+read the client's memory, and must not start: DA Walker used `ReadProcessMemory` and a pointer table
+only because it had no protocol decode. Midir has one, so the map, the coordinates, the slots, and
+the bank all come off the wire. A pointer table for one build is also a maintenance debt that a wire
+format is not.
+
+**Acting is through the client's own input queue by default.** Midir posts keys and clicks to the
+game window, exactly as DA Walker and DA Speaker do. It sends no packet in this mode, the client
+validates every action, and nothing happens that a player could not do by hand.
+
+**A forged packet is allowed per feature, and it is not cheap.** It is the right answer only where
+driving the UI is genuinely unreliable — a dialog step, not a footstep. Know the cost before
+choosing it: Midir cannot write into the client's own TCP socket, so a forged packet means a
+**proxy** (the client connects to Midir, Midir connects to the server), a full encrypt path, the
+client-direction integrity bytes, the submission terminator, the dialog wrapper for `0x39`/`0x3A`,
+and re-numbering of everything downstream. That ends the "no proxy" rule, so it is a spike before it
+is a feature. **Nothing sends a packet until that spike lands** (WP18).
+
+**These stay forbidden, whichever mode a feature uses:** no injected DLL, no client patch, no write
+to the client's memory or files, and no read of its memory.
+
+**Every driving feature ships off, with a stop that always works.** Off by default, one obvious
+global stop, and it stops on losing the game window. Midir must never automate a credential dialog
+or a password field.
+
+If a feature seems to need something this section forbids, stop and ask.
 
 **Decryption needs the handshake.** Every cipher input is on the wire in the clear or is a constant: the startup key, the seed-table selector and key from `SVersionCheck` (S→C `0x00`, transform None), and the character name from `STransferServer` (S→C `0x03`, transform None) which seeds the MD5 session key. Because each encrypted packet carries its own sequence and seed bytes, decryption is **stateless per packet** — a dropped packet does not break the next one. But Midir must be running **before** the player logs in. That is a first-class UI state, not an error.
 
