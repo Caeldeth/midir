@@ -2,10 +2,11 @@ import { Box, Tab, Tabs } from '@mui/material'
 import React from 'react'
 
 /** The top-level views. Midir uses a view name and no router, as the siblings do. */
-export type ViewName = 'live' | 'characters' | 'settings'
+export type ViewName = 'live' | 'items' | 'characters' | 'settings'
 
 export const VIEWS: readonly { name: ViewName; label: string }[] = [
   { name: 'live', label: 'Live' },
+  { name: 'items', label: 'Items' },
   { name: 'characters', label: 'Characters' },
   { name: 'settings', label: 'Settings' }
 ]

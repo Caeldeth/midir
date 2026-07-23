@@ -10,16 +10,22 @@ Retail is the only target. Hybrasyl is not supported.
 
 **Decryption needs the handshake.** Every cipher input is on the wire in the clear or is a constant: the startup key, the seed-table selector and key from `SVersionCheck` (S→C `0x00`, transform None), and the character name from `STransferServer` (S→C `0x03`, transform None) which seeds the MD5 session key. Because each encrypted packet carries its own sequence and seed bytes, decryption is **stateless per packet** — a dropped packet does not break the next one. But Midir must be running **before** the player logs in. That is a first-class UI state, not an error.
 
+**A session recording never holds a credential from the game protocol.** `capture/scrub.ts` removes every client frame whose opcode is in `SECRET_BEARING_CLIENT_OPCODES` before the recording is written. The frame is found without a key, because the header states its length and the cipher leaves the opcode in the clear. Dropping a packet is safe: decryption is stateless per packet, and the character name comes from CTransferServer `0x10`. Do not add a recorder path that bypasses this, and add to the set rather than special-casing.
+
+Two limits are known and stated, not fixed. The scrubber **stops recording a connection's client direction after a TCP gap**, because a walk that has lost its place cannot be resynchronised safely — see the `onGap` comment for the two ways it used to leak. And the capture filter is bare `tcp` over every connection the game process opens, so it is not only the game protocol: one dialog type is documented to send an ID and password in a plaintext HTTP URL from that same process, and the frame walk does not touch HTTP. Do not describe a recording as free of credentials without that caveat.
+
 **Commits carry no AI co-author trailer.** Sabrael is the only contributor to this repo. This overrides any global `Co-Authored-By` preference.
 
 **Documentation and comments follow ASD-STE100 Simplified Technical English.** One instruction per sentence, present tense, active voice, short sentences, no idioms.
 
 ## Canonical references (read these first)
 
-- **Retail protocol** — `Repos/darkages-741-re/docs/network/`. `packet-transforms.md` has the complete cipher. `transport.md` has the frame and greeting. `server/*.md` and `client/*.md` have byte-exact wire formats. **This is the source of truth, because Midir targets the retail client.**
-- **Second protocol description** — the document repo's `docs/protocol/`, with Hybrasyl cross-references. Use it to confirm a field. Where the two disagree, follow `darkages-741-re`.
+- **Retail protocol, house description** — the document repo's `docs/protocol/`. Per-opcode files under `client/` and `server/`, plus `WIRE-FORMATS.md`, `OPCODE-MAP.md`, `CLIENT-FRAMING.md`, and `DISCREPANCIES.md`. Many entries carry binary verification against the USDA client and note which paths are dead in that build. **Where the two sources disagree, follow this one.**
+- **Retail protocol, second description** — `Repos/darkages-741-re/docs/network/`. `packet-transforms.md` has the complete cipher. `transport.md` has the frame and greeting. `server/*.md` and `client/*.md` have byte-exact wire formats.
 - **House working practices** — the document repo's `docs/architecture/dev-practices.md` (git and commit discipline, PR prep, verify-before-commit, security posture).
 - **Electron stack standard** — the document repo's `docs/architecture/electron-app-skeleton.md`. Midir is a copy of `Repos/hyb-electron-template`.
+
+**Read both protocol sources.** They are not a superset and a subset. Each holds opcodes and details the other lacks, and they disagree on real fields. Deciding the credential-scrub set needed both: `darkages-741-re` alone gives three password-bearing client opcodes, the document repo gives five and binary-verifies a field the other describes as unused.
 
 Never name the internal document repo in commits, PR titles, PR bodies, or branch names. Call it "the document repo".
 

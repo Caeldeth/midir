@@ -76,11 +76,22 @@ export const ServerOpcode = {
   Hello: SERVER_HELLO
 } as const
 
-/** Client opcodes that Midir reads. */
+/** Client opcodes that Midir reads or acts on. */
 export const ClientOpcode = {
   Version: 0x00,
+  /** Creates an account. Carries a password and an email. See scrub.ts. */
+  NewUser: 0x02,
+  /** Signs in. Carries a password. See scrub.ts. */
   Login: 0x03,
-  ClientJoin: 0x10
+  /** Checks a password. Wire format unknown. See scrub.ts. */
+  CheckPassword: 0x15,
+  ClientJoin: 0x10,
+  /** Replaces a password. Carries two of them. See scrub.ts. */
+  ChangePassword: 0x26,
+  /** Submits a replacement password. Wire format unknown. See scrub.ts. */
+  NewPassword: 0x27,
+  /** Verifies a one-time password. Wire format unknown. See scrub.ts. */
+  Otp: 0x8f
 } as const
 
 const SERVER_OPCODE_NAMES = new Map<number, string>(

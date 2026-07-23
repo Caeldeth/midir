@@ -1,6 +1,7 @@
 import {
   applyXorTransform,
   buildMd5Source,
+  CLIENT_INTEGRITY_LENGTH,
   saltTable,
   selectSessionKey,
   SEED_TRAILER_LENGTH,
@@ -57,6 +58,32 @@ export function sessionBody(options: {
   body[at] = (seed16 & 0xff) ^ 0x74
   body[at + 1] = seed8 ^ 0x24
   body[at + 2] = ((seed16 >> 8) & 0xff) ^ 0x64
+  return [...body]
+}
+
+/**
+ * Build a client-direction startup-key body.
+ *
+ * The client direction carries four integrity bytes between the payload and
+ * the seed trailer. Startup decryption uses the connection's startup key, so
+ * neither the integrity bytes nor the seeds are read. They are left as zeros.
+ */
+export function startupBody(options: {
+  plaintext: number[]
+  saltSelector?: number
+  sequence?: number
+  startupKey?: Uint8Array
+}): number[] {
+  const sequence = options.sequence ?? 0
+  const key = options.startupKey ?? STARTUP_KEY
+
+  const payload = Uint8Array.from(options.plaintext.slice(1))
+  applyXorTransform(payload, key, saltTable(options.saltSelector ?? 0), sequence)
+
+  const body = new Uint8Array(2 + payload.length + CLIENT_INTEGRITY_LENGTH + SEED_TRAILER_LENGTH)
+  body[0] = options.plaintext[0]!
+  body[1] = sequence
+  body.set(payload, 2)
   return [...body]
 }
 

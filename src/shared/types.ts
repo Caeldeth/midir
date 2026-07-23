@@ -4,6 +4,7 @@
 import type { CharacterRecord } from './character'
 
 export * from './character'
+export * from './items'
 
 export type ThemeName = 'hybrasyl' | 'chadul' | 'danaan' | 'grinneal' | 'mundanes' | 'dubhaimid'
 

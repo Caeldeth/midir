@@ -2,6 +2,7 @@ import { createWriteStream, type WriteStream } from 'node:fs'
 import { mkdir } from 'node:fs/promises'
 import { dirname } from 'node:path'
 import { encodeChunk, RECORDING_VERSION, serialiseLine, type RecordingLine } from './recording'
+import { createSecretScrubber, type StreamScrubber } from './scrub'
 import type { CaptureSink, ConnectionInfo, StreamChunk } from './source'
 
 /**
@@ -14,6 +15,10 @@ import type { CaptureSink, ConnectionInfo, StreamChunk } from './source'
  * A recording holds everything the client and the server exchanged, including
  * the character name and that session's encryption keys. It is private data,
  * and recording is off unless the user turns it on.
+ *
+ * Some things are left out on purpose. Three client packets carry an account
+ * password, so every recorder removes them before it writes. See scrub.ts.
+ * Nothing else is changed.
  */
 
 export interface Recorder extends CaptureSink {
@@ -41,9 +46,26 @@ export async function createRecorder(path: string, options: RecorderOptions): Pr
   const now = options.now ?? Date.now
   let lines = 0
 
+  /** One scrubber for each connection's client-to-server stream. */
+  const scrubbers = new Map<string, StreamScrubber>()
+
   function write(line: RecordingLine): void {
     file.write(serialiseLine(line))
     lines++
+  }
+
+  /** Return the chunk to write. The client direction loses its secrets. */
+  function scrubbed(chunk: StreamChunk): StreamChunk {
+    if (chunk.direction !== 'clientToServer') return chunk
+    let scrubber = scrubbers.get(chunk.connectionId)
+    if (scrubber === undefined) {
+      scrubber = createSecretScrubber()
+      scrubbers.set(chunk.connectionId, scrubber)
+    }
+    // A gap invalidates the byte counts the walk is holding. The scrubber
+    // then stops writing this direction rather than guess. See scrub.ts.
+    if (chunk.gap) scrubber.onGap()
+    return { ...chunk, bytes: scrubber.push(chunk.bytes) }
   }
 
   write({
@@ -65,10 +87,11 @@ export async function createRecorder(path: string, options: RecorderOptions): Pr
     },
 
     onChunk(chunk: StreamChunk): void {
-      write(encodeChunk(chunk))
+      write(encodeChunk(scrubbed(chunk)))
     },
 
     onClose(connection: ConnectionInfo): void {
+      scrubbers.delete(connection.id)
       write({ kind: 'close', id: connection.id, timestampMs: now() })
     },
 

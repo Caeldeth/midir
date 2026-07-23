@@ -44,4 +44,12 @@ test.describe('Capture surface', () => {
     await page.getByRole('tab', { name: 'Characters' }).click()
     await expect(page.getByText('No characters yet')).toBeVisible()
   })
+
+  test('the item index is empty on a fresh profile', async () => {
+    ;({ electronApp } = await launchApp())
+    const page = await getMainWindow(electronApp)
+
+    await page.getByRole('tab', { name: 'Items' }).click()
+    await expect(page.getByText('No items yet')).toBeVisible()
+  })
 })

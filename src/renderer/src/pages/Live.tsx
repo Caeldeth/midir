@@ -1,5 +1,6 @@
-import { Alert, Box, Button, Paper, Typography } from '@mui/material'
+import { Alert, Box, Button } from '@mui/material'
 import CharacterSheet from '@renderer/components/CharacterSheet'
+import Guidance from '@renderer/components/Guidance'
 import { useCaptureStore } from '@renderer/store/captureStore'
 import { findCharacter, useCharacterStore } from '@renderer/store/characterStore'
 import React from 'react'
@@ -13,30 +14,6 @@ import React from 'react'
 
 interface LiveProps {
   onOpenSettings: () => void
-}
-
-function Guidance({
-  title,
-  detail,
-  action
-}: {
-  title: string
-  detail: string
-  action?: React.ReactNode
-}): React.JSX.Element {
-  return (
-    <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
-      <Paper sx={{ p: 4, maxWidth: 620, textAlign: 'center' }}>
-        <Typography variant="h5" gutterBottom>
-          {title}
-        </Typography>
-        <Typography variant="body1" sx={{ color: 'text.secondary', mb: action ? 3 : 0 }}>
-          {detail}
-        </Typography>
-        {action}
-      </Paper>
-    </Box>
-  )
 }
 
 function Live({ onOpenSettings }: LiveProps): React.JSX.Element {

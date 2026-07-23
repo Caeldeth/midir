@@ -8,7 +8,8 @@ import {
   formatNumber,
   formatSigned,
   legendIconName,
-  nationName
+  nationName,
+  plural
 } from '../format'
 
 describe('formatNumber', () => {
@@ -41,6 +42,21 @@ describe('the name tables', () => {
     expect(characterClassName(9)).toBe('Unknown (9)')
     expect(nationName(2)).toBe('Unknown (2)')
     expect(equipmentSlotName(0)).toBe('Unknown (0)')
+  })
+})
+
+describe('plural', () => {
+  it('leaves a count of one singular', () => {
+    expect(plural(1, 'item')).toBe('1 item')
+  })
+
+  it('pluralises everything else, zero included', () => {
+    expect(plural(0, 'item')).toBe('0 items')
+    expect(plural(3, 'character')).toBe('3 characters')
+  })
+
+  it('separates the thousands in the count', () => {
+    expect(plural(12000, 'item')).toBe('12,000 items')
   })
 })
 

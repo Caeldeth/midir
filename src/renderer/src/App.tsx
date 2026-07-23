@@ -17,6 +17,7 @@ import { useCharacterStore } from '@renderer/store/characterStore'
 import TitleBar from '@renderer/components/TitleBar'
 import NavBar, { type ViewName } from '@renderer/components/NavBar'
 import Live from '@renderer/pages/Live'
+import Items from '@renderer/pages/Items'
 import Characters from '@renderer/pages/Characters'
 import Settings from '@renderer/pages/Settings'
 
@@ -105,6 +106,7 @@ function App(): React.JSX.Element {
             <NavBar value={view} onChange={setView} />
             <Box sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
               {view === 'live' ? <Live onOpenSettings={() => setView('settings')} /> : null}
+              {view === 'items' ? <Items /> : null}
               {view === 'characters' ? <Characters /> : null}
               {view === 'settings' ? <Settings /> : null}
             </Box>
