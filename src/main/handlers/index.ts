@@ -5,20 +5,26 @@
  * import it and call it directly. `registerHandlers` wires each one to its
  * channel with the supplied `ipcMain` and `BrowserWindow`.
  */
-import type { BrowserWindow as BrowserWindowType, IpcMain } from 'electron'
+import type { BrowserWindow as BrowserWindowType, IpcMain, Shell } from 'electron'
 import type { CaptureService } from '../captureService'
 import type { CharacterStore } from '../store/characterStore'
 import type { createSettingsManager } from '../settingsManager'
 import { registerCaptureHandlers, type CaptureHandlerContext } from './capture'
 import { registerCharacterHandlers, type CharacterHandlerContext } from './characters'
+import { registerDiagnosticsHandlers, type DiagnosticsHandlerContext } from './diagnostics'
 import { registerSettingsHandlers, type SettingsHandlerContext } from './settings'
 
 export * from './capture'
 export * from './characters'
+export * from './diagnostics'
 export * from './settings'
 
 export interface HandlerContext
-  extends SettingsHandlerContext, CaptureHandlerContext, CharacterHandlerContext {
+  extends
+    SettingsHandlerContext,
+    CaptureHandlerContext,
+    CharacterHandlerContext,
+    DiagnosticsHandlerContext {
   settingsPath: string
   settingsManager: ReturnType<typeof createSettingsManager>
   appGetVersion: () => string
@@ -35,10 +41,12 @@ export interface HandlerContext
 interface RegisterDeps {
   ipcMain: IpcMain
   BrowserWindow: typeof BrowserWindowType
+  /** Used to open a folder Midir owns. */
+  shell: Shell
 }
 
 export function registerHandlers(deps: RegisterDeps, ctx: HandlerContext): void {
-  const { ipcMain, BrowserWindow } = deps
+  const { ipcMain, BrowserWindow, shell } = deps
 
   // Window controls. These keep the legacy unprefixed names.
   ipcMain.on('minimize-window', (e) => {
@@ -64,4 +72,5 @@ export function registerHandlers(deps: RegisterDeps, ctx: HandlerContext): void 
   registerSettingsHandlers(ipcMain, ctx)
   registerCaptureHandlers(ipcMain, ctx)
   registerCharacterHandlers(ipcMain, ctx)
+  registerDiagnosticsHandlers(ipcMain, shell, ctx)
 }

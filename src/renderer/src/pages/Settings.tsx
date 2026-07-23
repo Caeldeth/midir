@@ -3,6 +3,7 @@ import {
   Box,
   Button,
   FormControlLabel,
+  InputAdornment,
   MenuItem,
   Paper,
   Stack,
@@ -14,6 +15,7 @@ import ThemePicker from '@renderer/components/ThemePicker'
 import { formatNumber } from '@renderer/lib/format'
 import { useCaptureStore } from '@renderer/store/captureStore'
 import { useSettingsStore } from '@renderer/store/settingsStore'
+import { MAX_RECORDING_CAP_MB } from '@shared/types'
 import React, { useEffect } from 'react'
 
 /**
@@ -36,6 +38,8 @@ function Settings(): React.JSX.Element {
   const setAutoStartCapture = useSettingsStore((s) => s.setAutoStartCapture)
   const recordSessions = useSettingsStore((s) => s.recordSessions)
   const setRecordSessions = useSettingsStore((s) => s.setRecordSessions)
+  const recordingCapMb = useSettingsStore((s) => s.recordingCapMb)
+  const setRecordingCapMb = useSettingsStore((s) => s.setRecordingCapMb)
 
   const availability = useCaptureStore((s) => s.availability)
   const status = useCaptureStore((s) => s.status)
@@ -150,8 +154,22 @@ function Settings(): React.JSX.Element {
             A recording lets a session be replayed later, which is how a packet Midir does not
             understand yet gets worked out. It holds everything the client and the server exchanged,
             including your character name and that session&apos;s keys, so treat it as private.
-            Recording starts on the next capture.
+            Recording starts on the next capture. Read and delete recordings in Diagnostics.
           </Typography>
+
+          <TextField
+            type="number"
+            size="small"
+            label="Keep recordings under"
+            value={recordingCapMb}
+            onChange={(event) => setRecordingCapMb(Math.max(0, Number(event.target.value) || 0))}
+            helperText="Megabytes. Midir deletes the oldest recordings when a capture starts. Zero means no limit."
+            sx={{ ml: 6, mt: 1.5, maxWidth: 320 }}
+            slotProps={{
+              htmlInput: { min: 0, max: MAX_RECORDING_CAP_MB, step: 100 },
+              input: { endAdornment: <InputAdornment position="end">MB</InputAdornment> }
+            }}
+          />
 
           <Box sx={{ flexGrow: 1 }} />
           <Typography variant="caption" sx={{ color: 'text.secondary', mt: 2 }}>

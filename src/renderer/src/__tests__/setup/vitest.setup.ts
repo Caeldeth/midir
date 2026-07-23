@@ -27,6 +27,17 @@ export function createMockApi(): MidirApi {
       get: vi.fn(async () => null),
       remove: vi.fn(async () => undefined),
       onChanged: vi.fn(() => () => undefined)
+    },
+    diagnostics: {
+      listLogs: vi.fn(async () => []),
+      readLog: vi.fn(async () => []),
+      openLogsFolder: vi.fn(async () => undefined),
+      report: vi.fn(async () => undefined),
+      onLogEntry: vi.fn(() => () => undefined),
+      listRecordings: vi.fn(async () => []),
+      deleteRecording: vi.fn(async () => undefined),
+      deleteAllRecordings: vi.fn(async () => 0),
+      openRecordingsFolder: vi.fn(async () => undefined)
     }
   }
 }

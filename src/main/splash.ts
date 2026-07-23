@@ -1,5 +1,6 @@
 import { BrowserWindow } from 'electron'
 import { join } from 'path'
+import { messageOf, type Logger } from './log'
 
 /**
  * Frameless, transparent splash window shown the instant the app boots — before
@@ -11,7 +12,7 @@ import { join } from 'path'
  * `resources/splash.html`) so it ports between sibling apps by copying this
  * file + `resources/splash.html` and swapping the logo/title.
  */
-export function createSplashWindow(): BrowserWindow {
+export function createSplashWindow(log?: Logger): BrowserWindow {
   const splash = new BrowserWindow({
     width: 420,
     height: 260,
@@ -34,7 +35,7 @@ export function createSplashWindow(): BrowserWindow {
 
   // resources/** is bundled + asarUnpacked, so this resolves in production too.
   splash.loadFile(join(__dirname, '../../resources/splash.html')).catch((err) => {
-    console.error('Failed to load splash:', err)
+    log?.error('splash', `Could not load the splash window: ${messageOf(err)}`)
   })
 
   splash.once('ready-to-show', () => splash.show())

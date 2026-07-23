@@ -2,9 +2,11 @@
 // imports from electron or node so this file is safe to pull from any process.
 
 import type { CharacterRecord } from './character'
+import type { LogEntry, LogFileInfo, RecordingInfo } from './log'
 
 export * from './character'
 export * from './items'
+export * from './log'
 
 export type ThemeName = 'hybrasyl' | 'chadul' | 'danaan' | 'grinneal' | 'mundanes' | 'dubhaimid'
 
@@ -32,13 +34,23 @@ export interface MidirSettings {
   autoStartCapture: boolean
   /** Write every captured session to a file. This is a developer aid. */
   recordSessions: boolean
+  /**
+   * Delete the oldest recordings when the folder holds more than this many
+   * megabytes. Zero means no limit. The recording being written is never
+   * deleted.
+   */
+  recordingCapMb: number
 }
+
+/** The largest cap the settings accept, in megabytes. */
+export const MAX_RECORDING_CAP_MB = 102_400
 
 export const DEFAULT_SETTINGS: MidirSettings = {
   theme: 'hybrasyl',
   captureDevice: '',
   autoStartCapture: false,
-  recordSessions: false
+  recordSessions: false,
+  recordingCapMb: 1024
 }
 
 /** One adapter Midir can capture from. */
@@ -137,5 +149,30 @@ export interface MidirApi {
     remove: (name: string) => Promise<void>
     /** Watch for a character that changed. Call the result to stop watching. */
     onChanged: (handler: (record: CharacterRecord) => void) => () => void
+  }
+
+  /**
+   * Every file Midir writes for diagnosis: the log and the session recordings.
+   *
+   * A recording still holds the character name and that session's encryption
+   * keys after the credential scrub. Treat one as private data.
+   */
+  diagnostics: {
+    /** Every log file, newest first. */
+    listLogs: () => Promise<LogFileInfo[]>
+    /** Read one log file. The newest entries are returned, up to a limit. */
+    readLog: (name: string) => Promise<LogEntry[]>
+    openLogsFolder: () => Promise<void>
+    /** Send a renderer error to the same log the main process writes. */
+    report: (error: { source: string; message: string; stack?: string }) => Promise<void>
+    /** Watch the log as it is written. Call the result to stop watching. */
+    onLogEntry: (handler: (entry: LogEntry) => void) => () => void
+
+    /** Every session recording, newest first. */
+    listRecordings: () => Promise<RecordingInfo[]>
+    deleteRecording: (name: string) => Promise<void>
+    /** Delete every recording except the one being written. Returns how many went. */
+    deleteAllRecordings: () => Promise<number>
+    openRecordingsFolder: () => Promise<void>
   }
 }

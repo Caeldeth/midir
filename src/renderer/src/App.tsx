@@ -14,11 +14,14 @@ import type { ThemeName } from '@shared/types'
 import { useSettingsStore } from '@renderer/store/settingsStore'
 import { useCaptureStore } from '@renderer/store/captureStore'
 import { useCharacterStore } from '@renderer/store/characterStore'
+import { useDiagnosticsStore } from '@renderer/store/diagnosticsStore'
+import ErrorBoundary from '@renderer/components/ErrorBoundary'
 import TitleBar from '@renderer/components/TitleBar'
 import NavBar, { type ViewName } from '@renderer/components/NavBar'
 import Live from '@renderer/pages/Live'
 import Items from '@renderer/pages/Items'
 import Characters from '@renderer/pages/Characters'
+import Diagnostics from '@renderer/pages/Diagnostics'
 import Settings from '@renderer/pages/Settings'
 
 const themes: Record<ThemeName, Theme> = {
@@ -58,9 +61,11 @@ function App(): React.JSX.Element {
   useEffect(() => {
     const stopStatus = useCaptureStore.getState().subscribe()
     const stopCharacters = useCharacterStore.getState().subscribe()
+    const stopLog = useDiagnosticsStore.getState().subscribe()
     return () => {
       stopStatus()
       stopCharacters()
+      stopLog()
     }
   }, [])
 
@@ -105,10 +110,15 @@ function App(): React.JSX.Element {
           <>
             <NavBar value={view} onChange={setView} />
             <Box sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-              {view === 'live' ? <Live onOpenSettings={() => setView('settings')} /> : null}
-              {view === 'items' ? <Items /> : null}
-              {view === 'characters' ? <Characters /> : null}
-              {view === 'settings' ? <Settings /> : null}
+              {/* One view failing must not blank the window. The boundary is
+                  keyed on the view, so leaving a broken view clears it. */}
+              <ErrorBoundary key={view}>
+                {view === 'live' ? <Live onOpenSettings={() => setView('settings')} /> : null}
+                {view === 'items' ? <Items /> : null}
+                {view === 'characters' ? <Characters /> : null}
+                {view === 'diagnostics' ? <Diagnostics /> : null}
+                {view === 'settings' ? <Settings /> : null}
+              </ErrorBoundary>
             </Box>
           </>
         ) : (

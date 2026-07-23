@@ -17,11 +17,32 @@ import {
 } from '../handlers'
 import { emptyCharacterFile, type CharacterFile } from '../store/characterStore'
 import { emptyCharacter } from '../../shared/character'
+import type { LogEntry } from '../../shared/log'
+import type { Logger } from '../log'
+
+/** A logger that only remembers what it was told. */
+export function fakeLogger(filePath = ''): Logger & { entries: LogEntry[] } {
+  const entries: LogEntry[] = []
+  const add =
+    (level: LogEntry['level']) =>
+    (scope: string, message: string): void => {
+      entries.push({ timeMs: 0, level, scope, message })
+    }
+  return {
+    entries,
+    filePath,
+    recent: () => entries,
+    info: add('info'),
+    warn: add('warn'),
+    error: add('error')
+  }
+}
 
 function settingsContext(): SettingsHandlerContext & {
   settingsManager: { load: ReturnType<typeof vi.fn>; save: ReturnType<typeof vi.fn> }
 } {
   return {
+    log: fakeLogger(),
     settingsManager: {
       load: vi.fn(async () => ({ ...DEFAULT_SETTINGS })),
       save: vi.fn(async () => undefined)

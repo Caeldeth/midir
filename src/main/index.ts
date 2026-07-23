@@ -9,9 +9,12 @@ import { createCaptureService } from './captureService'
 import {
   CAPTURE_STATUS_CHANNEL,
   CHARACTER_CHANGED_CHANNEL,
+  LOG_APPENDED_CHANNEL,
   registerHandlers,
   type HandlerContext
 } from './handlers'
+import { createLogger, messageOf } from './log'
+import { pruneRecordings } from './recordings'
 import { createSettingsManager } from './settingsManager'
 import { createSplashWindow } from './splash'
 import { createCharacterStore } from './store/characterStore'
@@ -46,11 +49,12 @@ function migrateSettingsFromRoaming(): void {
 }
 migrateSettingsFromRoaming()
 
-const settingsManager = createSettingsManager(settingsPath)
-
 // Startup splash: shown immediately at boot, torn down once the renderer signals
 // `app:ready` (settings hydrated). A safety timeout backstops a renderer that
 // never signals.
+//
+// These come before the logger, because the logger pushes each entry to the
+// window and reads `mainWindow` to do it.
 let mainWindow: BrowserWindow | null = null
 let splashWindow: BrowserWindow | null = null
 let mainWindowRevealed = false
@@ -60,6 +64,21 @@ function pushToRenderer(channel: string, value: unknown): void {
   if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send(channel, value)
 }
 
+/** Where the log and the recordings live, beside the settings. */
+const logsPath = join(settingsPath, 'logs')
+/** Where a recorded session is written. */
+const recordingsPath = join(settingsPath, 'recordings')
+
+// The log opens before anything else that can fail, so the first failure of a
+// launch is already written. A packaged build has no console, so this file is
+// the only way a user can say why something did not work.
+const log = createLogger(logsPath, {
+  onEntry: (entry) => pushToRenderer(LOG_APPENDED_CHANNEL, entry)
+})
+log.info('app', 'Midir started.')
+
+const settingsManager = createSettingsManager(settingsPath, log)
+
 // The addon is loaded once and kept, because a missing Npcap must become a
 // message rather than a crash.
 let pcap: PcapApi | null = null
@@ -68,6 +87,7 @@ try {
   pcap = loadPcapApi()
 } catch (error) {
   pcapLoadError = error instanceof Error ? error.message : String(error)
+  log.error('capture', `Packet capture is unavailable: ${pcapLoadError}`)
 }
 
 function captureAvailability(): CaptureAvailability {
@@ -105,29 +125,40 @@ function captureAvailability(): CaptureAvailability {
 }
 
 const characterStore = createCharacterStore(settingsPath, (failure) => {
-  console.error(`[characters] ${failure.stage}: ${failure.path} — ${failure.message}`)
+  log.error('characters', `${failure.stage}: ${failure.path} — ${failure.message}`)
 })
-
-/** Where a recorded session is written. */
-const recordingsPath = join(settingsPath, 'recordings')
 
 /**
  * Start a recording, but only when the user asked for one. The setting is read
  * fresh at every start, so turning it on takes effect on the next capture.
+ *
+ * The oldest recordings go once the new one is open, so a user who leaves
+ * recording on cannot fill the disk. The new file is passed to the prune, so
+ * the recording that is starting is never the one deleted.
  */
 async function startRecordingIfWanted(startedAtMs: number): Promise<Recorder | null> {
   try {
     const settings = await settingsManager.load()
     if (!settings.recordSessions) return null
     const stamp = new Date(startedAtMs).toISOString().replace(/[:.]/g, '-')
-    return await createRecorder(join(recordingsPath, `session-${stamp}.ndjson`), {
+    const recorder = await createRecorder(join(recordingsPath, `session-${stamp}.ndjson`), {
       startedAtMs,
       note: `Midir ${app.getVersion()}`
     })
+    log.info('capture', `Recording this session to ${recorder.path}.`)
+
+    const removed = await pruneRecordings(recordingsPath, settings.recordingCapMb, recorder.path)
+    if (removed.length > 0) {
+      log.info(
+        'recordings',
+        `Deleted ${removed.length} old recordings to stay under ${settings.recordingCapMb} MB: ${removed.join(', ')}`
+      )
+    }
+    return recorder
   } catch (error) {
     // A recording is a developer aid. Failing to write one must never stop
     // the capture the user actually asked for.
-    console.error('[capture] could not start recording:', error)
+    log.error('capture', `Could not start a recording: ${messageOf(error)}`)
     return null
   }
 }
@@ -149,7 +180,10 @@ const ctx: HandlerContext = {
   appGetVersion: () => app.getVersion(),
   captureAvailability,
   captureService,
-  characterStore
+  characterStore,
+  log,
+  logsPath,
+  recordingsPath
 }
 
 function revealMainWindow(): void {
@@ -193,7 +227,7 @@ function createWindow(): void {
     win.loadURL(process.env['ELECTRON_RENDERER_URL'])
   } else {
     win.loadFile(join(__dirname, '../renderer/index.html')).catch((err) => {
-      console.error('Failed to load file:', err)
+      log.error('window', `Could not load the renderer: ${messageOf(err)}`)
     })
   }
 }
@@ -217,7 +251,7 @@ app.whenReady().then(() => {
 
   // Splash first so the user sees branded feedback instantly, then the (hidden)
   // main window loads behind it. The splash is torn down on `app:ready`.
-  splashWindow = createSplashWindow()
+  splashWindow = createSplashWindow(log)
   createWindow()
 
   // Safety backstop: if the renderer errors before signalling `app:ready`, force
@@ -227,7 +261,7 @@ app.whenReady().then(() => {
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       mainWindowRevealed = false
-      splashWindow = createSplashWindow()
+      splashWindow = createSplashWindow(log)
       createWindow()
       setTimeout(revealMainWindow, 15000)
     }
@@ -246,4 +280,4 @@ app.on('before-quit', (event) => {
   void captureService.stop().finally(() => app.quit())
 })
 
-registerHandlers({ ipcMain, BrowserWindow }, ctx)
+registerHandlers({ ipcMain, BrowserWindow, shell }, ctx)

@@ -62,11 +62,14 @@ src/
     model/          pure (state, packet) => state reducer for a character record
     store/          crash-safe JSON persistence
     handlers/       plain handler fns + registerHandlers registry
+    log.ts          per-launch diagnostic log; paths.ts (assertInsideDir); recordings.ts (list,
+                    delete, and the byte cap)
     index.ts        thin lifecycle shim; settingsManager.ts; splash.ts
   preload/          index.ts — typed contextBridge contract exposed as window.api; index.d.ts augments Window
   renderer/src/
     App.tsx         ThemeProvider + CssBaseline + hydration gate
     components/ pages/ store/ (zustand) themes/ (6 themes) lib/ __tests__/
+                ErrorBoundary catches a render failure and reports it to main's log
   shared/           types.ts — pure TS, NO electron/node imports; importable by all three processes
 ```
 
@@ -81,6 +84,15 @@ Aliases: `@renderer` to `src/renderer/src`, `@shared` to `src/shared`.
 - **`PacketSource` is the test seam.** Anything above it must run from a recorded session with no adapter, no driver, and no game.
 - **Frameless window and custom title bar**, `contextIsolation: true`, `sandbox: false`.
 - **Splash and `app:ready` reveal handshake**. The main window stays hidden until the renderer hydrates settings, with a 15 s backstop.
+- **Main-process diagnostics go through the logger, never `console.*`.** `main/log.ts` writes one
+  `session-<stamp>.log` for each launch under `%LOCALAPPDATA%\Erisco\Midir\logs` and keeps the
+  newest ten. A packaged build has no console, so a `console.error` is a message nobody can read.
+  Pass the `Logger` in (`createSettingsManager`, `createSplashWindow`, `HandlerContext.log`) rather
+  than importing a singleton. The renderer reports its own failures over `diagnostics.report`, so
+  one file answers "why did it fail" whichever process broke.
+- **The recordings cap never deletes the file capture is writing.** `pruneRecordings` and every
+  delete path take the path from `captureService.status().recordingPath` and skip it. Removing a
+  file under the recorder would corrupt the running session.
 - **Hand-rolled crash-safe JSON settings** under `%LOCALAPPDATA%\Erisco\Midir` (resolve `LOCALAPPDATA` yourself on win32), atomic tmp to rename with a `.bak`, Zod-validated on save.
 - **Path safety**: validate every renderer-supplied path against allowed roots (`assertInside*`).
 - **Six shared themes** — four Dark Ages (hybrasyl default, chadul, danaan, grinneal) plus the corporate pair (mundanes light, dubhaimid dark). Cinzel and Crimson fonts. Scrollbar colors go to `:root` CSS variables. The `ThemeName` union lives in `shared/`.

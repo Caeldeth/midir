@@ -4,8 +4,11 @@ import type {
   CaptureAvailability,
   CaptureStatus,
   CharacterRecord,
+  LogEntry,
+  LogFileInfo,
   MidirApi,
-  MidirSettings
+  MidirSettings,
+  RecordingInfo
 } from '../shared/types'
 
 /** Subscribe to a main-to-renderer push. The result unsubscribes. */
@@ -52,6 +55,24 @@ const api: MidirApi = {
     remove: (name: string): Promise<void> => ipcRenderer.invoke('characters:remove', name),
     onChanged: (handler: (record: CharacterRecord) => void): (() => void) =>
       subscribe('characters:changed', handler)
+  },
+
+  diagnostics: {
+    // The log lives at %LOCALAPPDATA%/Erisco/Midir/logs, one file for each
+    // launch. The recordings live beside it. Main owns both folders, so the
+    // renderer sends a file name and never a path.
+    listLogs: (): Promise<LogFileInfo[]> => ipcRenderer.invoke('logs:list'),
+    readLog: (name: string): Promise<LogEntry[]> => ipcRenderer.invoke('logs:read', name),
+    openLogsFolder: (): Promise<void> => ipcRenderer.invoke('logs:openFolder'),
+    report: (error: { source: string; message: string; stack?: string }): Promise<void> =>
+      ipcRenderer.invoke('logs:report', error),
+    onLogEntry: (handler: (entry: LogEntry) => void): (() => void) =>
+      subscribe('logs:appended', handler),
+
+    listRecordings: (): Promise<RecordingInfo[]> => ipcRenderer.invoke('recordings:list'),
+    deleteRecording: (name: string): Promise<void> => ipcRenderer.invoke('recordings:delete', name),
+    deleteAllRecordings: (): Promise<number> => ipcRenderer.invoke('recordings:deleteAll'),
+    openRecordingsFolder: (): Promise<void> => ipcRenderer.invoke('recordings:openFolder')
   }
 }
 
