@@ -104,6 +104,8 @@ Aliases: `@renderer` to `src/renderer/src`, `@shared` to `src/shared`.
 - **The retail protocol has no bank opcode.** Bank contents arrive as NPC dialog: `SScreenMenu 0x2F`, menu type 4, **pursuit `0x56`**. The pursuit is a server-wide constant, not a per-NPC dialog id — three bank NPCs used it, and a *shop* buy list from one of those same NPCs used `0x4a`. The row is `[u16 sprite][u8 color][u32 count][string8 name][string8 desc]`; both protocol sources call that `u32` a price, but in a bank it is the **quantity held**. Bank data is opportunistic — it updates only when the player opens the bank. Always show the "as of" time.
 - **An empty bank sends no reply at all**, so silence is identical to never having opened one, to a missed packet, and to capture starting late. **Never render a bank as empty.** It is read or not read. See `protocol/decode/dialog.ts`.
 - **The two directions have separate transform tables and separate sequence counters.** Do not share one counter.
+- **Logging off is two packets, and only the second one counts.** `CClientExit 0x0B` sends `endSignal = 1` when the quit dialog opens and `endSignal = 0` when the player confirms. Reading them the other way round reports a player gone every time they open the prompt and change their mind. The connection close is the signal that always arrives, because a client that crashes sends no exit packet at all — handle both.
+- **A logged-in character belongs to its connection, not to the service.** `captureService` keys live characters by connection id so a close or an exit clears the right one. This is also what a future multi-client mode needs; only `CaptureStatus` still narrows it to one name.
 
 ## Verifying changes
 

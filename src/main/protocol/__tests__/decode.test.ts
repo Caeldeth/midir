@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   decodeAddEquip,
   decodeAddInventory,
+  decodeClientExit,
   decodeDrawHumanObjects,
   decodeRemoveEquip,
   decodeRemoveInventory,
@@ -704,5 +705,31 @@ describe('decodeServerPacket', () => {
     ]) {
       expect(hasServerDecoder(opcode), `0x${opcode.toString(16)}`).toBe(true)
     }
+  })
+})
+
+describe('decodeClientExit', () => {
+  it('reads a confirmed exit', () => {
+    // The bytes a live retail capture shows when the player clicks OK.
+    expect(decodeClientExit(Uint8Array.from([0x0b, 0x00, 0x00]))).toEqual({
+      kind: 'clientExit',
+      confirmed: true
+    })
+  })
+
+  it('does not read an opened dialog as an exit', () => {
+    // endSignal 1 is sent the moment the quit dialog opens. An earlier reading
+    // of this packet had the two backwards, which would report a player gone
+    // every time they opened the prompt and changed their mind.
+    expect(decodeClientExit(Uint8Array.from([0x0b, 0x01, 0x00]))).toEqual({
+      kind: 'clientExit',
+      confirmed: false
+    })
+  })
+
+  it('accepts a body with no trailing byte', () => {
+    // The docs give this packet as two bytes; retail sends three. Neither
+    // length is a reason to fail.
+    expect(decodeClientExit(Uint8Array.from([0x0b, 0x00]))).toMatchObject({ confirmed: true })
   })
 })

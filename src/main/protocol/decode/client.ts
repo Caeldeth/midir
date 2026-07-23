@@ -98,3 +98,33 @@ export function looksLikeCharacterName(name: string): boolean {
 export function isPlaceholderName(name: string): boolean {
   return /^socket(\[\d+\])?$/i.test(name.trim())
 }
+
+/**
+ * CClientExit 0x0B. The player is leaving.
+ *
+ * The exit is two packets, not one. The client sends `endSignal = 1` the
+ * moment the quit dialog opens, and `endSignal = 0` only when the player
+ * confirms. **Only the second is a logoff.** An earlier reading of this packet
+ * had the two backwards, which would have reported a player gone every time
+ * they opened the dialog and changed their mind.
+ *
+ * Body: `[u8 opcode][u8 endSignal]`. Retail sends a third byte after it, which
+ * is not a field.
+ *
+ * A live retail capture shows the exchange six times, identically:
+ *
+ *   C->S  0b 01 00     the dialog opened
+ *   S->C  4c 01 00 00  the server acknowledges
+ *   C->S  0b 00 00     the player confirmed
+ *   then the world connection closes, and the login connection after it
+ */
+export interface ClientExit {
+  kind: 'clientExit'
+  /** True once the player has confirmed. False while the dialog is only open. */
+  confirmed: boolean
+}
+
+export function decodeClientExit(body: Uint8Array): ClientExit {
+  const reader = new PacketReader(body, 1)
+  return { kind: 'clientExit', confirmed: reader.u8() === 0 }
+}

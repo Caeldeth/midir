@@ -9,9 +9,17 @@ import { createReplaySource } from '../capture/replaySource'
 import { encodeChunk, parseRecording, type RecordingLine } from '../capture/recording'
 import type { ConnectionInfo, PacketSource, StreamChunk } from '../capture/source'
 import { createCaptureService } from '../captureService'
-import { ServerOpcode } from '../protocol/opcodes'
+import { ClientOpcode, ServerOpcode } from '../protocol/opcodes'
 import { createCharacterStore } from '../store/characterStore'
-import { frameOf, redirectBody, sessionBody, str8, u16, u32 } from '../capture/__tests__/helpers'
+import {
+  frameOf,
+  redirectBody,
+  sessionBody,
+  startupBody,
+  str8,
+  u16,
+  u32
+} from '../capture/__tests__/helpers'
 
 /**
  * The service is driven from a recorded session here, exactly as it will be
@@ -47,6 +55,22 @@ const chunk = (connection: ConnectionInfo, body: number[], timestampMs: number):
 })
 
 const open = (connection: ConnectionInfo): RecordingLine => ({ kind: 'open', ...connection })
+
+/** A client-direction chunk, which the client encrypts with the startup key. */
+const clientChunk = (
+  connection: ConnectionInfo,
+  body: number[],
+  timestampMs: number
+): StreamChunk => ({
+  connectionId: connection.id,
+  direction: 'clientToServer',
+  bytes: Uint8Array.from(frameOf(startupBody({ plaintext: body, saltSelector: 3 }))),
+  timestampMs,
+  gap: false
+})
+
+/** CClientExit 0x0B. `endSignal` 1 opens the quit dialog; 0 confirms it. */
+const exitBody = (endSignal: number): number[] => [ClientOpcode.ClientExit, endSignal, 0x00]
 
 /** A full SStatus, with every block present. */
 const statusBody = [
@@ -329,5 +353,68 @@ describe('createCaptureService', () => {
     const file = await store.load()
     expect(Object.keys(file.characters)).toEqual([CHARACTER])
     expect(file.characters[CHARACTER]?.stats.level).toBe(99)
+  })
+
+  describe('logging off', () => {
+    it('stops naming a character once the connection ends', async () => {
+      // The bug this fixes: nothing cleared the name, so a character stayed
+      // "logged in" on screen until capture stopped.
+      const { service, statuses } = build([
+        ...loginRecording(),
+        { kind: 'close', id: WORLD.id, timestampMs: 3000 }
+      ])
+      await service.start('adapter')
+
+      expect(service.status()).toMatchObject({ state: 'listening', connections: 0 })
+      expect(service.status().characterName).toBeUndefined()
+      // It named the character while the connection was open.
+      expect(statuses.some((status) => status.characterName === CHARACTER)).toBe(true)
+      await service.stop()
+    })
+
+    it('stops naming a character the moment they confirm the quit dialog', async () => {
+      // The connection usually closes a moment later, but the close can be
+      // missed and this is the earlier signal.
+      const { service } = build([
+        ...loginRecording(),
+        encodeChunk(clientChunk(WORLD, exitBody(0), 2500))
+      ])
+      await service.start('adapter')
+
+      expect(service.status().characterName).toBeUndefined()
+      expect(service.status().state).toBe('listening')
+      await service.stop()
+    })
+
+    it('keeps naming a character who only opened the quit dialog', async () => {
+      // endSignal 1 means the dialog opened, not that anyone left. An earlier
+      // reading of this packet had the two backwards, which would report a
+      // player gone every time they changed their mind.
+      const { service } = build([
+        ...loginRecording(),
+        encodeChunk(clientChunk(WORLD, exitBody(1), 2500))
+      ])
+      await service.start('adapter')
+
+      expect(service.status()).toMatchObject({ state: 'decoding', characterName: CHARACTER })
+      await service.stop()
+    })
+
+    it('names the next character after a logoff and a fresh login', async () => {
+      const { service } = build([
+        ...loginRecording(),
+        encodeChunk(clientChunk(WORLD, exitBody(0), 2500)),
+        { kind: 'close', id: WORLD.id, timestampMs: 2600 }
+      ])
+      await service.start('adapter')
+      expect(service.status().characterName).toBeUndefined()
+      await service.stop()
+
+      // A second capture stands in for the next login.
+      const again = build(loginRecording())
+      await again.service.start('adapter')
+      expect(again.service.status()).toMatchObject({ characterName: CHARACTER })
+      await again.service.stop()
+    })
   })
 })

@@ -40,4 +40,6 @@ Keep entries user-facing — internal refactors/tests show up in the appended au
 
 ### Fixed
 
+- A character no longer stays “logged in” after you log off. Midir now reads the client’s exit and, whatever happens, follows the connection: a client that crashes or is killed sends nothing, but its connection still ends.
+
 - The pre-login placeholder is no longer saved as a character. The connections before the world server are keyed from a stand-in name such as `socket[295]`; it is a real encryption seed but nobody at all. A placeholder saved by an earlier build is removed the next time Midir loads.
