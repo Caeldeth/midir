@@ -36,12 +36,14 @@ entry with no trigger is a non-goal, and it is recorded here so it is not propos
 ## The assistants — known and deferred
 
 - **Reconstruct the walker's route graph from ceridwen.** WP15 ships on the hand-made
-  `WorldMap.dat` imported from DA Walker. Ceridwen (`Repos/ceridwen/xml/maps/`) already holds the
-  same graph as authored XML — `<Warp>` edges with `<MapTarget>` destinations — plus NPC positions
-  the `.dat` lacks, which WP17 would want for "walk to this NPC". **Caveat:** ceridwen is Hybrasyl
-  data and Midir is retail-only, so a ceridwen-built graph must be verified against retail (map-id
-  correspondence, or the positions WP14 reads on a live session), not trusted as a drop-in.
-  _Trigger:_ the hand-made graph going stale, or WP17 wanting NPC coordinates. See WP15.
+  `WorldMap.dat` imported from DA Walker. Ceridwen (`Repos/ceridwen/xml/maps/`) holds the same graph
+  as authored XML — `<Warp>` edges with `<MapTarget>` destinations — plus NPC positions the `.dat`
+  lacks, which WP17 would want for "walk to this NPC". Ceridwen's intent is a **1:1 capture of the
+  retail world**, so it is the aligned source for a retail-only tool — **not** `Repos/world`, the
+  divergent Hybrasyl production data. **Blocker:** ceridwen is **not built yet**; today's `xml/maps/`
+  is partial. Even when complete, verify a derived graph against the positions WP14 reads on a live
+  retail session before trusting it. _Trigger:_ ceridwen built out, or the hand-made graph going
+  stale, or WP17 wanting NPC coordinates. See WP15.
 
 ## Data and durability
 

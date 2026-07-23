@@ -36,14 +36,19 @@ That is a node (the map), an edge (the warp tile), and its destination — the e
 which is what WP17's "walk to Antonio" needs and `WorldMap.dat` does not have at all. 231 maps, 80
 with warps, in `Repos/ceridwen/xml/maps/`.
 
-**The catch, and why this is a note and not the plan:** ceridwen is **Hybrasyl** world data, and
-Midir is retail-only (settled decision 5). The two worlds are close but not proven identical — map
-ids and warp layouts can differ — so a ceridwen-built graph is a reconstruction to **verify against
-retail**, not a drop-in. It would need either a retail↔ceridwen map-id correspondence, or checking
-against the positions WP14 reads off the wire on a real retail session.
+**Ceridwen is the right source, once it exists.** Its intent is a **1:1 capture of the retail
+world** — not the divergent production data in `Repos/world`, which is a different, Hybrasyl-shaped
+world and must not be used for this. So a ceridwen-built graph is aligned with retail by design,
+which is exactly what a retail-only tool (settled decision 5) needs.
 
-So: ship WP15 on the imported `WorldMap.dat`. Treat a ceridwen-derived graph as a later WP that
-earns its place when the hand-made graph goes stale or when WP17 wants NPC coordinates the `.dat`
+**The catch, and why this is a note and not the plan: ceridwen is not built yet.** What is in
+`xml/maps/` today is partial and in progress, so it cannot be the source now. When it is complete,
+it should still be **verified against the positions WP14 reads off a live retail session** before it
+is trusted — a 1:1 capture is a goal until the wire confirms it, the same way every world-claim in
+these docs is an assumption until someone who knows says otherwise.
+
+So: ship WP15 on the imported `WorldMap.dat`. Promote a ceridwen-derived graph when ceridwen is
+built out, or sooner if the hand-made graph goes stale or WP17 wants NPC coordinates the `.dat`
 cannot give. Recorded in `00a-backlog.md`.
 
 ## The one way to get this wrong
