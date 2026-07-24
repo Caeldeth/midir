@@ -89,9 +89,9 @@ export function createCaptureService(options: CaptureServiceOptions): CaptureSer
    * used to be a single name that nothing ever cleared, so a character stayed
    * "logged in" until capture stopped.
    *
-   * A map rather than one name because one day it will hold more than one:
-   * two clients running at once are two live connections, and this shape
-   * already describes that. Only `status` still narrows it to one.
+   * A map rather than one name because it holds more than one: two clients
+   * running at once are two live connections, and the status reports the whole
+   * list in connection order.
    */
   const liveCharacters = new Map<string, string>()
   /**
@@ -114,28 +114,26 @@ export function createCaptureService(options: CaptureServiceOptions): CaptureSer
   let connectionCount = 0
 
   /**
-   * The character to name in the status.
+   * The characters being decoded now, in the order the connections opened.
    *
-   * The most recent login wins while several are live, because the status has
-   * room for one name. Nothing else depends on the choice.
+   * The map keeps insertion order, so this is the connection order. It drives
+   * the status list and the derived state, and nothing else narrows it.
    */
-  function currentCharacter(): string | undefined {
-    let latest: string | undefined
-    for (const name of liveCharacters.values()) latest = name
-    return latest
+  function liveCharacterList(): string[] {
+    return [...liveCharacters.values()]
   }
 
   function status(): CaptureStatus {
-    const character = currentCharacter()
+    const characters = liveCharacterList()
     return {
       running: source !== undefined,
-      state: source === undefined ? 'stopped' : character !== undefined ? 'decoding' : 'listening',
+      state: source === undefined ? 'stopped' : characters.length > 0 ? 'decoding' : 'listening',
+      characters,
       connections: connectionCount,
       decodedCount,
       unreadableCount,
       missedHandshake,
       ...(device !== undefined ? { device } : {}),
-      ...(character !== undefined ? { characterName: character } : {}),
       ...(recorder !== null ? { recordingPath: recorder.path } : {}),
       ...(lastError !== undefined ? { error: lastError } : {})
     }
@@ -214,7 +212,7 @@ export function createCaptureService(options: CaptureServiceOptions): CaptureSer
       // started during an earlier session leaves a few unreadable packets on
       // the connection that was already open; once the player logs in again
       // that connection is history and the warning would be a lie.
-      if (tracked.event.reason === 'noSessionKey' && currentCharacter() === undefined) {
+      if (tracked.event.reason === 'noSessionKey' && liveCharacters.size === 0) {
         if (!missedHandshake) {
           missedHandshake = true
           publishStatus()

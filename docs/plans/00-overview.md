@@ -31,7 +31,7 @@ charter. This file does not repeat it; it records the decisions behind the code.
 
 Midir was read-only for its first eleven WPs, and that rule is in every doc under `complete/`. It
 ended when **DA Walker and DA Speaker were folded in**, together with a third feature that needs
-both of them: a Clout Assistant that walks to an NPC and then works the dialog.
+both of them: the Laborer, which walks to an NPC and then works the dialog.
 
 What the two legacy tools actually do, read out of the binaries in `E:\Games\Dark Ages\Walker`.
 **Both tools are much older than the copies on disk** — those are `.NET` builds stamped 2016 and
@@ -72,7 +72,10 @@ connection**, which neither legacy tool can do at all.
    path, the integrity bytes, the submission terminator, the `0x39`/`0x3A` wrapper as a writer, and
    re-numbering. WP18 is the spike, and nothing sends a packet before it lands.
 4. **Every driving feature ships off, with one stop that always works**, and none of them may ever
-   automate a credential dialog or a password field.
+   automate a credential dialog or a password field. **A driving assistant targets one selected
+   window at a time**: the user picks one open game window, Midir brings it to the foreground on
+   start, and the driver binds to that window's connection (WP13 decisions 9 and 10). The read path
+   still decodes every client (WP12); the one-window limit is on driving only.
 5. **Retail is the only target.** Hybrasyl is not supported. Hybrasyl artefacts survive only where
    they are evidence — a loopback capture recovered the redirect-token layout, and the salt-table
    fixture is named for where it came from.
@@ -119,7 +122,8 @@ WP1 (scaffold)   COMPLETE
       │         │    └── WP8 (diagnostics log + recordings)   COMPLETE
       │         ├── WP9 (bank from the NPC dialog)   COMPLETE
       │         ├── WP10 (live character lifecycle / logoff)   COMPLETE
-      │         │    └── WP12 (multiple clients)   PLANNED — 12-multiple-clients.md
+      │         │    └── WP12 (multiple clients)   COMPLETE — complete/12-multiple-clients.md
+      │         │         └── WP19 (read-app polish pass)   PLANNED — after WP12, before WP13
       │         └── WP11 (dialog wrapper + the empty bank)   COMPLETE
       └── (nothing else depends on WP2 directly — the protocol layer is the spine)
 
@@ -128,9 +132,21 @@ the assistants, after the charter change:
 WP13 (the action layer: window, keys, the stop)   PLANNED
  ├── WP16 (Speaker)   PLANNED — the smallest user of WP13, and its proof
  └── WP15 (Walker)   PLANNED
-      └── WP17 (Clout Assistant)   PLANNED — needs WP15 to arrive and WP11 to read the dialog
+      └── WP17 (Laborer)   PLANNED — needs WP15 to arrive and WP11 to read the dialog
 WP14 (position and map, off the wire)   PLANNED — what WP15 steers by
 WP18 (the packet-send spike)   PLANNED — gates every forged packet; WP17 is the only caller waiting
+
+triggered follow-ons (each carries its promotion trigger in its own doc header):
+
+WP20 (packet inspector)   PLANNED — needs WP11
+WP21 (e2e of the capture surface)   PLANNED — needs WP6, WP8, WP9
+WP22 (Deposit Item 0x43 decode)   PLANNED — needs WP11; blocked on a capture sample
+WP23 (0x39 response tail decode)   PLANNED — needs WP11; feeds WP17
+WP24 (route graph from ceridwen)   PLANNED — needs WP15; blocked on ceridwen
+WP25 (record pruning / hide unseen)   PLANNED — needs WP4
+WP26 (bug report to cernunnos)   PLANNED — needs WP20, WP8
+WP28 (app standards audit)   PLANNED — needs the skeleton standard; do before WP27
+WP27 (cut the first release)   PLANNED — needs the quality gate and WP28
 ```
 
 WP7 was the one gap in the shipped run. It was specified, deferred for the protocol work that kept
@@ -152,7 +168,8 @@ built: item icons come off the game's own `legend.dat`, drawn through a privileg
 | WP9  | M    | The bank, out of the NPC dialog           | COMPLETE — `complete/09-bank.md`             |
 | WP10 | S    | The live character's lifecycle            | COMPLETE — `complete/10-live-lifecycle.md`   |
 | WP11 | M    | The dialog wrapper, and the empty bank    | COMPLETE — `complete/11-dialog-wrapper.md`   |
-| WP12 | S    | Multiple clients at once                  | PLANNED — `12-multiple-clients.md`           |
+| WP12 | S    | Multiple clients at once                  | COMPLETE — `complete/12-multiple-clients.md` |
+| WP19 | M    | The read-app polish pass                  | PLANNED — `19-read-app-polish.md`            |
 
 ### The assistants (after the charter change)
 
@@ -162,14 +179,32 @@ built: item icons come off the game's own `legend.dat`, drawn through a privileg
 | WP14 | M    | Position and map, off the wire | PLANNED — `14-position-and-map.md`  |
 | WP15 | L    | Walker                         | PLANNED — `15-walker.md`            |
 | WP16 | S    | Speaker                        | PLANNED — `16-speaker.md`           |
-| WP17 | L    | Clout Assistant                | PLANNED — `17-clout-assistant.md`   |
+| WP17 | L    | Laborer (was Clout Assistant)  | PLANNED — `17-clout-assistant.md`   |
 | WP18 | M    | The packet-send spike          | PLANNED — `18-packet-send-spike.md` |
 
 Build order: **WP13, then WP16** — Speaker is the smallest thing that proves the action layer, and
 it needs nothing else. WP14 and WP15 are the walker's two halves, WP17 needs both plus WP11's
 dialog decode, and WP18 gates any forged packet WP17 turns out to want.
 
-Everything not scheduled lives in `00a-backlog.md`, with the trigger that would promote it.
+### Triggered follow-ons
+
+Each is a real WP with a doc, but is trigger-gated: it starts when its trigger fires, not before. The
+trigger is in each doc's header.
+
+| WP   | Size | Title                           | Status                                           |
+| ---- | ---- | ------------------------------- | ------------------------------------------------ |
+| WP20 | M    | The packet inspector            | PLANNED — `20-packet-inspector.md`               |
+| WP21 | S    | e2e of the capture surface      | PLANNED — `21-e2e-capture-surface.md`            |
+| WP22 | S    | Deposit Item `0x43` decode      | PLANNED — `22-deposit-item-decode.md` (blocked)  |
+| WP23 | S    | The `0x39` response tail decode | PLANNED — `23-pursuit-response-tail.md`          |
+| WP24 | M    | Route graph from ceridwen       | PLANNED — `24-ceridwen-route-graph.md` (blocked) |
+| WP25 | S    | Record pruning / hide unseen    | PLANNED — `25-record-pruning.md`                 |
+| WP26 | M    | The bug report to cernunnos     | PLANNED — `26-bug-report.md`                     |
+| WP27 | M    | Cut the first release           | PLANNED — `27-first-release.md`                  |
+| WP28 | S    | App standards adoption          | PLANNED — `28-app-standards.md`                  |
+
+`00a-backlog.md` now holds only what is not a WP: the non-goals, the debts owed to another repo, and
+the one conditional rule.
 
 ## Conventions every WP follows
 

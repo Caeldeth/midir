@@ -84,6 +84,9 @@ steps for smoothness is what turns a missed step into a walker embedded in a wal
    let them look like a failed step.
 7. **The destination is a place, not a coordinate.** "Antonio", "the Mileth bank" — a named node in
    the graph. Tiles are how it gets there, not how it is asked.
+8. **The walker drives one selected window** (WP13 decisions 9 and 10). The user picks the window,
+   the layer brings it to the foreground and binds the walker to its connection. A key never reaches
+   another window (WP13 decision 3).
 
 ## Non-goals (stop-lines)
 

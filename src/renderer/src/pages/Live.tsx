@@ -1,15 +1,17 @@
-import { Alert, Box, Button } from '@mui/material'
+import { Alert, Box, Button, Tab, Tabs } from '@mui/material'
 import CharacterSheet from '@renderer/components/CharacterSheet'
 import Guidance from '@renderer/components/Guidance'
 import { useCaptureStore } from '@renderer/store/captureStore'
 import { findCharacter, useCharacterStore } from '@renderer/store/characterStore'
+import type { CharacterRecord } from '@shared/types'
 import React from 'react'
 
 /**
- * The character being decoded now.
+ * The characters being decoded now.
  *
- * The page has four states, and each one tells the user what to do next
- * instead of showing an empty sheet.
+ * The page has four empty states, and each one tells the user what to do next
+ * instead of showing a blank sheet. Once a character is live it shows the full
+ * sheet, and two or more clients each get a tab.
  */
 
 interface LiveProps {
@@ -19,9 +21,19 @@ interface LiveProps {
 function Live({ onOpenSettings }: LiveProps): React.JSX.Element {
   const status = useCaptureStore((s) => s.status)
   const characters = useCharacterStore((s) => s.characters)
-  const record = findCharacter(characters, status.characterName ?? null)
 
-  if (status.missedHandshake && record === null) {
+  // The live records, in connection order. A name in the status without a
+  // record yet is dropped until the record arrives.
+  const live: CharacterRecord[] = status.characters
+    .map((name) => findCharacter(characters, name))
+    .filter((record): record is CharacterRecord => record !== null)
+
+  // Track the tab by character name, not index, so a logoff that shrinks the
+  // list does not leave a stale selection pointing at the wrong character.
+  const [selected, setSelected] = React.useState<string | null>(null)
+  const active = live.find((record) => record.name === selected) ?? live[0] ?? null
+
+  if (status.missedHandshake && live.length === 0) {
     return (
       <Guidance
         title="Midir joined too late"
@@ -47,7 +59,7 @@ function Live({ onOpenSettings }: LiveProps): React.JSX.Element {
     )
   }
 
-  if (record === null) {
+  if (active === null) {
     return (
       <Guidance
         title="Listening"
@@ -68,7 +80,20 @@ function Live({ onOpenSettings }: LiveProps): React.JSX.Element {
           running to be sure the sheet is complete.
         </Alert>
       ) : null}
-      <CharacterSheet record={record} />
+      {live.length > 1 ? (
+        <Tabs
+          value={active.name}
+          onChange={(_event, name: string) => setSelected(name)}
+          variant="scrollable"
+          scrollButtons="auto"
+          sx={{ mb: 2 }}
+        >
+          {live.map((record) => (
+            <Tab key={record.name} value={record.name} label={record.name} />
+          ))}
+        </Tabs>
+      ) : null}
+      <CharacterSheet record={active} />
     </Box>
   )
 }

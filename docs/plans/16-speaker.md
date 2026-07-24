@@ -31,8 +31,9 @@ there is nobody to speak, and the speaker stops rather than typing into a login 
    exact period is a speaker that is trivial to see in a chat log.
 3. **It stops when the character does.** No live character on the bound connection means stop, with
    a reason — the same signal WP10 already publishes.
-4. **One speaker per connection**, so two clients can each have one, and neither can drive the
-   other's window (WP13 decision 3).
+4. **The speaker drives one selected window** (WP13 decisions 9 and 10). The user picks the window,
+   the layer brings it to the foreground and binds the speaker to its connection. A key never reaches
+   another window (WP13 decision 3).
 5. **A line list, not one line.** Rotate through the lines the user entered; that is what the legacy
    rich text box was for, and one line repeated forever is the most obvious possible pattern.
 6. **No chat opcode is decoded for this.** The speaker types; it does not need to read what it said.
@@ -87,7 +88,8 @@ Config is not persisted with the character record. It is a setting, and it lives
 2. The global stop halts it within one line.
 3. Logging off, or the connection closing, stops it with a logged reason.
 4. It refuses to start with no live character, and says why.
-5. Two clients, two speakers, no crossed lines.
+5. Two clients open: the speaker drives only the selected window, and the other client receives
+   nothing.
 6. Nothing is sent while stopped.
 
 ## Verification

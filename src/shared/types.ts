@@ -82,13 +82,19 @@ export interface CaptureStatus {
   /**
    * `stopped` — not listening.
    * `listening` — listening, but no character decoded yet.
-   * `decoding` — reading a named character's packets.
+   * `decoding` — at least one character is being decoded.
+   *
+   * Derived from `characters`: never set it apart from the list.
    */
   state: 'stopped' | 'listening' | 'decoding'
   /** The adapter in use. */
   device?: string
-  /** The character being decoded now. */
-  characterName?: string
+  /**
+   * Every character being decoded now, in the order the connections opened.
+   * Always present; empty is the ordinary "listening" case. One entry is one
+   * client, and two entries are two clients open at once.
+   */
+  characters: string[]
   /** The file this session is being recorded to, when recording is on. */
   recordingPath?: string
   /** How many of the game client's connections are being followed. */
@@ -110,6 +116,7 @@ export interface CaptureStatus {
 export const STOPPED_STATUS: CaptureStatus = {
   running: false,
   state: 'stopped',
+  characters: [],
   connections: 0,
   decodedCount: 0,
   unreadableCount: 0,

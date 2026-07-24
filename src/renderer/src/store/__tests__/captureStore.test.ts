@@ -83,8 +83,8 @@ describe('useCaptureStore', () => {
     })
 
     const stop = useCaptureStore.getState().subscribe()
-    push?.({ ...RUNNING, state: 'decoding', characterName: 'Sabrael' })
-    expect(useCaptureStore.getState().status.characterName).toBe('Sabrael')
+    push?.({ ...RUNNING, state: 'decoding', characters: ['Sabrael'] })
+    expect(useCaptureStore.getState().status.characters).toEqual(['Sabrael'])
     stop()
   })
 })

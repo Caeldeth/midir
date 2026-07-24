@@ -52,6 +52,28 @@ const WORLD: ConnectionInfo = {
   openedAtMs: 2000
 }
 
+/** A second client, for the two-clients-at-once tests. Its world server has a
+ *  distinct address, so the tracker parks its redirect apart from the first. */
+const CHARACTER2 = 'Deoradhan'
+
+const LOGIN2: ConnectionInfo = {
+  id: 'login2',
+  localAddress: '192.168.1.20',
+  localPort: 51002,
+  remoteAddress: '203.0.113.8',
+  remotePort: 2611,
+  openedAtMs: 5000
+}
+
+const WORLD2: ConnectionInfo = {
+  id: 'world2',
+  localAddress: '192.168.1.20',
+  localPort: 51003,
+  remoteAddress: '203.0.113.10',
+  remotePort: 2612,
+  openedAtMs: 6000
+}
+
 const chunk = (connection: ConnectionInfo, body: number[], timestampMs: number): StreamChunk => ({
   connectionId: connection.id,
   direction: 'serverToClient',
@@ -134,36 +156,63 @@ const itemBody = [
   ...u32(0)
 ]
 
-/** The recording of one login: a redirect, then the world's opening packets. */
-function loginRecording(): RecordingLine[] {
-  const world = (body: number[], sequence: number, timestampMs: number): RecordingLine =>
+interface LoginTimes {
+  redirect: number
+  loginClose: number
+  status: number
+  item: number
+}
+
+/**
+ * The lines of one login: a redirect on the login connection, then the world's
+ * opening packets. No header, so two logins compose into one recording.
+ */
+function loginLines(
+  login: ConnectionInfo,
+  world: ConnectionInfo,
+  name: string,
+  times: LoginTimes
+): RecordingLine[] {
+  const worldChunk = (body: number[], sequence: number, timestampMs: number): RecordingLine =>
     encodeChunk(
       chunk(
-        WORLD,
-        sessionBody({ plaintext: body, keyName: CHARACTER, saltSelector: 3, sequence }),
+        world,
+        sessionBody({ plaintext: body, keyName: name, saltSelector: 3, sequence }),
         timestampMs
       )
     )
 
   return [
-    { kind: 'header', version: 1, startedAtMs: 0 },
-    open(LOGIN),
+    open(login),
     encodeChunk(
       chunk(
-        LOGIN,
+        login,
         redirectBody({
-          address: WORLD.remoteAddress,
-          port: WORLD.remotePort,
-          name: CHARACTER,
+          address: world.remoteAddress,
+          port: world.remotePort,
+          name,
           saltSelector: 3
         }),
-        1500
+        times.redirect
       )
     ),
-    { kind: 'close', id: LOGIN.id, timestampMs: 1600 },
-    open(WORLD),
-    world(statusBody, 1, 2100),
-    world(itemBody, 2, 2200)
+    { kind: 'close', id: login.id, timestampMs: times.loginClose },
+    open(world),
+    worldChunk(statusBody, 1, times.status),
+    worldChunk(itemBody, 2, times.item)
+  ]
+}
+
+/** The recording of one login: a redirect, then the world's opening packets. */
+function loginRecording(): RecordingLine[] {
+  return [
+    { kind: 'header', version: 1, startedAtMs: 0 },
+    ...loginLines(LOGIN, WORLD, CHARACTER, {
+      redirect: 1500,
+      loginClose: 1600,
+      status: 2100,
+      item: 2200
+    })
   ]
 }
 
@@ -230,7 +279,7 @@ describe('createCaptureService', () => {
     expect(service.status()).toMatchObject({
       running: true,
       state: 'decoding',
-      characterName: CHARACTER,
+      characters: [CHARACTER],
       device: 'adapter'
     })
     expect(service.status().decodedCount).toBeGreaterThan(0)
@@ -275,7 +324,7 @@ describe('createCaptureService', () => {
     await service.stop()
 
     expect(service.status()).toMatchObject({ running: false, state: 'stopped', connections: 0 })
-    expect(service.status().characterName).toBeUndefined()
+    expect(service.status().characters).toEqual([])
     expect((await store.load()).characters[CHARACTER]).toBeDefined()
   })
 
@@ -472,9 +521,9 @@ describe('createCaptureService', () => {
       await service.start('adapter')
 
       expect(service.status()).toMatchObject({ state: 'listening', connections: 0 })
-      expect(service.status().characterName).toBeUndefined()
+      expect(service.status().characters).toEqual([])
       // It named the character while the connection was open.
-      expect(statuses.some((status) => status.characterName === CHARACTER)).toBe(true)
+      expect(statuses.some((status) => status.characters.includes(CHARACTER))).toBe(true)
       await service.stop()
     })
 
@@ -487,7 +536,7 @@ describe('createCaptureService', () => {
       ])
       await service.start('adapter')
 
-      expect(service.status().characterName).toBeUndefined()
+      expect(service.status().characters).toEqual([])
       expect(service.status().state).toBe('listening')
       await service.stop()
     })
@@ -502,7 +551,7 @@ describe('createCaptureService', () => {
       ])
       await service.start('adapter')
 
-      expect(service.status()).toMatchObject({ state: 'decoding', characterName: CHARACTER })
+      expect(service.status()).toMatchObject({ state: 'decoding', characters: [CHARACTER] })
       await service.stop()
     })
 
@@ -513,14 +562,76 @@ describe('createCaptureService', () => {
         { kind: 'close', id: WORLD.id, timestampMs: 2600 }
       ])
       await service.start('adapter')
-      expect(service.status().characterName).toBeUndefined()
+      expect(service.status().characters).toEqual([])
       await service.stop()
 
       // A second capture stands in for the next login.
       const again = build(loginRecording())
       await again.service.start('adapter')
-      expect(again.service.status()).toMatchObject({ characterName: CHARACTER })
+      expect(again.service.status()).toMatchObject({ characters: [CHARACTER] })
       await again.service.stop()
+    })
+  })
+
+  describe('two clients at once', () => {
+    /** Two logins in one capture: each has its own redirect, world server,
+     *  character name and session key. */
+    function twoClientLines(): RecordingLine[] {
+      return [
+        { kind: 'header', version: 1, startedAtMs: 0 },
+        ...loginLines(LOGIN, WORLD, CHARACTER, {
+          redirect: 1500,
+          loginClose: 1600,
+          status: 2100,
+          item: 2200
+        }),
+        ...loginLines(LOGIN2, WORLD2, CHARACTER2, {
+          redirect: 5500,
+          loginClose: 5600,
+          status: 6100,
+          item: 6200
+        })
+      ]
+    }
+
+    it('names both characters, in connection order, and records both', async () => {
+      const { service, store } = build(twoClientLines())
+      await service.start('adapter')
+      await service.flush()
+
+      expect(service.status()).toMatchObject({
+        state: 'decoding',
+        characters: [CHARACTER, CHARACTER2]
+      })
+      const saved = (await store.load()).characters
+      expect(saved[CHARACTER]).toBeDefined()
+      expect(saved[CHARACTER2]).toBeDefined()
+      await service.stop()
+    })
+
+    it('keeps the other character when one connection ends', async () => {
+      // A bare close with no exit packet is the crash path: the connection ends
+      // but the character who stayed is untouched.
+      const { service } = build([
+        ...twoClientLines(),
+        { kind: 'close', id: WORLD.id, timestampMs: 7000 }
+      ])
+      await service.start('adapter')
+
+      expect(service.status()).toMatchObject({ state: 'decoding', characters: [CHARACTER2] })
+      await service.stop()
+    })
+
+    it('returns to listening once both characters log off', async () => {
+      const { service } = build([
+        ...twoClientLines(),
+        { kind: 'close', id: WORLD.id, timestampMs: 7000 },
+        { kind: 'close', id: WORLD2.id, timestampMs: 7100 }
+      ])
+      await service.start('adapter')
+
+      expect(service.status()).toMatchObject({ state: 'listening', characters: [] })
+      await service.stop()
     })
   })
 })

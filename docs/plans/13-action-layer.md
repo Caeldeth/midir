@@ -30,8 +30,8 @@ Nothing else in this WP matters as much. Build the stop first and make a driver 
 3. **A window is bound to a connection, not to "the game".** The capture layer already knows the
    game's process ids and their TCP connections; a driver is started against a live character, and
    that character belongs to a connection (WP10). Resolve the window from the same process id. This
-   is the piece neither legacy tool has, and it is what makes the assistants work with two clients
-   open (WP12).
+   is the piece neither legacy tool has, and it is what makes a driver address the right window when
+   two clients are open (WP12).
 4. **Every action is a request that can be refused.** The layer checks that the window still exists,
    still belongs to the expected process, and that no stop is in force. A refused action returns a
    reason; it never throws into a driver's loop.
@@ -44,6 +44,17 @@ Nothing else in this WP matters as much. Build the stop first and make a driver 
 8. **The layer logs what it did.** Every keystroke posted, at debug level, through `main/log.ts`.
    When an assistant does something surprising, the log is the only record — there are no packets to
    read back, because Midir did not send any.
+9. **A driving assistant targets one selected window at a time.** The user picks one window from the
+   list of open game windows, the layer brings it to the foreground once on start so the user sees
+   the target, and the driver binds to that one window's connection for the run. There is no
+   "drive all" and no fan-out across windows. This is a policy limit on the driving path only; the
+   read path still decodes every client (WP12). The layer exposes the window picker over the open
+   game windows.
+10. **Foreground on start, `PostMessage` throughout.** The layer brings the chosen window forward
+    once for visibility, but every key still goes through `PostMessage` (decision 2), not through the
+    focused window. So a key lands in the bound window even if the user moves focus mid-run, and a
+    stray key never reaches the user's browser. The layer does not require the window to stay
+    focused.
 
 ## Non-goals (stop-lines)
 
@@ -108,6 +119,8 @@ export interface ActionLayer {
 5. Every action while stopped returns `'stopped'` and does nothing.
 6. The rate limit holds under a driver that asks as fast as it can.
 7. Nothing in this WP reads memory, sends a packet, or loads anything into the game process.
+8. Starting a driver needs one selected open game window; the layer brings it to the foreground and
+   binds to its connection. No window selected means no driver starts.
 
 ## Verification
 
