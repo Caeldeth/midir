@@ -34,6 +34,7 @@ afterEach(() => {
 const STOPPED: CaptureStatus = {
   running: false,
   state: 'stopped',
+  characters: [],
   connections: 0,
   decodedCount: 0,
   unreadableCount: 0,

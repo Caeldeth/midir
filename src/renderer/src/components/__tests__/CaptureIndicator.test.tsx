@@ -28,9 +28,17 @@ describe('CaptureIndicator', () => {
   })
 
   it('names the character it is decoding', () => {
-    setStatus({ running: true, state: 'decoding', characterName: 'Sabrael' })
+    setStatus({ running: true, state: 'decoding', characters: ['Sabrael'] })
     render(<CaptureIndicator />)
     expect(screen.getByText('Sabrael')).toBeInTheDocument()
+  })
+
+  it('shows a count, not a name, for two clients at once', () => {
+    // The title bar has no room for two names, so it shows how many and puts
+    // the names in the tooltip.
+    setStatus({ running: true, state: 'decoding', characters: ['Sabrael', 'Deoradhan'] })
+    render(<CaptureIndicator />)
+    expect(screen.getByText('2 characters')).toBeInTheDocument()
   })
 
   it('warns about a missed handshake ahead of everything else', () => {
@@ -38,7 +46,7 @@ describe('CaptureIndicator', () => {
     setStatus({
       running: true,
       state: 'decoding',
-      characterName: 'Sabrael',
+      characters: ['Sabrael'],
       missedHandshake: true
     })
     render(<CaptureIndicator />)

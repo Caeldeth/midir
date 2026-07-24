@@ -19,7 +19,7 @@ interface Appearance {
 
 function appearanceFor(
   state: 'stopped' | 'listening' | 'decoding',
-  characterName: string | undefined,
+  characters: string[],
   missedHandshake: boolean
 ): Appearance {
   if (missedHandshake) {
@@ -33,10 +33,20 @@ function appearanceFor(
   }
   switch (state) {
     case 'decoding':
+      // One client reads as the name, exactly as before. Two or more read as a
+      // count, because the title bar has no room and a truncated list is worse
+      // than a number; the names go to the tooltip.
+      if (characters.length > 1) {
+        return {
+          color: 'success.main',
+          label: `${characters.length} characters`,
+          tooltip: `Reading packets for ${characters.join(', ')}.`
+        }
+      }
       return {
         color: 'success.main',
-        label: characterName ?? 'Decoding',
-        tooltip: `Reading packets for ${characterName ?? 'a character'}.`
+        label: characters[0] ?? 'Decoding',
+        tooltip: `Reading packets for ${characters[0] ?? 'a character'}.`
       }
     case 'listening':
       return {
@@ -57,7 +67,7 @@ function CaptureIndicator(): React.JSX.Element {
   const status = useCaptureStore((s) => s.status)
   const { color, label, tooltip } = appearanceFor(
     status.state,
-    status.characterName,
+    status.characters,
     status.missedHandshake
   )
 

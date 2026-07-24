@@ -13,7 +13,7 @@ Three assistants use the same record, and each is off until you turn it on:
 
 - **Walker** — walk to a place you name, across maps, by the route the world allows.
 - **Speaker** — say a line of text on an interval you set.
-- **Clout Assistant** — walk to the right NPC, then work the dialog for you.
+- **Laborer** — walk to the right NPC, then work the dialog for you.
 
 They replace DA Walker and DA Speaker, two long-standing community tools that read the game's memory to do less.
 

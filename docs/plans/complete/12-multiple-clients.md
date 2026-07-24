@@ -1,6 +1,25 @@
 # WP12 — multiple clients at once
 
-**Size:** S. **Depends on:** WP10. Read `00-overview.md` first. **PLANNED.**
+**Size:** S. **Depends on:** WP10. Read `00-overview.md` first. **COMPLETE 2026-07-23** — PR #7.
+
+## What shipped
+
+Two Dark Ages clients open at once are both read, and the app names both.
+
+- **`shared/types.ts`** — `CaptureStatus.characterName?: string` became `characters: string[]`,
+  always present and in connection order. `STOPPED_STATUS` gained `characters: []`.
+- **`captureService.ts`** — `currentCharacter()` became `liveCharacterList()`, and `status()`
+  derives `state` from the list in one place. The missed-handshake gate checks
+  `liveCharacters.size === 0`, so the state and the list never disagree.
+- **`CaptureIndicator.tsx`** — one client reads as the name; two or more read as `N characters`
+  with the names in the tooltip.
+- **`Live.tsx`** — one live character stays a full sheet; two or more get one MUI tab each. The
+  tab is tracked by character name, so a logoff that removes a tab leaves no stale selection.
+- **Tests** — the logoff assertions moved to the list, and a two-world-connection recording proves
+  both logins in connection order, one logoff with the other surviving, and both logoffs returning
+  to `listening`.
+
+The decisions below are the record of why, kept from the plan.
 
 ## Goal
 

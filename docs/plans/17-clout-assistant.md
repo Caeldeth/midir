@@ -1,7 +1,10 @@
-# WP17 — Clout Assistant
+# WP17 — the Laborer (clout/labor assistant)
 
 **Size:** L. **Depends on:** WP15 (to arrive), WP13 (to act), WP11 (to read the dialog). Read
 `00-overview.md` first. **PLANNED.**
+
+**Name:** the feature is the **Laborer**. Earlier docs call it the "Clout Assistant". The full copy
+rename is part of WP19's terminology work.
 
 ## Goal
 
@@ -55,6 +58,8 @@ keystroke into an unknown state.
    it. No hidden steps, no inferred goals.
 8. **It stops on anything unexpected**: an unmatched dialog, a lost character, a map change it did
    not ask for, a timeout, or the global stop.
+9. **The Laborer drives one selected window** (WP13 decisions 9 and 10). It runs on the window the
+   walker bound and foregrounded (WP15 decision 8); it does not choose a second window or fan out.
 
 ## Where the packet question actually lands
 
