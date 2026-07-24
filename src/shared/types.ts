@@ -3,10 +3,12 @@
 
 import type { CharacterRecord } from './character'
 import type { LogEntry, LogFileInfo, RecordingInfo } from './log'
+import type { AssistState, AssistWindow, SpeakerConfig, SpeakerState } from './actionLayer'
 
 export * from './character'
 export * from './items'
 export * from './log'
+export * from './actionLayer'
 
 export type ThemeName = 'hybrasyl' | 'chadul' | 'danaan' | 'grinneal' | 'mundanes' | 'dubhaimid'
 
@@ -49,6 +51,25 @@ export interface MidirSettings {
    * no game installed.
    */
   darkAgesPath?: string
+  /**
+   * The global hotkey that stops every driving assistant. It works from any
+   * window, so a runaway driver can always be stopped. An Electron accelerator
+   * string, for example `CommandOrControl+Alt+.`.
+   */
+  assistStopHotkey: string
+  /**
+   * The global hotkey that starts or stops the Speaker on the selected window.
+   * An Electron accelerator string. Empty means no hotkey.
+   */
+  speakerToggleHotkey: string
+  /** Also stop a driver when the game window it drives loses focus. */
+  assistStopOnFocusLoss: boolean
+  /** The lines the Speaker sends, in order. */
+  speakerLines: string[]
+  /** The floor between the Speaker's lines, in milliseconds. */
+  speakerIntervalMs: number
+  /** Rotate the list forever. When false, the Speaker sends each line once. */
+  speakerRepeat: boolean
 }
 
 /** The largest cap the settings accept, in megabytes. */
@@ -60,7 +81,13 @@ export const DEFAULT_SETTINGS: MidirSettings = {
   autoStartCapture: false,
   recordSessions: false,
   recordingCapMb: 1024,
-  showDiagnostics: true
+  showDiagnostics: true,
+  assistStopHotkey: 'CommandOrControl+Alt+.',
+  speakerToggleHotkey: 'CommandOrControl+Alt+;',
+  assistStopOnFocusLoss: false,
+  speakerLines: [],
+  speakerIntervalMs: 5000,
+  speakerRepeat: true
 }
 
 /** One adapter Midir can capture from. */
@@ -168,6 +195,37 @@ export interface MidirApi {
     status: () => Promise<CaptureStatus>
     /** Watch the status. Call the returned function to stop watching. */
     onStatus: (handler: (status: CaptureStatus) => void) => () => void
+  }
+
+  /**
+   * The action layer that drives a game window, and the one stop that always
+   * works. Every driving assistant runs through it.
+   */
+  assist: {
+    /** The open game windows the user can pick to drive. */
+    windows: () => Promise<AssistWindow[]>
+    /** Stop every driving assistant now. */
+    stopAll: () => Promise<void>
+    /** Clear a stop so an assistant can start again. */
+    clearStop: () => Promise<void>
+    /** Whether a stop is in force now. */
+    state: () => Promise<AssistState>
+    /** Watch the stop state. Call the result to stop watching. */
+    onState: (handler: (state: AssistState) => void) => () => void
+  }
+
+  /** The Speaker: type a rotating list of lines into one selected window. */
+  speaker: {
+    /** Start speaking on the bound connection. Rejects with a message to show. */
+    start: (config: SpeakerConfig) => Promise<void>
+    /** Stop the Speaker on one connection. */
+    stop: (connectionId: string) => Promise<void>
+    /** Every Speaker running now. */
+    state: () => Promise<SpeakerState[]>
+    /** Watch a Speaker as it changes. Call the result to stop watching. */
+    onState: (handler: (state: SpeakerState) => void) => () => void
+    /** The global hotkey asked to toggle the Speaker. Call the result to stop. */
+    onToggle: (handler: () => void) => () => void
   }
 
   characters: {

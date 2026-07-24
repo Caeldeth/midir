@@ -1,17 +1,22 @@
 import { electronApp, is, optimizer } from '@electron-toolkit/utils'
-import { app, BrowserWindow, dialog, ipcMain, protocol, shell } from 'electron'
+import { app, BrowserWindow, dialog, globalShortcut, ipcMain, protocol, shell } from 'electron'
 import { copyFileSync, existsSync, mkdirSync } from 'fs'
 import { join } from 'path'
 import type { CaptureAvailability } from '../shared/types'
 import { createPcapSource, loadPcapApi, type PcapApi } from './capture/pcapSource'
+import { createActionLayer, type HotkeyRegistrar, type WindowApi } from './actionLayer'
+import { createSpeaker } from './speaker'
 import { createIconService } from './icons/iconService'
 import { registerIconProtocol } from './icons/protocol'
 import { createRecorder, type Recorder } from './capture/recorder'
 import { createCaptureService } from './captureService'
 import {
+  ASSIST_STATE_CHANNEL,
   CAPTURE_STATUS_CHANNEL,
   CHARACTER_CHANGED_CHANNEL,
   LOG_APPENDED_CHANNEL,
+  SPEAKER_STATE_CHANNEL,
+  SPEAKER_TOGGLE_CHANNEL,
   registerHandlers,
   type HandlerContext
 } from './handlers'
@@ -187,6 +192,50 @@ const captureService = createCaptureService({
   onCharacter: (record) => pushToRenderer(CHARACTER_CHANGED_CHANNEL, record)
 })
 
+// The action layer drives a game window and holds the one stop that always
+// works. The window helpers do not need Npcap, so they work even when capture
+// is unavailable; a missing addon leaves an empty window API rather than a crash.
+const windowApi: WindowApi = pcap ?? {
+  processIdsByName: () => [],
+  tcpConnectionsForPid: () => [],
+  windowsForPid: () => [],
+  postMessageToWindow: () => false,
+  setForegroundWindow: () => false,
+  foregroundWindow: () => 0,
+  isWindow: () => false
+}
+
+// globalShortcut is only usable after the app is ready, so registration and
+// release happen in whenReady and will-quit; the try/catch guards a combination
+// the operating system already holds.
+const hotkeys: HotkeyRegistrar = {
+  register: (accelerator, callback) => {
+    try {
+      return globalShortcut.register(accelerator, callback)
+    } catch {
+      return false
+    }
+  },
+  unregisterAll: () => globalShortcut.unregisterAll()
+}
+
+const actionLayer = createActionLayer({
+  windows: windowApi,
+  hotkeys,
+  liveConnections: () => captureService.liveCharacterEntries(),
+  log,
+  onState: (state) => pushToRenderer(ASSIST_STATE_CHANNEL, state),
+  // The renderer owns the selected window, so the toggle hotkey acts through it.
+  onSpeakerToggle: () => pushToRenderer(SPEAKER_TOGGLE_CHANNEL, undefined)
+})
+
+const speaker = createSpeaker({
+  actionLayer,
+  liveConnections: () => captureService.liveCharacterEntries(),
+  log,
+  onState: (state) => pushToRenderer(SPEAKER_STATE_CHANNEL, state)
+})
+
 // The Dark Ages folder the icon service reads. It is kept live here: loaded
 // once at startup and updated on every settings save, so a folder chosen in
 // Settings takes effect without a restart. The service opens legend.dat lazily,
@@ -210,11 +259,20 @@ const ctx: HandlerContext = {
   captureAvailability,
   captureService,
   characterStore,
+  actionLayer,
+  speaker,
   log,
   logsPath,
   recordingsPath,
   onSettingsSaved: (settings) => {
     darkAgesPath = settings.darkAgesPath
+    // Keep the running action layer in step with the settings: a new hotkey is
+    // re-registered at once, so the user does not need a restart.
+    actionLayer.updateSettings({
+      stopHotkey: settings.assistStopHotkey,
+      speakerToggleHotkey: settings.speakerToggleHotkey,
+      stopOnFocusLoss: settings.assistStopOnFocusLoss
+    })
   },
   updateDarkAgesPath: (path) => {
     darkAgesPath = path
@@ -284,6 +342,21 @@ app.whenReady().then(() => {
   // privileged before this (see registerSchemesAsPrivileged above).
   registerIconProtocol(protocol, iconService, log)
 
+  // Register the global stop hotkey now the app is ready. The hotkey comes from
+  // the settings; a load failure still registers the default, so the stop is
+  // never left unbound.
+  settingsManager
+    .load()
+    .then((settings) => {
+      actionLayer.updateSettings({
+        stopHotkey: settings.assistStopHotkey,
+        speakerToggleHotkey: settings.speakerToggleHotkey,
+        stopOnFocusLoss: settings.assistStopOnFocusLoss
+      })
+      actionLayer.register()
+    })
+    .catch(() => actionLayer.register())
+
   app.on('browser-window-created', (_, window) => {
     optimizer.watchWindowShortcuts(window)
   })
@@ -309,6 +382,13 @@ app.whenReady().then(() => {
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit()
+})
+
+// Stop every driver and release the global hotkey as the app ends. This runs
+// even when before-quit defers the quit for a capture flush.
+app.on('will-quit', () => {
+  speaker.dispose()
+  actionLayer.dispose()
 })
 
 // Stop the capture and write anything still pending before the process ends.

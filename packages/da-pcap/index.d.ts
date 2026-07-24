@@ -106,3 +106,43 @@ export declare function tcpConnectionsForPid(pid: number): TcpConnection[]
 
 /** The process ids whose executable name matches, compared without case. */
 export declare function processIdsByName(name: string): number[]
+
+/** One top-level window that belongs to a process. */
+export interface GameWindow {
+  /** The window handle (`HWND`), for `postMessageToWindow` and the others. */
+  handle: number
+  /** The window title, which the picker shows to the user. */
+  title: string
+}
+
+/**
+ * The visible, titled top-level windows that belong to one process.
+ *
+ * The action layer resolves the game window from the client's process id. A
+ * window with no title is a helper window, so it is left out.
+ */
+export declare function windowsForPid(pid: number): GameWindow[]
+
+/**
+ * Post one message to a window's own input queue.
+ *
+ * This is how a key press or a click reaches the client without stealing the
+ * user's focus. The message goes to `handle` and nowhere else. The call reads
+ * no memory and injects no code. Returns false when the post fails, for example
+ * when the window is gone.
+ */
+export declare function postMessageToWindow(
+  handle: number,
+  message: number,
+  wParam: number,
+  lParam: number
+): boolean
+
+/** Bring a window to the foreground once, so the user sees the target. */
+export declare function setForegroundWindow(handle: number): boolean
+
+/** The handle of the window that has focus now. Zero when there is none. */
+export declare function foregroundWindow(): number
+
+/** True while `handle` names a live window. Used to stop when the game closes. */
+export declare function isWindow(handle: number): boolean

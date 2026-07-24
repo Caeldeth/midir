@@ -24,7 +24,15 @@ export const settingsSchema = z.object({
   recordingCapMb: z.number().int().min(0).max(MAX_RECORDING_CAP_MB),
   showDiagnostics: z.boolean(),
   // The Dark Ages install folder. Optional, and only used to draw item icons.
-  darkAgesPath: z.string().optional()
+  darkAgesPath: z.string().optional(),
+  // The driving assistants. The global stop hotkey, the focus-loss rule, and
+  // the Speaker's lines and interval floor.
+  assistStopHotkey: z.string().min(1),
+  speakerToggleHotkey: z.string(),
+  assistStopOnFocusLoss: z.boolean(),
+  speakerLines: z.array(z.string()),
+  speakerIntervalMs: z.number().int().min(0),
+  speakerRepeat: z.boolean()
 })
 
 export async function loadSettings(ctx: SettingsHandlerContext): Promise<MidirSettings> {

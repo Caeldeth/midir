@@ -1,5 +1,5 @@
 import { createRequire } from 'node:module'
-import type { CaptureDevice, CapturedPacket, TcpConnection } from 'da-pcap'
+import type { CaptureDevice, CapturedPacket, GameWindow, TcpConnection } from 'da-pcap'
 import type { Direction } from '../protocol/cipher'
 import { isFinOrReset, isSyn, isSynAck, parseFrame, type TcpSegment } from './packet'
 import { connectionIdOf, type CaptureSink, type ConnectionInfo, type PacketSource } from './source'
@@ -28,6 +28,11 @@ export interface PcapApi {
   stopCapture(id: number): boolean
   tcpConnectionsForPid(pid: number): TcpConnection[]
   processIdsByName(name: string): number[]
+  windowsForPid(pid: number): GameWindow[]
+  postMessageToWindow(handle: number, message: number, wParam: number, lParam: number): boolean
+  setForegroundWindow(handle: number): boolean
+  foregroundWindow(): number
+  isWindow(handle: number): boolean
 }
 
 /** Load the real addon. Throws off Windows, and when Npcap is missing. */

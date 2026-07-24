@@ -60,6 +60,23 @@ class FakeApi implements PcapApi {
   processIdsByName(): number[] {
     return this.pids
   }
+  // The window helpers exist on the addon but the capture flow never calls
+  // them. They are stubbed so FakeApi still satisfies the interface.
+  windowsForPid(): { handle: number; title: string }[] {
+    return []
+  }
+  postMessageToWindow(): boolean {
+    return false
+  }
+  setForegroundWindow(): boolean {
+    return false
+  }
+  foregroundWindow(): number {
+    return 0
+  }
+  isWindow(): boolean {
+    return false
+  }
 
   /** Deliver frames as the addon would. */
   deliver(...frames: Buffer[]): void {

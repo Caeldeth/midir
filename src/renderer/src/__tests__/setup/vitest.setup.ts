@@ -26,6 +26,20 @@ export function createMockApi(): MidirApi {
       status: vi.fn(async () => ({ ...STOPPED_STATUS })),
       onStatus: vi.fn(() => () => undefined)
     },
+    assist: {
+      windows: vi.fn(async () => []),
+      stopAll: vi.fn(async () => undefined),
+      clearStop: vi.fn(async () => undefined),
+      state: vi.fn(async () => ({ stopped: false })),
+      onState: vi.fn(() => () => undefined)
+    },
+    speaker: {
+      start: vi.fn(async () => undefined),
+      stop: vi.fn(async () => undefined),
+      state: vi.fn(async () => []),
+      onState: vi.fn(() => () => undefined),
+      onToggle: vi.fn(() => () => undefined)
+    },
     characters: {
       list: vi.fn(async () => []),
       get: vi.fn(async () => null),

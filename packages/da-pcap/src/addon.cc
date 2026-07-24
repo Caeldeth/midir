@@ -171,6 +171,16 @@ static std::wstring toLowerWide(std::wstring text) {
   return text;
 }
 
+static std::string wideToUtf8(const std::wstring& text) {
+  if (text.empty()) return std::string();
+  const int size = WideCharToMultiByte(CP_UTF8, 0, text.data(), static_cast<int>(text.size()),
+                                       nullptr, 0, nullptr, nullptr);
+  std::string utf8(static_cast<size_t>(size), '\0');
+  WideCharToMultiByte(CP_UTF8, 0, text.data(), static_cast<int>(text.size()), utf8.data(), size,
+                      nullptr, nullptr);
+  return utf8;
+}
+
 static std::string ipv4ToString(DWORD address) {
   const auto* octets = reinterpret_cast<const unsigned char*>(&address);
   char text[16] = {0};
@@ -495,6 +505,114 @@ static Napi::Value ProcessIdsByName(const Napi::CallbackInfo& info) {
   return result;
 }
 
+// ---------------------------------------------------------------------------
+// The window helpers for the action layer
+//
+// These read window ownership and post messages to a window. They never read
+// another process's memory, inject code, or patch anything. PostMessageW places
+// a message on the target window's own input queue, which is what a key press
+// does; the client validates it exactly as it validates a real key.
+// ---------------------------------------------------------------------------
+
+// HWND values are 32-bit and fit in a JavaScript number without loss, even on
+// 64-bit Windows, where USER handles are sign-extended 32-bit values.
+static double handleToNumber(HWND handle) {
+  return static_cast<double>(reinterpret_cast<uintptr_t>(handle));
+}
+
+static HWND numberToHandle(double value) {
+  return reinterpret_cast<HWND>(static_cast<uintptr_t>(value));
+}
+
+struct WindowEnum {
+  DWORD wantedPid = 0;
+  std::vector<std::pair<HWND, std::wstring>> windows;
+};
+
+static BOOL CALLBACK collectWindow(HWND handle, LPARAM param) {
+  auto* state = reinterpret_cast<WindowEnum*>(param);
+  DWORD owner = 0;
+  GetWindowThreadProcessId(handle, &owner);
+  if (owner != state->wantedPid) return TRUE;
+  if (!IsWindowVisible(handle)) return TRUE;
+  const int length = GetWindowTextLengthW(handle);
+  if (length <= 0) return TRUE;  // a titled, visible window is the game window
+  std::wstring title(static_cast<size_t>(length) + 1, L'\0');
+  const int read = GetWindowTextW(handle, title.data(), static_cast<int>(title.size()));
+  title.resize(static_cast<size_t>(read < 0 ? 0 : read));
+  state->windows.push_back({handle, title});
+  return TRUE;
+}
+
+// windowsForPid(pid) -> [{ handle, title }]
+static Napi::Value WindowsForPid(const Napi::CallbackInfo& info) {
+  Napi::Env env = info.Env();
+  if (info.Length() < 1 || !info[0].IsNumber()) {
+    Napi::TypeError::New(env, "windowsForPid(pid) expects a number")
+        .ThrowAsJavaScriptException();
+    return env.Undefined();
+  }
+  WindowEnum state;
+  state.wantedPid = static_cast<DWORD>(info[0].As<Napi::Number>().Uint32Value());
+  EnumWindows(collectWindow, reinterpret_cast<LPARAM>(&state));
+
+  Napi::Array result = Napi::Array::New(env);
+  uint32_t index = 0;
+  for (const auto& window : state.windows) {
+    Napi::Object entry = Napi::Object::New(env);
+    entry.Set("handle", Napi::Number::New(env, handleToNumber(window.first)));
+    entry.Set("title", Napi::String::New(env, wideToUtf8(window.second)));
+    result.Set(index++, entry);
+  }
+  return result;
+}
+
+// postMessageToWindow(handle, message, wParam, lParam) -> boolean
+static Napi::Value PostMessageToWindow(const Napi::CallbackInfo& info) {
+  Napi::Env env = info.Env();
+  if (info.Length() < 4 || !info[0].IsNumber() || !info[1].IsNumber() || !info[2].IsNumber() ||
+      !info[3].IsNumber()) {
+    Napi::TypeError::New(env, "postMessageToWindow(handle, message, wParam, lParam) expects four numbers")
+        .ThrowAsJavaScriptException();
+    return env.Undefined();
+  }
+  HWND handle = numberToHandle(info[0].As<Napi::Number>().DoubleValue());
+  const UINT message = static_cast<UINT>(info[1].As<Napi::Number>().Uint32Value());
+  const WPARAM wParam = static_cast<WPARAM>(info[2].As<Napi::Number>().Uint32Value());
+  const LPARAM lParam = static_cast<LPARAM>(info[3].As<Napi::Number>().Int32Value());
+  const BOOL posted = PostMessageW(handle, message, wParam, lParam);
+  return Napi::Boolean::New(env, posted != 0);
+}
+
+// setForegroundWindow(handle) -> boolean
+static Napi::Value SetForegroundWindowFn(const Napi::CallbackInfo& info) {
+  Napi::Env env = info.Env();
+  if (info.Length() < 1 || !info[0].IsNumber()) {
+    Napi::TypeError::New(env, "setForegroundWindow(handle) expects a number")
+        .ThrowAsJavaScriptException();
+    return env.Undefined();
+  }
+  HWND handle = numberToHandle(info[0].As<Napi::Number>().DoubleValue());
+  return Napi::Boolean::New(env, SetForegroundWindow(handle) != 0);
+}
+
+// foregroundWindow() -> number, the handle of the window with focus now
+static Napi::Value ForegroundWindow(const Napi::CallbackInfo& info) {
+  Napi::Env env = info.Env();
+  return Napi::Number::New(env, handleToNumber(GetForegroundWindow()));
+}
+
+// isWindow(handle) -> boolean, true while the handle names a live window
+static Napi::Value IsWindowFn(const Napi::CallbackInfo& info) {
+  Napi::Env env = info.Env();
+  if (info.Length() < 1 || !info[0].IsNumber()) {
+    Napi::TypeError::New(env, "isWindow(handle) expects a number").ThrowAsJavaScriptException();
+    return env.Undefined();
+  }
+  HWND handle = numberToHandle(info[0].As<Napi::Number>().DoubleValue());
+  return Napi::Boolean::New(env, IsWindow(handle) != 0);
+}
+
 static Napi::Object Init(Napi::Env env, Napi::Object exports) {
   exports.Set("isAvailable", Napi::Function::New(env, IsAvailable));
   exports.Set("loadError", Napi::Function::New(env, LoadError));
@@ -503,6 +621,11 @@ static Napi::Object Init(Napi::Env env, Napi::Object exports) {
   exports.Set("stopCapture", Napi::Function::New(env, StopCapture));
   exports.Set("tcpConnectionsForPid", Napi::Function::New(env, TcpConnectionsForPid));
   exports.Set("processIdsByName", Napi::Function::New(env, ProcessIdsByName));
+  exports.Set("windowsForPid", Napi::Function::New(env, WindowsForPid));
+  exports.Set("postMessageToWindow", Napi::Function::New(env, PostMessageToWindow));
+  exports.Set("setForegroundWindow", Napi::Function::New(env, SetForegroundWindowFn));
+  exports.Set("foregroundWindow", Napi::Function::New(env, ForegroundWindow));
+  exports.Set("isWindow", Napi::Function::New(env, IsWindowFn));
   return exports;
 }
 

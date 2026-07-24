@@ -11,13 +11,14 @@ import {
   TextField,
   Typography
 } from '@mui/material'
+import HotkeyField from '@renderer/components/HotkeyField'
 import InfoTip from '@renderer/components/InfoTip'
 import ThemePicker from '@renderer/components/ThemePicker'
 import { formatNumber } from '@renderer/lib/format'
 import { useCaptureStore } from '@renderer/store/captureStore'
 import { useIconsStore } from '@renderer/store/iconsStore'
 import { useSettingsStore } from '@renderer/store/settingsStore'
-import { MAX_RECORDING_CAP_MB } from '@shared/types'
+import { DEFAULT_SETTINGS, MAX_RECORDING_CAP_MB } from '@shared/types'
 import React, { useEffect } from 'react'
 
 /**
@@ -46,6 +47,10 @@ function Settings(): React.JSX.Element {
   const setShowDiagnostics = useSettingsStore((s) => s.setShowDiagnostics)
   const darkAgesPath = useSettingsStore((s) => s.darkAgesPath)
   const setDarkAgesPath = useSettingsStore((s) => s.setDarkAgesPath)
+  const assistStopHotkey = useSettingsStore((s) => s.assistStopHotkey)
+  const setAssistStopHotkey = useSettingsStore((s) => s.setAssistStopHotkey)
+  const speakerToggleHotkey = useSettingsStore((s) => s.speakerToggleHotkey)
+  const setSpeakerToggleHotkey = useSettingsStore((s) => s.setSpeakerToggleHotkey)
   const iconsEnabled = useIconsStore((s) => s.enabled)
   const refreshIcons = useIconsStore((s) => s.refresh)
 
@@ -257,6 +262,51 @@ function Settings(): React.JSX.Element {
             Choose the theme Midir uses.
           </Typography>
           <ThemePicker value={theme} onChange={setTheme} />
+        </Paper>
+
+        <Paper sx={cardSx} data-testid="hotkey-settings">
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 2 }}>
+            <Typography variant="h6" sx={headingSx}>
+              Assistant hotkeys
+            </Typography>
+            <InfoTip
+              label="About assistant hotkeys"
+              title="Global hotkeys for the driving assistants. They work from any window, so an assistant can be stopped even while another program has focus. Click a field and press the keys."
+            />
+          </Box>
+
+          <Stack sx={{ gap: 2 }}>
+            <HotkeyField
+              label="Stop everything"
+              value={assistStopHotkey}
+              onChange={setAssistStopHotkey}
+              defaultValue={DEFAULT_SETTINGS.assistStopHotkey}
+            />
+            <HotkeyField
+              label="Start or stop the Speaker"
+              value={speakerToggleHotkey}
+              onChange={setSpeakerToggleHotkey}
+              defaultValue={DEFAULT_SETTINGS.speakerToggleHotkey}
+              allowEmpty
+            />
+          </Stack>
+
+          <Box sx={{ flexGrow: 1 }} />
+          <Box sx={{ mt: 2 }}>
+            <Button
+              size="small"
+              onClick={() => {
+                setAssistStopHotkey(DEFAULT_SETTINGS.assistStopHotkey)
+                setSpeakerToggleHotkey(DEFAULT_SETTINGS.speakerToggleHotkey)
+              }}
+              disabled={
+                assistStopHotkey === DEFAULT_SETTINGS.assistStopHotkey &&
+                speakerToggleHotkey === DEFAULT_SETTINGS.speakerToggleHotkey
+              }
+            >
+              Reset to defaults
+            </Button>
+          </Box>
         </Paper>
 
         <Paper sx={cardSx} data-testid="icon-settings">

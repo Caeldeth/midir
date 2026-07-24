@@ -27,7 +27,12 @@ describe('the da-pcap addon', () => {
       'startCapture',
       'stopCapture',
       'tcpConnectionsForPid',
-      'processIdsByName'
+      'processIdsByName',
+      'windowsForPid',
+      'postMessageToWindow',
+      'setForegroundWindow',
+      'foregroundWindow',
+      'isWindow'
     ] as const) {
       expect(typeof addon[name], name).toBe('function')
     }
@@ -77,6 +82,20 @@ describe('the da-pcap addon', () => {
 
   it.skipIf(!onWindows)('matches a process name without regard to case', () => {
     expect(addon.processIdsByName('EXPLORER.EXE')).toEqual(addon.processIdsByName('explorer.exe'))
+  })
+
+  it.skipIf(!onWindows)('lists windows for a process as objects, and reports a dead handle', () => {
+    // The test runner may own no visible window, so the shape of the answer is
+    // what matters, not its length.
+    const windows = addon.windowsForPid(process.pid)
+    expect(Array.isArray(windows)).toBe(true)
+    for (const window of windows) {
+      expect(typeof window.handle).toBe('number')
+      expect(typeof window.title).toBe('string')
+    }
+    // Zero is never a live window handle.
+    expect(addon.isWindow(0)).toBe(false)
+    expect(typeof addon.foregroundWindow()).toBe('number')
   })
 
   it.skipIf(onWindows)('reports that capture is unsupported off Windows', () => {

@@ -1,6 +1,8 @@
 import { electronAPI } from '@electron-toolkit/preload'
 import { contextBridge, ipcRenderer } from 'electron'
 import type {
+  AssistState,
+  AssistWindow,
   CaptureAvailability,
   CaptureStatus,
   CharacterRecord,
@@ -8,7 +10,9 @@ import type {
   LogFileInfo,
   MidirApi,
   MidirSettings,
-  RecordingInfo
+  RecordingInfo,
+  SpeakerConfig,
+  SpeakerState
 } from '../shared/types'
 
 /** Subscribe to a main-to-renderer push. The result unsubscribes. */
@@ -52,6 +56,25 @@ const api: MidirApi = {
     status: (): Promise<CaptureStatus> => ipcRenderer.invoke('capture:status'),
     onStatus: (handler: (status: CaptureStatus) => void): (() => void) =>
       subscribe('capture:status-changed', handler)
+  },
+
+  assist: {
+    windows: (): Promise<AssistWindow[]> => ipcRenderer.invoke('assist:windows'),
+    stopAll: (): Promise<void> => ipcRenderer.invoke('assist:stopAll'),
+    clearStop: (): Promise<void> => ipcRenderer.invoke('assist:clearStop'),
+    state: (): Promise<AssistState> => ipcRenderer.invoke('assist:state'),
+    onState: (handler: (state: AssistState) => void): (() => void) =>
+      subscribe('assist:state-changed', handler)
+  },
+
+  speaker: {
+    start: (config: SpeakerConfig): Promise<void> => ipcRenderer.invoke('speaker:start', config),
+    stop: (connectionId: string): Promise<void> => ipcRenderer.invoke('speaker:stop', connectionId),
+    state: (): Promise<SpeakerState[]> => ipcRenderer.invoke('speaker:state'),
+    onState: (handler: (state: SpeakerState) => void): (() => void) =>
+      subscribe('speaker:state-changed', handler),
+    onToggle: (handler: () => void): (() => void) =>
+      subscribe('speaker:toggle-requested', () => handler())
   },
 
   characters: {
