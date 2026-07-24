@@ -1,7 +1,32 @@
 # WP19 — read-app UI fixes and the character-screen redesign
 
-**Size:** M. **Depends on:** WP12. Read `00-overview.md` first. **PLANNED — build after WP12, before
-WP13.**
+**Size:** M. **Depends on:** WP12. Read `00-overview.md` first. **COMPLETE 2026-07-24** — PR #8.
+
+## What shipped
+
+Seven UI fixes across the read half, and the character-screen redesign.
+
+- **`CaptureIndicator.tsx`** — the missed-handshake pip reads `Idle`, not `Start Midir first`. The
+  warning colour and the tooltip stay.
+- **`Live.tsx`** — the join-late label is now "Midir is ready" / "Log in with a fresh character
+  session to begin."
+- **`shared/character.ts` + `pages/Items.tsx` + `components/GoldTooltip.tsx`** — a new
+  `summariseGold(records)` totals the gold and each character's share. The Items header shows the
+  total below the item summary, and a hover breaks it down by character with the age of each reading.
+- **`components/CharacterSheet.tsx` + `components/EquipScreen.tsx`** — the sheet is an identity card,
+  an Equip screen (equipment item icons in the client slot layout, a placeholder in the centre), a
+  vitals card, and collapsible Statistics, Inventory, Bank, and Legend sections. The Equipment and
+  Appearance cards merged into the Equip screen; the raw sprite integers are dropped.
+- **`shared/types.ts`, `main/handlers/settings.ts`, `main/settingsManager.ts`,
+  `store/settingsStore.ts`, `NavBar.tsx`, `App.tsx`** — a persisted `showDiagnostics` (default true)
+  in the Capture settings shows or hides the Diagnostics tab. `App` moves off the Diagnostics view
+  when it hides while open.
+- **`pages/Settings.tsx` + `components/InfoTip.tsx`** — the record-sessions and recordings-cap
+  subtexts became (i) tooltips. The cap has its own label, on one line with the field.
+- **The six themes** — `MuiAccordion` and `MuiTooltip` overrides, so the accordions and every
+  tooltip read as the app's own surfaces.
+- **Tests** — `summariseGold`, the `NavBar` Diagnostics filter, the `CaptureIndicator` "Idle" state,
+  and the updated `CharacterSheet` structure.
 
 ## Goal
 
