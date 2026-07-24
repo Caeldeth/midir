@@ -3,6 +3,24 @@
 **Size:** M. **Depends on:** WP3 (the capture layer already resolves the game's process id). Read
 `00-overview.md` first — settled decisions 1 to 4 are this WP's whole brief. **PLANNED.**
 
+## As built
+
+- The action layer extends the existing `da-pcap` addon, not a second native build. The addon gains
+  `windowsForPid`, `postMessageToWindow`, `setForegroundWindow`, `foregroundWindow`, and `isWindow`,
+  in the same shape as `processIdsByName`. `binding.gyp` links `user32`. See
+  [actionLayer.ts](../../src/main/actionLayer.ts) and [addon.cc](../../packages/da-pcap/src/addon.cc).
+- **The stop is three things:** the global hotkey, a `stopped` latch drivers poll, and a watch that
+  auto-stops on the window closing, the connection ending, or focus loss when the user asked for it.
+  `clearStop` lifts a latched stop so a driver can start again; arming clears it too.
+- **`typeLine` opens the chat input with a leading `Enter` first**, then types each character as
+  `WM_CHAR`, then sends with `Enter`. Without the leading `Enter` the first line goes to the game
+  world and is lost. The sequence is in named constants for a live correction. Settle waits sit after
+  each open and after each send, so a short line after a hyphen is not typed into a closing input.
+- **The `blocked` refusal means the connection has no live character.** The layer never types into a
+  connection with no decoded character, so it can never touch a login or a credential field.
+- **Two global hotkeys:** the stop, and Speaker start/stop. The Speaker hotkey fires through the
+  renderer, because the renderer owns the selected window. Both are set in Settings.
+
 ## Goal
 
 One place that can press a key in the game window, and one stop that always works. Every assistant

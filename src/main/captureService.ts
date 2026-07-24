@@ -70,6 +70,11 @@ export interface CaptureService {
   status(): CaptureStatus
   /** Write every pending record now. */
   flush(): Promise<void>
+  /**
+   * The live characters, by connection. The action layer reads this to attach a
+   * name to a window and to refuse driving a connection with no character.
+   */
+  liveCharacterEntries(): { connectionId: string; name: string }[]
 }
 
 export function createCaptureService(options: CaptureServiceOptions): CaptureService {
@@ -345,6 +350,9 @@ export function createCaptureService(options: CaptureServiceOptions): CaptureSer
     },
 
     status,
-    flush
+    flush,
+    liveCharacterEntries(): { connectionId: string; name: string }[] {
+      return [...liveCharacters.entries()].map(([connectionId, name]) => ({ connectionId, name }))
+    }
   }
 }

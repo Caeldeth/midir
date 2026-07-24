@@ -10,7 +10,7 @@
         [
           "OS=='win'",
           {
-            "libraries": ["-lws2_32", "-liphlpapi"],
+            "libraries": ["-lws2_32", "-liphlpapi", "-luser32"],
             "msvs_settings": { "VCCLCompilerTool": { "ExceptionHandling": 1 } }
           }
         ],

@@ -3,6 +3,20 @@
 **Size:** S. **Depends on:** WP13. Read `00-overview.md` first. **PLANNED — build this second, right
 after the action layer.**
 
+## As built
+
+- A Lines box, an interval floor, and a **Repeat toggle**: with repeat on the Speaker rotates the
+  list forever; with it off it sends each line once, in order, then stops.
+- **The client sends at most 59 characters in one line.** `wrapChatLine` breaks a longer line into
+  sends. The break prefers a space, so a word stays whole and a space is never hyphenated. A word is
+  hyphenated only when both fragments keep more than three letters; otherwise the whole word moves to
+  the next send. See [actionLayer.ts](../../src/shared/actionLayer.ts).
+- **The Speaker start/stop global hotkey** acts on the selected window. It fires through the renderer,
+  where the selection lives, so it works from any view.
+- The stop halts it within one line, whether from the global stop or the per-window Stop, because
+  `typeLine` aborts the moment its driver is disarmed.
+- The lines, the interval, the repeat rule, and both hotkeys live with the settings.
+
 ## Goal
 
 Replace DA Speaker: say a line of text into the game on an interval the user sets, and stop when

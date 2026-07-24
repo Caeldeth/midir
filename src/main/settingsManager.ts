@@ -37,6 +37,27 @@ function withDefaults(data: Partial<MidirSettings>): MidirSettings {
       typeof data.showDiagnostics === 'boolean'
         ? data.showDiagnostics
         : DEFAULT_SETTINGS.showDiagnostics,
+    assistStopHotkey:
+      typeof data.assistStopHotkey === 'string' && data.assistStopHotkey !== ''
+        ? data.assistStopHotkey
+        : DEFAULT_SETTINGS.assistStopHotkey,
+    speakerToggleHotkey:
+      typeof data.speakerToggleHotkey === 'string'
+        ? data.speakerToggleHotkey
+        : DEFAULT_SETTINGS.speakerToggleHotkey,
+    assistStopOnFocusLoss:
+      typeof data.assistStopOnFocusLoss === 'boolean'
+        ? data.assistStopOnFocusLoss
+        : DEFAULT_SETTINGS.assistStopOnFocusLoss,
+    speakerLines: Array.isArray(data.speakerLines)
+      ? data.speakerLines.filter((line): line is string => typeof line === 'string')
+      : DEFAULT_SETTINGS.speakerLines,
+    speakerIntervalMs:
+      typeof data.speakerIntervalMs === 'number' && Number.isFinite(data.speakerIntervalMs)
+        ? Math.max(0, Math.floor(data.speakerIntervalMs))
+        : DEFAULT_SETTINGS.speakerIntervalMs,
+    speakerRepeat:
+      typeof data.speakerRepeat === 'boolean' ? data.speakerRepeat : DEFAULT_SETTINGS.speakerRepeat,
     // Optional. A non-string value drops to unset, which turns icons off. An
     // empty string is also unset, so clearing the field in the UI turns them off.
     ...(typeof data.darkAgesPath === 'string' && data.darkAgesPath !== ''

@@ -47,7 +47,12 @@ const unsupported = {
   startCapture: stub,
   stopCapture: stub,
   tcpConnectionsForPid: stub,
-  processIdsByName: stub
+  processIdsByName: stub,
+  windowsForPid: stub,
+  postMessageToWindow: stub,
+  setForegroundWindow: stub,
+  foregroundWindow: stub,
+  isWindow: stub
 }
 
 let addon = unsupported

@@ -9,6 +9,12 @@ interface SettingsActions {
   setRecordingCapMb: (value: number) => void
   setShowDiagnostics: (value: boolean) => void
   setDarkAgesPath: (value: string | undefined) => void
+  setAssistStopHotkey: (value: string) => void
+  setSpeakerToggleHotkey: (value: string) => void
+  setAssistStopOnFocusLoss: (value: boolean) => void
+  setSpeakerLines: (value: string[]) => void
+  setSpeakerIntervalMs: (value: number) => void
+  setSpeakerRepeat: (value: boolean) => void
   hydrate: () => Promise<void>
 }
 
@@ -39,6 +45,12 @@ export const useSettingsStore = create<SettingsStore>((set) => ({
   setShowDiagnostics: (value) => set({ showDiagnostics: value }),
   // An empty pick clears the folder, which turns icons off.
   setDarkAgesPath: (value) => set({ darkAgesPath: value === '' ? undefined : value }),
+  setAssistStopHotkey: (value) => set({ assistStopHotkey: value }),
+  setSpeakerToggleHotkey: (value) => set({ speakerToggleHotkey: value }),
+  setAssistStopOnFocusLoss: (value) => set({ assistStopOnFocusLoss: value }),
+  setSpeakerLines: (value) => set({ speakerLines: value }),
+  setSpeakerIntervalMs: (value) => set({ speakerIntervalMs: value }),
+  setSpeakerRepeat: (value) => set({ speakerRepeat: value }),
 
   hydrate: async () => {
     const loaded = await window.api.settings.load()
@@ -75,7 +87,13 @@ useSettingsStore.subscribe((state) => {
       recordSessions,
       recordingCapMb,
       showDiagnostics,
-      darkAgesPath
+      darkAgesPath,
+      assistStopHotkey,
+      speakerToggleHotkey,
+      assistStopOnFocusLoss,
+      speakerLines,
+      speakerIntervalMs,
+      speakerRepeat
     } = state
     window.api.settings
       .save({
@@ -85,7 +103,13 @@ useSettingsStore.subscribe((state) => {
         recordSessions,
         recordingCapMb,
         showDiagnostics,
-        darkAgesPath
+        darkAgesPath,
+        assistStopHotkey,
+        speakerToggleHotkey,
+        assistStopOnFocusLoss,
+        speakerLines,
+        speakerIntervalMs,
+        speakerRepeat
       })
       .catch((err) =>
         // Main owns the log. A failure here is exactly the one a packaged
