@@ -1,6 +1,6 @@
 # WP16 — Speaker
 
-**Size:** S. **Depends on:** WP13. Read `00-overview.md` first. **PLANNED — build this second, right
+**Size:** S. **Depends on:** WP13. Read `00-overview.md` first. **COMPLETE — built second, right
 after the action layer.**
 
 ## As built

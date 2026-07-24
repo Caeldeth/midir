@@ -129,8 +129,8 @@ WP1 (scaffold)   COMPLETE
 
 the assistants, after the charter change:
 
-WP13 (the action layer: window, keys, the stop)   PLANNED
- ├── WP16 (Speaker)   PLANNED — the smallest user of WP13, and its proof
+WP13 (the action layer: window, keys, the stop)   COMPLETE — complete/13-action-layer.md
+ ├── WP16 (Speaker)   COMPLETE — complete/16-speaker.md — the smallest user of WP13, and its proof
  └── WP15 (Walker)   PLANNED
       └── WP17 (Laborer)   PLANNED — needs WP15 to arrive and WP11 to read the dialog
 WP14 (position and map, off the wire)   PLANNED — what WP15 steers by
@@ -173,18 +173,18 @@ built: item icons come off the game's own `legend.dat`, drawn through a privileg
 
 ### The assistants (after the charter change)
 
-| WP   | Size | Title                          | Status                              |
-| ---- | ---- | ------------------------------ | ----------------------------------- |
-| WP13 | M    | The action layer, and the stop | PLANNED — `13-action-layer.md`      |
-| WP14 | M    | Position and map, off the wire | PLANNED — `14-position-and-map.md`  |
-| WP15 | L    | Walker                         | PLANNED — `15-walker.md`            |
-| WP16 | S    | Speaker                        | PLANNED — `16-speaker.md`           |
-| WP17 | L    | Laborer (was Clout Assistant)  | PLANNED — `17-clout-assistant.md`   |
-| WP18 | M    | The packet-send spike          | PLANNED — `18-packet-send-spike.md` |
+| WP   | Size | Title                          | Status                                       |
+| ---- | ---- | ------------------------------ | -------------------------------------------- |
+| WP13 | M    | The action layer, and the stop | COMPLETE — `complete/13-action-layer.md`     |
+| WP14 | M    | Position and map, off the wire | PLANNED — `14-position-and-map.md`           |
+| WP15 | L    | Walker                         | PLANNED — `15-walker.md`                     |
+| WP16 | S    | Speaker                        | COMPLETE — `complete/16-speaker.md`          |
+| WP17 | L    | Laborer (was Clout Assistant)  | PLANNED — `17-clout-assistant.md`            |
+| WP18 | M    | The packet-send spike          | PLANNED — `18-packet-send-spike.md`          |
 
-Build order: **WP13, then WP16** — Speaker is the smallest thing that proves the action layer, and
-it needs nothing else. WP14 and WP15 are the walker's two halves, WP17 needs both plus WP11's
-dialog decode, and WP18 gates any forged packet WP17 turns out to want.
+Build order: **WP13 and WP16 are done** — the action layer and the Speaker that proves it. Next are
+WP14 and WP15, the walker's two halves; WP17 needs both plus WP11's dialog decode, and WP18 gates
+any forged packet WP17 turns out to want.
 
 ### Triggered follow-ons
 

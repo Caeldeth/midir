@@ -1,7 +1,7 @@
 # WP13 — the action layer, and the stop
 
 **Size:** M. **Depends on:** WP3 (the capture layer already resolves the game's process id). Read
-`00-overview.md` first — settled decisions 1 to 4 are this WP's whole brief. **PLANNED.**
+`00-overview.md` first — settled decisions 1 to 4 are this WP's whole brief. **COMPLETE.**
 
 ## As built
 
