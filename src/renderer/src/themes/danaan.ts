@@ -55,6 +55,48 @@ const danaanTheme = responsiveFontSizes(
     shape: { borderRadius: 2 },
 
     components: {
+      MuiAccordion: {
+        styleOverrides: {
+          root: ({ theme }) => ({
+            backgroundImage: 'none',
+            border: `1px solid ${theme.palette.divider}`,
+            boxShadow: 'none',
+            '&::before': { display: 'none' },
+            '&.Mui-expanded': { margin: 0 }
+          })
+        }
+      },
+      MuiAccordionSummary: {
+        styleOverrides: {
+          root: ({ theme }) => ({
+            backgroundColor: theme.palette.background.paperDark,
+            minHeight: 0,
+            '& .MuiAccordionSummary-content': {
+              marginTop: theme.spacing(1),
+              marginBottom: theme.spacing(1)
+            }
+          })
+        }
+      },
+      MuiAccordionDetails: {
+        styleOverrides: {
+          root: ({ theme }) => ({ padding: theme.spacing(2) })
+        }
+      },
+      MuiTooltip: {
+        styleOverrides: {
+          tooltip: ({ theme }) => ({
+            backgroundColor: theme.palette.background.paperDark,
+            color: theme.palette.text.primary,
+            border: `1px solid ${theme.palette.divider}`,
+            borderRadius: theme.shape.borderRadius,
+            boxShadow: theme.shadows[6],
+            fontSize: '0.8rem',
+            padding: theme.spacing(0.75, 1)
+          }),
+          arrow: ({ theme }) => ({ color: theme.palette.background.paperDark })
+        }
+      },
       MuiPaper: {
         styleOverrides: {
           root: {

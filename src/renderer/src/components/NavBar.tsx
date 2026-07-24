@@ -15,9 +15,12 @@ export const VIEWS: readonly { name: ViewName; label: string }[] = [
 interface NavBarProps {
   value: ViewName
   onChange: (view: ViewName) => void
+  /** Show the Diagnostics tab. The user turns it off in Settings. */
+  showDiagnostics: boolean
 }
 
-function NavBar({ value, onChange }: NavBarProps): React.JSX.Element {
+function NavBar({ value, onChange, showDiagnostics }: NavBarProps): React.JSX.Element {
+  const views = VIEWS.filter((view) => view.name !== 'diagnostics' || showDiagnostics)
   return (
     <Box sx={{ borderBottom: 1, borderColor: 'divider', flexShrink: 0 }}>
       <Tabs
@@ -26,7 +29,7 @@ function NavBar({ value, onChange }: NavBarProps): React.JSX.Element {
         aria-label="Views"
         data-testid="nav-bar"
       >
-        {VIEWS.map((view) => (
+        {views.map((view) => (
           <Tab key={view.name} value={view.name} label={view.label} />
         ))}
       </Tabs>

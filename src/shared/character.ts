@@ -226,3 +226,32 @@ export function summarise(record: CharacterRecord): CharacterSummary {
     itemCount: Object.keys(record.inventory).length
   }
 }
+
+/** One character's share of the gold total. */
+export interface GoldContribution {
+  name: string
+  gold: number
+  lastSeenMs: number
+}
+
+/** The gold across every character, and each character's share. */
+export interface GoldSummary {
+  total: number
+  /** One entry for each character, most gold first. */
+  contributions: GoldContribution[]
+}
+
+/**
+ * Add the gold every character holds. The record keeps a u32, so the total can
+ * pass 2^31. A JavaScript number holds that without loss.
+ */
+export function summariseGold(records: readonly CharacterRecord[]): GoldSummary {
+  const contributions: GoldContribution[] = records.map((record) => ({
+    name: record.name,
+    gold: record.stats.gold,
+    lastSeenMs: record.lastSeenMs
+  }))
+  contributions.sort((a, b) => b.gold - a.gold)
+  const total = contributions.reduce((sum, entry) => sum + entry.gold, 0)
+  return { total, contributions }
+}

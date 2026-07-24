@@ -13,11 +13,13 @@ import {
   TextField,
   Typography
 } from '@mui/material'
+import GoldTooltip from '@renderer/components/GoldTooltip'
 import Guidance from '@renderer/components/Guidance'
 import ItemIcon from '@renderer/components/ItemIcon'
 import ItemTooltip from '@renderer/components/ItemTooltip'
 import { formatAgo, formatNumber, plural } from '@renderer/lib/format'
 import { useCharacterStore } from '@renderer/store/characterStore'
+import { summariseGold } from '@shared/character'
 import { buildItemIndex, filterItems, summariseItems, type ItemHolder } from '@shared/items'
 import React, { useEffect, useMemo, useState } from 'react'
 
@@ -108,6 +110,9 @@ function Items(): React.JSX.Element {
   const index = useMemo(() => buildItemIndex(characters), [characters])
   const shown = useMemo(() => filterItems(index, query), [index, query])
   const summary = useMemo(() => summariseItems(shown), [shown])
+  const gold = useMemo(() => summariseGold(characters), [characters])
+  // Only characters that hold gold read on the breakdown; a zero adds nothing.
+  const goldHolders = useMemo(() => gold.contributions.filter((c) => c.gold > 0), [gold])
 
   // Gate on the index, not the character list. A recorded character can hold
   // no items at all: one SStatus is enough to file a record, and it arrives
@@ -158,9 +163,29 @@ function Items(): React.JSX.Element {
             }
           }}
         />
-        <Typography variant="body2" sx={{ color: 'text.secondary' }} data-testid="item-summary">
-          {`${plural(summary.itemCount, 'item')} · ${formatNumber(summary.totalCount)} held across ${plural(summary.characterCount, 'character')}`}
-        </Typography>
+        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 0.25 }}>
+          <Typography variant="body2" sx={{ color: 'text.secondary' }} data-testid="item-summary">
+            {`${plural(summary.itemCount, 'item')} · ${formatNumber(summary.totalCount)} held across ${plural(summary.characterCount, 'character')}`}
+          </Typography>
+          <GoldTooltip contributions={goldHolders}>
+            <Box
+              component="span"
+              tabIndex={0}
+              data-testid="gold-total"
+              sx={{
+                cursor: 'default',
+                borderRadius: 1,
+                px: 0.5,
+                '&:hover, &:focus-visible': { bgcolor: 'action.hover' },
+                '&:focus-visible': { outline: 'none' }
+              }}
+            >
+              <Typography component="span" variant="body2" sx={{ color: 'text.secondary' }}>
+                {`${formatNumber(gold.total)} gold across ${plural(goldHolders.length, 'character')}`}
+              </Typography>
+            </Box>
+          </GoldTooltip>
+        </Box>
       </Box>
 
       {shown.length === 0 ? (

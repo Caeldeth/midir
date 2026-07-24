@@ -123,7 +123,7 @@ WP1 (scaffold)   COMPLETE
       │         ├── WP9 (bank from the NPC dialog)   COMPLETE
       │         ├── WP10 (live character lifecycle / logoff)   COMPLETE
       │         │    └── WP12 (multiple clients)   COMPLETE — complete/12-multiple-clients.md
-      │         │         └── WP19 (read-app polish pass)   PLANNED — after WP12, before WP13
+      │         │         └── WP19 (read-app UI fixes + character redesign)   PLANNED — after WP12, before WP13
       │         └── WP11 (dialog wrapper + the empty bank)   COMPLETE
       └── (nothing else depends on WP2 directly — the protocol layer is the spine)
 
@@ -169,7 +169,7 @@ built: item icons come off the game's own `legend.dat`, drawn through a privileg
 | WP10 | S    | The live character's lifecycle            | COMPLETE — `complete/10-live-lifecycle.md`   |
 | WP11 | M    | The dialog wrapper, and the empty bank    | COMPLETE — `complete/11-dialog-wrapper.md`   |
 | WP12 | S    | Multiple clients at once                  | COMPLETE — `complete/12-multiple-clients.md` |
-| WP19 | M    | The read-app polish pass                  | PLANNED — `19-read-app-polish.md`            |
+| WP19 | M    | Read-app UI fixes + character redesign    | PLANNED — `19-read-app-polish.md`            |
 
 ### The assistants (after the charter change)
 

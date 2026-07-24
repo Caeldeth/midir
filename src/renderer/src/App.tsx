@@ -37,7 +37,14 @@ function App(): React.JSX.Element {
   const themeName = useSettingsStore((s) => s.theme)
   const theme = themes[themeName] ?? hybrasylTheme
   const hydrateSettings = useSettingsStore((s) => s.hydrate)
+  const showDiagnostics = useSettingsStore((s) => s.showDiagnostics)
   const [view, setView] = useState<ViewName>('live')
+
+  // The Diagnostics tab can hide while it is the open view. Move back to Live,
+  // so the navigation does not point at a tab that is gone.
+  useEffect(() => {
+    if (!showDiagnostics && view === 'diagnostics') setView('live')
+  }, [showDiagnostics, view])
 
   // Block first paint of the actual UI until settings.json has been read.
   // Otherwise we'd flash the default theme/UI for ~10-50ms before
@@ -108,7 +115,7 @@ function App(): React.JSX.Element {
         <TitleBar />
         {hydrated ? (
           <>
-            <NavBar value={view} onChange={setView} />
+            <NavBar value={view} onChange={setView} showDiagnostics={showDiagnostics} />
             <Box sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
               {/* One view failing must not blank the window. The boundary is
                   keyed on the view, so leaving a broken view clears it. */}
@@ -116,7 +123,7 @@ function App(): React.JSX.Element {
                 {view === 'live' ? <Live onOpenSettings={() => setView('settings')} /> : null}
                 {view === 'items' ? <Items /> : null}
                 {view === 'characters' ? <Characters /> : null}
-                {view === 'diagnostics' ? <Diagnostics /> : null}
+                {view === 'diagnostics' && showDiagnostics ? <Diagnostics /> : null}
                 {view === 'settings' ? <Settings /> : null}
               </ErrorBoundary>
             </Box>

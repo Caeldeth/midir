@@ -33,6 +33,10 @@ function withDefaults(data: Partial<MidirSettings>): MidirSettings {
       typeof data.recordingCapMb === 'number' && Number.isFinite(data.recordingCapMb)
         ? clampCap(data.recordingCapMb)
         : DEFAULT_SETTINGS.recordingCapMb,
+    showDiagnostics:
+      typeof data.showDiagnostics === 'boolean'
+        ? data.showDiagnostics
+        : DEFAULT_SETTINGS.showDiagnostics,
     // Optional. A non-string value drops to unset, which turns icons off. An
     // empty string is also unset, so clearing the field in the UI turns them off.
     ...(typeof data.darkAgesPath === 'string' && data.darkAgesPath !== ''

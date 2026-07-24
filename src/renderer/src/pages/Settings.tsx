@@ -11,6 +11,7 @@ import {
   TextField,
   Typography
 } from '@mui/material'
+import InfoTip from '@renderer/components/InfoTip'
 import ThemePicker from '@renderer/components/ThemePicker'
 import { formatNumber } from '@renderer/lib/format'
 import { useCaptureStore } from '@renderer/store/captureStore'
@@ -41,6 +42,8 @@ function Settings(): React.JSX.Element {
   const setRecordSessions = useSettingsStore((s) => s.setRecordSessions)
   const recordingCapMb = useSettingsStore((s) => s.recordingCapMb)
   const setRecordingCapMb = useSettingsStore((s) => s.setRecordingCapMb)
+  const showDiagnostics = useSettingsStore((s) => s.showDiagnostics)
+  const setShowDiagnostics = useSettingsStore((s) => s.setShowDiagnostics)
   const darkAgesPath = useSettingsStore((s) => s.darkAgesPath)
   const setDarkAgesPath = useSettingsStore((s) => s.setDarkAgesPath)
   const iconsEnabled = useIconsStore((s) => s.enabled)
@@ -169,27 +172,64 @@ function Settings(): React.JSX.Element {
                 disabled={status.running}
               />
             }
-            label="Record sessions to a file"
+            label={
+              <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
+                Record sessions to a file
+                <InfoTip
+                  label="About recording sessions"
+                  title={
+                    'A recording lets a session be replayed later, which is how a packet Midir ' +
+                    'does not understand yet gets worked out. It holds everything the client and ' +
+                    'the server exchanged, including your character name and that session’s keys, ' +
+                    'so treat it as private. Recording starts on the next capture. Read and delete ' +
+                    'recordings in Diagnostics.'
+                  }
+                />
+              </Box>
+            }
           />
-          <Typography variant="caption" sx={{ color: 'text.secondary', ml: 6, mt: -0.5 }}>
-            A recording lets a session be replayed later, which is how a packet Midir does not
-            understand yet gets worked out. It holds everything the client and the server exchanged,
-            including your character name and that session&apos;s keys, so treat it as private.
-            Recording starts on the next capture. Read and delete recordings in Diagnostics.
-          </Typography>
 
-          <TextField
-            type="number"
-            size="small"
-            label="Keep recordings under"
-            value={recordingCapMb}
-            onChange={(event) => setRecordingCapMb(Math.max(0, Number(event.target.value) || 0))}
-            helperText="Megabytes. Midir deletes the oldest recordings when a capture starts. Zero means no limit."
-            sx={{ ml: 6, mt: 1.5, maxWidth: 320 }}
-            slotProps={{
-              htmlInput: { min: 0, max: MAX_RECORDING_CAP_MB, step: 100 },
-              input: { endAdornment: <InputAdornment position="end">MB</InputAdornment> }
-            }}
+          <Box sx={{ ml: 6, mt: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Typography variant="body2">Keep recordings under</Typography>
+            <InfoTip
+              label="About the recordings cap"
+              title="Megabytes. Midir deletes the oldest recordings when a capture starts. Zero means no limit."
+            />
+            <TextField
+              type="number"
+              size="small"
+              value={recordingCapMb}
+              onChange={(event) => setRecordingCapMb(Math.max(0, Number(event.target.value) || 0))}
+              sx={{ maxWidth: 160 }}
+              slotProps={{
+                htmlInput: {
+                  min: 0,
+                  max: MAX_RECORDING_CAP_MB,
+                  step: 100,
+                  'aria-label': 'Keep recordings under, megabytes'
+                },
+                input: { endAdornment: <InputAdornment position="end">MB</InputAdornment> }
+              }}
+            />
+          </Box>
+
+          <FormControlLabel
+            sx={{ mt: 1 }}
+            control={
+              <Switch
+                checked={showDiagnostics}
+                onChange={(event) => setShowDiagnostics(event.target.checked)}
+              />
+            }
+            label={
+              <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
+                Show the Diagnostics tab
+                <InfoTip
+                  label="About the Diagnostics tab"
+                  title="The Diagnostics tab holds the session log and the recording list. Turn it off to hide the tab."
+                />
+              </Box>
+            }
           />
 
           <Box sx={{ flexGrow: 1 }} />

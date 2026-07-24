@@ -25,7 +25,7 @@ function appearanceFor(
   if (missedHandshake) {
     return {
       color: 'warning.main',
-      label: 'Start Midir first',
+      label: 'Idle',
       tooltip:
         'Midir joined this session after the login handshake, so it cannot read it. ' +
         'Log out, then log back in with Midir already running.'

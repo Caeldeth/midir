@@ -51,6 +51,6 @@ describe('CaptureIndicator', () => {
     })
     render(<CaptureIndicator />)
     expect(screen.getByTestId('capture-indicator')).toHaveAttribute('data-state', 'warning')
-    expect(screen.getByText('Start Midir first')).toBeInTheDocument()
+    expect(screen.getByText('Idle')).toBeInTheDocument()
   })
 })
