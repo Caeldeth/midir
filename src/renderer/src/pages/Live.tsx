@@ -36,11 +36,8 @@ function Live({ onOpenSettings }: LiveProps): React.JSX.Element {
   if (status.missedHandshake && live.length === 0) {
     return (
       <Guidance
-        title="Midir joined too late"
-        detail={
-          'Midir learns this session’s keys from the login handshake, so it has to be ' +
-          'running before you log in. Log out of Dark Ages, then log back in with Midir open.'
-        }
+        title="Midir is ready"
+        detail="Midir is set up correctly. Log in with a fresh character session to begin."
       />
     )
   }

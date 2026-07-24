@@ -40,6 +40,8 @@ export interface MidirSettings {
    * deleted.
    */
   recordingCapMb: number
+  /** Show the Diagnostics tab in the navigation bar. */
+  showDiagnostics: boolean
   /**
    * The Dark Ages install folder, the one that holds `legend.dat`. Midir reads
    * it only to draw item icons. It is optional: when it is unset, or holds no
@@ -57,7 +59,8 @@ export const DEFAULT_SETTINGS: MidirSettings = {
   captureDevice: '',
   autoStartCapture: false,
   recordSessions: false,
-  recordingCapMb: 1024
+  recordingCapMb: 1024,
+  showDiagnostics: true
 }
 
 /** One adapter Midir can capture from. */

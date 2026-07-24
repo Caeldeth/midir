@@ -6,7 +6,9 @@ debts owed to another repo, and the one conditional rule.
 **Slotted work now lives in the WP table.** Everything that used to sit here as "owed but not built"
 is a numbered, trigger-gated WP (WP20–WP28), with its promotion trigger in its own doc header. See
 the "Triggered follow-ons" table in `00-overview.md`. The multi-client decode is WP12,
-`SPursuitMessage 0x30` is WP17's first job, and the item-list virtualization is part of WP19.
+and `SPursuitMessage 0x30` is WP17's first job. List virtualization and the composited character
+doll (the client's `HumanImage`) are deferred out of WP19; see the non-goals in
+`19-read-app-polish.md`, each with its trigger.
 
 ## Conditional rules — a guard, not schedulable work
 

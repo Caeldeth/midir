@@ -22,6 +22,7 @@ export const settingsSchema = z.object({
   recordSessions: z.boolean(),
   // Zero means no limit. The maximum only stops an absurd value reaching disk.
   recordingCapMb: z.number().int().min(0).max(MAX_RECORDING_CAP_MB),
+  showDiagnostics: z.boolean(),
   // The Dark Ages install folder. Optional, and only used to draw item icons.
   darkAgesPath: z.string().optional()
 })

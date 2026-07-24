@@ -70,11 +70,14 @@ describe('CharacterSheet', () => {
     expect(screen.getByText('+12')).toBeInTheDocument()
   })
 
-  it('lists equipment by slot name', () => {
+  it('places equipment in the equip screen by slot', () => {
     render(<CharacterSheet record={build()} />)
-    expect(screen.getByText('Weapon')).toBeInTheDocument()
-    expect(screen.getByText('Staff of Ages')).toBeInTheDocument()
-    expect(screen.getByText('Armor')).toBeInTheDocument()
+    // The client Equip screen has eighteen slots. Worn items name themselves on
+    // their slot; an empty slot names only the slot.
+    expect(screen.getAllByTestId('equip-slot')).toHaveLength(18)
+    expect(screen.getByLabelText(/Weapon: Staff of Ages/)).toBeInTheDocument()
+    expect(screen.getByLabelText(/Armor: Bardocle/)).toBeInTheDocument()
+    expect(screen.getByLabelText('Shield')).toBeInTheDocument()
   })
 
   it('shows a stack count and leaves a single item bare', () => {
@@ -98,15 +101,13 @@ describe('CharacterSheet', () => {
     expect(screen.getByText('Grand Master')).toBeInTheDocument()
     expect(screen.getByText('Solid Union · Elder')).toBeInTheDocument()
     expect(screen.getByText('Mail waiting')).toBeInTheDocument()
-    // The nation is both a chip on the identity card and a row on the
-    // appearance card, so two matches are correct here.
-    expect(screen.getAllByText('Mileth')).toHaveLength(2)
+    // The nation reads once, on the identity card.
+    expect(screen.getByText('Mileth')).toBeInTheDocument()
   })
 
   it('says plainly when a section is empty, rather than showing nothing', () => {
     const bare = emptyCharacter('Newborn', Date.now())
     render(<CharacterSheet record={bare} />)
-    expect(screen.getByText('Nothing equipped yet.')).toBeInTheDocument()
     expect(screen.getByText('No items seen yet.')).toBeInTheDocument()
     expect(screen.getByText('No legend marks seen yet.')).toBeInTheDocument()
   })
