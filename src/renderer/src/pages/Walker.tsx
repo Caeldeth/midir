@@ -3,14 +3,18 @@ import {
   Autocomplete,
   Box,
   Button,
+  Chip,
   FormControlLabel,
+  IconButton,
   MenuItem,
   Paper,
   Stack,
   Switch,
   TextField,
+  Tooltip,
   Typography
 } from '@mui/material'
+import PushPinOutlined from '@mui/icons-material/PushPinOutlined'
 import InfoTip from '@renderer/components/InfoTip'
 import { useCaptureStore } from '@renderer/store/captureStore'
 import { useSettingsStore } from '@renderer/store/settingsStore'
@@ -55,6 +59,8 @@ function Walker(): React.JSX.Element {
   const assistStopHotkey = useSettingsStore((s) => s.assistStopHotkey)
   const assistStopOnFocusLoss = useSettingsStore((s) => s.assistStopOnFocusLoss)
   const setAssistStopOnFocusLoss = useSettingsStore((s) => s.setAssistStopOnFocusLoss)
+  const pinned = useSettingsStore((s) => s.walkerPinnedDestinations)
+  const setPinned = useSettingsStore((s) => s.setWalkerPinnedDestinations)
 
   const captureStatus = useCaptureStore((s) => s.status)
 
@@ -77,6 +83,18 @@ function Walker(): React.JSX.Element {
   const onGo = (): void => {
     if (selectedValue === '' || destination.trim() === '') return
     go(selectedValue, destination.trim())
+  }
+
+  const trimmed = destination.trim()
+  const alreadyPinned = pinned.some((d) => d.toLowerCase() === trimmed.toLowerCase())
+
+  const onPin = (): void => {
+    if (trimmed === '' || alreadyPinned) return
+    setPinned([...pinned, trimmed])
+  }
+
+  const onUnpin = (value: string): void => {
+    setPinned(pinned.filter((d) => d !== value))
   }
 
   return (
@@ -139,23 +157,56 @@ function Walker(): React.JSX.Element {
           </Button>
         </Stack>
 
-        <Autocomplete
-          freeSolo
-          options={destinations.map((d) => d.name)}
-          value={destination}
-          onInputChange={(_event, value) => setDestination(value)}
-          disabled={isRunning}
-          sx={{ mb: 2 }}
-          renderInput={(params) => (
-            <TextField
-              {...params}
-              size="small"
-              label="Destination"
-              placeholder="A place name, or a map id"
-              helperText="Pick a known place, or type a map name or number."
-            />
-          )}
-        />
+        <Stack direction="row" sx={{ gap: 1, alignItems: 'flex-start', mb: 1.5 }}>
+          <Autocomplete
+            freeSolo
+            fullWidth
+            options={destinations.map((d) => d.name)}
+            value={destination}
+            onInputChange={(_event, value) => setDestination(value)}
+            disabled={isRunning}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                size="small"
+                label="Destination"
+                placeholder="A place name, or a map id"
+                helperText="Pick a known place, or type a map name or number."
+              />
+            )}
+          />
+          <Tooltip title={alreadyPinned ? 'Already pinned' : 'Pin this destination'}>
+            <span>
+              <IconButton
+                aria-label="Pin this destination"
+                onClick={onPin}
+                disabled={trimmed === '' || alreadyPinned}
+                sx={{ mt: 0.25 }}
+              >
+                <PushPinOutlined />
+              </IconButton>
+            </span>
+          </Tooltip>
+        </Stack>
+
+        {pinned.length > 0 ? (
+          <Box
+            data-testid="walker-pinned"
+            sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}
+          >
+            {pinned.map((place) => (
+              <Chip
+                key={place}
+                label={place}
+                variant="outlined"
+                onClick={() => setDestination(place)}
+                onDelete={() => onUnpin(place)}
+                icon={<PushPinOutlined fontSize="small" />}
+                data-testid="walker-pin"
+              />
+            ))}
+          </Box>
+        ) : null}
 
         <Stack direction="row" sx={{ gap: 1.5, alignItems: 'center', flexWrap: 'wrap', mb: 2 }}>
           {isRunning ? (

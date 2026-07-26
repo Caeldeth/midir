@@ -58,6 +58,9 @@ function withDefaults(data: Partial<MidirSettings>): MidirSettings {
         : DEFAULT_SETTINGS.speakerIntervalMs,
     speakerRepeat:
       typeof data.speakerRepeat === 'boolean' ? data.speakerRepeat : DEFAULT_SETTINGS.speakerRepeat,
+    walkerPinnedDestinations: Array.isArray(data.walkerPinnedDestinations)
+      ? data.walkerPinnedDestinations.filter((d): d is string => typeof d === 'string')
+      : DEFAULT_SETTINGS.walkerPinnedDestinations,
     // Optional. A non-string value drops to unset, which turns icons off. An
     // empty string is also unset, so clearing the field in the UI turns them off.
     ...(typeof data.darkAgesPath === 'string' && data.darkAgesPath !== ''

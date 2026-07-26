@@ -79,6 +79,8 @@ export interface MidirSettings {
   speakerIntervalMs: number
   /** Rotate the list forever. When false, the Speaker sends each line once. */
   speakerRepeat: boolean
+  /** The Walker destinations the user pinned, each a place name or a map id. */
+  walkerPinnedDestinations: string[]
 }
 
 /** The largest cap the settings accept, in megabytes. */
@@ -96,7 +98,8 @@ export const DEFAULT_SETTINGS: MidirSettings = {
   assistStopOnFocusLoss: false,
   speakerLines: [],
   speakerIntervalMs: 5000,
-  speakerRepeat: true
+  speakerRepeat: true,
+  walkerPinnedDestinations: []
 }
 
 /** One adapter Midir can capture from. */
