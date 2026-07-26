@@ -49,8 +49,9 @@ message makes it registered; else registered by default.
    Name the field in `characterSchema`, or it is dropped on load (WP11's rule).
 3. **Gated maps are a small overlay, seeded and learned** (the chosen source). A hand-kept
    `route/access.json` lists the registration-gated map ids, seeded with the known ones (Rucesion
-   Commons, Mileth Commons, and any others). It is separate from the generated `worldmap.json`, so a
-   re-import never clobbers it. The wire refines it: when an **unregistered** character stalls at a
+   Commons `3048`, Mileth Commons `3025`, and any others). It is separate from the generated
+   `worldmap.json`, so a re-import never clobbers it. The wire refines it: when an **unregistered**
+   character stalls at a
    warp into a map and no creature explains it, the map is learned as gated (a WP29-style learned
    fact, with the same provenance and observation-count honesty).
 4. **The planner is registration-aware.** `planRoute(from, to, { registered })` excludes edges into a
@@ -124,7 +125,7 @@ export interface AccessOverlay {
 
 ## Needed input
 
-- The **map ids** of the registration-gated maps to seed the overlay: Mileth Commons (unknown here),
-  Rucesion Commons (3048, from the graph), and any others.
+- The **map ids** to seed the overlay: Rucesion Commons `3048` and Mileth Commons `3025` are known;
+  add any others as they are found.
 - The **exact unregistered legend mark** text or key to match, confirmed against a live unregistered
   character.
