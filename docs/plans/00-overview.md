@@ -131,7 +131,7 @@ the assistants, after the charter change:
 
 WP13 (the action layer: window, keys, the stop)   COMPLETE — complete/13-action-layer.md
  ├── WP16 (Speaker)   COMPLETE — complete/16-speaker.md — the smallest user of WP13, and its proof
- └── WP15 (Walker)   PLANNED
+ └── WP15 (Walker)   COMPLETE — complete/15-walker.md
       └── WP17 (Laborer)   PLANNED — needs WP15 to arrive and WP11 to read the dialog
 WP14 (position and map, off the wire)   COMPLETE — complete/14-position-and-map.md — what WP15 steers by
 WP18 (the packet-send spike)   PLANNED — gates every forged packet; WP17 is the only caller waiting
@@ -181,15 +181,15 @@ built: item icons come off the game's own `legend.dat`, drawn through a privileg
 | ---- | ---- | ------------------------------ | -------------------------------------------- |
 | WP13 | M    | The action layer, and the stop | COMPLETE — `complete/13-action-layer.md`     |
 | WP14 | M    | Position and map, off the wire | COMPLETE — `complete/14-position-and-map.md` |
-| WP15 | L    | Walker                         | PLANNED — `15-walker.md`                     |
+| WP15 | L    | Walker                         | COMPLETE — `complete/15-walker.md`           |
 | WP16 | S    | Speaker                        | COMPLETE — `complete/16-speaker.md`          |
 | WP17 | L    | Laborer (was Clout Assistant)  | PLANNED — `17-clout-assistant.md`            |
 | WP18 | M    | The packet-send spike          | PLANNED — `18-packet-send-spike.md`          |
 
-Build order: **WP13, WP16, and WP14 are done** — the action layer, the Speaker that proves it, and
-the position off the wire. Next is **WP15 (Walker)**, which now has both its halves: WP13 for the
-keys and WP14 for the confirmations. WP17 needs WP15 plus WP11's dialog decode, and WP18 gates any
-forged packet WP17 turns out to want.
+Build order: **WP13, WP16, WP14, and WP15 are done** — the action layer, the Speaker that proves it,
+the position off the wire, and the Walker that steers by it. Next is **WP17 (Laborer)**, which needs
+WP15 plus WP11's dialog decode, and **WP18** gates any forged packet WP17 turns out to want. WP15
+also surfaced WP29–WP32 (learn transitions, map viewer, dynamic doors, registration-aware routing).
 
 ### Triggered follow-ons
 
