@@ -12,6 +12,7 @@ import {
   resolvePendingBank,
   type CharacterSession
 } from './model/character'
+import { reducePosition, type Position } from './model/position'
 import { mergeCharacter, withCharacter, type CharacterStore } from './store/characterStore'
 
 /**
@@ -75,6 +76,13 @@ export interface CaptureService {
    * name to a window and to refuse driving a connection with no character.
    */
   liveCharacterEntries(): { connectionId: string; name: string }[]
+  /**
+   * Where the character on `connectionId` stands, or null while it is unknown.
+   *
+   * The position is a live fact, not a record, so it is never saved and never
+   * reaches the renderer on its own. The walker reads it to step and confirm.
+   */
+  positionFor(connectionId: string): Position | null
 }
 
 export function createCaptureService(options: CaptureServiceOptions): CaptureService {
@@ -84,6 +92,14 @@ export function createCaptureService(options: CaptureServiceOptions): CaptureSer
 
   /** One reducer state for each connection. */
   const sessions = new Map<string, CharacterSession>()
+  /**
+   * One position for each connection, beside the character reducer.
+   *
+   * Position belongs to a connection, like the character, so two clients keep
+   * two positions. It is never written to disk: where a character stood is a
+   * live fact, and a saved one is a stale answer with a confident face on it.
+   */
+  const positions = new Map<string, Position>()
   /** Records changed but not yet written, by character name. */
   const unsaved = new Map<string, CharacterRecord>()
   /**
@@ -238,12 +254,25 @@ export function createCaptureService(options: CaptureServiceOptions): CaptureSer
       return
     }
 
+    // The loss is read once and given to both reducers. The set holds one flag
+    // per connection, so a second read would always be false.
+    const sawLoss = lossy.delete(id)
+
+    const positionBefore = positions.get(id) ?? null
+    const positionAfter = reducePosition(positionBefore, {
+      packet: tracked.event.packet,
+      timestampMs: tracked.timestampMs,
+      sawLoss
+    })
+    if (positionAfter === null) positions.delete(id)
+    else positions.set(id, positionAfter)
+
     const before = sessions.get(id) ?? newSession(tracked.connection.openedAtMs)
     const after = reduce(before, {
       packet: tracked.event.packet,
       timestampMs: tracked.timestampMs,
       keyName: tracked.keyName,
-      sawLoss: lossy.delete(id)
+      sawLoss
     })
     sessions.set(id, after)
 
@@ -274,6 +303,7 @@ export function createCaptureService(options: CaptureServiceOptions): CaptureSer
       connectionCount = 0
       liveCharacters.clear()
       sessions.clear()
+      positions.clear()
       lossy.clear()
       tracker.clear()
 
@@ -300,6 +330,7 @@ export function createCaptureService(options: CaptureServiceOptions): CaptureSer
           // always arrives: a client that crashes or is killed sends no exit
           // packet, but its connection still ends.
           liveCharacters.delete(connection.id)
+          positions.delete(connection.id)
           connectionCount = tracker.activeConnections().length
           publishStatus()
         },
@@ -345,6 +376,7 @@ export function createCaptureService(options: CaptureServiceOptions): CaptureSer
       await writing?.close()
       tracker.clear()
       sessions.clear()
+      positions.clear()
       await flush()
       publishStatus()
     },
@@ -353,6 +385,9 @@ export function createCaptureService(options: CaptureServiceOptions): CaptureSer
     flush,
     liveCharacterEntries(): { connectionId: string; name: string }[] {
       return [...liveCharacters.entries()].map(([connectionId, name]) => ({ connectionId, name }))
+    },
+    positionFor(connectionId: string): Position | null {
+      return positions.get(connectionId) ?? null
     }
   }
 }

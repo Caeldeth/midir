@@ -26,6 +26,9 @@ the wire**, and the document repo already describes them:
 | `0x3C` | `server/0x3C-map-data.md`             | the map's tile data         |
 | `0x58` | `server/0x58-map-load-complete.md`    | the client is done loading  |
 
+**This table was the plan; three rows were wrong.** `0x67`, `0x1F`, and `0x58` do not drive a map
+change on the 7.41 client. `0x15` is the only map signal. See "What shipped" below.
+
 `ServerOpcode.UserPosition` is already named in `opcodes.ts` with **no decoder behind it**, which is
 where this starts.
 
@@ -113,3 +116,42 @@ show it.
    gap.
 3. **A replay of a real recording that contains a walk**, asserting the position track. The
    recordings from 2026-07-23 contain map changes and movement, so this needs no new capture.
+
+## What shipped
+
+Built as three parts: `protocol/decode/movement.ts` decodes the packets, `model/position.ts` holds
+the `reducePosition` reducer, and `captureService.ts` keeps one `Position` for each connection with
+a `positionFor(connectionId)` accessor. The reducer is pure, the position is never saved, and
+`CharacterRecord` gained no field.
+
+**Two protocol facts corrected the plan. Both were read from both sources and confirmed against a
+live capture.**
+
+1. **`0x67`, `0x1F`, and `0x58` do not signal a map change. `0x15` (SMapSize) is the only signal.**
+   The original opcode table named `0x67` map-change-pending, `0x1F` map-change-completed, and
+   `0x58` map-load-complete. Both protocol sources agree these are wrong for the 7.41 build: `0x67`
+   is unhandled and the client emits it as a bookend around non-map events (for example the world-map
+   pane), `0x1F` is `SChangeWeather` and reads one byte, and `0x58` has no consumer. **There is no
+   map-change-completed opcode on the wire.** So decision 3 is implemented on `0x15` alone: a
+   `0x15` with a new map id clears the tile to `unknown`, and the first `0x04` confirms it. Midir
+   does not decode `0x67`, `0x1F`, or `0x58`. Gating a map change on `0x67` would send the position
+   `unknown` every time the player opens the world map, which would stop the walker for no reason.
+
+2. **Coordinates in `0x04` and `0x0B` are big-endian, like the rest of the protocol.** A live
+   capture settled it: `SUserPosition 04 00 2b 00 28` is `x=43, y=40`, not the `0x2b00` that a
+   little-endian read gives. The existing big-endian reader was correct; no new reader was added.
+
+`0x3C` (map tile data) is not decoded. Decision 6 defers it until the walker needs it, and route
+walking between warps does not.
+
+`SMove 0x0B` carries the **source** tile and a direction; the destination is the source plus the
+direction's delta. This was verified against a live walk, where each packet's source tile equals the
+previous packet's destination. Directions are `0` North, `1` East, `2` South, `3` West; a direction
+above `3` is a no-step correction that asserts the source tile itself.
+
+**Verified against the 26 recorded sessions.** The full decode-and-reduce chain produced 2005
+`confirmed`, 1932 `predicted`, and 190 `unknown` position updates across 26 named retail maps
+(Rucesion, Mileth, Abel, Loures, and more). The predicted-then-confirmed ladder held on every step:
+the client's `0x06` drew the tile, and the server's `0x0B` confirmed the same tile. Three confirmed
+steps in about four thousand jumped more than one tile on the same map; each is a within-map warp or
+a server correction, not a decode error.

@@ -634,4 +634,147 @@ describe('createCaptureService', () => {
       await service.stop()
     })
   })
+
+  describe('the position, off the wire', () => {
+    /** A server SMapSize 0x15 on a world connection. */
+    const mapInfoBody = (mapId: number, name: string): number[] => [
+      ServerOpcode.MapInfo,
+      ...u16(mapId),
+      15,
+      15,
+      0,
+      0,
+      0,
+      0,
+      0,
+      ...str8(name)
+    ]
+    /** A server SUserPosition 0x04. */
+    const posBody = (x: number, y: number): number[] => [
+      ServerOpcode.UserPosition,
+      ...u16(x),
+      ...u16(y),
+      ...u16(11),
+      ...u16(11)
+    ]
+    /** A server SMove 0x0B: the direction and the source tile. */
+    const userMoveBody = (direction: number, fromX: number, fromY: number): number[] => [
+      ServerOpcode.Move,
+      direction,
+      ...u16(fromX),
+      ...u16(fromY),
+      ...u16(11),
+      ...u16(11),
+      1
+    ]
+    /** A client CWalk 0x06. */
+    const walkBody = (direction: number, step: number): number[] => [
+      ClientOpcode.Walk,
+      direction,
+      step
+    ]
+
+    /** A world server movement chunk, session-keyed like the login helper. */
+    const worldMove = (
+      world: ConnectionInfo,
+      name: string,
+      body: number[],
+      sequence: number,
+      timestampMs: number
+    ): RecordingLine =>
+      encodeChunk(
+        chunk(
+          world,
+          sessionBody({ plaintext: body, keyName: name, saltSelector: 3, sequence }),
+          timestampMs
+        )
+      )
+
+    /** A world client movement chunk. */
+    const worldWalk = (
+      world: ConnectionInfo,
+      name: string,
+      body: number[],
+      timestampMs: number
+    ): RecordingLine =>
+      encodeChunk({
+        connectionId: world.id,
+        direction: 'clientToServer',
+        bytes: Uint8Array.from(
+          frameOf(clientSessionBody({ plaintext: body, keyName: name, saltSelector: 3 }))
+        ),
+        timestampMs,
+        gap: false
+      })
+
+    it('tracks the character across a walk and a map change', async () => {
+      // The map arrives, the server confirms the tile, the client steps East,
+      // and the server confirms the step. Then a new map clears the tile.
+      const { service } = build([
+        ...loginRecording(),
+        worldMove(WORLD, CHARACTER, mapInfoBody(100, 'Mileth'), 3, 2300),
+        worldMove(WORLD, CHARACTER, posBody(5, 8), 4, 2400),
+        worldWalk(WORLD, CHARACTER, walkBody(1, 1), 2500),
+        worldMove(WORLD, CHARACTER, userMoveBody(1, 5, 8), 5, 2600)
+      ])
+      await service.start('adapter')
+
+      expect(service.positionFor(WORLD.id)).toMatchObject({
+        mapId: 100,
+        mapName: 'Mileth',
+        x: 6,
+        y: 8,
+        facing: 1,
+        confidence: 'confirmed'
+      })
+
+      await service.stop()
+      // The position is a live fact; a stop forgets it.
+      expect(service.positionFor(WORLD.id)).toBeNull()
+    })
+
+    it('keeps two positions, one for each connection', async () => {
+      // Acceptance criterion 5. Two clients, two maps, two tiles.
+      const { service } = build([
+        { kind: 'header', version: 1, startedAtMs: 0 },
+        ...loginLines(LOGIN, WORLD, CHARACTER, {
+          redirect: 1500,
+          loginClose: 1600,
+          status: 2100,
+          item: 2200
+        }),
+        ...loginLines(LOGIN2, WORLD2, CHARACTER2, {
+          redirect: 5500,
+          loginClose: 5600,
+          status: 6100,
+          item: 6200
+        }),
+        worldMove(WORLD, CHARACTER, mapInfoBody(100, 'Mileth'), 3, 2300),
+        worldMove(WORLD, CHARACTER, posBody(5, 8), 4, 2400),
+        worldMove(WORLD2, CHARACTER2, mapInfoBody(200, 'Rucesion'), 3, 6300),
+        worldMove(WORLD2, CHARACTER2, posBody(11, 3), 4, 6400)
+      ])
+      await service.start('adapter')
+
+      expect(service.positionFor(WORLD.id)).toMatchObject({ mapId: 100, x: 5, y: 8 })
+      expect(service.positionFor(WORLD2.id)).toMatchObject({ mapId: 200, x: 11, y: 3 })
+      await service.stop()
+    })
+
+    it('writes no position into the saved character record', async () => {
+      // Acceptance criterion 6. The record on disk gains no position field.
+      const { service, store } = build([
+        ...loginRecording(),
+        worldMove(WORLD, CHARACTER, mapInfoBody(100, 'Mileth'), 3, 2300),
+        worldMove(WORLD, CHARACTER, posBody(5, 8), 4, 2400)
+      ])
+      await service.start('adapter')
+      await service.flush()
+
+      const saved = (await store.load()).characters[CHARACTER]
+      expect(saved).toBeDefined()
+      expect(saved && 'position' in saved).toBe(false)
+      await service.stop()
+    })
+  })
 })

@@ -73,7 +73,11 @@ export const ServerOpcode = {
   TransferServer: 0x03,
   UserPosition: 0x04,
   UserAppearance: 0x05,
+  /** The player's own confirmed step. See decode/movement.ts. */
+  Move: 0x0b,
   Status: 0x08,
+  /** The map's identity, size, and name. The one true map-change signal. */
+  MapInfo: 0x15,
   AddInventory: 0x0f,
   RemoveInventory: 0x10,
   AddSpell: 0x17,
@@ -93,6 +97,8 @@ export const ServerOpcode = {
 /** Client opcodes that Midir reads or acts on. */
 export const ClientOpcode = {
   Version: 0x00,
+  /** The player's own step, drawn before the server confirms it. */
+  Walk: 0x06,
   /** Creates an account. Carries a password and an email. See scrub.ts. */
   NewUser: 0x02,
   /** Signs in. Carries a password. See scrub.ts. */
