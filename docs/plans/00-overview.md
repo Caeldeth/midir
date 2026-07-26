@@ -150,6 +150,7 @@ WP27 (cut the first release)   PLANNED — needs the quality gate and WP28
 WP29 (learn map transitions from the wire)   PLANNED — needs WP14; feeds WP15's graph and WP24
 WP30 (map viewer / route inspector)   PLANNED — needs WP15, WP14, WP7
 WP31 (dynamic door collision 0x32)   PLANNED — needs WP15; feeds WP17
+WP32 (registration-aware routing)   PLANNED — needs WP15, WP4/WP5; adds a 0x0A decoder
 ```
 
 WP7 was the one gap in the shipped run. It was specified, deferred for the protocol work that kept
@@ -209,6 +210,7 @@ trigger is in each doc's header.
 | WP29 | M    | Learn map transitions from wire | PLANNED — `29-learn-transitions.md`              |
 | WP30 | M    | Map viewer / route inspector    | PLANNED — `30-map-viewer.md`                     |
 | WP31 | S    | Dynamic door collision (`0x32`) | PLANNED — `31-door-collision.md`                 |
+| WP32 | M    | Registration-aware routing      | PLANNED — `32-registration-aware-routing.md`     |
 
 `00a-backlog.md` now holds only what is not a WP: the non-goals, the debts owed to another repo, and
 the one conditional rule.
