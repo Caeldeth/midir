@@ -4,21 +4,30 @@ import {
   assistWindows,
   speakerState,
   startSpeaker,
+  startWalker,
   stopSpeaker,
+  stopWalker,
+  walkerState,
   type AssistHandlerContext
 } from '../handlers/assist'
 import type { ActionLayer } from '../actionLayer'
 import type { Speaker } from '../speaker'
+import type { Walker } from '../walker'
 
 /**
- * The assist handler bodies, called directly with a fake action layer and a
- * fake Speaker. No IPC, and no game.
+ * The assist handler bodies, called directly with a fake action layer, a fake
+ * Speaker, and a fake Walker. No IPC, and no game.
  */
 
 function fakeContext(): AssistHandlerContext & {
   actionLayer: { listWindows: ReturnType<typeof vi.fn>; stopAll: ReturnType<typeof vi.fn> }
   speaker: {
     start: ReturnType<typeof vi.fn>
+    stop: ReturnType<typeof vi.fn>
+    states: ReturnType<typeof vi.fn>
+  }
+  walker: {
+    go: ReturnType<typeof vi.fn>
     stop: ReturnType<typeof vi.fn>
     states: ReturnType<typeof vi.fn>
   }
@@ -32,9 +41,15 @@ function fakeContext(): AssistHandlerContext & {
     stop: vi.fn(),
     states: vi.fn(() => [])
   }
+  const walker = {
+    go: vi.fn(async () => ({ kind: 'arrived' })),
+    stop: vi.fn(),
+    states: vi.fn(() => [])
+  }
   return {
     actionLayer: actionLayer as unknown as ActionLayer & typeof actionLayer,
-    speaker: speaker as unknown as Speaker & typeof speaker
+    speaker: speaker as unknown as Speaker & typeof speaker,
+    walker: walker as unknown as Walker & typeof walker
   }
 }
 
@@ -99,5 +114,36 @@ describe('the assist handlers', () => {
     const ctx = fakeContext()
     expect(speakerState(ctx)).toEqual([])
     expect(ctx.speaker.states).toHaveBeenCalledOnce()
+  })
+
+  it('starts the Walker with a validated request', async () => {
+    const ctx = fakeContext()
+    const outcome = await startWalker(ctx, { connectionId: 'A', destination: 'Mileth' })
+    expect(outcome).toEqual({ kind: 'arrived' })
+    expect(ctx.walker.go).toHaveBeenCalledWith({ connectionId: 'A', destination: 'Mileth' })
+  })
+
+  it('accepts a numeric map id as a destination', async () => {
+    const ctx = fakeContext()
+    await startWalker(ctx, { connectionId: 'A', destination: 500 })
+    expect(ctx.walker.go).toHaveBeenCalledWith({ connectionId: 'A', destination: 500 })
+  })
+
+  it('rejects a walk request with no connection', async () => {
+    const ctx = fakeContext()
+    await expect(startWalker(ctx, { connectionId: '', destination: 'Mileth' })).rejects.toThrow()
+    expect(ctx.walker.go).not.toHaveBeenCalled()
+  })
+
+  it('stops the Walker on a connection', () => {
+    const ctx = fakeContext()
+    stopWalker(ctx, 'A')
+    expect(ctx.walker.stop).toHaveBeenCalledWith('A')
+  })
+
+  it('reports the running walkers', () => {
+    const ctx = fakeContext()
+    expect(walkerState(ctx)).toEqual([])
+    expect(ctx.walker.states).toHaveBeenCalledOnce()
   })
 })

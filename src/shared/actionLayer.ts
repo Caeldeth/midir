@@ -70,6 +70,77 @@ export interface SpeakerState {
 /** The shortest interval the Speaker accepts, in milliseconds. */
 export const MIN_SPEAKER_INTERVAL_MS = 1000
 
+/** A request to walk a character to a place. */
+export interface WalkRequest {
+  /** The connection, and so the character, to drive. */
+  connectionId: string
+  /** A node name or a map id from the world graph. */
+  destination: string | number
+}
+
+/** Why the walker stopped short of the destination. */
+export type WalkStopReason =
+  /** The user stopped it, by the button or the global stop. */
+  | 'user'
+  /** The character logged off or the window closed. */
+  | 'lostCharacter'
+  /** The position went unknown and did not recover, or something else moved it. */
+  | 'lostPosition'
+  /** A step did not land after repeated tries, or no path was passable. */
+  | 'blocked'
+  /** No route to the destination exists in the graph. */
+  | 'noRoute'
+
+/** How a walk ended. */
+export type WalkOutcome = { kind: 'arrived' } | { kind: 'stopped'; reason: WalkStopReason }
+
+/** Where the walker last saw the character. A trimmed Position, safe to send. */
+export interface WalkerPosition {
+  mapId: number
+  mapName?: string
+  x: number
+  y: number
+  confidence: 'confirmed' | 'predicted' | 'unknown'
+}
+
+/** What one walker is doing now. Pushed on every change. */
+export interface WalkerState {
+  connectionId: string
+  running: boolean
+  /** The destination as the user asked for it. */
+  destination?: string
+  /** Where the character stands, as last read off the wire. */
+  position?: WalkerPosition
+  /** The next warp the walker is heading for, when one is planned. */
+  nextWarp?: { toMapId: number; x: number; y: number }
+  /** How many confirmed steps the walker has taken this run. */
+  stepsTaken: number
+  /** Why the walker stopped, when it stopped for a reason worth showing. */
+  reason?: string
+}
+
+/** A place the walker can be sent to: a named map from the world graph. */
+export interface WalkerDestination {
+  mapId: number
+  name: string
+}
+
+/** A message worth showing the user for each walk-stop reason. */
+export function walkStopMessage(reason: WalkStopReason): string {
+  switch (reason) {
+    case 'user':
+      return 'You stopped the walker.'
+    case 'lostCharacter':
+      return 'The character logged off or the window closed.'
+    case 'lostPosition':
+      return 'The walker lost track of where the character is.'
+    case 'blocked':
+      return 'The walker could not get through.'
+    case 'noRoute':
+      return 'There is no route to that place.'
+  }
+}
+
 /** Show an Electron accelerator in the plain form a user reads. */
 export function formatHotkey(accelerator: string): string {
   if (accelerator === '') return 'none'

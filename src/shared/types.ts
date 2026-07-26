@@ -3,7 +3,16 @@
 
 import type { CharacterRecord } from './character'
 import type { LogEntry, LogFileInfo, RecordingInfo } from './log'
-import type { AssistState, AssistWindow, SpeakerConfig, SpeakerState } from './actionLayer'
+import type {
+  AssistState,
+  AssistWindow,
+  SpeakerConfig,
+  SpeakerState,
+  WalkerDestination,
+  WalkerState,
+  WalkOutcome,
+  WalkRequest
+} from './actionLayer'
 
 export * from './character'
 export * from './items'
@@ -226,6 +235,20 @@ export interface MidirApi {
     onState: (handler: (state: SpeakerState) => void) => () => void
     /** The global hotkey asked to toggle the Speaker. Call the result to stop. */
     onToggle: (handler: () => void) => () => void
+  }
+
+  /** The Walker: name a place, and the character walks there across maps. */
+  walker: {
+    /** Every place the walker can be sent to, for the destination picker. */
+    destinations: () => Promise<WalkerDestination[]>
+    /** Walk the bound character to a place. Resolves with how the walk ended. */
+    go: (request: WalkRequest) => Promise<WalkOutcome>
+    /** Stop the Walker on one connection. */
+    stop: (connectionId: string) => Promise<void>
+    /** Every Walker running now. */
+    state: () => Promise<WalkerState[]>
+    /** Watch a Walker as it changes. Call the result to stop watching. */
+    onState: (handler: (state: WalkerState) => void) => () => void
   }
 
   characters: {

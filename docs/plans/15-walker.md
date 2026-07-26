@@ -1,7 +1,50 @@
 # WP15 — Walker
 
 **Size:** L. **Depends on:** WP13 (the action layer) and WP14 (where the character is). Read
-`00-overview.md` first. **PLANNED.**
+`00-overview.md` first. **COMPLETE.**
+
+## As built
+
+Built as three pure cores, one driver, and the wiring, all provable with no game:
+
+- **The between-maps graph.** `scripts/import-worldmap.mjs` converts DA Walker's `WorldMap.dat` to
+  `src/main/route/worldmap.json` once (378 nodes, 152 named, 2068 exits, 0 lines skipped). The file
+  is messier than the plan's one rule: a header is `mapId arrivalX arrivalY [Name]`, not
+  `mapId -1 -1 Name` — the two coordinate fields are the map's default arrival tile and are `-1 -1`
+  only when unset. A leading `-1` is a flag the importer drops, and a caravan exit gives three ints
+  (destination and arrival coordinates) where a plain exit gives one. The importer is tolerant and
+  reports its coverage. `route/graph.ts` is the pure planner: a breadth-first search over the nodes
+  gives the ordered warps, and it resolves a name or a map id to a destination.
+- **The within-map A\*.** `route/pathfind.ts` is A* over a map's passability, four-connected, to the
+  next warp tile around walls.
+- **Passability from the disk map cache, not the wire.** This is the plan's one correction, and it
+  is a protocol fact. `SMapPart 0x3C` carries the tile rows **only on a cache miss**; a returning
+  player's client loads the map from `maps\lodNNNNN.map` and the server sends no rows. So the wire is
+  silent for almost every map in a normal session. `route/mapSource.ts` reads the map cache from disk
+  — the same six-byte cell format, complete for every visited map — and `sotp.dat` from `ia.dat`
+  through dalib-ts for the collision flags. Both are static game data files, read exactly as WP7
+  reads `legend.dat`: never memory, never a write. The map size comes from the live `SMapSize 0x15`,
+  which is on the wire even on a cache hit. `route/mapGrid.ts` joins the cells and SOTP into one
+  `canMove(x, y, direction)`, and it was checked against the real client: the cache is little-endian
+  (6367 of 6367 static ids on Mileth land inside SOTP's 20,423-entry table under a little-endian
+  read, and 3676 fall out of range under a big-endian read), and Mileth reads as 40% blocked with a
+  walkable centre.
+- **The driver.** `walker.ts` re-plans from the current position every step: it reads a confirmed
+  position, plans the route, A*s to the nearest reachable warp on the current map, posts one arrow
+  key, and waits for the wire to confirm the move before the next. A step that does not confirm is a
+  stall, three stalls in one place is a `blocked` stop, and a map change or a jump it did not ask for
+  is a `lostPosition` stop. The graph, the map source, the position feed, and the action layer are
+  all injected, so the whole driver runs against a fake action layer and a scripted position.
+- **Position gained the map size.** `Position` now carries `mapWidth` and `mapHeight` from
+  `SMapSize`, threaded through the WP14 reducer, so the walker can index the header-less map cache.
+- **The UI.** A Walker tab beside the Speaker: a window picker, a destination autocomplete over the
+  named maps, Go and Stop, the shared "stop everything", and a live status line (where the character
+  stands, the next warp, the steps taken, and how the walk ended).
+
+**Two things wait on a live check.** The walk keys are the arrow keys (`route`/`walker.ts`
+`DIRECTION_KEY`), which is the one fact the GUI check proves. And doors are treated as walls in the
+static grid: A* routes around a closed door, and `SStaticObjectState 0x32` dynamic door state is a
+follow-on, recorded in `00a-backlog.md`.
 
 ## Goal
 

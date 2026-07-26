@@ -21,6 +21,12 @@ import { DIRECTION_DELTA, isWalkDirection } from '../protocol/decode'
 export interface Position {
   mapId: number
   mapName?: string
+  /**
+   * The map's size, from SMapSize 0x15. The walker needs it to index the map
+   * cache, which is a header-less grid. Absent until the first 0x15 on the map.
+   */
+  mapWidth?: number
+  mapHeight?: number
   x: number
   y: number
   /** 0 North, 1 East, 2 South, 3 West. */
@@ -63,7 +69,7 @@ export function reducePosition(state: Position | null, input: PositionInput): Po
 
   switch (packet.kind) {
     case 'mapInfo':
-      return applyMap(base, packet.mapId, packet.name, timestampMs)
+      return applyMap(base, packet.mapId, packet.name, packet.width, packet.height, timestampMs)
     case 'userPosition':
       return confirmTile(base, packet.x, packet.y, timestampMs)
     case 'userMove':
@@ -92,14 +98,18 @@ function applyMap(
   state: Position | null,
   mapId: number,
   name: string,
+  width: number,
+  height: number,
   timestampMs: number
 ): Position {
   if (state !== null && state.mapId === mapId) {
-    return { ...state, mapName: name }
+    return { ...state, mapName: name, mapWidth: width, mapHeight: height }
   }
   return {
     mapId,
     mapName: name,
+    mapWidth: width,
+    mapHeight: height,
     x: 0,
     y: 0,
     facing: state?.facing ?? 0,
