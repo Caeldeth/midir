@@ -3,7 +3,16 @@
 
 import type { CharacterRecord } from './character'
 import type { LogEntry, LogFileInfo, RecordingInfo } from './log'
-import type { AssistState, AssistWindow, SpeakerConfig, SpeakerState } from './actionLayer'
+import type {
+  AssistState,
+  AssistWindow,
+  SpeakerConfig,
+  SpeakerState,
+  WalkerDestination,
+  WalkerState,
+  WalkOutcome,
+  WalkRequest
+} from './actionLayer'
 
 export * from './character'
 export * from './items'
@@ -70,6 +79,8 @@ export interface MidirSettings {
   speakerIntervalMs: number
   /** Rotate the list forever. When false, the Speaker sends each line once. */
   speakerRepeat: boolean
+  /** The Walker destinations the user pinned, each a place name or a map id. */
+  walkerPinnedDestinations: string[]
 }
 
 /** The largest cap the settings accept, in megabytes. */
@@ -87,7 +98,8 @@ export const DEFAULT_SETTINGS: MidirSettings = {
   assistStopOnFocusLoss: false,
   speakerLines: [],
   speakerIntervalMs: 5000,
-  speakerRepeat: true
+  speakerRepeat: true,
+  walkerPinnedDestinations: []
 }
 
 /** One adapter Midir can capture from. */
@@ -226,6 +238,20 @@ export interface MidirApi {
     onState: (handler: (state: SpeakerState) => void) => () => void
     /** The global hotkey asked to toggle the Speaker. Call the result to stop. */
     onToggle: (handler: () => void) => () => void
+  }
+
+  /** The Walker: name a place, and the character walks there across maps. */
+  walker: {
+    /** Every place the walker can be sent to, for the destination picker. */
+    destinations: () => Promise<WalkerDestination[]>
+    /** Walk the bound character to a place. Resolves with how the walk ended. */
+    go: (request: WalkRequest) => Promise<WalkOutcome>
+    /** Stop the Walker on one connection. */
+    stop: (connectionId: string) => Promise<void>
+    /** Every Walker running now. */
+    state: () => Promise<WalkerState[]>
+    /** Watch a Walker as it changes. Call the result to stop watching. */
+    onState: (handler: (state: WalkerState) => void) => () => void
   }
 
   characters: {

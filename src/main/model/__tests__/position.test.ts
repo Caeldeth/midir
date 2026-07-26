@@ -52,6 +52,9 @@ describe('reducePosition', () => {
     const onMap = feed(null, mapInfo(100, 'Mileth'))
     expect(onMap).toMatchObject({ mapId: 100, mapName: 'Mileth', confidence: 'unknown' })
 
+    // The map size travels with the map, so the walker can index the cache.
+    expect(onMap).toMatchObject({ mapWidth: 15, mapHeight: 15 })
+
     const confirmed = feed(onMap, userPosition(5, 8))
     expect(confirmed).toMatchObject({ mapId: 100, x: 5, y: 8, confidence: 'confirmed' })
   })

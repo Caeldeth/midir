@@ -16,6 +16,7 @@ import { useCaptureStore } from '@renderer/store/captureStore'
 import { useCharacterStore } from '@renderer/store/characterStore'
 import { useDiagnosticsStore } from '@renderer/store/diagnosticsStore'
 import { useSpeakerStore } from '@renderer/store/speakerStore'
+import { useWalkerStore } from '@renderer/store/walkerStore'
 import ErrorBoundary from '@renderer/components/ErrorBoundary'
 import TitleBar from '@renderer/components/TitleBar'
 import NavBar, { type ViewName } from '@renderer/components/NavBar'
@@ -23,6 +24,7 @@ import Live from '@renderer/pages/Live'
 import Items from '@renderer/pages/Items'
 import Characters from '@renderer/pages/Characters'
 import Speaker from '@renderer/pages/Speaker'
+import Walker from '@renderer/pages/Walker'
 import Diagnostics from '@renderer/pages/Diagnostics'
 import Settings from '@renderer/pages/Settings'
 
@@ -72,11 +74,13 @@ function App(): React.JSX.Element {
     const stopCharacters = useCharacterStore.getState().subscribe()
     const stopLog = useDiagnosticsStore.getState().subscribe()
     const stopSpeaker = useSpeakerStore.getState().subscribe()
+    const stopWalker = useWalkerStore.getState().subscribe()
     return () => {
       stopStatus()
       stopCharacters()
       stopLog()
       stopSpeaker()
+      stopWalker()
     }
   }, [])
 
@@ -128,6 +132,7 @@ function App(): React.JSX.Element {
                 {view === 'items' ? <Items /> : null}
                 {view === 'characters' ? <Characters /> : null}
                 {view === 'speaker' ? <Speaker /> : null}
+                {view === 'walker' ? <Walker /> : null}
                 {view === 'diagnostics' && showDiagnostics ? <Diagnostics /> : null}
                 {view === 'settings' ? <Settings /> : null}
               </ErrorBoundary>

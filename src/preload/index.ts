@@ -12,7 +12,11 @@ import type {
   MidirSettings,
   RecordingInfo,
   SpeakerConfig,
-  SpeakerState
+  SpeakerState,
+  WalkerDestination,
+  WalkerState,
+  WalkOutcome,
+  WalkRequest
 } from '../shared/types'
 
 /** Subscribe to a main-to-renderer push. The result unsubscribes. */
@@ -75,6 +79,15 @@ const api: MidirApi = {
       subscribe('speaker:state-changed', handler),
     onToggle: (handler: () => void): (() => void) =>
       subscribe('speaker:toggle-requested', () => handler())
+  },
+
+  walker: {
+    destinations: (): Promise<WalkerDestination[]> => ipcRenderer.invoke('walker:destinations'),
+    go: (request: WalkRequest): Promise<WalkOutcome> => ipcRenderer.invoke('walker:go', request),
+    stop: (connectionId: string): Promise<void> => ipcRenderer.invoke('walker:stop', connectionId),
+    state: (): Promise<WalkerState[]> => ipcRenderer.invoke('walker:state'),
+    onState: (handler: (state: WalkerState) => void): (() => void) =>
+      subscribe('walker:state-changed', handler)
   },
 
   characters: {

@@ -6,6 +6,9 @@ import type { CaptureAvailability } from '../shared/types'
 import { createPcapSource, loadPcapApi, type PcapApi } from './capture/pcapSource'
 import { createActionLayer, type HotkeyRegistrar, type WindowApi } from './actionLayer'
 import { createSpeaker } from './speaker'
+import { createWalker } from './walker'
+import { createMapSource } from './route/mapSource'
+import { worldGraph } from './route/graph'
 import { createIconService } from './icons/iconService'
 import { registerIconProtocol } from './icons/protocol'
 import { createRecorder, type Recorder } from './capture/recorder'
@@ -17,6 +20,7 @@ import {
   LOG_APPENDED_CHANNEL,
   SPEAKER_STATE_CHANNEL,
   SPEAKER_TOGGLE_CHANNEL,
+  WALKER_STATE_CHANNEL,
   registerHandlers,
   type HandlerContext
 } from './handlers'
@@ -252,6 +256,21 @@ void settingsManager
 
 const iconService = createIconService({ getDarkAgesPath: () => darkAgesPath, log })
 
+// The Walker reads the map passability from the same Dark Ages folder the icon
+// service uses: the on-disk tile cache and sotp.dat, never memory. The map
+// source resolves the folder per request, so a folder chosen in Settings takes
+// effect without a restart.
+const mapSource = createMapSource({ gameFolder: () => darkAgesPath, log })
+const walker = createWalker({
+  actionLayer,
+  liveConnections: () => captureService.liveCharacterEntries(),
+  positionFor: (connectionId) => captureService.positionFor(connectionId),
+  maps: mapSource,
+  graph: worldGraph,
+  log,
+  onState: (state) => pushToRenderer(WALKER_STATE_CHANNEL, state)
+})
+
 const ctx: HandlerContext = {
   settingsPath,
   settingsManager,
@@ -261,6 +280,7 @@ const ctx: HandlerContext = {
   characterStore,
   actionLayer,
   speaker,
+  walker,
   log,
   logsPath,
   recordingsPath,
@@ -387,6 +407,7 @@ app.on('window-all-closed', () => {
 // Stop every driver and release the global hotkey as the app ends. This runs
 // even when before-quit defers the quit for a capture flush.
 app.on('will-quit', () => {
+  walker.dispose()
   speaker.dispose()
   actionLayer.dispose()
 })

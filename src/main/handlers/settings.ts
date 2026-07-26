@@ -32,7 +32,9 @@ export const settingsSchema = z.object({
   assistStopOnFocusLoss: z.boolean(),
   speakerLines: z.array(z.string()),
   speakerIntervalMs: z.number().int().min(0),
-  speakerRepeat: z.boolean()
+  speakerRepeat: z.boolean(),
+  // The Walker destinations the user pinned.
+  walkerPinnedDestinations: z.array(z.string())
 })
 
 export async function loadSettings(ctx: SettingsHandlerContext): Promise<MidirSettings> {

@@ -40,6 +40,13 @@ export function createMockApi(): MidirApi {
       onState: vi.fn(() => () => undefined),
       onToggle: vi.fn(() => () => undefined)
     },
+    walker: {
+      destinations: vi.fn(async () => []),
+      go: vi.fn(async () => ({ kind: 'arrived' as const })),
+      stop: vi.fn(async () => undefined),
+      state: vi.fn(async () => []),
+      onState: vi.fn(() => () => undefined)
+    },
     characters: {
       list: vi.fn(async () => []),
       get: vi.fn(async () => null),
