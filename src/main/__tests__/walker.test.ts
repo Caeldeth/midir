@@ -62,6 +62,10 @@ class World {
   turnThenMove = false
   /** The confidence a move lands with. 'predicted' models the client's own step. */
   moveConfidence: 'confirmed' | 'predicted' = 'confirmed'
+  /** Tiles a creature blocks that the grid still calls open, keyed `${x},${y}`. */
+  dynamicBlock = new Set<string>()
+  /** Tiles one valid press advances, to model batched confirmations under lag. */
+  stride = 1
   /** Called after each successful move, for a test to intervene. */
   afterMove?: (world: World) => void
 
@@ -110,39 +114,52 @@ class World {
       [0, 1],
       [-1, 0]
     ][direction]!
-    const nx = this.position.x + delta[0]
-    const ny = this.position.y + delta[1]
     const map = this.maps.get(this.position.mapId)!
-    if (ny < 0 || nx < 0 || ny >= map.height || nx >= map.width) return
-    if (map.rows[ny][nx] === '#') return
+    const blocks = (x: number, y: number): boolean =>
+      y < 0 || x < 0 || y >= map.height || x >= map.width || map.rows[y][x] === '#' || this.dynamicBlock.has(`${x},${y}`)
+
+    if (blocks(this.position.x + delta[0], this.position.y + delta[1])) return
     // A press in a new direction only turns the character, then the next press
     // in that direction steps.
     if (this.turnThenMove && direction !== this.position.facing) {
       this.position = { ...this.position, facing: direction, asOfMs: ++this.clock }
       return
     }
-    const warp = map.warps.get(`${nx},${ny}`)
-    if (warp !== undefined) {
-      const dest = this.maps.get(warp.toMap)!
-      this.position = {
-        mapId: warp.toMap,
-        mapWidth: dest.width,
-        mapHeight: dest.height,
-        x: warp.ax,
-        y: warp.ay,
-        facing: direction,
-        asOfMs: ++this.clock,
-        confidence: 'confirmed'
+    // A valid press advances up to `stride` tiles, so a test can model several
+    // of the walker's own steps confirming in one batch under lag.
+    let cx = this.position.x
+    let cy = this.position.y
+    for (let i = 0; i < this.stride; i++) {
+      const nx = cx + delta[0]
+      const ny = cy + delta[1]
+      if (blocks(nx, ny)) break
+      const warp = map.warps.get(`${nx},${ny}`)
+      if (warp !== undefined) {
+        const dest = this.maps.get(warp.toMap)!
+        this.position = {
+          mapId: warp.toMap,
+          mapWidth: dest.width,
+          mapHeight: dest.height,
+          x: warp.ax,
+          y: warp.ay,
+          facing: direction,
+          asOfMs: ++this.clock,
+          confidence: 'confirmed'
+        }
+        this.afterMove?.(this)
+        return
       }
-    } else {
-      this.position = {
-        ...this.position,
-        x: nx,
-        y: ny,
-        facing: direction,
-        asOfMs: ++this.clock,
-        confidence: this.moveConfidence
-      }
+      cx = nx
+      cy = ny
+    }
+    if (cx === this.position.x && cy === this.position.y) return
+    this.position = {
+      ...this.position,
+      x: cx,
+      y: cy,
+      facing: direction,
+      asOfMs: ++this.clock,
+      confidence: this.moveConfidence
     }
     this.afterMove?.(this)
   }
@@ -304,6 +321,36 @@ describe('walker', () => {
     const outcome = await walker.go({ connectionId: CID, destination: 2 })
     expect(outcome).toEqual({ kind: 'arrived' })
     expect(world.position.mapId).toBe(2)
+  })
+
+  it('routes around a tile the cache calls open but the server blocks', async () => {
+    // A 3x3 open map with a creature at (1,1) the grid cannot see. The straight
+    // path North is blocked there; the walker learns it and goes around.
+    const maps = new Map<number, FakeMap>([
+      [1, fakeMap(['...', '...', '...'], new Map([['1,0', { toMap: 2, ax: 0, ay: 0 }]]))],
+      [2, fakeMap(['.....'])]
+    ])
+    const world = new World(maps, { mapId: 1, x: 1, y: 2 })
+    world.dynamicBlock.add('1,1') // the creature the walker must route around
+    const graph: RouteNode[] = [
+      { mapId: 1, name: 'Town', exits: [{ toMapId: 2, x: 1, y: 0 }] },
+      { mapId: 2, name: 'Field', exits: [{ toMapId: 1, x: 0, y: 0 }] }
+    ]
+    const { walker } = harness(world, graph)
+    const outcome = await walker.go({ connectionId: CID, destination: 2 })
+    expect(outcome).toEqual({ kind: 'arrived' })
+    expect(world.position.mapId).toBe(2)
+  })
+
+  it('accepts delayed multi-tile progress along the pressed direction', async () => {
+    // The server confirms two of the walker's own steps in one batch, so the
+    // position jumps two tiles along the pressed direction. That is progress.
+    const world = lineWorld()
+    world.stride = 2
+    const { walker } = harness(world, lineGraph())
+    const outcome = await walker.go({ connectionId: CID, destination: 'Cave' })
+    expect(outcome).toEqual({ kind: 'arrived' })
+    expect(world.position.mapId).toBe(3)
   })
 
   it('stops with blocked after three stalls in the same place', async () => {

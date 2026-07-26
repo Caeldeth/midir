@@ -12,7 +12,9 @@ import type { Logger } from './log'
 import type { Position } from './model/position'
 import type { RouteGraph } from './route/graph'
 import type { MapProvider } from './route/mapSource'
+import type { MapGrid } from './route/mapGrid'
 import { findPath, type PathStep } from './route/pathfind'
+import { DIRECTION_DELTA } from './protocol/decode'
 
 /**
  * The Walker: name a place, and the character walks there, across maps, by the
@@ -59,15 +61,23 @@ const POLL_MS = 40
  * move within a few tenths of a second. A press that draws nothing in this
  * window was a turn or a block, not a slow step.
  */
-const STEP_CONFIRM_MS = 900
+const STEP_CONFIRM_MS = 1200
 /** How long to wait for a map change to confirm, in milliseconds. A cache miss downloads the map. */
 const WARP_CONFIRM_MS = 8000
 /** How long to wait for the position to become known, in milliseconds. */
 const WAIT_KNOWN_MS = 4000
 /** A settle after a landed step, so the next key does not fall mid-step. */
 const INTER_STEP_MS = 90
-/** How many stalls in the same place before the walker gives up. */
+/** How many stalls at one tile before the walker gives up on that tile. */
 const MAX_STALLS = 3
+/**
+ * The most tiles of delayed own-progress to accept as one confirmation.
+ *
+ * Under server lag the confirmations for several of the walker's own steps
+ * arrive together, so the position jumps more than one tile along the pressed
+ * direction. That is progress, not something else moving the character.
+ */
+const MAX_CATCHUP = 5
 
 export interface WalkerOptions {
   actionLayer: ActionLayer
@@ -109,6 +119,33 @@ interface Run {
   stepsTaken: number
   lastPosition?: Position
   nextWarp?: { toMapId: number; x: number; y: number }
+}
+
+/** The key for one tile in the run's learned-blocked set. */
+function tileKey(mapId: number, x: number, y: number): string {
+  return `${mapId}:${x}:${y}`
+}
+
+/**
+ * Wrap a map grid so it also refuses a move into a tile the walker learned is
+ * impassable this run.
+ *
+ * The disk map cache does not see a creature standing in a doorway, or a tile
+ * the server blocks though the cache calls it open. When a step stalls at one
+ * tile, the walker adds that tile here and re-plans around it.
+ */
+function gridWithBlocks(grid: MapGrid, mapId: number, blocked: Set<string>): MapGrid {
+  return {
+    width: grid.width,
+    height: grid.height,
+    inBounds: grid.inBounds,
+    canMove: (x, y, direction) => {
+      if (!grid.canMove(x, y, direction)) return false
+      const delta = DIRECTION_DELTA[direction]
+      if (delta === undefined) return false
+      return !blocked.has(tileKey(mapId, x + delta[0], y + delta[1]))
+    }
+  }
 }
 
 /** A trimmed position, safe to send to the renderer. */
@@ -188,6 +225,10 @@ export function createWalker(options: WalkerOptions): Walker {
     // direction turns the character first and moves on the next press (the Dark
     // Ages turn-then-move rule), so a turn is not a stall.
     let facing = -1
+    // Tiles the walker learned it cannot get through this run, though the map
+    // cache calls them open — a creature in the way, or a cache that disagrees
+    // with the server. A* routes around these.
+    const blocked = new Set<string>()
 
     for (;;) {
       if (!run.running) return { kind: 'stopped', reason: run.stopReason ?? 'user' }
@@ -233,8 +274,10 @@ export function createWalker(options: WalkerOptions): Walker {
       }
       const leg = plan.legs[0]
 
-      const grid = await maps.gridFor(position.mapId, position.mapWidth, position.mapHeight)
-      if (grid === null) return { kind: 'stopped', reason: 'blocked' }
+      const rawGrid = await maps.gridFor(position.mapId, position.mapWidth, position.mapHeight)
+      if (rawGrid === null) return { kind: 'stopped', reason: 'blocked' }
+      // Route around the tiles this run has learned it cannot get through.
+      const grid = gridWithBlocks(rawGrid, position.mapId, blocked)
 
       // Pick the nearest warp tile the character can actually path to.
       let best: { warp: { x: number; y: number }; path: PathStep[] } | null = null
@@ -244,7 +287,14 @@ export function createWalker(options: WalkerOptions): Walker {
           best = { warp, path }
         }
       }
-      if (best === null) return { kind: 'stopped', reason: 'blocked' }
+      // No path to any warp, even around the blocked tiles: this is the real stop.
+      if (best === null) {
+        log.warn(
+          'walker',
+          `No route to a warp on map ${position.mapId} from (${position.x}, ${position.y}); blocked.`
+        )
+        return { kind: 'stopped', reason: 'blocked' }
+      }
 
       run.nextWarp = { toMapId: leg.toMapId, x: best.warp.x, y: best.warp.y }
       publish(run)
@@ -264,9 +314,15 @@ export function createWalker(options: WalkerOptions): Walker {
           stalls = 0
           continue
         }
-        // The warp did not take. Count it as a stall in this spot.
+        // The warp did not take. After a few tries give up on this warp tile so
+        // A* routes to another warp for the same leg, or stops if there is none.
         ;({ stalls, stallKey } = bumpStall(stalls, stallKey, before))
-        if (stalls >= MAX_STALLS) return blockedHere(before)
+        if (stalls >= MAX_STALLS) {
+          blocked.add(tileKey(before.mapId, before.x, before.y))
+          log.info('walker', `Warp tile (${before.x}, ${before.y}) did not fire; routing around.`)
+          stalls = 0
+          stallKey = ''
+        }
         continue
       }
 
@@ -327,7 +383,14 @@ export function createWalker(options: WalkerOptions): Walker {
           'walker',
           `Step ${DIRECTION_NAME[step.direction]} did not land within ${timeout} ms (stall ${stalls}/${MAX_STALLS}) at (${before.x}, ${before.y}).`
         )
-        if (stalls >= MAX_STALLS) return blockedHere(before)
+        // The tile ahead will not let the character through — a creature, or a
+        // cache that disagrees with the server. Learn it and route around it.
+        if (stalls >= MAX_STALLS) {
+          blocked.add(tileKey(before.mapId, step.x, step.y))
+          log.info('walker', `Cannot pass (${step.x}, ${step.y}); routing around.`)
+          stalls = 0
+          stallKey = ''
+        }
         continue
       }
 
@@ -368,12 +431,33 @@ export function createWalker(options: WalkerOptions): Walker {
         continue
       }
 
-      // Same map, and it moved more than one tile without a step: something else
-      // is moving the character (WP15 decision 5).
-      log.warn(
-        'walker',
-        `Position jumped to (${after.x}, ${after.y}) without a step. Stopping.`
-      )
+      // Same map, and it moved more than one tile. If the move is along the
+      // pressed direction, these are the walker's own steps confirming in a
+      // batch under lag — progress, not something else. Accept it and re-plan
+      // from where the character actually is.
+      const dx = after.x - before.x
+      const dy = after.y - before.y
+      const [sdx, sdy] = DIRECTION_DELTA[step.direction]!
+      const alongStep =
+        (sdx === 0 ? dx === 0 : Math.sign(dx) === sdx) &&
+        (sdy === 0 ? dy === 0 : Math.sign(dy) === sdy)
+      const magnitude = Math.abs(dx) + Math.abs(dy)
+      if (alongStep && magnitude <= MAX_CATCHUP) {
+        run.stepsTaken += magnitude
+        stalls = 0
+        facing = step.direction
+        log.info(
+          'walker',
+          `Caught up ${magnitude} tiles ${DIRECTION_NAME[step.direction]} to (${after.x}, ${after.y}).`
+        )
+        publish(run)
+        await sleep(INTER_STEP_MS)
+        continue
+      }
+
+      // A move that is not along the pressed direction is something else moving
+      // the character (WP15 decision 5).
+      log.warn('walker', `Position jumped to (${after.x}, ${after.y}) without a step. Stopping.`)
       return { kind: 'stopped', reason: 'lostPosition' }
     }
   }
@@ -387,14 +471,6 @@ export function createWalker(options: WalkerOptions): Walker {
     const key = `${position.mapId}:${position.x}:${position.y}`
     if (key !== stallKey) return { stalls: 1, stallKey: key }
     return { stalls: stalls + 1, stallKey: key }
-  }
-
-  function blockedHere(position: Position): WalkOutcome {
-    log.warn(
-      'walker',
-      `Blocked at map ${position.mapId} (${position.x}, ${position.y}) after ${MAX_STALLS} tries.`
-    )
-    return { kind: 'stopped', reason: 'blocked' }
   }
 
   /** End a run: disarm the layer, publish the final state, and log it. */
