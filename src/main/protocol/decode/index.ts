@@ -25,6 +25,16 @@ import {
 } from './handshake'
 import { decodeBankContents, type BankContents } from './dialog'
 import {
+  decodeMapInfo,
+  decodeUserMove,
+  decodeUserPosition,
+  decodeWalk,
+  type MapInfo,
+  type UserMove,
+  type UserPosition,
+  type Walk
+} from './movement'
+import {
   decodeMerchantResponse,
   decodePursuitResponse,
   type MerchantResponse,
@@ -47,6 +57,7 @@ export * from './dialog'
 export * from './handshake'
 export * from './items'
 export * from './merchant'
+export * from './movement'
 
 /** A packet Midir models, in either direction. */
 export type DecodedPacket =
@@ -55,6 +66,10 @@ export type DecodedPacket =
   | VersionCheck
   | TransferServer
   | UserAppearance
+  | UserPosition
+  | UserMove
+  | MapInfo
+  | Walk
   | Status
   | AddInventory
   | RemoveInventory
@@ -78,6 +93,9 @@ const DECODERS = new Map<number, Decoder>([
   [ServerOpcode.VersionCheck, decodeVersionCheck],
   [ServerOpcode.TransferServer, decodeTransferServer],
   [ServerOpcode.UserAppearance, decodeUserAppearance],
+  [ServerOpcode.UserPosition, decodeUserPosition],
+  [ServerOpcode.Move, decodeUserMove],
+  [ServerOpcode.MapInfo, decodeMapInfo],
   [ServerOpcode.Status, decodeStatus],
   [ServerOpcode.AddInventory, decodeAddInventory],
   [ServerOpcode.RemoveInventory, decodeRemoveInventory],
@@ -92,6 +110,7 @@ const CLIENT_DECODERS = new Map<number, Decoder>([
   [ClientOpcode.Login, decodeLogin],
   [ClientOpcode.ClientJoin, decodeClientTransfer],
   [ClientOpcode.ClientExit, decodeClientExit],
+  [ClientOpcode.Walk, decodeWalk],
   [ClientOpcode.MerchantResponse, decodeMerchantResponse],
   [ClientOpcode.PursuitResponse, decodePursuitResponse]
 ])

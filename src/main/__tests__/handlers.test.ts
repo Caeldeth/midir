@@ -70,7 +70,8 @@ function fakeService(status: CaptureStatus = STOPPED): CaptureService & {
     stop: vi.fn(async () => undefined),
     flush: vi.fn(async () => undefined),
     status: () => status,
-    liveCharacterEntries: () => []
+    liveCharacterEntries: () => [],
+    positionFor: () => null
   }
 }
 
