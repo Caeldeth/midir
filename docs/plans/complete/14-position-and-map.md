@@ -1,6 +1,6 @@
 # WP14 — position and map, off the wire
 
-**Size:** M. **Depends on:** WP2. Read `00-overview.md` first. **PLANNED.**
+**Size:** M. **Depends on:** WP2. Read `00-overview.md` first. **COMPLETE.**
 
 ## Goal
 
