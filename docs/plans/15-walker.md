@@ -44,7 +44,7 @@ Built as three pure cores, one driver, and the wiring, all provable with no game
 **Two things wait on a live check.** The walk keys are the arrow keys (`route`/`walker.ts`
 `DIRECTION_KEY`), which is the one fact the GUI check proves. And doors are treated as walls in the
 static grid: A* routes around a closed door, and `SStaticObjectState 0x32` dynamic door state is a
-follow-on, recorded in `00a-backlog.md`.
+follow-on, WP31.
 
 ## Goal
 
@@ -92,7 +92,8 @@ these docs is an assumption until someone who knows says otherwise.
 
 So: ship WP15 on the imported `WorldMap.dat`. Promote a ceridwen-derived graph when ceridwen is
 built out, or sooner if the hand-made graph goes stale or WP17 wants NPC coordinates the `.dat`
-cannot give. Recorded in `00a-backlog.md`.
+cannot give. That is WP24; WP29 (learn transitions from the wire) is the other source that keeps the
+graph current.
 
 ## The one way to get this wrong
 

@@ -17,19 +17,6 @@ doll (the client's `HumanImage`) are deferred out of WP19; see the non-goals in
   copy and the general rule is not obvious. This fires on a condition, so it is a guard, not a WP.
   _Trigger:_ the second opportunistic field.
 
-## Deferred from WP15 (Walker)
-
-- **Dynamic door collision (`SStaticObjectState 0x32`).** The walker's A* reads the base map cache,
-  where a closed door is a wall, so it routes around a closed door and cannot path through one that
-  is the only way. The client learns a door opened from `0x32`, which swaps the cell's static tile
-  id and its SOTP collision. A decoder for `0x32` plus a live overlay on the grid would let the
-  walker path through a door it can open. _Trigger:_ a route the walker needs runs only through a
-  door, or WP17 wants it.
-- **The ceridwen-derived route graph.** WP15 ships on the imported `WorldMap.dat`, which is
-  hand-made and only as current as whoever last walked the world. Ceridwen holds the same graph as
-  authored data, with NPC positions the `.dat` lacks. This is WP24, blocked on ceridwen being built
-  out; see `15-walker.md` for the plan and the verify-against-the-wire caveat.
-
 ## Owed to another repo — not Midir code, so not a Midir WP
 
 - **The document repo's `0x2F` page** should gain the bank's reuse of the merchant row, the `u32`
