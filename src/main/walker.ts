@@ -51,13 +51,21 @@ const DIRECTION_KEY = [VK_UP, VK_RIGHT, VK_DOWN, VK_LEFT]
 const DIRECTION_NAME = ['North', 'East', 'South', 'West']
 
 /** How often to read the position while waiting, in milliseconds. */
-const POLL_MS = 60
-/** How long to wait for a plain step to confirm, in milliseconds. */
-const STEP_CONFIRM_MS = 1500
+const POLL_MS = 40
+/**
+ * How long to wait for a step to land, in milliseconds.
+ *
+ * The client draws its own step at once, so a landed step shows as a predicted
+ * move within a few tenths of a second. A press that draws nothing in this
+ * window was a turn or a block, not a slow step.
+ */
+const STEP_CONFIRM_MS = 900
 /** How long to wait for a map change to confirm, in milliseconds. A cache miss downloads the map. */
 const WARP_CONFIRM_MS = 8000
 /** How long to wait for the position to become known, in milliseconds. */
 const WAIT_KNOWN_MS = 4000
+/** A settle after a landed step, so the next key does not fall mid-step. */
+const INTER_STEP_MS = 90
 /** How many stalls in the same place before the walker gives up. */
 const MAX_STALLS = 3
 
@@ -163,9 +171,9 @@ export function createWalker(options: WalkerOptions): Walker {
     }
   }
 
-  /** Wait for a confirmed position, so the walker never plans on a guess. */
-  function waitConfirmed(connectionId: string, timeoutMs: number): Promise<Position | null> {
-    return waitFor(connectionId, (p) => p !== null && p.confidence === 'confirmed', timeoutMs)
+  /** Wait for a known position, so the walker never plans on a gap or a fresh map. */
+  function waitKnown(connectionId: string, timeoutMs: number): Promise<Position | null> {
+    return waitFor(connectionId, (p) => p !== null && p.confidence !== 'unknown', timeoutMs)
   }
 
   /**
@@ -176,24 +184,32 @@ export function createWalker(options: WalkerOptions): Walker {
   async function runLoop(run: Run, destMapId: number, target: ActionTarget): Promise<WalkOutcome> {
     let stalls = 0
     let stallKey = ''
+    // The direction the walker believes the character faces. A step in a new
+    // direction turns the character first and moves on the next press (the Dark
+    // Ages turn-then-move rule), so a turn is not a stall.
+    let facing = -1
 
     for (;;) {
       if (!run.running) return { kind: 'stopped', reason: run.stopReason ?? 'user' }
       if (actionLayer.stopped) return { kind: 'stopped', reason: run.stopReason ?? 'user' }
       if (!hasLiveCharacter(run.connectionId)) return { kind: 'stopped', reason: 'lostCharacter' }
 
-      // A known, confirmed position, or the walker waits (WP15 decision 4).
+      // A known position, or the walker waits (WP15 decision 4). Predicted is
+      // known enough to plan on: it is the client's own accepted step, and the
+      // reducer snaps it to the server's word when that arrives. Only `unknown`
+      // (a gap or a fresh map) makes the walker wait.
       let position = positionFor(run.connectionId)
-      if (position === null || position.confidence !== 'confirmed') {
-        position = await waitConfirmed(run.connectionId, WAIT_KNOWN_MS)
+      if (position === null || position.confidence === 'unknown') {
+        position = await waitKnown(run.connectionId, WAIT_KNOWN_MS)
         if (position === null) {
           log.warn(
             'walker',
-            'No confirmed position. Is capture running, and was Midir up before the login?'
+            'No known position. Is capture running, and was Midir up before the login?'
           )
           return { kind: 'stopped', reason: 'lostPosition' }
         }
       }
+      if (facing === -1) facing = position.facing
       run.lastPosition = position
 
       // Arrived: the destination is a place, and the place is a map.
@@ -256,6 +272,8 @@ export function createWalker(options: WalkerOptions): Walker {
 
       const step = best.path[0]
       const isWarpStep = step.x === best.warp.x && step.y === best.warp.y
+      // A step in a direction the character does not face turns it first.
+      const isTurn = step.direction !== facing
 
       log.info(
         'walker',
@@ -273,22 +291,41 @@ export function createWalker(options: WalkerOptions): Walker {
         return { kind: 'stopped', reason: 'lostCharacter' }
       }
 
-      // Wait for the server's word: a confirmed move newer than the one before.
+      // Wait for the step to resolve. The client draws its own step at once and
+      // sends CWalk, so a `predicted` move to the aimed tile is a landed step —
+      // the walker does not wait for the slower server word (WP14). A resolved
+      // outcome is a move to the aimed tile, a warp, an unasked-for map change,
+      // or a jump of more than one tile.
       const timeout = isWarpStep ? WARP_CONFIRM_MS : STEP_CONFIRM_MS
       const after = await waitFor(
         run.connectionId,
-        (p) => p !== null && p.confidence === 'confirmed' && p.asOfMs > beforeAt,
+        (p) =>
+          p !== null &&
+          p.asOfMs > beforeAt &&
+          (p.mapId !== before.mapId ||
+            (p.x === step.x && p.y === step.y) ||
+            Math.abs(p.x - before.x) + Math.abs(p.y - before.y) > 1),
         timeout
       )
 
       if (after === null) {
-        // No confirmed move. The step did not land: a wall, a door, a creature,
-        // a freeze. Count a stall; three in one place is a stop (WP15 decision 3).
+        // The tile did not change. A press in a new direction only turned the
+        // character, which is not a stall: the next press in this direction
+        // steps. A press in the way it already faces that does not move is a
+        // real stall — a wall, a door, a creature, a freeze (WP15 decision 3).
+        if (isTurn) {
+          facing = step.direction
+          log.info(
+            'walker',
+            `Turned to face ${DIRECTION_NAME[step.direction]} at (${before.x}, ${before.y}); will step next.`
+          )
+          continue
+        }
         ;({ stalls, stallKey } = bumpStall(stalls, stallKey, before))
         run.lastPosition = positionFor(run.connectionId) ?? before
         log.info(
           'walker',
-          `Step ${DIRECTION_NAME[step.direction]} did not confirm within ${timeout} ms (stall ${stalls}/${MAX_STALLS}) at (${before.x}, ${before.y}).`
+          `Step ${DIRECTION_NAME[step.direction]} did not land within ${timeout} ms (stall ${stalls}/${MAX_STALLS}) at (${before.x}, ${before.y}).`
         )
         if (stalls >= MAX_STALLS) return blockedHere(before)
         continue
@@ -300,6 +337,7 @@ export function createWalker(options: WalkerOptions): Walker {
       if (after.mapId === leg.toMapId) {
         run.stepsTaken++
         stalls = 0
+        facing = step.direction
         log.info('walker', `Warped to map ${after.mapId}.`)
         publish(run)
         continue
@@ -318,20 +356,25 @@ export function createWalker(options: WalkerOptions): Walker {
       if (after.x === step.x && after.y === step.y) {
         run.stepsTaken++
         stalls = 0
-        log.info('walker', `Step ${DIRECTION_NAME[step.direction]} confirmed at (${after.x}, ${after.y}).`)
+        facing = step.direction
+        log.info(
+          'walker',
+          `Step ${DIRECTION_NAME[step.direction]} landed at (${after.x}, ${after.y}).`
+        )
         publish(run)
+        // A short settle before the next key, so it does not land mid-step and
+        // get dropped by the client's own step cadence.
+        await sleep(INTER_STEP_MS)
         continue
       }
 
-      // Same map, but not where the step aimed. A jump of more than one tile is
-      // something else moving the character; anything else is a stall to re-plan.
-      const distance = Math.abs(after.x - before.x) + Math.abs(after.y - before.y)
-      if (distance > 1) {
-        log.warn('walker', `Position jumped ${distance} tiles without a step. Stopping.`)
-        return { kind: 'stopped', reason: 'lostPosition' }
-      }
-      ;({ stalls, stallKey } = bumpStall(stalls, stallKey, before))
-      if (stalls >= MAX_STALLS) return blockedHere(before)
+      // Same map, and it moved more than one tile without a step: something else
+      // is moving the character (WP15 decision 5).
+      log.warn(
+        'walker',
+        `Position jumped to (${after.x}, ${after.y}) without a step. Stopping.`
+      )
+      return { kind: 'stopped', reason: 'lostPosition' }
     }
   }
 

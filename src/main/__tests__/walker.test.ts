@@ -58,6 +58,10 @@ class World {
   dropPresses = 0
   /** Flip to a map id the walker did not ask for, on the next press. */
   hijackToMap: number | null = null
+  /** Model the Dark Ages turn-then-move rule: a press in a new direction turns. */
+  turnThenMove = false
+  /** The confidence a move lands with. 'predicted' models the client's own step. */
+  moveConfidence: 'confirmed' | 'predicted' = 'confirmed'
   /** Called after each successful move, for a test to intervene. */
   afterMove?: (world: World) => void
 
@@ -111,6 +115,12 @@ class World {
     const map = this.maps.get(this.position.mapId)!
     if (ny < 0 || nx < 0 || ny >= map.height || nx >= map.width) return
     if (map.rows[ny][nx] === '#') return
+    // A press in a new direction only turns the character, then the next press
+    // in that direction steps.
+    if (this.turnThenMove && direction !== this.position.facing) {
+      this.position = { ...this.position, facing: direction, asOfMs: ++this.clock }
+      return
+    }
     const warp = map.warps.get(`${nx},${ny}`)
     if (warp !== undefined) {
       const dest = this.maps.get(warp.toMap)!
@@ -131,7 +141,7 @@ class World {
         y: ny,
         facing: direction,
         asOfMs: ++this.clock,
-        confidence: 'confirmed'
+        confidence: this.moveConfidence
       }
     }
     this.afterMove?.(this)
@@ -264,6 +274,36 @@ describe('walker', () => {
     const outcome = await walker.go({ connectionId: CID, destination: 'Cave' })
     expect(outcome).toEqual({ kind: 'arrived' })
     expect(world.position.mapId).toBe(3)
+  })
+
+  it('accepts the client predicted step, without waiting for the server word', async () => {
+    // The client draws its own step at once (WP14). A walker that waited for the
+    // slower server confirmation would stall on every step here.
+    const world = lineWorld()
+    world.moveConfidence = 'predicted'
+    const { walker } = harness(world, lineGraph())
+    const outcome = await walker.go({ connectionId: CID, destination: 'Cave' })
+    expect(outcome).toEqual({ kind: 'arrived' })
+    expect(world.position.mapId).toBe(3)
+  })
+
+  it('treats a direction change as a turn, not a stall, and still arrives', async () => {
+    // An L-shaped map: North up the left column, then East to the warp. The bend
+    // at (0,0) turns the character before it can step East.
+    const maps = new Map<number, FakeMap>([
+      [1, fakeMap(['..W', '.#.', '...'], new Map([['2,0', { toMap: 2, ax: 0, ay: 0 }]]))],
+      [2, fakeMap(['.....'])]
+    ])
+    const world = new World(maps, { mapId: 1, x: 0, y: 2 })
+    world.turnThenMove = true
+    const graph: RouteNode[] = [
+      { mapId: 1, name: 'Town', exits: [{ toMapId: 2, x: 2, y: 0 }] },
+      { mapId: 2, name: 'Field', exits: [{ toMapId: 1, x: 0, y: 0 }] }
+    ]
+    const { walker } = harness(world, graph)
+    const outcome = await walker.go({ connectionId: CID, destination: 2 })
+    expect(outcome).toEqual({ kind: 'arrived' })
+    expect(world.position.mapId).toBe(2)
   })
 
   it('stops with blocked after three stalls in the same place', async () => {
