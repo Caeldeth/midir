@@ -122,6 +122,33 @@ export const VK_RETURN = 0x0d
 const KEYDOWN_LPARAM = 0x00000001
 const KEYUP_LPARAM = 0xc0000001
 
+// The four arrow keys and their hardware scan codes. Movement keys are extended
+// keys, so a correct lParam carries the scan code and the extended-key bit. A
+// client that reads the scan code, or polls the keyboard state, needs this; the
+// bare KEYDOWN_LPARAM above is enough only for a control that reads the virtual
+// key alone (the chat input reads Enter that way).
+const VK_ARROWS = new Set([0x25, 0x26, 0x27, 0x28])
+const ARROW_SCAN_CODE: Record<number, number> = {
+  0x25: 0x4b, // VK_LEFT
+  0x26: 0x48, // VK_UP
+  0x27: 0x4d, // VK_RIGHT
+  0x28: 0x50 // VK_DOWN
+}
+const EXTENDED_KEY_BIT = 0x01000000
+
+/** How long a driver holds a movement key down, in milliseconds. */
+const KEY_HOLD_BASE_MS = 60
+const KEY_HOLD_JITTER_MS = 30
+
+/** Build the lParam for a key message, with the scan code and extended-key bit. */
+function keyLparam(vk: number, up: boolean): number {
+  const scan = ARROW_SCAN_CODE[vk] ?? 0
+  let lparam = 0x00000001 | (scan << 16)
+  if (VK_ARROWS.has(vk)) lparam |= EXTENDED_KEY_BIT
+  if (up) lparam |= 0xc0000000
+  return lparam >>> 0
+}
+
 /** TCP states worth resolving. A closing connection has no window to drive. */
 const LIVE_STATES = new Set([3 /* SYN_SENT */, 4 /* SYN_RCVD */, 5 /* ESTABLISHED */])
 
@@ -287,10 +314,28 @@ export function createActionLayer(options: ActionLayerOptions): ActionLayer {
     windows.postMessageToWindow(handle, WM_KEYUP, vk, KEYUP_LPARAM)
   }
 
+  /** The hold time for one movement key, jittered so no two are identical. */
+  function keyHoldMs(): number {
+    return KEY_HOLD_BASE_MS + Math.floor(random() * KEY_HOLD_JITTER_MS)
+  }
+
+  /**
+   * Post one key and hold it before releasing.
+   *
+   * The client reads movement by polling the keyboard, not from the message
+   * queue, so a key that goes down and up in the same instant is never sampled
+   * as down. The driver holds the key for a short time, exactly as a player's
+   * finger does, and uses the extended-key lParam a real arrow key carries.
+   */
   async function pressKey(target: ActionTarget, key: number): Promise<ActionRefusal | null> {
     const refusal = guard(target) ?? rateGate()
     if (refusal !== null) return refusal
-    postKey(target.windowHandle, key)
+    const handle = target.windowHandle
+    const hold = keyHoldMs()
+    windows.postMessageToWindow(handle, WM_KEYDOWN, key, keyLparam(key, false))
+    await wait(hold)
+    windows.postMessageToWindow(handle, WM_KEYUP, key, keyLparam(key, true))
+    log.info('assist', `Posted key 0x${key.toString(16)} held ${hold} ms to window ${handle}.`)
     return null
   }
 

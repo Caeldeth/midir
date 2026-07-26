@@ -47,6 +47,9 @@ const VK_DOWN = 0x28
  */
 const DIRECTION_KEY = [VK_UP, VK_RIGHT, VK_DOWN, VK_LEFT]
 
+/** A readable name for each direction index, for the log. */
+const DIRECTION_NAME = ['North', 'East', 'South', 'West']
+
 /** How often to read the position while waiting, in milliseconds. */
 const POLL_MS = 60
 /** How long to wait for a plain step to confirm, in milliseconds. */
@@ -183,7 +186,13 @@ export function createWalker(options: WalkerOptions): Walker {
       let position = positionFor(run.connectionId)
       if (position === null || position.confidence !== 'confirmed') {
         position = await waitConfirmed(run.connectionId, WAIT_KNOWN_MS)
-        if (position === null) return { kind: 'stopped', reason: 'lostPosition' }
+        if (position === null) {
+          log.warn(
+            'walker',
+            'No confirmed position. Is capture running, and was Midir up before the login?'
+          )
+          return { kind: 'stopped', reason: 'lostPosition' }
+        }
       }
       run.lastPosition = position
 
@@ -248,6 +257,11 @@ export function createWalker(options: WalkerOptions): Walker {
       const step = best.path[0]
       const isWarpStep = step.x === best.warp.x && step.y === best.warp.y
 
+      log.info(
+        'walker',
+        `On map ${position.mapId} at (${position.x}, ${position.y}); step ${DIRECTION_NAME[step.direction]} toward warp (${best.warp.x}, ${best.warp.y}) to map ${leg.toMapId}.`
+      )
+
       const refusal = await actionLayer.pressKey(target, DIRECTION_KEY[step.direction]!)
       if (refusal !== null) {
         if (refusal === 'stopped') return { kind: 'stopped', reason: run.stopReason ?? 'user' }
@@ -272,6 +286,10 @@ export function createWalker(options: WalkerOptions): Walker {
         // a freeze. Count a stall; three in one place is a stop (WP15 decision 3).
         ;({ stalls, stallKey } = bumpStall(stalls, stallKey, before))
         run.lastPosition = positionFor(run.connectionId) ?? before
+        log.info(
+          'walker',
+          `Step ${DIRECTION_NAME[step.direction]} did not confirm within ${timeout} ms (stall ${stalls}/${MAX_STALLS}) at (${before.x}, ${before.y}).`
+        )
         if (stalls >= MAX_STALLS) return blockedHere(before)
         continue
       }
@@ -282,6 +300,7 @@ export function createWalker(options: WalkerOptions): Walker {
       if (after.mapId === leg.toMapId) {
         run.stepsTaken++
         stalls = 0
+        log.info('walker', `Warped to map ${after.mapId}.`)
         publish(run)
         continue
       }
@@ -299,6 +318,7 @@ export function createWalker(options: WalkerOptions): Walker {
       if (after.x === step.x && after.y === step.y) {
         run.stepsTaken++
         stalls = 0
+        log.info('walker', `Step ${DIRECTION_NAME[step.direction]} confirmed at (${after.x}, ${after.y}).`)
         publish(run)
         continue
       }
