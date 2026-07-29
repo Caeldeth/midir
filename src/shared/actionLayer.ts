@@ -141,6 +141,97 @@ export function walkStopMessage(reason: WalkStopReason): string {
   }
 }
 
+/** One step of an errand: the dialog to expect, and the answer to give. */
+export interface DialogStep {
+  /** The pursuit the server must be showing for this step to apply. */
+  pursuit: number
+  /** Matched against the row text, case-insensitively. */
+  choose: string
+  /** For a text step: what to type. Never a credential. */
+  answer?: string
+}
+
+/** A named, explicit errand: walk to an NPC and work its dialog. */
+export interface Errand {
+  /** The name the user reads before running it. */
+  name: string
+  /** The NPC's map, as a node name or a map id from the world graph. */
+  destination: string | number
+  /**
+   * The NPC's tile on that map. The walker stops adjacent to it, because the
+   * world graph has no NPC coordinates yet (WP24).
+   */
+  npcTile?: { x: number; y: number }
+  /** The NPC name, matched against the dialog the server sends. */
+  npcName: string
+  /** The steps, in order. Each expects a dialog and answers it. */
+  steps: DialogStep[]
+}
+
+/** Why the Laborer stopped before the errand was done. */
+export type ErrandStopReason =
+  /** The user stopped it, by the button or the global stop. */
+  | 'user'
+  /** A dialog matched no step, so the run stopped rather than guess. */
+  | 'unmatchedDialog'
+  /** A step got no reply within the wait. */
+  | 'timeout'
+  /** The character logged off or the window closed. */
+  | 'lostCharacter'
+  /** The walk to the NPC did not arrive. */
+  | 'walker'
+  /** A credential pane appeared. The Laborer never works one. */
+  | 'protected'
+
+/** How an errand ended. */
+export type ErrandOutcome =
+  | { kind: 'done' }
+  | {
+      kind: 'stopped'
+      reason: ErrandStopReason
+      /** What the Laborer saw when it stopped, for the log and the user. */
+      saw?: string
+    }
+
+/** A request to run one errand on one connection. */
+export interface ErrandRequest {
+  connectionId: string
+  /** The name of a built-in errand. */
+  errand: string
+}
+
+/** What one Laborer is doing now. Pushed on every change. */
+export interface LaborerState {
+  connectionId: string
+  running: boolean
+  /** The errand name, while one runs. */
+  errand?: string
+  /** The step index the Laborer is on, zero-based. */
+  step?: number
+  /** What the Laborer is waiting for now, ready to show the user. */
+  waitingFor?: string
+  /** Why the Laborer stopped, when it stopped for a reason worth showing. */
+  reason?: string
+}
+
+/** A message worth showing the user for each errand-stop reason. */
+export function errandStopMessage(reason: ErrandStopReason): string {
+  switch (reason) {
+    case 'user':
+      return 'You stopped the Laborer.'
+    case 'unmatchedDialog':
+      return 'The Laborer saw a dialog it did not expect and stopped.'
+    case 'timeout':
+      return 'The Laborer waited for the next dialog and none came.'
+    case 'lostCharacter':
+      return 'The character logged off or the window closed.'
+    case 'walker':
+      return 'The Laborer could not walk to the NPC.'
+    case 'protected':
+      return 'The Laborer saw a login or password dialog and stopped.'
+  }
+}
+
 /** Show an Electron accelerator in the plain form a user reads. */
 export function formatHotkey(accelerator: string): string {
   if (accelerator === '') return 'none'

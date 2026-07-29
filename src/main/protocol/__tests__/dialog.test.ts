@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { BANK_WITHDRAW_PURSUIT, decodeBankContents } from '../decode/dialog'
+import {
+  BANK_WITHDRAW_PURSUIT,
+  decodeBankContents,
+  decodeScreenMenu,
+  type NpcMenu
+} from '../decode/dialog'
 
 /**
  * The bodies here are built to the shape three live retail captures pinned,
@@ -152,5 +157,102 @@ describe('decodeBankContents', () => {
     // would read as the player having withdrawn everything after it.
     const full = screenMenu({ rows: ROWS })
     expect(() => decodeBankContents(full.slice(0, full.length - 6))).toThrow(RangeError)
+  })
+})
+
+/** The common 0x2F header, up to and including the prose text. */
+function menuHeader(menuType: number, npcName: string, text: string): number[] {
+  return [
+    0x2f,
+    menuType,
+    0x01, // entity type
+    ...u32(0x1f6f), // source id
+    0x00, // read and discarded
+    ...u16(0x4038), // sprite
+    0x00, // colour
+    0x01,
+    ...u16(0x4038),
+    0x00, // read and discarded
+    0x00, // illustration index
+    ...string8(npcName),
+    ...string16(text)
+  ]
+}
+
+/** A type-0 text menu, one pursuit per row. */
+function optionMenu(rows: { text: string; pursuit: number }[]): Uint8Array {
+  return Uint8Array.from([
+    ...menuHeader(0, 'Donnan', 'What do you need? '),
+    rows.length,
+    ...rows.flatMap((row) => [...string8(row.text), ...u16(row.pursuit)])
+  ])
+}
+
+describe('decodeScreenMenu (general NPC menus)', () => {
+  it('reads a type-0 text menu, with a pursuit on every row', () => {
+    const decoded = decodeScreenMenu(
+      optionMenu([
+        { text: 'Give clout', pursuit: 0x0101 },
+        { text: 'Ask about work', pursuit: 0x0102 }
+      ])
+    ) as NpcMenu
+    expect(decoded.kind).toBe('npcMenu')
+    expect(decoded.menuType).toBe(0)
+    expect(decoded.pursuit).toBeUndefined()
+    expect(decoded.isTextInput).toBe(false)
+    expect(decoded.options).toEqual([
+      { text: 'Give clout', pursuit: 0x0101 },
+      { text: 'Ask about work', pursuit: 0x0102 }
+    ])
+  })
+
+  it('reads a type-2 text-entry menu, with one pursuit for the menu', () => {
+    const body = Uint8Array.from([...menuHeader(2, 'Donnan', 'How many? '), ...u16(0x0202)])
+    const decoded = decodeScreenMenu(body) as NpcMenu
+    expect(decoded.menuType).toBe(2)
+    expect(decoded.isTextInput).toBe(true)
+    expect(decoded.pursuit).toBe(0x0202)
+    expect(decoded.options).toEqual([])
+  })
+
+  it('reads a type-3 menu, skipping its server argument', () => {
+    const body = Uint8Array.from([
+      ...menuHeader(3, 'Donnan', 'Type a name. '),
+      ...string8('some-argument'),
+      ...u16(0x0303)
+    ])
+    const decoded = decodeScreenMenu(body) as NpcMenu
+    expect(decoded.menuType).toBe(3)
+    expect(decoded.isTextInput).toBe(true)
+    expect(decoded.pursuit).toBe(0x0303)
+  })
+
+  it('reads a type-6 spell list by name', () => {
+    const body = Uint8Array.from([
+      ...menuHeader(6, 'Donnan', 'Choose a spell. '),
+      ...u16(0x0606),
+      ...u16(2),
+      1,
+      ...u16(0x1000),
+      0,
+      ...string8('Fireball'),
+      2,
+      ...u16(0x1001),
+      0,
+      ...string8('Heal')
+    ])
+    const decoded = decodeScreenMenu(body) as NpcMenu
+    expect(decoded.menuType).toBe(6)
+    expect(decoded.pursuit).toBe(0x0606)
+    expect(decoded.options).toEqual([{ text: 'Fireball' }, { text: 'Heal' }])
+  })
+
+  it('returns the bank first, unchanged, for an item list', () => {
+    const decoded = decodeScreenMenu(screenMenu({ rows: ROWS, npcName: 'Drave' }))
+    expect(decoded).toMatchObject({ kind: 'bankContents', npcName: 'Drave' })
+  })
+
+  it('returns null for a shop item list it does not model', () => {
+    expect(decodeScreenMenu(screenMenu({ menuType: 4, pursuit: 0x4a, rows: ROWS }))).toBeNull()
   })
 })

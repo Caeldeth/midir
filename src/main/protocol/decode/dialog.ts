@@ -92,6 +92,74 @@ export interface BankContents {
   items: BankItem[]
 }
 
+/** The menu types that carry a menu of text options with a pursuit per row. */
+const OPTION_MENU_TYPE = 0
+
+/** The menu types that carry a text-entry field and one pursuit. */
+const TEXT_ENTRY_MENU_TYPES = new Set([2, 3])
+
+/** The menu types that carry a spell or skill list, with one pursuit. */
+const SPELL_SKILL_MENU_TYPES = new Set([6, 7])
+
+/** One row of a text menu, and the pursuit the client sends when it is chosen. */
+export interface NpcMenuOption {
+  text: string
+  /** The pursuit id this row answers with. Set for a type-0 menu. */
+  pursuit?: number
+}
+
+/**
+ * SScreenMenu 0x2F, when it is an NPC menu Midir can read.
+ *
+ * This is the general dialog the bank is one special case of. It models the
+ * text menus (type 0), the text-entry menus (types 2 and 3), and the spell and
+ * skill lists (types 6 and 7). The item lists (types 4, 5, 10, and 11) are not
+ * modelled here: the bank is the one item list Midir reads, and it has its own
+ * decoder above.
+ *
+ * The pursuit id does not sit in a fixed place. A type-0 menu carries one
+ * pursuit per row; a type-2, type-3, type-6, or type-7 menu carries a single
+ * pursuit for the whole menu. `pursuit` holds the single one, and each row of a
+ * type-0 menu holds its own.
+ */
+export interface NpcMenu {
+  kind: 'npcMenu'
+  /** The NPC the menu belongs to. */
+  sourceId: number
+  /** The NPC name, as the server wrote it. */
+  npcName: string
+  /** The raw menuType byte. */
+  menuType: number
+  /** The single pursuit for the whole menu. Undefined for a type-0 menu. */
+  pursuit?: number
+  /** The dialog prose the menu shows. */
+  text: string
+  /** True when the menu asks for typed text rather than a choice of rows. */
+  isTextInput: boolean
+  /** The choosable rows. Empty for a text-entry menu. */
+  options: NpcMenuOption[]
+}
+
+/** Read the common 0x2F header, up to and including the prose text. */
+interface MenuHeader {
+  sourceId: number
+  npcName: string
+  text: string
+}
+
+function readMenuHeader(reader: PacketReader): MenuHeader {
+  reader.u8() // entity type
+  const sourceId = reader.u32()
+  reader.skip(1) // read and discarded by the client
+  reader.u16() // NPC sprite
+  reader.u8() // NPC sprite colour
+  reader.skip(4) // read and discarded by the client
+  reader.u8() // illustration index
+  const npcName = reader.string8()
+  const text = reader.string16()
+  return { sourceId, npcName, text }
+}
+
 /**
  * Decode SScreenMenu 0x2F when it is the bank, and return null otherwise.
  *
@@ -113,15 +181,7 @@ export function decodeBankContents(body: Uint8Array): BankContents | null {
   const menuType = reader.u8()
   if (!ITEM_LIST_MENU_TYPES.has(menuType)) return null
 
-  reader.u8() // entity type
-  const sourceId = reader.u32()
-  reader.skip(1) // read and discarded by the client
-  reader.u16() // NPC sprite
-  reader.u8() // NPC sprite colour
-  reader.skip(4) // read and discarded by the client
-  reader.u8() // illustration index
-  const npcName = reader.string8()
-  reader.string16() // the dialog text, which is prose and not data
+  const header = readMenuHeader(reader)
 
   const pursuit = reader.u16()
   if (pursuit !== BANK_WITHDRAW_PURSUIT) return null
@@ -137,5 +197,75 @@ export function decodeBankContents(body: Uint8Array): BankContents | null {
     items.push({ name, sprite, color, count: held })
   }
 
-  return { kind: 'bankContents', sourceId, npcName, items }
+  return { kind: 'bankContents', sourceId: header.sourceId, npcName: header.npcName, items }
+}
+
+/**
+ * Decode SScreenMenu 0x2F to a general NPC menu, and return null otherwise.
+ *
+ * This reads the text menus, the text-entry menus, and the spell and skill
+ * lists. It returns null for an item list, which is either the bank (read by
+ * `decodeBankContents`) or a shop list Midir does not act on.
+ *
+ * Body after the header: for a type-0 menu, `[u8 count]` then `count` rows of
+ * `[string8 label][u16 pursuit]`. For a type-2 menu, `[u16 pursuit]`. For a
+ * type-3 menu, `[string8 argument][u16 pursuit]`. For a type-6 or type-7 menu,
+ * `[u16 pursuit][u16 count]` then `count` rows of
+ * `[u8 iconType][u16 icon][u8 color][string8 name]`.
+ */
+function decodeNpcMenu(body: Uint8Array): NpcMenu | null {
+  const reader = new PacketReader(body, 1)
+  const menuType = reader.u8()
+  const header = readMenuHeader(reader)
+  const base = {
+    kind: 'npcMenu' as const,
+    sourceId: header.sourceId,
+    npcName: header.npcName,
+    menuType,
+    text: header.text
+  }
+
+  if (menuType === OPTION_MENU_TYPE) {
+    const count = reader.u8()
+    const options: NpcMenuOption[] = []
+    for (let index = 0; index < count; index++) {
+      const text = reader.string8()
+      const pursuit = reader.u16()
+      options.push({ text, pursuit })
+    }
+    return { ...base, isTextInput: false, options }
+  }
+
+  if (TEXT_ENTRY_MENU_TYPES.has(menuType)) {
+    if (menuType === 3) reader.string8() // a server argument, prose and not data
+    const pursuit = reader.u16()
+    return { ...base, pursuit, isTextInput: true, options: [] }
+  }
+
+  if (SPELL_SKILL_MENU_TYPES.has(menuType)) {
+    const pursuit = reader.u16()
+    const count = reader.u16()
+    const options: NpcMenuOption[] = []
+    for (let index = 0; index < count; index++) {
+      reader.u8() // icon type
+      reader.u16() // icon
+      reader.u8() // colour
+      options.push({ text: reader.string8() })
+    }
+    return { ...base, pursuit, isTextInput: false, options }
+  }
+
+  // An item list or a menu type Midir does not model.
+  return null
+}
+
+/**
+ * Decode SScreenMenu 0x2F to whichever dialog it carries.
+ *
+ * The bank is read first, because it is the one item list Midir stores. Every
+ * other readable menu is a general NPC menu. A menu Midir does not model
+ * returns null, which is the usual case for this opcode.
+ */
+export function decodeScreenMenu(body: Uint8Array): BankContents | NpcMenu | null {
+  return decodeBankContents(body) ?? decodeNpcMenu(body)
 }
