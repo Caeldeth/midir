@@ -6,6 +6,10 @@ import type { LogEntry, LogFileInfo, RecordingInfo } from './log'
 import type {
   AssistState,
   AssistWindow,
+  Errand,
+  ErrandOutcome,
+  ErrandRequest,
+  LaborerState,
   SpeakerConfig,
   SpeakerState,
   WalkerDestination,
@@ -252,6 +256,19 @@ export interface MidirApi {
     state: () => Promise<WalkerState[]>
     /** Watch a Walker as it changes. Call the result to stop watching. */
     onState: (handler: (state: WalkerState) => void) => () => void
+  }
+
+  laborer: {
+    /** Every built-in errand, for the picker. */
+    list: () => Promise<Errand[]>
+    /** Run one built-in errand. Resolves with how it ended. */
+    run: (request: ErrandRequest) => Promise<ErrandOutcome>
+    /** Stop the Laborer on one connection. */
+    stop: (connectionId: string) => Promise<void>
+    /** Every Laborer running now. */
+    state: () => Promise<LaborerState[]>
+    /** Watch a Laborer as it changes. Call the result to stop watching. */
+    onState: (handler: (state: LaborerState) => void) => () => void
   }
 
   characters: {

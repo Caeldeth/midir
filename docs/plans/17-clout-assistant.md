@@ -6,6 +6,54 @@
 **Name:** the feature is the **Laborer**. Earlier docs call it the "Clout Assistant". The full copy
 rename is part of WP19's terminology work.
 
+## As built (two PRs)
+
+Built in two PRs off `main`, both provable with no game.
+
+**PR1 — the protocol and matcher foundation.**
+
+- `protocol/decode/pursuit.ts` decodes `SPursuitMessage 0x30`: the text, the options, and the
+  text-entry fields. It flags `dialogType == 9` as `isProtected`, the credential pane. Both protocol
+  sources agree on the layout and on this detection.
+- `protocol/decode/dialog.ts` gains `decodeScreenMenu`: the bank first, then the general NPC menus
+  (types 0, 2, 3, 6, 7). The registry points `0x2F` at it. The bank path is unchanged.
+- `laborer/matcher.ts` is the pure matcher. It normalises both dialogs into one view and matches on
+  the pursuit id and the row text, refuses an ambiguous match, and reports the credential pane first.
+- `laborer/errands.ts` holds the built-in errands. The values need a live capture (see below).
+
+**PR2 — the driver, the walk, and the UI.**
+
+- `model/dialog.ts` (`reduceDialog`) keeps the newest dialog on screen per connection, stamped with
+  the capture time, and `captureService.dialogFor` exposes it. The Laborer polls it the way the
+  walker polls `positionFor`, so the whole driver runs from a scripted feed.
+- The walker gains a within-map tile goal (`WalkRequest.tile`): after it reaches the map, it steps to
+  a tile beside the NPC. This bridges the missing NPC coordinates until WP24.
+- `laborer.ts` is the driver: walk, then read the dialog, match a step, post the keys, and wait for
+  the next dialog before the next step. It stops on a protected pane, an unmatched dialog, a timeout,
+  a lost character, or the global stop. Nothing sends a packet.
+- The IPC, the preload, and a **Laborer tab** beside Walker and Speaker follow the Speaker shape.
+
+**Three gestures wait on the live check** (the GUI check proves them, the way the walker's arrow keys
+were proven):
+
+1. **Opening the first dialog.** The driver does not click the NPC in v1; it waits for the first
+   dialog and works it. The player opens the conversation, or a trigger gesture is added once the
+   live check finds it.
+2. **Selecting a menu row** posts the option's number key (`chooseRow`, `OPTION_DIGIT_BASE`).
+3. **Answering a text field** uses `typeLine`.
+
+**The built-in errands name the real NPCs, and two values still wait on a capture.** The roster is 11
+errands, one for each NPC: six clout (Maria, Angelo, Eduardo, Aingeal, Riona, Arilan) and five labor
+(Antonio, Cassidy, Jilt, Lamont, Argus). Each entry names the NPC and the building it is in. Two
+values per entry come from a recorded session or the live check, not a guess: the `npcTile` (so the
+walker finishes beside the NPC), and the `steps` (the pursuit id and the row text). The matcher
+refuses any mismatch, so an errand with no steps walks to the map and stops rather than acting.
+
+**Two follow-ups this surfaced.** `WP33` adds the world-graph nodes five errand destinations still
+lack (Mileth Tavern, Mileth Town Hall, Piet Bank, Abel Bank, Undine Bank), which today stop with
+`noRoute`. `WP34` lets an assistant dismiss a movement-blocking notice popup, which a walker reads as
+a stall today.
+
 ## Goal
 
 Walk to the right NPC and work the dialog: the errand that is pure repetition. It is the first

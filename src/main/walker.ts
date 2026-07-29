@@ -462,6 +462,152 @@ export function createWalker(options: WalkerOptions): Walker {
     }
   }
 
+  /**
+   * Walk the last stretch to a tile beside `destTile` on the current map.
+   *
+   * The map walk stops on the destination map at whatever tile the route
+   * reached. An errand needs the character beside the NPC, so this steps to a
+   * tile next to `destTile`. It follows the same step-and-confirm rule as the
+   * map walk: one key, one confirmation, re-plan when a step does not land, and
+   * stop when something else moves the character. It is simpler than the map
+   * walk because there is no warp to take.
+   */
+  async function approachTile(
+    run: Run,
+    target: ActionTarget,
+    destMapId: number,
+    destTile: { x: number; y: number }
+  ): Promise<WalkOutcome> {
+    let stalls = 0
+    let stallKey = ''
+    let facing = -1
+    const blocked = new Set<string>()
+
+    // The tiles beside the NPC. The NPC's own tile is occupied, so the walker
+    // finishes on one of its four neighbours.
+    const goals = [
+      { x: destTile.x, y: destTile.y - 1 },
+      { x: destTile.x + 1, y: destTile.y },
+      { x: destTile.x, y: destTile.y + 1 },
+      { x: destTile.x - 1, y: destTile.y }
+    ]
+    const isAdjacent = (x: number, y: number): boolean =>
+      Math.abs(x - destTile.x) + Math.abs(y - destTile.y) === 1
+
+    for (;;) {
+      if (!run.running) return { kind: 'stopped', reason: run.stopReason ?? 'user' }
+      if (actionLayer.stopped) return { kind: 'stopped', reason: run.stopReason ?? 'user' }
+      if (!hasLiveCharacter(run.connectionId)) return { kind: 'stopped', reason: 'lostCharacter' }
+
+      let position = positionFor(run.connectionId)
+      if (position === null || position.confidence === 'unknown') {
+        position = await waitKnown(run.connectionId, WAIT_KNOWN_MS)
+        if (position === null) return { kind: 'stopped', reason: 'lostPosition' }
+      }
+      if (facing === -1) facing = position.facing
+      run.lastPosition = position
+
+      // Something else moved the character off the destination map.
+      if (position.mapId !== destMapId) return { kind: 'stopped', reason: 'lostPosition' }
+
+      // Beside the NPC: done.
+      if (isAdjacent(position.x, position.y)) {
+        publish(run)
+        return { kind: 'arrived' }
+      }
+
+      if (position.mapWidth === undefined || position.mapHeight === undefined) {
+        return { kind: 'stopped', reason: 'lostPosition' }
+      }
+
+      const rawGrid = await maps.gridFor(position.mapId, position.mapWidth, position.mapHeight)
+      if (rawGrid === null) return { kind: 'stopped', reason: 'blocked' }
+      const grid = gridWithBlocks(rawGrid, position.mapId, blocked)
+
+      // A* to the nearest reachable tile beside the NPC.
+      let best: PathStep[] | null = null
+      for (const goal of goals) {
+        const path = findPath(grid, { x: position.x, y: position.y }, goal)
+        if (path !== null && path.length > 0 && (best === null || path.length < best.length)) {
+          best = path
+        }
+      }
+      if (best === null) {
+        log.warn('walker', `No route to a tile beside (${destTile.x}, ${destTile.y}); blocked.`)
+        return { kind: 'stopped', reason: 'blocked' }
+      }
+
+      const step = best[0]!
+      const isTurn = step.direction !== facing
+      const before = position
+      const beforeAt = before.asOfMs
+
+      const refusal = await actionLayer.pressKey(target, DIRECTION_KEY[step.direction]!)
+      if (refusal !== null) {
+        if (refusal === 'stopped') return { kind: 'stopped', reason: run.stopReason ?? 'user' }
+        if (refusal === 'rateLimited') {
+          await sleep(POLL_MS)
+          continue
+        }
+        return { kind: 'stopped', reason: 'lostCharacter' }
+      }
+
+      const after = await waitFor(
+        run.connectionId,
+        (p) =>
+          p !== null &&
+          p.asOfMs > beforeAt &&
+          (p.mapId !== before.mapId ||
+            (p.x === step.x && p.y === step.y) ||
+            Math.abs(p.x - before.x) + Math.abs(p.y - before.y) > 1),
+        STEP_CONFIRM_MS
+      )
+
+      if (after === null) {
+        // A press in a new direction only turns the character, which is not a
+        // stall. A press in the way it faces that does not move is a stall.
+        if (isTurn) {
+          facing = step.direction
+          continue
+        }
+        ;({ stalls, stallKey } = bumpStall(stalls, stallKey, before))
+        if (stalls >= MAX_STALLS) {
+          blocked.add(tileKey(before.mapId, step.x, step.y))
+          log.info('walker', `Cannot pass (${step.x}, ${step.y}); routing around.`)
+          stalls = 0
+          stallKey = ''
+        }
+        continue
+      }
+
+      run.lastPosition = after
+
+      // Left the map without being asked to.
+      if (after.mapId !== before.mapId) return { kind: 'stopped', reason: 'lostPosition' }
+
+      const dx = after.x - before.x
+      const dy = after.y - before.y
+      const [sdx, sdy] = DIRECTION_DELTA[step.direction]!
+      const alongStep =
+        (sdx === 0 ? dx === 0 : Math.sign(dx) === sdx) &&
+        (sdy === 0 ? dy === 0 : Math.sign(dy) === sdy)
+      const magnitude = Math.abs(dx) + Math.abs(dy)
+      if ((after.x === step.x && after.y === step.y) || (alongStep && magnitude <= MAX_CATCHUP)) {
+        run.stepsTaken += Math.max(1, magnitude)
+        stalls = 0
+        facing = step.direction
+        publish(run)
+        await sleep(INTER_STEP_MS)
+        continue
+      }
+
+      // A move that is not along the pressed direction is something else moving
+      // the character.
+      log.warn('walker', `Position jumped to (${after.x}, ${after.y}) without a step. Stopping.`)
+      return { kind: 'stopped', reason: 'lostPosition' }
+    }
+  }
+
   /** Count a stall, resetting when the character has moved to a new place. */
   function bumpStall(
     stalls: number,
@@ -525,6 +671,10 @@ export function createWalker(options: WalkerOptions): Walker {
     let outcome: WalkOutcome
     try {
       outcome = await runLoop(run, destMapId, armed)
+      // Once on the destination map, step the last stretch to the NPC's tile.
+      if (outcome.kind === 'arrived' && request.tile !== undefined) {
+        outcome = await approachTile(run, armed, destMapId, request.tile)
+      }
     } catch (error) {
       log.warn('walker', `Walker on ${connectionId} threw: ${String(error)}.`)
       outcome = { kind: 'stopped', reason: 'blocked' }

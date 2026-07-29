@@ -3,6 +3,9 @@ import { z } from 'zod'
 import type {
   AssistState,
   AssistWindow,
+  Errand,
+  ErrandOutcome,
+  LaborerState,
   SpeakerConfig,
   SpeakerState,
   WalkerDestination,
@@ -11,6 +14,7 @@ import type {
   WalkRequest
 } from '../../shared/types'
 import type { ActionLayer } from '../actionLayer'
+import type { Laborer } from '../laborer'
 import type { Speaker } from '../speaker'
 import type { Walker } from '../walker'
 
@@ -24,6 +28,7 @@ export interface AssistHandlerContext {
   actionLayer: ActionLayer
   speaker: Speaker
   walker: Walker
+  laborer: Laborer
 }
 
 export function assistWindows(ctx: AssistHandlerContext): AssistWindow[] {
@@ -99,6 +104,34 @@ export function walkerDestinations(ctx: AssistHandlerContext): WalkerDestination
   return ctx.walker.destinations()
 }
 
+export function laborerErrands(ctx: AssistHandlerContext): Errand[] {
+  return ctx.laborer.errands()
+}
+
+const errandRequestSchema = z.object({
+  connectionId: z.string().min(1, 'Pick a window to drive first.'),
+  errand: z.string().min(1, 'Pick an errand first.')
+})
+
+export async function runErrand(
+  ctx: AssistHandlerContext,
+  request: unknown
+): Promise<ErrandOutcome> {
+  const parsed = errandRequestSchema.safeParse(request)
+  if (!parsed.success) throw new Error(parsed.error.issues[0]?.message ?? 'Invalid errand request')
+  return ctx.laborer.run(parsed.data)
+}
+
+export function stopErrand(ctx: AssistHandlerContext, connectionId: unknown): void {
+  const parsed = connectionIdSchema.safeParse(connectionId)
+  if (!parsed.success) return
+  ctx.laborer.stop(parsed.data)
+}
+
+export function laborerState(ctx: AssistHandlerContext): LaborerState[] {
+  return ctx.laborer.states()
+}
+
 export function registerAssistHandlers(ipcMain: IpcMain, ctx: AssistHandlerContext): void {
   ipcMain.handle('assist:windows', () => assistWindows(ctx))
   ipcMain.handle('assist:stopAll', () => assistStopAll(ctx))
@@ -111,6 +144,10 @@ export function registerAssistHandlers(ipcMain: IpcMain, ctx: AssistHandlerConte
   ipcMain.handle('walker:stop', (_, connectionId) => stopWalker(ctx, connectionId))
   ipcMain.handle('walker:state', () => walkerState(ctx))
   ipcMain.handle('walker:destinations', () => walkerDestinations(ctx))
+  ipcMain.handle('errand:list', () => laborerErrands(ctx))
+  ipcMain.handle('errand:run', (_, request) => runErrand(ctx, request))
+  ipcMain.handle('errand:stop', (_, connectionId) => stopErrand(ctx, connectionId))
+  ipcMain.handle('errand:state', () => laborerState(ctx))
 }
 
 /** The channel main uses to push the stop state to the renderer. */
@@ -119,6 +156,8 @@ export const ASSIST_STATE_CHANNEL = 'assist:state-changed'
 export const SPEAKER_STATE_CHANNEL = 'speaker:state-changed'
 /** The channel main uses to push a Walker's state to the renderer. */
 export const WALKER_STATE_CHANNEL = 'walker:state-changed'
+/** The channel main uses to push a Laborer's state to the renderer. */
+export const LABORER_STATE_CHANNEL = 'laborer:state-changed'
 /**
  * The channel main uses to ask the renderer to toggle the Speaker. The renderer
  * owns the selected window, so the global hotkey acts through it.

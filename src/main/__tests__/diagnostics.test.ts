@@ -51,7 +51,8 @@ function context(
     flush: async () => undefined,
     status: () => status,
     liveCharacterEntries: () => [],
-    positionFor: () => null
+    positionFor: () => null,
+    dialogFor: () => null
   }
   return {
     log: fakeLogger(currentLogFile),

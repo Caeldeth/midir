@@ -7,6 +7,7 @@ import { createPcapSource, loadPcapApi, type PcapApi } from './capture/pcapSourc
 import { createActionLayer, type HotkeyRegistrar, type WindowApi } from './actionLayer'
 import { createSpeaker } from './speaker'
 import { createWalker } from './walker'
+import { createLaborer } from './laborer'
 import { createMapSource } from './route/mapSource'
 import { worldGraph } from './route/graph'
 import { createIconService } from './icons/iconService'
@@ -18,6 +19,7 @@ import {
   CAPTURE_STATUS_CHANNEL,
   CHARACTER_CHANGED_CHANNEL,
   LOG_APPENDED_CHANNEL,
+  LABORER_STATE_CHANNEL,
   SPEAKER_STATE_CHANNEL,
   SPEAKER_TOGGLE_CHANNEL,
   WALKER_STATE_CHANNEL,
@@ -271,6 +273,18 @@ const walker = createWalker({
   onState: (state) => pushToRenderer(WALKER_STATE_CHANNEL, state)
 })
 
+// The Laborer walks to an NPC through the Walker, then works the dialog off the
+// wire (WP17). It reads the dialog on screen from the same capture service the
+// position comes from, and drives through the same action layer.
+const laborer = createLaborer({
+  actionLayer,
+  walker,
+  liveConnections: () => captureService.liveCharacterEntries(),
+  dialogFor: (connectionId) => captureService.dialogFor(connectionId),
+  log,
+  onState: (state) => pushToRenderer(LABORER_STATE_CHANNEL, state)
+})
+
 const ctx: HandlerContext = {
   settingsPath,
   settingsManager,
@@ -281,6 +295,7 @@ const ctx: HandlerContext = {
   actionLayer,
   speaker,
   walker,
+  laborer,
   log,
   logsPath,
   recordingsPath,
@@ -407,6 +422,7 @@ app.on('window-all-closed', () => {
 // Stop every driver and release the global hotkey as the app ends. This runs
 // even when before-quit defers the quit for a capture flush.
 app.on('will-quit', () => {
+  laborer.dispose()
   walker.dispose()
   speaker.dispose()
   actionLayer.dispose()

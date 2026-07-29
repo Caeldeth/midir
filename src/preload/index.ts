@@ -6,6 +6,10 @@ import type {
   CaptureAvailability,
   CaptureStatus,
   CharacterRecord,
+  Errand,
+  ErrandOutcome,
+  ErrandRequest,
+  LaborerState,
   LogEntry,
   LogFileInfo,
   MidirApi,
@@ -88,6 +92,16 @@ const api: MidirApi = {
     state: (): Promise<WalkerState[]> => ipcRenderer.invoke('walker:state'),
     onState: (handler: (state: WalkerState) => void): (() => void) =>
       subscribe('walker:state-changed', handler)
+  },
+
+  laborer: {
+    list: (): Promise<Errand[]> => ipcRenderer.invoke('errand:list'),
+    run: (request: ErrandRequest): Promise<ErrandOutcome> =>
+      ipcRenderer.invoke('errand:run', request),
+    stop: (connectionId: string): Promise<void> => ipcRenderer.invoke('errand:stop', connectionId),
+    state: (): Promise<LaborerState[]> => ipcRenderer.invoke('errand:state'),
+    onState: (handler: (state: LaborerState) => void): (() => void) =>
+      subscribe('laborer:state-changed', handler)
   },
 
   characters: {
