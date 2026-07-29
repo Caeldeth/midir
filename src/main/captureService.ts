@@ -13,6 +13,7 @@ import {
   type CharacterSession
 } from './model/character'
 import { reducePosition, type Position } from './model/position'
+import { reduceDialog, type DialogState } from './model/dialog'
 import { mergeCharacter, withCharacter, type CharacterStore } from './store/characterStore'
 
 /**
@@ -83,6 +84,12 @@ export interface CaptureService {
    * reaches the renderer on its own. The walker reads it to step and confirm.
    */
   positionFor(connectionId: string): Position | null
+  /**
+   * The NPC dialog on screen on `connectionId` now, or null while there is
+   * none. Like the position, it is a live fact and is never saved. The Laborer
+   * reads it to choose an option and wait for the next step.
+   */
+  dialogFor(connectionId: string): DialogState | null
 }
 
 export function createCaptureService(options: CaptureServiceOptions): CaptureService {
@@ -100,6 +107,14 @@ export function createCaptureService(options: CaptureServiceOptions): CaptureSer
    * live fact, and a saved one is a stale answer with a confident face on it.
    */
   const positions = new Map<string, Position>()
+  /**
+   * The NPC dialog on screen for each connection, beside the position.
+   *
+   * Like the position, it belongs to a connection and is never written to disk:
+   * the dialog on screen is a live fact the Laborer reads to step a
+   * conversation, not a record.
+   */
+  const dialogs = new Map<string, DialogState>()
   /** Records changed but not yet written, by character name. */
   const unsaved = new Map<string, CharacterRecord>()
   /**
@@ -267,6 +282,15 @@ export function createCaptureService(options: CaptureServiceOptions): CaptureSer
     if (positionAfter === null) positions.delete(id)
     else positions.set(id, positionAfter)
 
+    const dialogBefore = dialogs.get(id) ?? null
+    const dialogAfter = reduceDialog(dialogBefore, {
+      packet: tracked.event.packet,
+      timestampMs: tracked.timestampMs,
+      sawLoss
+    })
+    if (dialogAfter === null) dialogs.delete(id)
+    else dialogs.set(id, dialogAfter)
+
     const before = sessions.get(id) ?? newSession(tracked.connection.openedAtMs)
     const after = reduce(before, {
       packet: tracked.event.packet,
@@ -304,6 +328,7 @@ export function createCaptureService(options: CaptureServiceOptions): CaptureSer
       liveCharacters.clear()
       sessions.clear()
       positions.clear()
+      dialogs.clear()
       lossy.clear()
       tracker.clear()
 
@@ -331,6 +356,7 @@ export function createCaptureService(options: CaptureServiceOptions): CaptureSer
           // packet, but its connection still ends.
           liveCharacters.delete(connection.id)
           positions.delete(connection.id)
+          dialogs.delete(connection.id)
           connectionCount = tracker.activeConnections().length
           publishStatus()
         },
@@ -377,6 +403,7 @@ export function createCaptureService(options: CaptureServiceOptions): CaptureSer
       tracker.clear()
       sessions.clear()
       positions.clear()
+      dialogs.clear()
       await flush()
       publishStatus()
     },
@@ -388,6 +415,9 @@ export function createCaptureService(options: CaptureServiceOptions): CaptureSer
     },
     positionFor(connectionId: string): Position | null {
       return positions.get(connectionId) ?? null
+    },
+    dialogFor(connectionId: string): DialogState | null {
+      return dialogs.get(connectionId) ?? null
     }
   }
 }

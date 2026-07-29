@@ -76,6 +76,12 @@ export interface WalkRequest {
   connectionId: string
   /** A node name or a map id from the world graph. */
   destination: string | number
+  /**
+   * A tile on the destination map to finish beside, for example an NPC's tile.
+   * The walker reaches the map first, then steps to a tile next to this one. The
+   * world graph has no NPC coordinates yet (WP24), so an errand names the tile.
+   */
+  tile?: { x: number; y: number }
 }
 
 /** Why the walker stopped short of the destination. */

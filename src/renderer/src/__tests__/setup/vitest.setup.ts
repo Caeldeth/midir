@@ -47,6 +47,13 @@ export function createMockApi(): MidirApi {
       state: vi.fn(async () => []),
       onState: vi.fn(() => () => undefined)
     },
+    laborer: {
+      list: vi.fn(async () => []),
+      run: vi.fn(async () => ({ kind: 'done' as const })),
+      stop: vi.fn(async () => undefined),
+      state: vi.fn(async () => []),
+      onState: vi.fn(() => () => undefined)
+    },
     characters: {
       list: vi.fn(async () => []),
       get: vi.fn(async () => null),

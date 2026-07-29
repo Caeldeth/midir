@@ -116,7 +116,12 @@ class World {
     ][direction]!
     const map = this.maps.get(this.position.mapId)!
     const blocks = (x: number, y: number): boolean =>
-      y < 0 || x < 0 || y >= map.height || x >= map.width || map.rows[y][x] === '#' || this.dynamicBlock.has(`${x},${y}`)
+      y < 0 ||
+      x < 0 ||
+      y >= map.height ||
+      x >= map.width ||
+      map.rows[y][x] === '#' ||
+      this.dynamicBlock.has(`${x},${y}`)
 
     if (blocks(this.position.x + delta[0], this.position.y + delta[1])) return
     // A press in a new direction only turns the character, then the next press
@@ -458,5 +463,55 @@ describe('walker', () => {
     walker.stop(CID)
     const outcome = await running
     expect(outcome.kind).toBe('stopped')
+  })
+})
+
+// A single open 5x5 room, one graph node, for the tile-goal approach phase.
+function roomWorld(start: { x: number; y: number }, rows?: string[]): World {
+  const maps = new Map<number, FakeMap>([
+    [1, fakeMap(rows ?? ['.....', '.....', '.....', '.....', '.....'])]
+  ])
+  return new World(maps, { mapId: 1, x: start.x, y: start.y })
+}
+
+const roomGraph: RouteNode[] = [{ mapId: 1, name: 'Room', exits: [] }]
+
+describe('walker tile goal', () => {
+  it('steps to a tile beside the NPC and arrives', async () => {
+    const world = roomWorld({ x: 0, y: 0 })
+    const { walker } = harness(world, roomGraph)
+    const outcome = await walker.go({ connectionId: CID, destination: 1, tile: { x: 2, y: 2 } })
+    expect(outcome).toEqual({ kind: 'arrived' })
+    // Beside the NPC tile, never on it.
+    const distance = Math.abs(world.position.x - 2) + Math.abs(world.position.y - 2)
+    expect(distance).toBe(1)
+    expect(world.presses).toBeGreaterThan(0)
+  })
+
+  it('arrives with no steps when already beside the NPC', async () => {
+    const world = roomWorld({ x: 2, y: 1 }) // one tile north of (2,2)
+    const { walker } = harness(world, roomGraph)
+    const outcome = await walker.go({ connectionId: CID, destination: 1, tile: { x: 2, y: 2 } })
+    expect(outcome).toEqual({ kind: 'arrived' })
+    expect(world.presses).toBe(0)
+  })
+
+  it('stops blocked when no tile beside the NPC is reachable', async () => {
+    // The NPC at (2,2) is walled in on every side.
+    const world = roomWorld(
+      { x: 0, y: 0 },
+      ['.....', '..#..', '.#N#.', '..#..', '.....'].map((r) => r.replace('N', '.'))
+    )
+    const { walker } = harness(world, roomGraph)
+    const outcome = await walker.go({ connectionId: CID, destination: 1, tile: { x: 2, y: 2 } })
+    expect(outcome).toEqual({ kind: 'stopped', reason: 'blocked' })
+  })
+
+  it('stops lostPosition when something else changes the map mid-approach', async () => {
+    const world = roomWorld({ x: 0, y: 0 })
+    world.hijackToMap = 9 // the next press lands on a map nobody asked for
+    const { walker } = harness(world, roomGraph)
+    const outcome = await walker.go({ connectionId: CID, destination: 1, tile: { x: 4, y: 4 } })
+    expect(outcome).toEqual({ kind: 'stopped', reason: 'lostPosition' })
   })
 })

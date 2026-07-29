@@ -2,15 +2,20 @@ import { describe, expect, it, vi } from 'vitest'
 import {
   assistStopAll,
   assistWindows,
+  laborerErrands,
+  laborerState,
+  runErrand,
   speakerState,
   startSpeaker,
   startWalker,
+  stopErrand,
   stopSpeaker,
   stopWalker,
   walkerState,
   type AssistHandlerContext
 } from '../handlers/assist'
 import type { ActionLayer } from '../actionLayer'
+import type { Laborer } from '../laborer'
 import type { Speaker } from '../speaker'
 import type { Walker } from '../walker'
 
@@ -31,6 +36,12 @@ function fakeContext(): AssistHandlerContext & {
     stop: ReturnType<typeof vi.fn>
     states: ReturnType<typeof vi.fn>
   }
+  laborer: {
+    errands: ReturnType<typeof vi.fn>
+    run: ReturnType<typeof vi.fn>
+    stop: ReturnType<typeof vi.fn>
+    states: ReturnType<typeof vi.fn>
+  }
 } {
   const actionLayer = {
     listWindows: vi.fn(() => [{ connectionId: 'A', windowHandle: 1, title: 'Dark Ages' }]),
@@ -46,10 +57,17 @@ function fakeContext(): AssistHandlerContext & {
     stop: vi.fn(),
     states: vi.fn(() => [])
   }
+  const laborer = {
+    errands: vi.fn(() => []),
+    run: vi.fn(async () => ({ kind: 'done' })),
+    stop: vi.fn(),
+    states: vi.fn(() => [])
+  }
   return {
     actionLayer: actionLayer as unknown as ActionLayer & typeof actionLayer,
     speaker: speaker as unknown as Speaker & typeof speaker,
-    walker: walker as unknown as Walker & typeof walker
+    walker: walker as unknown as Walker & typeof walker,
+    laborer: laborer as unknown as Laborer & typeof laborer
   }
 }
 
@@ -145,5 +163,42 @@ describe('the assist handlers', () => {
     const ctx = fakeContext()
     expect(walkerState(ctx)).toEqual([])
     expect(ctx.walker.states).toHaveBeenCalledOnce()
+  })
+
+  it('lists the built-in errands', () => {
+    const ctx = fakeContext()
+    expect(laborerErrands(ctx)).toEqual([])
+    expect(ctx.laborer.errands).toHaveBeenCalledOnce()
+  })
+
+  it('runs an errand with a validated request', async () => {
+    const ctx = fakeContext()
+    const outcome = await runErrand(ctx, { connectionId: 'A', errand: 'Clout' })
+    expect(outcome).toEqual({ kind: 'done' })
+    expect(ctx.laborer.run).toHaveBeenCalledWith({ connectionId: 'A', errand: 'Clout' })
+  })
+
+  it('rejects an errand request with no connection', async () => {
+    const ctx = fakeContext()
+    await expect(runErrand(ctx, { connectionId: '', errand: 'Clout' })).rejects.toThrow()
+    expect(ctx.laborer.run).not.toHaveBeenCalled()
+  })
+
+  it('rejects an errand request with no errand', async () => {
+    const ctx = fakeContext()
+    await expect(runErrand(ctx, { connectionId: 'A', errand: '' })).rejects.toThrow()
+    expect(ctx.laborer.run).not.toHaveBeenCalled()
+  })
+
+  it('stops the Laborer on a connection', () => {
+    const ctx = fakeContext()
+    stopErrand(ctx, 'A')
+    expect(ctx.laborer.stop).toHaveBeenCalledWith('A')
+  })
+
+  it('reports the running laborers', () => {
+    const ctx = fakeContext()
+    expect(laborerState(ctx)).toEqual([])
+    expect(ctx.laborer.states).toHaveBeenCalledOnce()
   })
 })
