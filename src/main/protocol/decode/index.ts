@@ -23,7 +23,8 @@ import {
   type TransferServer,
   type VersionCheck
 } from './handshake'
-import { decodeBankContents, type BankContents } from './dialog'
+import { decodeScreenMenu, type BankContents, type NpcMenu } from './dialog'
+import { decodePursuitMessage, type PursuitMessage } from './pursuit'
 import {
   decodeMapInfo,
   decodeUserMove,
@@ -58,6 +59,7 @@ export * from './handshake'
 export * from './items'
 export * from './merchant'
 export * from './movement'
+export * from './pursuit'
 
 /** A packet Midir models, in either direction. */
 export type DecodedPacket =
@@ -78,6 +80,8 @@ export type DecodedPacket =
   | DrawHumanObjects
   | SelfLook
   | BankContents
+  | NpcMenu
+  | PursuitMessage
   | ClientExit
   | MerchantResponse
   | PursuitResponse
@@ -103,7 +107,8 @@ const DECODERS = new Map<number, Decoder>([
   [ServerOpcode.RemoveEquip, decodeRemoveEquip],
   [ServerOpcode.DrawHumanObjects, decodeDrawHumanObjects],
   [ServerOpcode.SelfLook, decodeSelfLook],
-  [ServerOpcode.ScreenMenu, decodeBankContents]
+  [ServerOpcode.ScreenMenu, decodeScreenMenu],
+  [ServerOpcode.PursuitMessage, decodePursuitMessage]
 ])
 
 const CLIENT_DECODERS = new Map<number, Decoder>([

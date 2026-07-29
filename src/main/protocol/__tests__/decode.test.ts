@@ -690,6 +690,11 @@ describe('decodeServerPacket', () => {
     expect(decodeServerPacket(new Uint8Array(0))).toBeNull()
   })
 
+  it('dispatches a scripted dialog to the pursuit decoder', () => {
+    const decoded = decodeServerPacket(bytes(ServerOpcode.PursuitMessage, 0x0a))
+    expect(decoded).toMatchObject({ kind: 'pursuitMessage', dialogKind: 'close' })
+  })
+
   it('has a decoder for every opcode it claims', () => {
     for (const opcode of [
       ServerOpcode.VersionCheck,
@@ -701,7 +706,9 @@ describe('decodeServerPacket', () => {
       ServerOpcode.AddEquip,
       ServerOpcode.RemoveEquip,
       ServerOpcode.DrawHumanObjects,
-      ServerOpcode.SelfLook
+      ServerOpcode.SelfLook,
+      ServerOpcode.ScreenMenu,
+      ServerOpcode.PursuitMessage
     ]) {
       expect(hasServerDecoder(opcode), `0x${opcode.toString(16)}`).toBe(true)
     }
