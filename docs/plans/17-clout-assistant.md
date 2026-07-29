@@ -42,9 +42,17 @@ were proven):
 2. **Selecting a menu row** posts the option's number key (`chooseRow`, `OPTION_DIGIT_BASE`).
 3. **Answering a text field** uses `typeLine`.
 
-**The built-in errands are placeholders.** The clout and labor pursuit ids, the row text, the NPC
-tiles, and the maps come from a recorded session or the live check, not a guess. The matcher refuses
-any mismatch, so a placeholder stops a run rather than acts on it.
+**The built-in errands name the real NPCs, and two values still wait on a capture.** The roster is 11
+errands, one for each NPC: six clout (Maria, Angelo, Eduardo, Aingeal, Riona, Arilan) and five labor
+(Antonio, Cassidy, Jilt, Lamont, Argus). Each entry names the NPC and the building it is in. Two
+values per entry come from a recorded session or the live check, not a guess: the `npcTile` (so the
+walker finishes beside the NPC), and the `steps` (the pursuit id and the row text). The matcher
+refuses any mismatch, so an errand with no steps walks to the map and stops rather than acting.
+
+**Two follow-ups this surfaced.** `WP33` adds the world-graph nodes five errand destinations still
+lack (Mileth Tavern, Mileth Town Hall, Piet Bank, Abel Bank, Undine Bank), which today stop with
+`noRoute`. `WP34` lets an assistant dismiss a movement-blocking notice popup, which a walker reads as
+a stall today.
 
 ## Goal
 

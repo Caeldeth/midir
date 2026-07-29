@@ -211,6 +211,8 @@ trigger is in each doc's header.
 | WP30 | M    | Map viewer / route inspector    | PLANNED — `30-map-viewer.md`                     |
 | WP31 | S    | Dynamic door collision (`0x32`) | PLANNED — `31-door-collision.md`                 |
 | WP32 | M    | Registration-aware routing      | PLANNED — `32-registration-aware-routing.md`     |
+| WP33 | S    | Map coverage for errand nodes   | PLANNED — `33-errand-map-coverage.md`            |
+| WP34 | S    | Dismiss blocking popups         | PLANNED — `34-dismiss-blocking-popups.md`        |
 
 `00a-backlog.md` now holds only what is not a WP: the non-goals, the debts owed to another repo, and
 the one conditional rule.
