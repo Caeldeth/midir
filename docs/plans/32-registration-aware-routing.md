@@ -1,7 +1,7 @@
 # WP32 — registration-aware routing
 
 **Size:** M. **Depends on:** WP15 (the walker and the graph) and WP4/WP5 (the character record and
-its legend). Read `00-overview.md` first. **PLANNED.**
+its legend). Read `00-overview.md` first. **PLANNED.** **Card:** `HTOO-81`.
 **Trigger to start:** the walker is used with unregistered characters, or a route through a Commons
 is wanted for one.
 

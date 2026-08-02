@@ -1,6 +1,6 @@
 # WP21 — e2e coverage of the capture surface
 
-**Size:** S. **Depends on:** WP6, WP8, WP9. Read `00-overview.md` first. **PLANNED.**
+**Size:** S. **Depends on:** WP6, WP8, WP9. Read `00-overview.md` first. **PLANNED.** **Card:** `HTOO-70`.
 **Trigger to start:** a regression that the unit tests and the replay both miss.
 
 ## Goal

@@ -1,6 +1,6 @@
 # WP20 — the packet inspector
 
-**Size:** M. **Depends on:** WP11. Read `00-overview.md` first. **PLANNED.**
+**Size:** M. **Depends on:** WP11. Read `00-overview.md` first. **PLANNED.** **Card:** `HTOO-69`.
 **Trigger to start:** a protocol question a scratch `console.log` cannot answer, or a bug report
 where the ring buffer alone is not enough.
 

@@ -1,6 +1,6 @@
 # WP26 — the bug report to cernunnos
 
-**Size:** M. **Depends on:** WP20, WP8. Read `00-overview.md` first. **PLANNED.**
+**Size:** M. **Depends on:** WP20, WP8. Read `00-overview.md` first. **PLANNED.** **Card:** `HTOO-75`.
 **Trigger to start:** the first bug a user cannot describe without one.
 
 ## Goal

@@ -6,9 +6,13 @@ debts owed to another repo, and the one conditional rule.
 **Slotted work now lives in the WP table.** Everything that used to sit here as "owed but not built"
 is a numbered, trigger-gated WP (WP20–WP28), with its promotion trigger in its own doc header. See
 the "Triggered follow-ons" table in `00-overview.md`. The multi-client decode is WP12,
-and `SPursuitMessage 0x30` is WP17's first job. List virtualization and the composited character
-doll (the client's `HumanImage`) are deferred out of WP19; see the non-goals in
+and `SPursuitMessage 0x30` is WP17's first job. List virtualization (`HTOO-85`) and the composited
+character doll (the client's `HumanImage`, `HTOO-84`) are deferred out of WP19; see the non-goals in
 `19-read-app-polish.md`, each with its trigger.
+
+**The non-goals below stay off the board on purpose.** They are permanent declines, and a backlog
+card would read as intent to build. The conditional rule is a guard, so it gets no card either. Only
+the two debts above are carded from this file.
 
 ## Conditional rules — a guard, not schedulable work
 
@@ -19,13 +23,14 @@ doll (the client's `HumanImage`) are deferred out of WP19; see the non-goals in
 
 ## Owed to another repo — not Midir code, so not a Midir WP
 
-- **The document repo's `0x2F` page** should gain the bank's reuse of the merchant row, the `u32`
-  that is a count rather than a price, and the empty-bank silence.
-- **The document repo's `0x39` page** should gain the request pursuit `0x45` → reply pursuit `0x56`
-  pair, with the `0x40` → `0x4a` shop pair as the control that both constants are server-wide.
+- **The document repo's `0x2F` page** (`HTOO-86`) should gain the bank's reuse of the merchant row,
+  the `u32` that is a count rather than a price, and the empty-bank silence.
+- **The document repo's `0x39` page** (`HTOO-87`) should gain the request pursuit `0x45` → reply
+  pursuit `0x56` pair, with the `0x40` → `0x4a` shop pair as the control that both constants are
+  server-wide.
   Both are WP11's findings, verified against five requests across three bankers. They are not
-  Midir's code and so are not a Midir WP, but they are owed and easy to lose. Track them as
-  document-repo tickets.
+  Midir's code and so are not a Midir WP, but they are owed and easy to lose. **Both now have
+  document-repo tickets**, so the debt has a home.
 
 ## Non-goals (no trigger — these stay out)
 

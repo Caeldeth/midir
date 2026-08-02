@@ -1,9 +1,9 @@
 # WP22 — Deposit Item, pursuit `0x43` decode
 
 **Size:** S. **Depends on:** WP11. Read `00-overview.md` first. **PLANNED — blocked: no capture
-sample yet.**
+sample yet.** **Card:** `HTOO-71`.
 **Trigger to start:** a capture that contains a menu-type-5 click, or a reason to model what the
-player put *in* the bank rather than what the bank holds.
+player put _in_ the bank rather than what the bank holds.
 
 ## Goal
 

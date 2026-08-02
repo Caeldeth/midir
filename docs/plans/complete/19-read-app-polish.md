@@ -92,10 +92,10 @@ sections.
 
 - **No composited character doll.** The Equip screen centre is a placeholder. The doll needs the
   `khan*.dat` body, hair, and face archives and a layer compositor Midir does not have. It is a new
-  WP. _Trigger:_ a decision to build the doll.
+  WP. _Trigger:_ a decision to build the doll. _Card:_ `HTOO-84`.
 - **No list virtualization in this pass.** The Items index and the inventory list are not windowed
   here. The inventory list is now inside a collapsed accordion, which lowers the pressure.
-  _Trigger:_ a slow list on a real long capture.
+  _Trigger:_ a slow list on a real long capture. _Card:_ `HTOO-85`.
 - **No theme-label change** in `ThemePicker.tsx`, and **no Laborer rename** (that stays with the
   assistants, WP13–WP18).
 - **No navigation change**, no new capture behaviour, and **no read-path cap**. Nothing in the

@@ -2,7 +2,7 @@
 
 **Size:** M (as a spike; the feature behind it is larger). **Depends on:** WP2, WP11. Read
 `00-overview.md` first — settled decision 3 is why this WP exists. **PLANNED, and it gates every
-forged packet in the app.**
+forged packet in the app.** **Card:** `HTOO-68`.
 
 ## Goal
 

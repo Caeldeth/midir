@@ -1,7 +1,7 @@
 # WP33 — world-map coverage for errand destinations
 
 **Size:** S. **Depends on:** WP15 (the route graph), WP17 (the errands that need it). Read
-`00-overview.md` first. **PLANNED.**
+`00-overview.md` first. **PLANNED.** **Card:** `HTOO-82`.
 
 **Trigger:** surfaced by WP17. The Laborer errands name building interiors as destinations, and the
 imported `WorldMap.dat` graph does not have all of them. This WP starts when a shipped errand needs a
