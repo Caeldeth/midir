@@ -1,7 +1,7 @@
 # WP29 — learn map transitions from the wire
 
 **Size:** M. **Depends on:** WP14 (position and map, off the wire). Read `00-overview.md` first.
-**PLANNED.**
+**PLANNED.** **Card:** `HTOO-78`.
 **Trigger to start:** the imported `WorldMap.dat` graph proves stale in play, or a want to let the
 wire verify and extend the graph without a hand edit.
 

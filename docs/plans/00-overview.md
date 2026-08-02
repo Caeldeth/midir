@@ -5,6 +5,12 @@ Read this before any work package (WP). Every WP doc assumes you have.
 **Doc layout:** built-and-merged WP docs live in `complete/`; planned and in-progress WPs stay at
 the top level of `docs/plans/`. This file (the index) and `00a-backlog.md` (the register) stay put.
 
+**Every WP that has not shipped also has a card**, on the Hybrasyl Tooling board under the epic
+`HTOO-66`, labelled `Midir`. **The board carries the ranking; these docs carry the argument**, next
+to the code they describe. Each table below names the card, and each card names its doc. A shipped WP
+has no card. The eight non-goals in the register have no card either, on purpose: a backlog card
+would read as intent to build.
+
 **These docs are partly retrospective.** WP1 to WP6 and WP8 to WP11 shipped before any WP doc
 existed, so their docs record **what was built and why**, not a plan that was written first. They
 were reconstructed from the commit history on 2026-07-23 and from the rules already pinned in
@@ -132,7 +138,9 @@ the assistants, after the charter change:
 WP13 (the action layer: window, keys, the stop)   COMPLETE — complete/13-action-layer.md
  ├── WP16 (Speaker)   COMPLETE — complete/16-speaker.md — the smallest user of WP13, and its proof
  └── WP15 (Walker)   COMPLETE — complete/15-walker.md
-      └── WP17 (Laborer)   PLANNED — needs WP15 to arrive and WP11 to read the dialog
+      └── WP17 (Laborer)   IN PROGRESS — both PRs merged; the rest needs a live game
+           ├── WP33 (world-map coverage for errand nodes)   PLANNED — five destinations have no node
+           └── WP34 (dismiss blocking popups)   PLANNED — a notice reads as a stall today
 WP14 (position and map, off the wire)   COMPLETE — complete/14-position-and-map.md — what WP15 steers by
 WP18 (the packet-send spike)   PLANNED — gates every forged packet; WP17 is the only caller waiting
 
@@ -151,6 +159,8 @@ WP29 (learn map transitions from the wire)   PLANNED — needs WP14; feeds WP15'
 WP30 (map viewer / route inspector)   PLANNED — needs WP15, WP14, WP7
 WP31 (dynamic door collision 0x32)   PLANNED — needs WP15; feeds WP17
 WP32 (registration-aware routing)   PLANNED — needs WP15, WP4/WP5; adds a 0x0A decoder
+WP33 (world-map coverage for errand nodes)   PLANNED — needs WP15, WP17; WP24 or WP29 can supply it
+WP34 (dismiss blocking popups)   PLANNED — needs WP11, WP17 PR1, WP15, WP14
 ```
 
 WP7 was the one gap in the shipped run. It was specified, deferred for the protocol work that kept
@@ -177,45 +187,51 @@ built: item icons come off the game's own `legend.dat`, drawn through a privileg
 
 ### The assistants (after the charter change)
 
-| WP   | Size | Title                          | Status                                       |
-| ---- | ---- | ------------------------------ | -------------------------------------------- |
-| WP13 | M    | The action layer, and the stop | COMPLETE — `complete/13-action-layer.md`     |
-| WP14 | M    | Position and map, off the wire | COMPLETE — `complete/14-position-and-map.md` |
-| WP15 | L    | Walker                         | COMPLETE — `complete/15-walker.md`           |
-| WP16 | S    | Speaker                        | COMPLETE — `complete/16-speaker.md`          |
-| WP17 | L    | Laborer (was Clout Assistant)  | PLANNED — `17-clout-assistant.md`            |
-| WP18 | M    | The packet-send spike          | PLANNED — `18-packet-send-spike.md`          |
+| WP   | Size | Title                          | Card    | Status                                       |
+| ---- | ---- | ------------------------------ | ------- | -------------------------------------------- |
+| WP13 | M    | The action layer, and the stop | —       | COMPLETE — `complete/13-action-layer.md`     |
+| WP14 | M    | Position and map, off the wire | —       | COMPLETE — `complete/14-position-and-map.md` |
+| WP15 | L    | Walker                         | —       | COMPLETE — `complete/15-walker.md`           |
+| WP16 | S    | Speaker                        | —       | COMPLETE — `complete/16-speaker.md`          |
+| WP17 | L    | Laborer (was Clout Assistant)  | HTOO-67 | IN PROGRESS — `17-clout-assistant.md`        |
+| WP18 | M    | The packet-send spike          | HTOO-68 | PLANNED — `18-packet-send-spike.md`          |
 
 Build order: **WP13, WP16, WP14, and WP15 are done** — the action layer, the Speaker that proves it,
-the position off the wire, and the Walker that steers by it. Next is **WP17 (Laborer)**, which needs
-WP15 plus WP11's dialog decode, and **WP18** gates any forged packet WP17 turns out to want. WP15
-also surfaced WP29–WP32 (learn transitions, map viewer, dynamic doors, registration-aware routing).
+the position off the wire, and the Walker that steers by it. **WP17 (Laborer) is in progress**: both
+its PRs are merged, and what is left needs a live game — the `npcTile` and `steps` values for all 11
+errands, and three gestures the GUI check proves. **WP18** gates any forged packet WP17 turns out to
+want. WP15 also surfaced WP29–WP32 (learn transitions, map viewer, dynamic doors, registration-aware
+routing), and WP17 surfaced WP33 and WP34.
 
 ### Triggered follow-ons
 
 Each is a real WP with a doc, but is trigger-gated: it starts when its trigger fires, not before. The
 trigger is in each doc's header.
 
-| WP   | Size | Title                           | Status                                           |
-| ---- | ---- | ------------------------------- | ------------------------------------------------ |
-| WP20 | M    | The packet inspector            | PLANNED — `20-packet-inspector.md`               |
-| WP21 | S    | e2e of the capture surface      | PLANNED — `21-e2e-capture-surface.md`            |
-| WP22 | S    | Deposit Item `0x43` decode      | PLANNED — `22-deposit-item-decode.md` (blocked)  |
-| WP23 | S    | The `0x39` response tail decode | PLANNED — `23-pursuit-response-tail.md`          |
-| WP24 | M    | Route graph from ceridwen       | PLANNED — `24-ceridwen-route-graph.md` (blocked) |
-| WP25 | S    | Record pruning / hide unseen    | PLANNED — `25-record-pruning.md`                 |
-| WP26 | M    | The bug report to cernunnos     | PLANNED — `26-bug-report.md`                     |
-| WP27 | M    | Cut the first release           | PLANNED — `27-first-release.md`                  |
-| WP28 | S    | App standards adoption          | PLANNED — `28-app-standards.md`                  |
-| WP29 | M    | Learn map transitions from wire | PLANNED — `29-learn-transitions.md`              |
-| WP30 | M    | Map viewer / route inspector    | PLANNED — `30-map-viewer.md`                     |
-| WP31 | S    | Dynamic door collision (`0x32`) | PLANNED — `31-door-collision.md`                 |
-| WP32 | M    | Registration-aware routing      | PLANNED — `32-registration-aware-routing.md`     |
-| WP33 | S    | Map coverage for errand nodes   | PLANNED — `33-errand-map-coverage.md`            |
-| WP34 | S    | Dismiss blocking popups         | PLANNED — `34-dismiss-blocking-popups.md`        |
+| WP   | Size | Title                           | Card    | Status                                           |
+| ---- | ---- | ------------------------------- | ------- | ------------------------------------------------ |
+| WP20 | M    | The packet inspector            | HTOO-69 | PLANNED — `20-packet-inspector.md`               |
+| WP21 | S    | e2e of the capture surface      | HTOO-70 | PLANNED — `21-e2e-capture-surface.md`            |
+| WP22 | S    | Deposit Item `0x43` decode      | HTOO-71 | PLANNED — `22-deposit-item-decode.md` (blocked)  |
+| WP23 | S    | The `0x39` response tail decode | HTOO-72 | PLANNED — `23-pursuit-response-tail.md`          |
+| WP24 | M    | Route graph from ceridwen       | HTOO-73 | PLANNED — `24-ceridwen-route-graph.md` (blocked) |
+| WP25 | S    | Record pruning / hide unseen    | HTOO-74 | PLANNED — `25-record-pruning.md`                 |
+| WP26 | M    | The bug report to cernunnos     | HTOO-75 | PLANNED — `26-bug-report.md`                     |
+| WP27 | M    | Cut the first release           | HTOO-76 | PLANNED — `27-first-release.md`                  |
+| WP28 | S    | App standards adoption          | HTOO-77 | PLANNED — `28-app-standards.md`                  |
+| WP29 | M    | Learn map transitions from wire | HTOO-78 | PLANNED — `29-learn-transitions.md`              |
+| WP30 | M    | Map viewer / route inspector    | HTOO-79 | PLANNED — `30-map-viewer.md`                     |
+| WP31 | S    | Dynamic door collision (`0x32`) | HTOO-80 | PLANNED — `31-door-collision.md`                 |
+| WP32 | M    | Registration-aware routing      | HTOO-81 | PLANNED — `32-registration-aware-routing.md`     |
+| WP33 | S    | Map coverage for errand nodes   | HTOO-82 | PLANNED — `33-errand-map-coverage.md`            |
+| WP34 | S    | Dismiss blocking popups         | HTOO-83 | PLANNED — `34-dismiss-blocking-popups.md`        |
 
 `00a-backlog.md` now holds only what is not a WP: the non-goals, the debts owed to another repo, and
 the one conditional rule.
+
+Two features deferred out of WP19 are cards without a WP doc, because neither is scheduled: the
+composited character doll is `HTOO-84`, and list virtualization is `HTOO-85`. Their briefs stay in
+the non-goals of `complete/19-read-app-polish.md`.
 
 ## Conventions every WP follows
 

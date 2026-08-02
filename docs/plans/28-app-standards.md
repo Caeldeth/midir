@@ -1,7 +1,7 @@
 # WP28 — app standards audit and adoption
 
 **Size:** S. **Depends on:** the house electron-app-skeleton standard. Read `00-overview.md` first.
-**PLANNED.**
+**PLANNED.** **Card:** `HTOO-77`.
 **Trigger to start:** before the first release (WP27), or when a second instance or a wrong taskbar
 identity becomes a real problem.
 

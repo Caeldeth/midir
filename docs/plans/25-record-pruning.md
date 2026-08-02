@@ -1,6 +1,6 @@
 # WP25 — character record pruning, and "hide unseen"
 
-**Size:** S. **Depends on:** WP4. Read `00-overview.md` first. **PLANNED.**
+**Size:** S. **Depends on:** WP4. Read `00-overview.md` first. **PLANNED.** **Card:** `HTOO-74`.
 **Trigger to start:** a character list long enough to be annoying, or a request to hide characters
 not seen since a date.
 
