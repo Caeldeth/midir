@@ -3,10 +3,22 @@ import { fillTemplate, paramsIn } from '../../../shared/types'
 import { builtinErrands, findErrand } from '../errands'
 
 describe('built-in errands', () => {
-  it('lists the six clout NPCs and the five labor NPCs', () => {
+  it('lists the six clout NPCs, and the five labor NPCs twice: labor and labor fix', () => {
     const names = builtinErrands().map((errand) => errand.name)
     expect(names.filter((name) => name.startsWith('Clout —'))).toHaveLength(6)
     expect(names.filter((name) => name.startsWith('Labor —'))).toHaveLength(5)
+    expect(names.filter((name) => name.startsWith('Labor fix —'))).toHaveLength(5)
+  })
+
+  it('gives the labor fix errands the recorded conversation, ending in a close', () => {
+    for (const errand of builtinErrands().filter((e) => e.name.startsWith('Labor fix —'))) {
+      expect(errand.params).toBeUndefined()
+      expect(errand.steps.map((s) => s.choose ?? (s.close ? 'close' : s.answer))).toEqual([
+        'Labor',
+        '((labor fix))',
+        'close'
+      ])
+    }
   })
 
   it('names an NPC and a destination for every errand', () => {
@@ -69,10 +81,11 @@ describe('built-in errands', () => {
     }
   })
 
-  it('gives every step one answer, and every branch a `when`', () => {
+  it('gives every step one action, and every branch a `when`', () => {
     for (const errand of builtinErrands()) {
       for (const step of errand.steps) {
-        expect((step.choose === undefined) !== (step.answer === undefined)).toBe(true)
+        const actions = [step.choose, step.answer, step.close].filter((a) => a !== undefined)
+        expect(actions).toHaveLength(1)
       }
       for (const branch of errand.branches ?? []) expect(branch.when).toBeDefined()
     }

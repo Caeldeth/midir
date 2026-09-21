@@ -178,8 +178,9 @@ export function walkStopMessage(reason: WalkStopReason): string {
 /**
  * One step of an errand: the dialog to expect, and the answer to give.
  *
- * A step is one of two shapes. A choice step names the row to `choose`; a text
- * step names the `answer` to type. `when` narrows a step to the dialog whose
+ * A step is one of three shapes. A choice step names the row to `choose`; a
+ * text step names the `answer` to type; a `close` step closes a dialog that
+ * offers nothing to choose, such as a notice. `when` narrows a step to the dialog whose
  * prose contains it, for a pursuit the server uses for many dialogs in turn
  * (the civic pursuit shows "What is your civil action?", "Are you sure…", and
  * "Whom shall you support…" under one id). `answer` and `when` may hold a
@@ -195,6 +196,8 @@ export interface DialogStep {
   choose?: string
   /** For a text step: what to type. Never a credential. */
   answer?: string
+  /** For a close step: close the dialog, the way the player's Close does. */
+  close?: true
   /**
    * What follows this step. `done` ends the errand; `restart` waits for the
    * conversation to open again and works the steps from the first. Absent, the

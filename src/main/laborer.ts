@@ -130,14 +130,35 @@ const MAX_RESTARTS = 1
 const POLL_MS = 40
 
 /**
- * The Win32 virtual key for a menu option's number.
+ * Where a dialog's rows are on the game's 640 x 480 screen.
  *
- * Selecting a dialog row by keyboard is a live fact of the retail client, and
- * it is the one thing the GUI check must prove — the same status as the walker's
- * arrow keys. The rows are one-based, so option 1 posts the digit `1` (0x31).
- * Kept here so a live correction is a one-line change.
+ * A row is selected by a click, and by nothing else: the live check of
+ * 2026-09-21 posted a number key and the client sent nothing. The client's own
+ * layouts (`lnpcd.txt` and `lnpcd2.txt` in `setoa.dat`) give the row pitch,
+ * 18 px, and the row button's width, 20 to 406 in a 426-wide pane centred in
+ * the 132 to 640 menu region, so 193 to 579 on screen. Where the rows sit
+ * vertically is not in the layout: the pane grows with the row count, and the
+ * hand run of the same night (forty clicks over 2-, 3-, 6-, and 12-row panes)
+ * showed it grows upward. The last row's centre stays at y 335, and each row
+ * above it is one pitch higher. Every measured click is within half a row of
+ * this. A dialog with more rows than fit above the region's top is beyond
+ * this gesture, and the run stops rather than click off the pane.
  */
-const OPTION_DIGIT_BASE = 0x30
+const ROW_PITCH = 18
+const LAST_ROW_Y = 335
+const ROW_X = 386
+
+/** The screen y of a one-based row in a dialog of `rows` rows. */
+export function rowY(rows: number, row: number): number {
+  return LAST_ROW_Y - ROW_PITCH * (rows - row)
+}
+
+/**
+ * The dialog's Close button: `CloseBtn` in `lnpcd.txt`, 559 to 620 by 450 to
+ * 472. Sabrael's own close landed at (600, 461) in the hand run.
+ */
+const CLOSE_X = 589
+const CLOSE_Y = 461
 
 interface Run {
   connectionId: string
@@ -287,13 +308,18 @@ export function createLaborer(options: LaborerOptions): Laborer {
     }
   }
 
-  /** Post the keys that select a one-based menu row. */
-  async function chooseRow(target: ActionTarget, index: number): Promise<ActionRefusal | null> {
-    // Only single-digit options are selectable by one number key. A dialog with
-    // more than nine rows is beyond this gesture; the run stops rather than post
-    // a key that means nothing.
-    if (index < 1 || index > 9) return 'blocked'
-    return actionLayer.pressKey(target, OPTION_DIGIT_BASE + index)
+  /** Click the one-based row `index` of a dialog that shows `rows` rows. */
+  async function chooseRow(
+    target: ActionTarget,
+    index: number,
+    rows: number
+  ): Promise<ActionRefusal | null> {
+    if (index < 1 || index > rows) return 'blocked'
+    const y = rowY(rows, index)
+    // The first row of a very tall pane would be above the menu region.
+    if (y < ROW_PITCH / 2) return 'blocked'
+    log.info('laborer', `Clicking row ${index} of ${rows} at game (${ROW_X}, ${y}).`)
+    return actionLayer.click(target, ROW_X, y)
   }
 
   async function run(request: ErrandRequest): Promise<ErrandOutcome> {
@@ -353,6 +379,7 @@ export function createLaborer(options: LaborerOptions): Laborer {
     // player has open, so the very first wait accepts the current one.
     let lastAsOf = 0
     let restarts = 0
+    let closedText: string | undefined
 
     for (let index = 0; index < steps.length; index++) {
       if (!runState.running)
@@ -419,10 +446,17 @@ export function createLaborer(options: LaborerOptions): Laborer {
         return finish(runState, { kind: 'stopped', reason: 'unmatchedDialog', saw })
       }
 
-      const refusal =
-        result.kind === 'choose'
-          ? await chooseRow(target, result.index)
-          : await actionLayer.typeLine(target, result.text)
+      let refusal: ActionRefusal | null
+      if (result.kind === 'choose') {
+        refusal = await chooseRow(target, result.index, view.options.length)
+      } else if (result.kind === 'close') {
+        // The verdict of a close step is the dialog it closed.
+        closedText = view.text?.trim()
+        log.info('laborer', `Closing the dialog at game (${CLOSE_X}, ${CLOSE_Y}).`)
+        refusal = await actionLayer.click(target, CLOSE_X, CLOSE_Y)
+      } else {
+        refusal = await actionLayer.typeText(target, result.text)
+      }
       if (!runState.running) {
         return finish(runState, { kind: 'stopped', reason: runState.stopReason ?? 'user' })
       }
@@ -445,12 +479,16 @@ export function createLaborer(options: LaborerOptions): Laborer {
       }
     }
 
-    // The server's word after the last step, when it gives one.
+    // The server's word after the last step, when it gives one: a notice, or
+    // the text of the dialog a close step closed.
     const after = await waitForDialog(runState, lastAsOf, OUTCOME_WAIT_MS, true)
     if (after.kind === 'notice') {
       const saw = after.notice.packet.text.trim()
       log.info('laborer', `The server said, after the last step: ${saw}.`)
       return finish(runState, { kind: 'done', saw })
+    }
+    if (closedText !== undefined && closedText !== '') {
+      return finish(runState, { kind: 'done', saw: closedText })
     }
     return finish(runState, { kind: 'done' })
   }

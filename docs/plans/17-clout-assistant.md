@@ -37,14 +37,21 @@ Built in two PRs off `main`, both provable with no game.
   a lost character, or the global stop. Nothing sends a packet.
 - The IPC, the preload, and a **Laborer tab** beside Walker and Speaker follow the Speaker shape.
 
-**Three gestures wait on the live check** (the GUI check proves them, the way the walker's arrow keys
-were proven):
+**The gestures, as the live check of 2026-09-21 settled them:**
 
 1. **Opening the first dialog.** The driver does not click the NPC in v1; it waits for the first
-   dialog and works it. The player opens the conversation, or a trigger gesture is added once the
-   live check finds it.
-2. **Selecting a menu row** posts the option's number key (`chooseRow`, `OPTION_DIGIT_BASE`).
-3. **Answering a text field** uses `typeLine`.
+   dialog and works it (`FIRST_DIALOG_WAIT_MS`, 30 s). The player opens the conversation. The
+   trigger gesture needs the NPC's screen position, which is WP35's projection.
+2. **Selecting a row is a click, and nothing else.** The first live run posted the row's number key
+   and the client sent nothing. The client's own layouts (`lnpcd.txt`, `lnpcd2.txt` in `setoa.dat`)
+   give the row pitch (18 px) and the row's width (193 to 579 on screen); the hand run of the same
+   night (forty clicks over 2-, 3-, 6-, and 12-row panes, paired by the pane watcher with the row the
+   client sent) showed the pane grows upward: the last row's centre stays at y 335 and each row above
+   is one pitch higher (`rowY`). Every measured click is within half a row of that.
+3. **Answering a text field** uses `typeText`: characters into the field, which has focus when the
+   dialog opens, then Enter. Not `typeLine`, whose opening Enter is for chat and would submit the
+   field empty.
+4. **Closing a notice dialog** (a `close` step) clicks the layout's `CloseBtn` (589, 461).
 
 **The built-in errands name the real NPCs.** The roster is 11 errands, one for each NPC: six clout
 (Maria, Angelo, Eduardo, Aingeal, Riona, Arilan) and five labor (Antonio, Cassidy, Jilt, Lamont,
@@ -77,11 +84,13 @@ its stop line names every pursuit id the dialog carried, so that run is itself t
   and the driver replays it whole and posts the keys the player pressed: acceptance criterion 1.
 - **The five labor errands have their steps**, from Sabrael's capture of the same night (Evenue at
   Antonio): the menu row "Labor" (1335), then under the labor pursuit (311) "I want to work" and the
-  Aisling's name into a text field, as `{aisling}`. The third row of that dialog, "((labor fix))",
-  gives a laborer its own days back and is not scripted: what follows it was not chosen. An Aisling
-  holds six days of labor, which come back over time. The ids are from recordings; a pursuit is a
-  server-wide script id (588 on three civic NPCs, 0x56 on three banks), so Antonio's serve every
-  bank NPC, and a wrong one is a safe stop that names the right one.
+  Aisling's name into a text field, as `{aisling}`. An Aisling holds six days of labor, which come
+  back over time. The ids are from recordings; a pursuit is a server-wide script id (588 on three
+  civic NPCs, 0x56 on three banks), so Antonio's serve every bank NPC, and a wrong one is a safe
+  stop that names the right one.
+- **Five labor-fix errands**, one per bank NPC: "Labor", then "((labor fix))", then a notice dialog
+  the errand closes and reports: "This will reset your labor to one hour. You can only do this
+  once." the first time, "You have already reset your labor." when it is too soon (both captured).
 - **`SSystemMessage 0x0A` is decoded** (`decode/message.ts`, WP32 decision 1 brought forward), and
   the newest notice is a live fact beside the dialog (`model/notice.ts`, `captureService.noticeFor`).
   The server's verdict on a step is often a notice, not a dialog: "(( Register first: … ))" for an
@@ -98,11 +107,12 @@ its stop line names every pursuit id the dialog carried, so that run is itself t
   the rows past it are Sabrael's word that the labels match; a wrong one is a safe stop that names
   what it saw.
 
-**Every errand has steps.** The labor verdicts the run reports on `done`, from Sabrael: "You work
-for <name> for 1 day." (a whole day given), "You work for <name>, but they didn't need many jobs
-done." (less than a day; the Aisling is full now), and the captured "<name> doesn't need any jobs
-done" (nothing given). What no capture reached yet: the clout rows past the first dialog on a Mileth
-NPC, which a registered character's run will show.
+**Every errand has steps.** The labor verdicts the run reports on `done`, all captured: "You work
+for <name> for 1 day" (a whole day given), "You work for <name>, although the Aisling didn't need
+much done" (less than a day; the Aisling is full now), and "<name> doesn't need any jobs done. The
+Aisling hasn't done anything" (nothing given). A clout run can also end in the notice "You were
+distracted" with a close, which the generic refusal reading reports. What no capture reached yet:
+the clout rows past the first dialog on a Mileth NPC, which a registered character's run will show.
 
 **Two follow-ups this surfaced.** `WP33` (complete, 2026-09-21) made every errand destination
 route: the walker crosses the world map, every building is a node, and each errand carries the tile

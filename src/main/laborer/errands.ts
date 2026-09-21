@@ -111,22 +111,24 @@ function cloutSteps(ids: CivicIds): Pick<Errand, 'params' | 'steps' | 'branches'
  * Aisling? …" with the rows "I don't want to work", "I want to work", and
  * "((labor fix))", then "Who shall you work for?" as a text field. The
  * server's verdict is a notice, not a dialog, so the run reports the first
- * notice after the last step as its outcome. Three verdicts are known; the
- * first is captured, the other two are Sabrael's word:
+ * notice after the last step as its outcome. The three verdicts, all captured
+ * the same night:
  *
+ *   "You work for <name> for 1 day"
+ *       a whole day was given
+ *   "You work for <name>, although the Aisling didn't need much done"
+ *       the Aisling had room for less than a day; it is full now
  *   "<name> doesn't need any jobs done. The Aisling hasn't done anything"
  *       the Aisling is full; nothing was given
- *   "You work for <name> for 1 day."
- *       a whole day was given
- *   "You work for <name>, but they didn't need many jobs done."
- *       the Aisling had room for less than a day; it is full now
  *
  * An Aisling holds six days of labor, which come back over time (Sabrael:
  * about every twelve hours).
  *
- * "((labor fix))" gives a laborer its own days back, free, once in a while.
- * What follows that row was not chosen with Midir recording, so it is not an
- * errand yet.
+ * "((labor fix))" resets the laborer's own labor to one hour, free, once in a
+ * while (`laborFixSteps`). It answers with a notice dialog, not a notice:
+ * "This will reset your labor to one hour. You can only do this once." the
+ * first time, "You have already reset your labor." when it is too soon. The
+ * errand closes it and reports its text.
  *
  * The ids: the "Labor" row is 1335 on Antonio and on Cassidy (July 2026), and
  * the labor pursuit 311 was seen on Antonio. A pursuit is a server-wide script
@@ -147,6 +149,35 @@ function laborSteps(): Pick<Errand, 'params' | 'steps'> {
       { pursuit: LABOR_PURSUIT, when: 'Who shall you work for', answer: '{aisling}' }
     ]
   }
+}
+
+function laborFixSteps(): Pick<Errand, 'steps'> {
+  return {
+    steps: [
+      { pursuit: LABOR_ROW, choose: 'Labor' },
+      { pursuit: LABOR_PURSUIT, when: 'work for another Aisling', choose: '((labor fix))' },
+      { pursuit: LABOR_PURSUIT, when: 'reset your labor', close: true }
+    ]
+  }
+}
+
+/** A bank NPC's labor errand and its labor-fix errand, from one description. */
+function bankErrands(
+  npcName: string,
+  place: string,
+  destination: string,
+  tiles: Pick<Errand, 'standTile' | 'npcTile'>
+): Errand[] {
+  return [
+    { name: `Labor — ${npcName} (${place})`, destination, ...tiles, npcName, ...laborSteps() },
+    {
+      name: `Labor fix — ${npcName} (${place})`,
+      destination,
+      ...tiles,
+      npcName,
+      ...laborFixSteps()
+    }
+  ]
 }
 
 export const BUILTIN_ERRANDS: Errand[] = [
@@ -196,47 +227,23 @@ export const BUILTIN_ERRANDS: Errand[] = [
     ...cloutSteps(MILETH)
   },
 
-  // --- Labor: one errand for each bank NPC -------------------------------
-  {
-    name: 'Labor — Antonio (Rucesion Bank)',
-    destination: 'Rucesion Bank',
-    standTile: { x: 5, y: 8 },
-    npcName: 'Antonio',
-    ...laborSteps()
-  },
-  {
-    name: 'Labor — Cassidy (Mileth Bank)',
-    destination: 'Mileth Bank',
-    standTile: { x: 6, y: 6 },
-    npcName: 'Cassidy',
-    ...laborSteps()
-  },
+  // --- Labor and labor fix: two errands for each bank NPC ----------------
+  ...bankErrands('Antonio', 'Rucesion Bank', 'Rucesion Bank', { standTile: { x: 5, y: 8 } }),
+  ...bankErrands('Cassidy', 'Mileth Bank', 'Mileth Bank', { standTile: { x: 6, y: 6 } }),
   // The three other-town storages are the same 12 x 12 room as Rucesion's,
   // with the NPC on the same tile (3,4), so Rucesion's stand tile carries over.
-  {
-    name: 'Labor — Jilt (Piet Bank)',
-    destination: 'Piet Bank',
+  ...bankErrands('Jilt', 'Piet Bank', 'Piet Bank', {
     standTile: { x: 5, y: 8 },
-    npcTile: { x: 3, y: 4 },
-    npcName: 'Jilt',
-    ...laborSteps()
-  },
-  {
-    name: 'Labor — Lamont (Abel Bank)',
-    destination: 'Abel Bank',
+    npcTile: { x: 3, y: 4 }
+  }),
+  ...bankErrands('Lamont', 'Abel Bank', 'Abel Bank', {
     standTile: { x: 5, y: 8 },
-    npcTile: { x: 3, y: 4 },
-    npcName: 'Lamont',
-    ...laborSteps()
-  },
-  {
-    name: 'Labor — Argus (Undine Bank)',
-    destination: 'Undine Bank',
+    npcTile: { x: 3, y: 4 }
+  }),
+  ...bankErrands('Argus', 'Undine Bank', 'Undine Bank', {
     standTile: { x: 5, y: 8 },
-    npcTile: { x: 3, y: 4 },
-    npcName: 'Argus',
-    ...laborSteps()
-  }
+    npcTile: { x: 3, y: 4 }
+  })
 ]
 
 /** Every built-in errand, in order. */

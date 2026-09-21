@@ -47,6 +47,8 @@ export type MatchResult =
   | { kind: 'choose'; index: number; option: string }
   /** Type this text into the entry field. */
   | { kind: 'answerText'; text: string }
+  /** Close the dialog, the way the player's Close does. */
+  | { kind: 'close' }
   /** A credential pane. Stop before any key. */
   | { kind: 'protected' }
   /** Nothing in this dialog matched the step. Stop rather than guess. */
@@ -141,6 +143,12 @@ export function matchStep(step: DialogStep, view: DialogView): MatchResult {
     if (view.pursuit !== step.pursuit) return { kind: 'noMatch' }
     if (step.answer === undefined) return { kind: 'noMatch' }
     return { kind: 'answerText', text: step.answer }
+  }
+
+  // A close makes no choice, so it needs only the pursuit and the prose.
+  if (step.close === true) {
+    if (view.pursuit !== step.pursuit) return { kind: 'noMatch' }
+    return { kind: 'close' }
   }
 
   if (step.choose === undefined) return { kind: 'noMatch' }

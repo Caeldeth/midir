@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createLaborer, type Sleeper } from '../laborer'
+import { createLaborer, rowY, type Sleeper } from '../laborer'
 import type { ActionLayer, LiveConnection } from '../actionLayer'
 import type { ActionRefusal, ActionTarget, Errand, WalkOutcome } from '../../shared/types'
 import type { DialogState } from '../model/dialog'
@@ -60,9 +60,21 @@ function notice(text: string, asOfMs: number): NoticeState {
   return { packet: { kind: 'systemMessage', messageType: 3, text }, asOfMs }
 }
 
+/** A click on a row, as the Laborer posts it. */
+type Click = { x: number; y: number }
+
+/** The click the Laborer posts for a one-based `row` of a `rows`-row dialog. */
+function rowClick(rows: number, row: number): Click {
+  return { x: 386, y: rowY(rows, row) }
+}
+
+/** The click that closes a dialog. */
+const CLOSE_CLICK: Click = { x: 589, y: 461 }
+
 interface FakeLayer {
   layer: ActionLayer
-  keys: number[]
+  /** Every click posted, in order. Rows are chosen by a click. */
+  clicks: Click[]
   typed: string[]
   armed: string[]
   disarmed: string[]
@@ -73,7 +85,7 @@ interface FakeLayer {
 
 function fakeLayer(feed: Feed): FakeLayer {
   const state = { stopped: false }
-  const keys: number[] = []
+  const clicks: Click[] = []
   const typed: string[] = []
   const armed: string[] = []
   const disarmed: string[] = []
@@ -94,13 +106,13 @@ function fakeLayer(feed: Feed): FakeLayer {
     disarm: (id: string): void => {
       disarmed.push(id)
     },
-    pressKey: async (_t: ActionTarget, key: number): Promise<ActionRefusal | null> => {
-      keys.push(key)
+    click: async (_t: ActionTarget, x: number, y: number): Promise<ActionRefusal | null> => {
+      clicks.push({ x, y })
       if (refusal !== null) return refusal
       advance()
       return null
     },
-    typeLine: async (_t: ActionTarget, text: string): Promise<ActionRefusal | null> => {
+    typeText: async (_t: ActionTarget, text: string): Promise<ActionRefusal | null> => {
       typed.push(text)
       if (refusal !== null) return refusal
       advance()
@@ -113,7 +125,7 @@ function fakeLayer(feed: Feed): FakeLayer {
 
   return {
     layer,
-    keys,
+    clicks,
     typed,
     armed,
     disarmed,
@@ -235,8 +247,8 @@ describe('createLaborer', () => {
     const outcome = await laborer.run({ connectionId: CID, errand: 'Test errand' })
 
     expect(outcome).toEqual({ kind: 'done' })
-    // Chose row 2 (Give clout, digit '2') then row 1 (Yes, digit '1').
-    expect(fake.keys).toEqual([0x32, 0x31])
+    // Chose row 2 of 2 (Give clout) then row 1 of 2 (Yes), each by a click.
+    expect(fake.clicks).toEqual([rowClick(2, 2), rowClick(2, 1)])
     expect(fake.disarmed).toContain(CID)
   })
 
@@ -248,7 +260,7 @@ describe('createLaborer', () => {
     const { laborer, fake } = make({ errand: twoStepErrand(), feed })
     await laborer.run({ connectionId: CID, errand: 'Test errand' })
     // Give clout is now row 1, Yes is now row 2.
-    expect(fake.keys).toEqual([0x31, 0x32])
+    expect(fake.clicks).toEqual([rowClick(2, 1), rowClick(2, 2)])
   })
 
   it('stops on an unmatched dialog and reports what it saw', async () => {
@@ -262,7 +274,7 @@ describe('createLaborer', () => {
       // The id is decimal, as the errand data and the capture tools write it.
       expect(outcome.saw).toBe('pursuit 999 from Donnan, options: ["Nothing here"]')
     }
-    expect(fake.keys).toEqual([]) // nothing posted
+    expect(fake.clicks).toEqual([]) // nothing posted
   })
 
   it('stops immediately on a protected pane, before any key', async () => {
@@ -277,7 +289,7 @@ describe('createLaborer', () => {
       reason: 'protected',
       saw: 'a login or password dialog'
     })
-    expect(fake.keys).toEqual([])
+    expect(fake.clicks).toEqual([])
     expect(fake.typed).toEqual([])
   })
 
@@ -313,10 +325,10 @@ describe('createLaborer', () => {
       pursuit({ pursuit: 0x0065, options: [{ text: 'Yes' }] })
     ])
     const { laborer, fake } = make({ errand: twoStepErrand(), feed })
-    // Fire the global stop as soon as the first key is posted.
-    const originalPress = fake.layer.pressKey
-    ;(fake.layer as unknown as { pressKey: ActionLayer['pressKey'] }).pressKey = async (t, key) => {
-      const result = await originalPress(t, key)
+    // Fire the global stop as soon as the first click is posted.
+    const originalClick = fake.layer.click
+    ;(fake.layer as unknown as { click: ActionLayer['click'] }).click = async (t, x, y) => {
+      const result = await originalClick(t, x, y)
       fake.fireStop('you pressed stop')
       return result
     }
@@ -347,7 +359,7 @@ describe('createLaborer', () => {
       reason: 'serverNotice',
       saw: "(( Register first: www.darkages.com -> Click 'Register' ))"
     })
-    expect(fake.keys).toEqual([0x32])
+    expect(fake.clicks).toEqual([rowClick(2, 2)])
   })
 
   it('does not read a notice beside the next dialog as a refusal', async () => {
@@ -359,7 +371,7 @@ describe('createLaborer', () => {
     const { laborer, fake } = make({ errand: twoStepErrand(), feed })
     const outcome = await laborer.run({ connectionId: CID, errand: 'Test errand' })
     expect(outcome).toEqual({ kind: 'done' })
-    expect(fake.keys).toEqual([0x32, 0x31])
+    expect(fake.clicks).toEqual([rowClick(2, 2), rowClick(2, 1)])
   })
 
   it('ignores a notice while waiting for the player to open the conversation', async () => {
@@ -368,7 +380,7 @@ describe('createLaborer', () => {
     const { laborer, fake } = make({ errand: twoStepErrand(), feed })
     const outcome = await laborer.run({ connectionId: CID, errand: 'Test errand' })
     expect(outcome).toEqual({ kind: 'stopped', reason: 'timeout' })
-    expect(fake.keys).toEqual([])
+    expect(fake.clicks).toEqual([])
   })
 
   it('names every pursuit id in the stop line, so a run is a capture', async () => {
@@ -416,32 +428,33 @@ function serverDialogs(from: number, to: number): DialogState[] {
 }
 
 /**
- * The keys the player pressed in the fixture, in the Laborer's terms: a menu
- * row chosen by its pursuit is the digit of that row, a pursuit choice is its
- * digit, and typed text is the text.
+ * The rows the player chose in the fixture, in the Laborer's terms: a menu
+ * row chosen by its pursuit is a click on that row of that menu, a pursuit
+ * choice is a click on that row of that dialog, and typed text is the text.
  */
-function playerAnswers(from: number, to: number): { keys: number[]; typed: string[] } {
-  const keys: number[] = []
+function playerAnswers(from: number, to: number): { clicks: Click[]; typed: string[] } {
+  const clicks: Click[] = []
   const typed: string[] = []
-  let lastMenu: NpcMenu | undefined
+  let shown: NpcMenu | PursuitMessage | undefined
   for (const entry of (cloutExchange as Exchange).slice(from, to)) {
-    const server = entry.server as { kind: string } | undefined
-    if (server?.kind === 'npcMenu') lastMenu = server as NpcMenu
+    const server = entry.server as NpcMenu | PursuitMessage | undefined
+    if (server !== undefined) shown = server
     const client = entry.client as
       | { kind: 'merchantResponse'; pursuit: number }
       | { kind: 'pursuitResponse'; choice?: number; text?: string }
       | undefined
     if (client === undefined) continue
     if (client.kind === 'merchantResponse') {
-      const row = lastMenu!.options.findIndex((o) => o.pursuit === client.pursuit)
-      keys.push(0x31 + row)
-    } else if (client.choice !== undefined) {
-      keys.push(0x30 + client.choice)
+      if (shown?.kind !== 'npcMenu') continue
+      const row = shown.options.findIndex((o) => o.pursuit === client.pursuit)
+      clicks.push(rowClick(shown.options.length, row + 1))
+    } else if (client.choice !== undefined && shown?.kind === 'pursuitMessage') {
+      clicks.push(rowClick(shown.options?.length ?? 0, client.choice))
     } else if (client.text !== undefined) {
       typed.push(client.text)
     }
   }
-  return { keys, typed }
+  return { clicks, typed }
 }
 
 describe('the recorded clout conversation (Eduardo, 2026-09-21)', () => {
@@ -457,9 +470,14 @@ describe('the recorded clout conversation (Eduardo, 2026-09-21)', () => {
     const outcome = await laborer.run(request)
     expect(outcome).toEqual({ kind: 'done' })
     const player = playerAnswers(0, 8)
-    expect(fake.keys).toEqual(player.keys)
+    expect(fake.clicks).toEqual(player.clicks)
     expect(fake.typed).toEqual(player.typed)
-    expect(fake.keys).toEqual([0x31, 0x31, 0x32])
+    // Row 1 of the 6-row menu, row 1 of 2, row 2 of 2: the measured positions.
+    expect(fake.clicks).toEqual([
+      { x: 386, y: 245 },
+      { x: 386, y: 317 },
+      { x: 386, y: 335 }
+    ])
     expect(fake.typed).toEqual(['Pandsala'])
   })
 
@@ -470,8 +488,15 @@ describe('the recorded clout conversation (Eduardo, 2026-09-21)', () => {
     expect(outcome).toEqual({ kind: 'done' })
     // Civics, Support, Withdraw; then Civics, Support, I am sure, and the name.
     const player = playerAnswers(10, 24)
-    expect(fake.keys).toEqual(player.keys)
-    expect(fake.keys).toEqual([0x31, 0x31, 0x32, 0x31, 0x31, 0x32])
+    expect(fake.clicks).toEqual(player.clicks)
+    expect(fake.clicks).toEqual([
+      rowClick(6, 1),
+      rowClick(2, 1),
+      rowClick(2, 2),
+      rowClick(6, 1),
+      rowClick(2, 1),
+      rowClick(2, 2)
+    ])
     expect(fake.typed).toEqual(['Sabrael'])
     // After the withdrawal it waited for the player to open the menu again.
     expect(states.filter((s) => s.running).length).toBeGreaterThan(0)
@@ -483,7 +508,7 @@ describe('the recorded clout conversation (Eduardo, 2026-09-21)', () => {
     const outcome = await laborer.run(request)
     expect(outcome).toEqual({ kind: 'done' })
     // Civics, Support, then "I continue to support the Aisling" (row 1).
-    expect(fake.keys).toEqual([0x31, 0x31, 0x31])
+    expect(fake.clicks).toEqual([rowClick(6, 1), rowClick(2, 1), rowClick(2, 1)])
     expect(fake.typed).toEqual([])
   })
 
@@ -496,7 +521,7 @@ describe('the recorded clout conversation (Eduardo, 2026-09-21)', () => {
     await expect(
       laborer.run({ connectionId: CID, errand: errand.name, params: { citizen: '  ' } })
     ).rejects.toThrow(/Citizen to support/)
-    expect(fake.keys).toEqual([])
+    expect(fake.clicks).toEqual([])
   })
 
   it('waits for the menu after a withdrawal even though a notice came with the close', async () => {
@@ -509,7 +534,7 @@ describe('the recorded clout conversation (Eduardo, 2026-09-21)', () => {
     const outcome = await laborer.run({ ...request, params: { citizen: 'Sabrael' } })
     // The player never reopened the menu: a timeout, not a refusal.
     expect(outcome).toEqual({ kind: 'stopped', reason: 'timeout' })
-    expect(fake.keys).toEqual([0x31, 0x31, 0x32])
+    expect(fake.clicks).toEqual([rowClick(6, 1), rowClick(2, 1), rowClick(2, 2)])
   })
 
   it('stops rather than restart twice', async () => {
@@ -522,7 +547,14 @@ describe('the recorded clout conversation (Eduardo, 2026-09-21)', () => {
     const outcome = await laborer.run({ ...request, params: { citizen: 'Sabrael' } })
     expect(outcome.kind).toBe('stopped')
     if (outcome.kind === 'stopped') expect(outcome.reason).toBe('unmatchedDialog')
-    expect(fake.keys).toEqual([0x31, 0x31, 0x32, 0x31, 0x31, 0x32])
+    expect(fake.clicks).toEqual([
+      rowClick(6, 1),
+      rowClick(2, 1),
+      rowClick(2, 2),
+      rowClick(6, 1),
+      rowClick(2, 1),
+      rowClick(2, 2)
+    ])
   })
 })
 
@@ -553,8 +585,12 @@ describe('the recorded labor conversation (Evenue at Antonio, 2026-09-21)', () =
       errand: errand.name,
       params: { aisling: 'Pandsala' }
     })
-    // "Labor" is row 9 of Antonio's menu; "I want to work" is row 2.
-    expect(fake.keys).toEqual([0x39, 0x32])
+    // "Labor" is row 9 of Antonio's 12-row menu; "I want to work" is row 2 of
+    // 3. Both are the positions the hand run measured (y 281 and 317).
+    expect(fake.clicks).toEqual([
+      { x: 386, y: 281 },
+      { x: 386, y: 317 }
+    ])
     expect(fake.typed).toEqual(['Pandsala'])
     expect(outcome).toEqual({
       kind: 'done',
@@ -570,5 +606,57 @@ describe('the recorded labor conversation (Evenue at Antonio, 2026-09-21)', () =
       params: { aisling: 'Pandsala' }
     })
     expect(outcome).toEqual({ kind: 'done' })
+  })
+})
+
+describe('the labor fix (Antonio, 2026-09-21)', () => {
+  const errand = builtinErrands().find((e) => e.name.startsWith('Labor fix — Antonio'))!
+  const exchange = laborExchange as Exchange
+  const menuOf = exchange[0]!.server as NpcMenu
+  const offer = exchange[2]!.server as PursuitMessage
+  const notice = (text: string, step: number): PursuitMessage => ({
+    ...offer,
+    dialogType: 0,
+    dialogKind: 'text',
+    step,
+    text,
+    options: undefined
+  })
+
+  it('closes the reset notice and reports its text', async () => {
+    const feed: Feed = {
+      list: [
+        { packet: menuOf, asOfMs: 1000 },
+        { packet: offer, asOfMs: 1400 },
+        {
+          packet: notice('This will reset your labor to one hour. You can only do this once.', 75),
+          asOfMs: 1800
+        }
+      ],
+      index: 0
+    }
+    const { laborer, fake } = make({ errand, feed })
+    const outcome = await laborer.run({ connectionId: CID, errand: errand.name })
+    expect(fake.clicks).toEqual([rowClick(12, 9), rowClick(3, 3), CLOSE_CLICK])
+    expect(fake.typed).toEqual([])
+    expect(outcome).toEqual({
+      kind: 'done',
+      saw: 'This will reset your labor to one hour. You can only do this once.'
+    })
+  })
+
+  it('closes the too-soon notice the same way', async () => {
+    const feed: Feed = {
+      list: [
+        { packet: menuOf, asOfMs: 1000 },
+        { packet: offer, asOfMs: 1400 },
+        { packet: notice('You have already reset your labor.', 78), asOfMs: 1800 }
+      ],
+      index: 0
+    }
+    const { laborer, fake } = make({ errand, feed })
+    const outcome = await laborer.run({ connectionId: CID, errand: errand.name })
+    expect(fake.clicks.at(-1)).toEqual(CLOSE_CLICK)
+    expect(outcome).toEqual({ kind: 'done', saw: 'You have already reset your labor.' })
   })
 })

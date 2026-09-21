@@ -159,6 +159,40 @@ describe('matchStep with `when`', () => {
   })
 })
 
+describe('matchStep with `close`', () => {
+  const notice = pursuitToView(
+    pursuit({
+      pursuit: 311,
+      dialogType: 0,
+      dialogKind: 'text',
+      options: undefined,
+      text: 'You have already reset your labor.'
+    })
+  )
+
+  it('closes a dialog whose pursuit and prose match, whatever it offers', () => {
+    expect(matchStep({ pursuit: 311, when: 'reset your labor', close: true }, notice)).toEqual({
+      kind: 'close'
+    })
+  })
+
+  it('does not close a dialog of another pursuit, or one that says something else', () => {
+    expect(matchStep({ pursuit: 588, when: 'reset your labor', close: true }, notice)).toEqual({
+      kind: 'noMatch'
+    })
+    expect(matchStep({ pursuit: 311, when: 'civil action', close: true }, notice)).toEqual({
+      kind: 'noMatch'
+    })
+  })
+
+  it('still refuses the credential pane first', () => {
+    const view = pursuitToView(
+      pursuit({ pursuit: 311, dialogType: 9, dialogKind: 'protected', isProtected: true })
+    )
+    expect(matchStep({ pursuit: 311, close: true }, view)).toEqual({ kind: 'protected' })
+  })
+})
+
 describe('fillStep', () => {
   it('fills a placeholder in `answer` and `when`, and leaves the rest alone', () => {
     const step: DialogStep = {
