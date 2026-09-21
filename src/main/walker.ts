@@ -171,22 +171,38 @@ function tileKey(mapId: number, x: number, y: number): string {
 
 /**
  * Wrap a map grid so it also refuses a move into a tile the walker learned is
- * impassable this run.
+ * impassable this run, and allows a move into a tile the graph vouches for.
  *
  * The disk map cache does not see a creature standing in a doorway, or a tile
  * the server blocks though the cache calls it open. When a step stalls at one
- * tile, the walker adds that tile here and re-plans around it.
+ * tile, the walker adds that tile to `blocked` and re-plans around it.
+ *
+ * The cache is wrong the other way too. A doorway's static tile carries the
+ * closed door's collision, so the cache (and the client's own Tab map) calls
+ * the tile impassable, and the game opens the door as the character steps in.
+ * A warp tile is entered by definition — the graph says a warp is there — so
+ * a move into one of `allowed` is permitted whatever the cache says. The
+ * live check of 2026-09-21 found Piet Storage's door (50,13) this way.
  */
-function gridWithBlocks(grid: MapGrid, mapId: number, blocked: Set<string>): MapGrid {
+function gridWithBlocks(
+  grid: MapGrid,
+  mapId: number,
+  blocked: Set<string>,
+  allowed: Set<string> = new Set()
+): MapGrid {
   return {
     width: grid.width,
     height: grid.height,
     inBounds: grid.inBounds,
     canMove: (x, y, direction) => {
-      if (!grid.canMove(x, y, direction)) return false
       const delta = DIRECTION_DELTA[direction]
       if (delta === undefined) return false
-      return !blocked.has(tileKey(mapId, x + delta[0], y + delta[1]))
+      const nx = x + delta[0]
+      const ny = y + delta[1]
+      const into = tileKey(mapId, nx, ny)
+      if (blocked.has(into)) return false
+      if (allowed.has(into)) return grid.inBounds(nx, ny)
+      return grid.canMove(x, y, direction)
     }
   }
 }
@@ -489,8 +505,10 @@ export function createWalker(options: WalkerOptions): Walker {
 
       const rawGrid = await maps.gridFor(position.mapId, position.mapWidth, position.mapHeight)
       if (rawGrid === null) return { kind: 'stopped', reason: 'blocked' }
-      // Route around the tiles this run has learned it cannot get through.
-      const grid = gridWithBlocks(rawGrid, position.mapId, blocked)
+      // Route around the tiles this run has learned it cannot get through, and
+      // into the leg's warp tiles whatever the cache says of them.
+      const warpTiles = new Set(leg.warps.map((w) => tileKey(position.mapId, w.x, w.y)))
+      const grid = gridWithBlocks(rawGrid, position.mapId, blocked, warpTiles)
 
       // Pick the nearest warp tile the character can actually path to. A warp
       // tile this run learned does not fire is skipped here too: standing on it

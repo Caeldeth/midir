@@ -122,6 +122,12 @@ Three walks: Rucesion Inn to Abel Outskirts, Inn to Rucesion Town Hall, and Town
   both kinds of window. The awareness is read and logged, not acted on. The earlier session's
   Piet and Pravat clicks worked because the window was 640 x 480 then. The button hold was a red
   herring; the atomic click stays because it is DA Walker's gesture and costs nothing.
+- **A doorway reads as a wall in the map cache.** The Piet walk (from the world xml's data) arrived
+  on Piet Village and stopped: `No route to a warp on map 501 from (1, 8); blocked`. The storage
+  door at 50,13 and 51,13 carries the closed door's collision in its static tile, so the cache — and
+  the client's own Tab map — call it impassable, and the game opens the door on the step. The
+  walker now lets A* enter the leg's warp tiles whatever the cache says: a warp tile is entered by
+  definition, and the graph vouches for it. Doors elsewhere on a path are WP31's.
 - **A hand click is now written down.** The wire says which point a click selected but not where
   on the screen it was, so `main/paneWatcher.ts` reads the real pointer and button through the
   operating system (`da-pcap pointerIn`: `GetCursorPos`, `ScreenToClient`, `GetAsyncKeyState`;

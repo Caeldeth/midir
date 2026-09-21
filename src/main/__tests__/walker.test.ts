@@ -134,12 +134,15 @@ class World {
       [-1, 0]
     ][direction]!
     const map = this.maps.get(this.position.mapId)!
+    // A warp tile is enterable even when the rows draw it as a wall: a
+    // doorway's static tile carries the closed door's collision, and the game
+    // opens the door as the character steps in.
     const blocks = (x: number, y: number): boolean =>
       y < 0 ||
       x < 0 ||
       y >= map.height ||
       x >= map.width ||
-      map.rows[y][x] === '#' ||
+      (map.rows[y][x] === '#' && !map.warps.has(`${x},${y}`)) ||
       this.dynamicBlock.has(`${x},${y}`)
 
     if (blocks(this.position.x + delta[0], this.position.y + delta[1])) return
@@ -615,6 +618,39 @@ describe('walker tile goal', () => {
     const { walker } = harness(world, roomGraph)
     const outcome = await walker.go({ connectionId: CID, destination: 1, tile: { x: 4, y: 4 } })
     expect(outcome).toEqual({ kind: 'stopped', reason: 'lostPosition' })
+  })
+})
+
+describe('a warp tile the map cache calls a wall', () => {
+  it('routes into it anyway, because the graph says a warp is there', async () => {
+    // Piet Storage's door: the doorway static carries the closed door's
+    // collision, so the cache says wall, and the game opens it on the step.
+    const maps = new Map<number, FakeMap>([
+      [1, fakeMap(['....#'], new Map([['4,0', { toMap: 2, ax: 0, ay: 0 }]]))],
+      [2, fakeMap(['.....'])]
+    ])
+    const world = new World(maps, { mapId: 1, x: 0, y: 0 })
+    const { walker } = harness(world, [
+      { mapId: 1, name: 'Town', exits: [{ toMapId: 2, x: 4, y: 0 }] },
+      { mapId: 2, name: 'Storage', exits: [] }
+    ])
+    const outcome = await walker.go({ connectionId: CID, destination: 'Storage' })
+    expect(outcome).toEqual({ kind: 'arrived' })
+    expect(world.position.mapId).toBe(2)
+  })
+
+  it('still refuses a wall that is not a warp', async () => {
+    const maps = new Map<number, FakeMap>([
+      [1, fakeMap(['..#..'], new Map([['4,0', { toMap: 2, ax: 0, ay: 0 }]]))],
+      [2, fakeMap(['.....'])]
+    ])
+    const world = new World(maps, { mapId: 1, x: 0, y: 0 })
+    const { walker } = harness(world, [
+      { mapId: 1, name: 'Town', exits: [{ toMapId: 2, x: 4, y: 0 }] },
+      { mapId: 2, name: 'Storage', exits: [] }
+    ])
+    const outcome = await walker.go({ connectionId: CID, destination: 'Storage' })
+    expect(outcome).toEqual({ kind: 'stopped', reason: 'blocked' })
   })
 })
 
