@@ -143,10 +143,20 @@ Three walks: Rucesion Inn to Abel Outskirts, Inn to Rucesion Town Hall, and Town
    says, for each click, whether the client answered and how long it took; and Town Hall to Inn
    should need no hand.
 2. **The five building nodes.** Mileth Tavern, Mileth Town Hall, Piet Bank, Abel Bank, and Undine
-   Bank are not in `WorldMap.dat` at all. Each needs its map id and the warp tile from the town
-   map, from a capture of walking in once (WP29 would learn it; a hand entry in the `.dat` and a
-   re-import is the small route). The errand entries in `src/main/laborer/errands.ts` already name
-   them, so each errand works the moment its node resolves.
+   Bank are not in `WorldMap.dat` at all. An interior is an ordinary map with its own id (Rucesion
+   Inn is node 498, with a warp back to 505), so each needs exactly two facts: its map id, and the
+   town-side warp tile that enters it, plus the tile that leaves it. One capture of walking in and
+   out gives both (WP29 would learn it from the wire). The place to put them is a `nodes` section
+   of `scripts/worldmap-overrides.json`, so a node the `.dat` lacks is added at import with its
+   observation, the same way a wrong tile is corrected. The errand entries in
+   `src/main/laborer/errands.ts` already name them, so each errand works the moment its node
+   resolves.
+3. **An arrival tile the user can enter.** A destination is a map today. A walk should be able to
+   name a tile on it too — a bank counter, a spot to stand — typed on the Walker tab beside the
+   destination and kept with a pinned destination. `WalkRequest.tile` already exists for the
+   Laborer, but it finishes _beside_ the tile (an NPC's own tile is occupied); a user's tile is one
+   to stand on, so the request gains `arrive: 'on' | 'beside'` and `approachTile` honours it. The
+   input is coordinates for now; a click on the map is WP30's, when the map viewer exists.
 
 ## Non-goals
 
