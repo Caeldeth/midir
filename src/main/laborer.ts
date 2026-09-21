@@ -119,6 +119,17 @@ const FIRST_DIALOG_WAIT_MS = 30000
 const OUTCOME_WAIT_MS = 1500
 
 /**
+ * The notice that means "try again", and how many times to.
+ *
+ * "You were distracted" closes the dialog in place of the next step. Sabrael:
+ * it is the server's exploit prevention, not a refusal, and the answer is to
+ * open the conversation again. The run goes back to the first step and waits
+ * for the player to reopen it, this many times, and then stops.
+ */
+const TRY_AGAIN_NOTICE = 'You were distracted'
+const MAX_DISTRACTIONS = 2
+
+/**
  * How many times a `restart` branch may send the run back to the first step.
  *
  * One restart is the errand that withdrew support from one citizen and then
@@ -379,6 +390,7 @@ export function createLaborer(options: LaborerOptions): Laborer {
     // player has open, so the very first wait accepts the current one.
     let lastAsOf = 0
     let restarts = 0
+    let distractions = 0
     let closedText: string | undefined
 
     for (let index = 0; index < steps.length; index++) {
@@ -411,6 +423,16 @@ export function createLaborer(options: LaborerOptions): Laborer {
       if (waited.kind === 'timeout') return finish(runState, { kind: 'stopped', reason: 'timeout' })
       if (waited.kind === 'notice') {
         const saw = waited.notice.packet.text.trim()
+        if (saw.startsWith(TRY_AGAIN_NOTICE) && distractions < MAX_DISTRACTIONS) {
+          distractions += 1
+          log.info(
+            'laborer',
+            `The server said "${saw}" at step ${index}: opening again from the first step.`
+          )
+          // The loop's own increment lands on the first step.
+          index = -1
+          continue
+        }
         log.warn('laborer', `The server answered step ${index} with a notice: ${saw}. Stopping.`)
         return finish(runState, { kind: 'stopped', reason: 'serverNotice', saw })
       }

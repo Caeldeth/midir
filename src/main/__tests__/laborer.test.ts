@@ -54,6 +54,8 @@ interface Feed {
   list: DialogState[]
   index: number
   noticeAt?: Record<number, NoticeState>
+  /** An index whose dialog is on screen only from this clock time: the player opens it later. */
+  appearAt?: Record<number, number>
 }
 
 function notice(text: string, asOfMs: number): NoticeState {
@@ -201,8 +203,12 @@ function make(opts: Options): {
     actionLayer: fake.layer,
     walker,
     liveConnections,
-    dialogFor: (id: string): DialogState | null =>
-      id === CID ? (opts.feed.list[opts.feed.index] ?? null) : null,
+    dialogFor: (id: string): DialogState | null => {
+      if (id !== CID) return null
+      const appears = opts.feed.appearAt?.[opts.feed.index]
+      if (appears !== undefined && clock.now() < appears) return null
+      return opts.feed.list[opts.feed.index] ?? null
+    },
     noticeFor: (id: string): NoticeState | null =>
       id === CID ? (opts.feed.noticeAt?.[opts.feed.index] ?? null) : null,
     log: noop,
@@ -360,6 +366,42 @@ describe('createLaborer', () => {
       saw: "(( Register first: www.darkages.com -> Click 'Register' ))"
     })
     expect(fake.clicks).toEqual([rowClick(2, 2)])
+  })
+
+  it('opens again from the first step when the server says "You were distracted"', async () => {
+    // Give clout, then the dialog closes with the notice; the player reopens
+    // the menu ten seconds later, and the run works it through.
+    const feed = feedOf([
+      pursuit({ pursuit: 0x0064, options: [{ text: 'Ask' }, { text: 'Give clout' }] }),
+      pursuit({ pursuit: 0x0064, options: [{ text: 'Ask' }, { text: 'Give clout' }] }),
+      pursuit({ pursuit: 0x0065, options: [{ text: 'Yes' }, { text: 'No' }] })
+    ])
+    feed.noticeAt = { 1: notice('You were distracted', 2100) }
+    feed.appearAt = { 1: 1000 + 6000 + 10_000 }
+    feed.list[1]!.asOfMs = 20_000
+    feed.list[2]!.asOfMs = 20_400
+    const { laborer, fake } = make({ errand: twoStepErrand(), feed })
+    const outcome = await laborer.run({ connectionId: CID, errand: 'Test errand' })
+    expect(outcome).toEqual({ kind: 'done' })
+    expect(fake.clicks).toEqual([rowClick(2, 2), rowClick(2, 2), rowClick(2, 1)])
+  })
+
+  it('stops after the third distraction', async () => {
+    const menu = (): PursuitMessage =>
+      pursuit({ pursuit: 0x0064, options: [{ text: 'Ask' }, { text: 'Give clout' }] })
+    const feed = feedOf([menu(), menu(), menu()])
+    feed.list[1]!.asOfMs = 20_000
+    feed.list[2]!.asOfMs = 40_000
+    feed.noticeAt = {
+      1: notice('You were distracted', 2100),
+      2: notice('You were distracted', 20_100),
+      3: notice('You were distracted', 40_100)
+    }
+    feed.appearAt = { 1: 17_000, 2: 37_000 }
+    const { laborer, fake } = make({ errand: twoStepErrand(), feed })
+    const outcome = await laborer.run({ connectionId: CID, errand: 'Test errand' })
+    expect(outcome).toEqual({ kind: 'stopped', reason: 'serverNotice', saw: 'You were distracted' })
+    expect(fake.clicks).toEqual([rowClick(2, 2), rowClick(2, 2), rowClick(2, 2)])
   })
 
   it('does not read a notice beside the next dialog as a refusal', async () => {

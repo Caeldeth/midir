@@ -110,8 +110,9 @@ its stop line names every pursuit id the dialog carried, so that run is itself t
 **Every errand has steps.** The labor verdicts the run reports on `done`, all captured: "You work
 for <name> for 1 day" (a whole day given), "You work for <name>, although the Aisling didn't need
 much done" (less than a day; the Aisling is full now), and "<name> doesn't need any jobs done. The
-Aisling hasn't done anything" (nothing given). A clout run can also end in the notice "You were
-distracted" with a close, which the generic refusal reading reports. What no capture reached yet:
+Aisling hasn't done anything" (nothing given). "You were distracted" with a close is the server's
+exploit prevention, not a refusal (Sabrael): it means try again, so the run goes back to the first
+step and waits for the player to open the conversation again, twice at most. What no capture reached yet:
 the clout rows past the first dialog on a Mileth NPC, which a registered character's run will show.
 
 **Two follow-ups this surfaced.** `WP33` (complete, 2026-09-21) made every errand destination
