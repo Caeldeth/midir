@@ -1,5 +1,6 @@
 import type { DecodedPacket } from '../protocol/decode'
 import type { NpcMenu } from '../protocol/decode/dialog'
+import type { MerchantResponse, PursuitResponse } from '../protocol/decode/merchant'
 import type { PursuitMessage } from '../protocol/decode/pursuit'
 
 /**
@@ -25,6 +26,13 @@ export interface DialogState {
   packet: PursuitMessage | NpcMenu
   /** Capture time of the packet that set it. */
   asOfMs: number
+  /**
+   * The client's answer to this dialog, once it sends one: CMerchant 0x39 for
+   * a menu, CPursuit 0x3A for a pursuit. The dialog stays on screen until the
+   * server replies, so the answer sits beside it. The pane watcher pairs it
+   * with the hand click before it.
+   */
+  answer?: { packet: MerchantResponse | PursuitResponse; asOfMs: number }
 }
 
 /** One packet, with what the capture layer knows about it. */
@@ -55,6 +63,11 @@ export function reduceDialog(state: DialogState | null, input: DialogInput): Dia
   }
 
   if (packet.kind === 'npcMenu') return { packet, asOfMs: timestampMs }
+
+  if (packet.kind === 'merchantResponse' || packet.kind === 'pursuitResponse') {
+    if (state === null) return state
+    return { ...state, answer: { packet, asOfMs: timestampMs } }
+  }
 
   // Every other packet, the bank included, leaves the dialog on screen alone.
   return state

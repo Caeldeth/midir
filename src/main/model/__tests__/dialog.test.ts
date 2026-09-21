@@ -88,3 +88,54 @@ describe('reduceDialog', () => {
     expect(after).toBe(first)
   })
 })
+
+describe('the client answer beside the dialog', () => {
+  it('attaches CMerchant 0x39 to the menu on screen, and CPursuit 0x3A to a pursuit', () => {
+    const shown = reduceDialog(null, {
+      packet: menu({ options: [{ text: 'Labor', pursuit: 1335 }] }),
+      timestampMs: 1000
+    })
+    const answered = reduceDialog(shown, {
+      packet: {
+        kind: 'merchantResponse',
+        objectType: 1,
+        objectId: 1,
+        pursuit: 1335,
+        tail: new Uint8Array()
+      },
+      timestampMs: 1500
+    })
+    expect(answered?.asOfMs).toBe(1000)
+    expect(answered?.answer?.packet.kind).toBe('merchantResponse')
+    expect(answered?.answer?.asOfMs).toBe(1500)
+    const next = reduceDialog(answered, { packet: pursuit({ pursuit: 311 }), timestampMs: 2000 })
+    expect(next?.answer).toBeUndefined()
+    const typed = reduceDialog(next, {
+      packet: {
+        kind: 'pursuitResponse',
+        objectType: 1,
+        objectId: 1,
+        pursuit: 311,
+        step: 25,
+        text: 'Pandsala'
+      },
+      timestampMs: 2500
+    })
+    expect(typed?.answer?.packet).toMatchObject({ kind: 'pursuitResponse', text: 'Pandsala' })
+  })
+
+  it('drops an answer with no dialog on screen', () => {
+    expect(
+      reduceDialog(null, {
+        packet: {
+          kind: 'merchantResponse',
+          objectType: 1,
+          objectId: 1,
+          pursuit: 1335,
+          tail: new Uint8Array()
+        },
+        timestampMs: 1500
+      })
+    ).toBeNull()
+  })
+})

@@ -304,6 +304,7 @@ const paneWatcher = createPaneWatcher({
   resolveTarget: (connectionId) => actionLayer.resolveTarget(connectionId),
   liveConnections: () => captureService.liveCharacterEntries(),
   fieldMapFor: (connectionId) => captureService.fieldMapFor(connectionId),
+  dialogFor: (connectionId) => captureService.dialogFor(connectionId),
   log
 })
 
