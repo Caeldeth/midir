@@ -27,9 +27,10 @@ import type { Errand } from '../../shared/types'
  * `destination` is a node name the route graph resolves. The graph has Rucesion
  * Inn, Rucesion Bank, Rucesion Town Hall, and Mileth Inn. It does **not** yet
  * have Mileth Tavern, Mileth Town Hall, Piet Bank, Abel Bank, or Undine Bank, so
- * an errand to one of those stops with `noRoute` until the graph gains the node.
- * That is the world-map coverage follow-up. The name is written here as the
- * building it should resolve to, so the errand works the moment the node exists.
+ * an errand to one of those stops with `noRoute` until the graph gains the node
+ * (WP33). The towns themselves are reachable: the walker crosses the world map.
+ * The name is written here as the building it should resolve to, so the errand
+ * works the moment the node exists.
  */
 export const BUILTIN_ERRANDS: Errand[] = [
   // --- Clout: one errand for each NPC ------------------------------------

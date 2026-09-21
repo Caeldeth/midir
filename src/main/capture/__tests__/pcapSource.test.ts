@@ -77,6 +77,12 @@ class FakeApi implements PcapApi {
   isWindow(): boolean {
     return false
   }
+  pointerIn(): null {
+    return null
+  }
+  clientSize(): null {
+    return null
+  }
 
   /** Deliver frames as the addon would. */
   deliver(...frames: Buffer[]): void {

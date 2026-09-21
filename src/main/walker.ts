@@ -7,10 +7,11 @@ import type {
   WalkRequest,
   WalkStopReason
 } from '../shared/actionLayer'
-import type { ActionLayer, LiveConnection } from './actionLayer'
+import { VK_SPACE, type ActionLayer, type LiveConnection } from './actionLayer'
 import type { Logger } from './log'
+import type { FieldMapState } from './model/fieldMap'
 import type { Position } from './model/position'
-import type { RouteGraph } from './route/graph'
+import type { RouteGraph, RouteHop, RouteLeg, RouteWarp } from './route/graph'
 import type { MapProvider } from './route/mapSource'
 import type { MapGrid } from './route/mapGrid'
 import { findPath, type PathStep } from './route/pathfind'
@@ -33,6 +34,13 @@ import { DIRECTION_DELTA } from './protocol/decode'
  * They fail differently and stay apart. The action layer, the position feed, the
  * map source, and the graph are all injected, so the whole walker runs against a
  * fake action layer and a scripted position with no game.
+ *
+ * A warp that needs more than the step is a hop (route/graph.ts `RouteHop`).
+ * The world map is the one that matters: a town's gateway tiles open the
+ * SFieldMap 0x2E pane, and the walk continues only when a point on it is
+ * clicked. The walker reads the pane off the wire, picks the point whose map id
+ * is the next map of the route, clicks it, and waits for the map change: the
+ * same step-and-confirm rule, with a click for the step.
  */
 
 /** The Win32 virtual keys the client reads as the four walk directions. */
@@ -64,6 +72,37 @@ const POLL_MS = 40
 const STEP_CONFIRM_MS = 1200
 /** How long to wait for a map change to confirm, in milliseconds. A cache miss downloads the map. */
 const WARP_CONFIRM_MS = 8000
+/**
+ * How long to wait for a plain warp to fire after the step onto its tile, in
+ * milliseconds, before the walker tries one tile further.
+ *
+ * A warp fires within a moment of the step. What takes long is the map load
+ * after it, which WARP_CONFIRM_MS covers once the map id has changed.
+ */
+const WARP_FIRE_MS = 2500
+/** How long to wait for the world map pane to open after the step onto its tile, in milliseconds. */
+const FIELD_MAP_OPEN_MS = 3000
+/** A settle after the pane opens, before the click. DA Walker waits a second. */
+const PANE_SETTLE_MS = 600
+/**
+ * How long to wait for the client's own 0x3F after a click, in milliseconds.
+ *
+ * The pane sends it after its marker animation. The docs say 0.5 to 4 s; the
+ * live check of 2026-09-21 measured about 7 s, so this is generous.
+ */
+const CLICK_ACK_MS = 10000
+/** How many times to click a point that the client did not answer. */
+const CLICK_TRIES = 3
+/**
+ * How long to wait for the map change after the client answered a hop, in
+ * milliseconds. The destination may need a download.
+ */
+const HOP_CONFIRM_MS = 15000
+/**
+ * How far apart the wire's point and DA Walker's recorded click may be before
+ * the walker logs the difference, in pixels. The live check reads that log.
+ */
+const CLICK_MISMATCH_PX = 8
 /** How long to wait for the position to become known, in milliseconds. */
 const WAIT_KNOWN_MS = 4000
 /** A settle after a landed step, so the next key does not fall mid-step. */
@@ -85,6 +124,8 @@ export interface WalkerOptions {
   liveConnections: () => LiveConnection[]
   /** Where a character stands, from the capture service. */
   positionFor: (connectionId: string) => Position | null
+  /** The world map on screen, from the capture service. Absent means never. */
+  fieldMapFor?: (connectionId: string) => FieldMapState | null
   /** The source of a map's passability. */
   maps: MapProvider
   /** The between-maps route graph. */
@@ -119,6 +160,8 @@ interface Run {
   stepsTaken: number
   lastPosition?: Position
   nextWarp?: { toMapId: number; x: number; y: number }
+  /** Capture time of the last world map pane written to the log, so a retry does not repeat it. */
+  loggedPaneAt?: number
 }
 
 /** The key for one tile in the run's learned-blocked set. */
@@ -172,6 +215,7 @@ function classifyLayerStop(reason: string): WalkStopReason {
 
 export function createWalker(options: WalkerOptions): Walker {
   const { actionLayer, liveConnections, positionFor, maps, graph, log, onState } = options
+  const fieldMapFor = options.fieldMapFor ?? ((): FieldMapState | null => null)
   const now = options.now ?? Date.now
   const sleep = options.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)))
 
@@ -213,6 +257,172 @@ export function createWalker(options: WalkerOptions): Walker {
     return waitFor(connectionId, (p) => p !== null && p.confidence !== 'unknown', timeoutMs)
   }
 
+  /** Wait for the map to change to `mapId` and the position on it to be confirmed. */
+  function waitWarped(
+    connectionId: string,
+    mapId: number,
+    timeoutMs: number
+  ): Promise<Position | null> {
+    return waitFor(
+      connectionId,
+      (p) => p !== null && p.mapId === mapId && p.confidence === 'confirmed',
+      timeoutMs
+    )
+  }
+
+  /** Poll `read` until it returns a value or the deadline passes. */
+  async function pollFor<T>(read: () => T | null, timeoutMs: number): Promise<T | null> {
+    const deadline = now() + timeoutMs
+    for (;;) {
+      const value = read()
+      if (value !== null) return value
+      if (now() >= deadline) return null
+      await sleep(POLL_MS)
+    }
+  }
+
+  /** Map an action-layer refusal to what the hop does next. */
+  function refuse(run: Run, refusal: string): { kind: 'failed' } | WalkOutcome {
+    if (refusal === 'stopped') return { kind: 'stopped', reason: run.stopReason ?? 'user' }
+    if (refusal === 'rateLimited') return { kind: 'failed' }
+    return { kind: 'stopped', reason: 'lostCharacter' }
+  }
+
+  /**
+   * Perform a hop: the gesture a warp tile needs beyond the step onto it.
+   *
+   * The character stands on the tile. Returns `done` once the map changed to
+   * the leg's destination, `failed` when the gesture did not take (the caller
+   * counts a stall, as for a plain warp that did not fire), or a stop.
+   */
+  async function performHop(
+    run: Run,
+    target: ActionTarget,
+    leg: RouteLeg,
+    warp: RouteWarp,
+    via: RouteHop,
+    before: Position
+  ): Promise<{ kind: 'done' } | { kind: 'failed' } | WalkOutcome> {
+    if (via.kind === 'dialog') {
+      // The planner never routes through one. Stop rather than guess.
+      log.warn('walker', `Warp (${warp.x}, ${warp.y}) needs an NPC dialog; not a walk.`)
+      return { kind: 'stopped', reason: 'noRoute' }
+    }
+
+    if (via.kind === 'prompt') {
+      log.info('walker', `Warp (${warp.x}, ${warp.y}) asks a prompt; accepting it.`)
+      const refusal = await actionLayer.pressKey(target, VK_SPACE)
+      if (refusal !== null) return refuse(run, refusal)
+      const warped = await waitWarped(run.connectionId, leg.toMapId, HOP_CONFIRM_MS)
+      return warped !== null ? { kind: 'done' } : { kind: 'failed' }
+    }
+
+    // The world map. Wait for the pane the tile opens, then find the point.
+    const pane = await pollFor(() => {
+      const state = fieldMapFor(run.connectionId)
+      return state !== null && state.asOfMs >= before.asOfMs ? state : null
+    }, FIELD_MAP_OPEN_MS)
+    if (pane === null) {
+      log.info(
+        'walker',
+        `World map did not open at (${warp.x}, ${warp.y}) within ${FIELD_MAP_OPEN_MS} ms.`
+      )
+      return { kind: 'failed' }
+    }
+
+    // Write the pane out once. The log then says what the wire offered, which
+    // is what a failed hop needs to be understood.
+    if (run.loggedPaneAt !== pane.asOfMs) {
+      run.loggedPaneAt = pane.asOfMs
+      const listing = pane.packet.points
+        .map((p) => `${p.name} (${p.screenX}, ${p.screenY}) -> map ${p.mapId} at (${p.x}, ${p.y})`)
+        .join('; ')
+      log.info(
+        'walker',
+        `World map ${pane.packet.fieldName} open with ${pane.packet.points.length} points, marker on ${pane.packet.currentIndex}: ${listing}.`
+      )
+    }
+
+    // The wire's point for the next map is the click target. DA Walker's
+    // recorded position is the fallback, and the check when both exist.
+    const point = pane.packet.points.find((p) => p.mapId === leg.toMapId)
+    let click: { x: number; y: number }
+    if (point !== undefined) {
+      click = { x: point.screenX, y: point.screenY }
+      const dx = Math.abs(point.screenX - via.screenX)
+      const dy = Math.abs(point.screenY - via.screenY)
+      if (dx > CLICK_MISMATCH_PX || dy > CLICK_MISMATCH_PX) {
+        log.warn(
+          'walker',
+          `World map point "${point.name}" for map ${leg.toMapId} is at (${point.screenX}, ${point.screenY}) on the wire and (${via.screenX}, ${via.screenY}) in the imported graph. Using the wire.`
+        )
+      }
+      log.info(
+        'walker',
+        `Clicking "${point.name}" at (${click.x}, ${click.y}) for map ${leg.toMapId}.`
+      )
+    } else {
+      click = { x: via.screenX, y: via.screenY }
+      log.warn(
+        'walker',
+        `World map has no point for map ${leg.toMapId}; clicking the imported position (${click.x}, ${click.y}).`
+      )
+    }
+
+    // Let the pane finish drawing before the first click.
+    await sleep(PANE_SETTLE_MS)
+
+    // Click, then wait for the client's own 0x3F: the proof the release landed
+    // on the point. Without it the click missed, and a wait for the map change
+    // would be a wait for nothing. Retry a few times before calling it a stall.
+    for (let attempt = 1; attempt <= CLICK_TRIES; attempt++) {
+      if (!run.running || actionLayer.stopped) {
+        return { kind: 'stopped', reason: run.stopReason ?? 'user' }
+      }
+      const clickedAt = now()
+      const refusal = await actionLayer.click(target, click.x, click.y)
+      if (refusal !== null) return refuse(run, refusal)
+
+      const answered = await pollFor(() => {
+        const state = fieldMapFor(run.connectionId)
+        if (state?.click !== undefined && state.click.asOfMs >= clickedAt) return state.click
+        // The pane is gone and the map is the destination: the answer was
+        // missed on the wire, but the hop plainly took.
+        const p = positionFor(run.connectionId)
+        return p !== null && p.mapId === leg.toMapId ? { packet: null, asOfMs: p.asOfMs } : null
+      }, CLICK_ACK_MS)
+
+      if (answered === null) {
+        log.info(
+          'walker',
+          `The client did not answer the click at (${click.x}, ${click.y}) within ${CLICK_ACK_MS} ms (try ${attempt}/${CLICK_TRIES}).`
+        )
+        continue
+      }
+      if (answered.packet !== null) {
+        const sent = answered.packet
+        if (sent.mapId !== leg.toMapId) {
+          log.warn(
+            'walker',
+            `The client sent a click for map ${sent.mapId}, not the ${leg.toMapId} asked for.`
+          )
+        } else {
+          log.info(
+            'walker',
+            `The client answered: map ${sent.mapId} at (${sent.x}, ${sent.y}), ${answered.asOfMs - clickedAt} ms after the click.`
+          )
+        }
+      }
+      const warped = await waitWarped(run.connectionId, leg.toMapId, HOP_CONFIRM_MS)
+      return warped !== null ? { kind: 'done' } : { kind: 'failed' }
+    }
+    log.warn(
+      'walker',
+      `No click selected the world map point for map ${leg.toMapId}; giving up on this tile.`
+    )
+    return { kind: 'failed' }
+  }
+
   /**
    * Run the walk. Returns the outcome. The loop re-plans from the current
    * position every step, so a missed step, a warp, and a wrong turn are all just
@@ -229,6 +439,9 @@ export function createWalker(options: WalkerOptions): Walker {
     // cache calls them open — a creature in the way, or a cache that disagrees
     // with the server. A* routes around these.
     const blocked = new Set<string>()
+    // How many times each warp tile was stood on without firing. Kept apart
+    // from the step stalls, which a landed step resets.
+    const warpTries = new Map<string, number>()
 
     for (;;) {
       if (!run.running) return { kind: 'stopped', reason: run.stopReason ?? 'user' }
@@ -279,9 +492,12 @@ export function createWalker(options: WalkerOptions): Walker {
       // Route around the tiles this run has learned it cannot get through.
       const grid = gridWithBlocks(rawGrid, position.mapId, blocked)
 
-      // Pick the nearest warp tile the character can actually path to.
-      let best: { warp: { x: number; y: number }; path: PathStep[] } | null = null
+      // Pick the nearest warp tile the character can actually path to. A warp
+      // tile this run learned does not fire is skipped here too: standing on it
+      // is a path of no steps, and A* would choose it for ever.
+      let best: { warp: RouteWarp; path: PathStep[] } | null = null
       for (const warp of leg.warps) {
+        if (blocked.has(tileKey(position.mapId, warp.x, warp.y))) continue
         const path = findPath(grid, { x: position.x, y: position.y }, warp)
         if (path !== null && (best === null || path.length < best.path.length)) {
           best = { warp, path }
@@ -303,31 +519,61 @@ export function createWalker(options: WalkerOptions): Walker {
       const beforeAt = before.asOfMs
 
       if (best.path.length === 0) {
-        // Standing on the warp tile, but the map has not changed yet. Wait for
-        // the warp to take, then let the next iteration see the new map.
-        const warped = await waitFor(
-          run.connectionId,
-          (p) => p !== null && p.mapId === leg.toMapId && p.confidence === 'confirmed',
-          WARP_CONFIRM_MS
-        )
-        if (warped !== null) {
-          stalls = 0
-          continue
+        // Standing on the warp tile, but the map has not changed yet. A hop
+        // needs its gesture now; a plain warp needs a wait for it to take.
+        // Either way the next iteration sees the new map.
+        if (best.warp.via !== undefined) {
+          const hop = await performHop(run, target, leg, best.warp, best.warp.via, before)
+          if (hop.kind === 'stopped') return hop
+          if (hop.kind === 'done') {
+            run.stepsTaken++
+            stalls = 0
+            log.info('walker', `Hopped to map ${leg.toMapId}.`)
+            publish(run)
+            continue
+          }
+        } else {
+          const fired = await waitFor(
+            run.connectionId,
+            (p) => p !== null && p.mapId !== before.mapId,
+            WARP_FIRE_MS
+          )
+          if (fired !== null) {
+            const warped = await waitWarped(run.connectionId, leg.toMapId, WARP_CONFIRM_MS)
+            if (warped !== null) stalls = 0
+            continue
+          }
+          // The tile did not fire. The imported graph is hand-made and is
+          // sometimes one tile short of the real warp, in the direction the
+          // character came from (the live check of 2026-09-21 found two in
+          // Rucesion Commons). One more step the same way finds it when it is.
+          const beyond = await stepBeyond(run, target, grid, before, facing, leg.toMapId)
+          if (beyond === 'stopped') {
+            return { kind: 'stopped', reason: run.stopReason ?? 'user' }
+          }
+          if (beyond === 'warped') {
+            run.stepsTaken++
+            stalls = 0
+            continue
+          }
         }
         // The warp did not take. After a few tries give up on this warp tile so
         // A* routes to another warp for the same leg, or stops if there is none.
-        ;({ stalls, stallKey } = bumpStall(stalls, stallKey, before))
-        if (stalls >= MAX_STALLS) {
-          blocked.add(tileKey(before.mapId, before.x, before.y))
+        const key = tileKey(before.mapId, before.x, before.y)
+        const tries = (warpTries.get(key) ?? 0) + 1
+        warpTries.set(key, tries)
+        if (tries >= MAX_STALLS) {
+          blocked.add(key)
           log.info('walker', `Warp tile (${before.x}, ${before.y}) did not fire; routing around.`)
-          stalls = 0
-          stallKey = ''
         }
         continue
       }
 
       const step = best.path[0]
-      const isWarpStep = step.x === best.warp.x && step.y === best.warp.y
+      // A step onto a plain warp tile changes the map. A step onto a hop tile
+      // only lands there, and the hop follows on the next iteration.
+      const isWarpStep =
+        step.x === best.warp.x && step.y === best.warp.y && best.warp.via === undefined
       // A step in a direction the character does not face turns it first.
       const isTurn = step.direction !== facing
 
@@ -402,6 +648,15 @@ export function createWalker(options: WalkerOptions): Walker {
         stalls = 0
         facing = step.direction
         log.info('walker', `Warped to map ${after.mapId}.`)
+        if (!isWarpStep) {
+          // The step was aimed short of the graph's warp tile and fired
+          // anyway: the real warp is where the step landed. Say so, so the
+          // graph can be corrected.
+          log.warn(
+            'walker',
+            `Warp to map ${after.mapId} fired at (${step.x}, ${step.y}); the graph names (${best.warp.x}, ${best.warp.y}).`
+          )
+        }
         publish(run)
         continue
       }
@@ -606,6 +861,53 @@ export function createWalker(options: WalkerOptions): Walker {
       log.warn('walker', `Position jumped to (${after.x}, ${after.y}) without a step. Stopping.`)
       return { kind: 'stopped', reason: 'lostPosition' }
     }
+  }
+
+  /**
+   * From a warp tile that did not fire, step one tile further the way the
+   * character came, in case the real warp is there.
+   *
+   * Returns `warped` when the map changed to `toMapId`, `stayed` when the step
+   * could not be taken or landed with no warp (the loop then re-plans), or
+   * `stopped`.
+   */
+  async function stepBeyond(
+    run: Run,
+    target: ActionTarget,
+    grid: MapGrid,
+    at: Position,
+    direction: number,
+    toMapId: number
+  ): Promise<'warped' | 'stayed' | 'stopped'> {
+    const delta = DIRECTION_DELTA[direction]
+    if (delta === undefined || !grid.canMove(at.x, at.y, direction)) return 'stayed'
+    const nx = at.x + delta[0]
+    const ny = at.y + delta[1]
+    log.info(
+      'walker',
+      `Warp tile (${at.x}, ${at.y}) did not fire; trying one tile ${DIRECTION_NAME[direction]} at (${nx}, ${ny}).`
+    )
+    const refusal = await actionLayer.pressKey(target, DIRECTION_KEY[direction]!)
+    if (refusal === 'stopped') return 'stopped'
+    if (refusal !== null) return 'stayed'
+    const after = await waitFor(
+      run.connectionId,
+      (p) =>
+        p !== null &&
+        p.asOfMs > at.asOfMs &&
+        (p.mapId !== at.mapId || p.x !== at.x || p.y !== at.y),
+      WARP_CONFIRM_MS
+    )
+    if (after === null) return 'stayed'
+    run.lastPosition = after
+    if (after.mapId === toMapId) {
+      log.warn(
+        'walker',
+        `Warp to map ${toMapId} fired at (${nx}, ${ny}); the graph names (${at.x}, ${at.y}). Correct the graph.`
+      )
+      return 'warped'
+    }
+    return 'stayed'
   }
 
   /** Count a stall, resetting when the character has moved to a new place. */

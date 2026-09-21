@@ -52,7 +52,8 @@ function context(
     status: () => status,
     liveCharacterEntries: () => [],
     positionFor: () => null,
-    dialogFor: () => null
+    dialogFor: () => null,
+    fieldMapFor: () => null
   }
   return {
     log: fakeLogger(currentLogFile),

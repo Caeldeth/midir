@@ -84,6 +84,8 @@ export const ServerOpcode = {
   RemoveSpell: 0x18,
   AddSkill: 0x2c,
   RemoveSkill: 0x2d,
+  /** The world map: the field image and its clickable points. See decode/fieldMap.ts. */
+  FieldMap: 0x2e,
   ScreenMenu: 0x2f,
   PursuitMessage: 0x30,
   DrawHumanObjects: 0x33,
@@ -116,6 +118,8 @@ export const ClientOpcode = {
   PursuitResponse: 0x3a,
   /** Submits a replacement password. Wire format unknown. See scrub.ts. */
   NewPassword: 0x27,
+  /** Picks a point on the world map. See decode/fieldMap.ts. */
+  FieldMapClick: 0x3f,
   /** Verifies a one-time password. Wire format unknown. See scrub.ts. */
   Otp: 0x8f
 } as const
