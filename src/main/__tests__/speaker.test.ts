@@ -38,6 +38,7 @@ function fakeLayer() {
     pressKey: async () => null,
     click: async () => null,
     typeText: async () => null,
+    doubleClick: async () => null,
     typeLine: async (target, text) => {
       if (stopped) return 'stopped'
       if (typeResult !== null) return typeResult

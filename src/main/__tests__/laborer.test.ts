@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { createLaborer, rowY, type Sleeper } from '../laborer'
 import type { ActionLayer, LiveConnection } from '../actionLayer'
 import type { ActionRefusal, ActionTarget, Errand, WalkOutcome } from '../../shared/types'
-import type { DialogState } from '../model/dialog'
+import type { DialogAnswer, DialogState } from '../model/dialog'
 import type { NoticeState } from '../model/notice'
 import type { NpcMenu } from '../protocol/decode/dialog'
 import type { PursuitMessage } from '../protocol/decode/pursuit'
@@ -67,7 +67,7 @@ type Click = { x: number; y: number }
 
 /** The click the Laborer posts for a one-based `row` of a `rows`-row dialog. */
 function rowClick(rows: number, row: number): Click {
-  return { x: 386, y: rowY(rows, row) }
+  return { x: 540, y: rowY(rows, row) }
 }
 
 /** The click that closes a dialog. */
@@ -77,6 +77,10 @@ interface FakeLayer {
   layer: ActionLayer
   /** Every click posted, in order. Rows are chosen by a click. */
   clicks: Click[]
+  /** Every double click posted, in order. */
+  doubleClicks: Click[]
+  /** The client's answers so far, as the capture service would hold the newest. */
+  answerFor: () => DialogAnswer | null
   typed: string[]
   armed: string[]
   disarmed: string[]
@@ -85,17 +89,48 @@ interface FakeLayer {
   setRefusal: (refusal: ActionRefusal | null) => void
 }
 
-function fakeLayer(feed: Feed): FakeLayer {
+/**
+ * A fake action layer over the feed. The gesture a row takes is a live fact,
+ * so the fake takes it as a setting: on `click` a single click is answered
+ * and moves the feed on; on `double` only the double click is.
+ */
+function fakeLayer(feed: Feed, rowGesture: 'click' | 'double' = 'click'): FakeLayer {
   const state = { stopped: false }
   const clicks: Click[] = []
+  const doubleClicks: Click[] = []
   const typed: string[] = []
   const armed: string[] = []
   const disarmed: string[] = []
   let onStop: ((reason: string) => void) | undefined
   let refusal: ActionRefusal | null = null
+  let answer: DialogAnswer | null = null
 
   const advance = (): void => {
     if (feed.index < feed.list.length) feed.index++
+  }
+  /** The client answers the dialog on screen: the feed moves on. */
+  const answerRow = (): void => {
+    const shown = feed.list[feed.index]
+    answer = {
+      packet: {
+        kind: 'merchantResponse',
+        objectType: 1,
+        objectId: 1,
+        pursuit: 0,
+        tail: new Uint8Array()
+      },
+      asOfMs: (answer?.asOfMs ?? 0) + 1,
+      dialog: shown?.packet ?? {
+        kind: 'npcMenu',
+        sourceId: 1,
+        npcName: '',
+        menuType: 0,
+        text: '',
+        isTextInput: false,
+        options: []
+      }
+    }
+    advance()
   }
 
   const layer = {
@@ -111,7 +146,14 @@ function fakeLayer(feed: Feed): FakeLayer {
     click: async (_t: ActionTarget, x: number, y: number): Promise<ActionRefusal | null> => {
       clicks.push({ x, y })
       if (refusal !== null) return refusal
-      advance()
+      // A close click is always taken; a row click only by the row's gesture.
+      if (rowGesture === 'click' || (x === CLOSE_CLICK.x && y === CLOSE_CLICK.y)) answerRow()
+      return null
+    },
+    doubleClick: async (_t: ActionTarget, x: number, y: number): Promise<ActionRefusal | null> => {
+      doubleClicks.push({ x, y })
+      if (refusal !== null) return refusal
+      if (rowGesture === 'double') answerRow()
       return null
     },
     typeText: async (_t: ActionTarget, text: string): Promise<ActionRefusal | null> => {
@@ -128,6 +170,8 @@ function fakeLayer(feed: Feed): FakeLayer {
   return {
     layer,
     clicks,
+    doubleClicks,
+    answerFor: () => answer,
     typed,
     armed,
     disarmed,
@@ -183,6 +227,7 @@ interface Options {
   feed: Feed
   walkOutcome?: WalkOutcome
   live?: boolean
+  rowGesture?: 'click' | 'double'
 }
 
 function make(opts: Options): {
@@ -191,7 +236,7 @@ function make(opts: Options): {
   walkerStops: string[]
   states: Array<{ running: boolean; reason?: string }>
 } {
-  const fake = fakeLayer(opts.feed)
+  const fake = fakeLayer(opts.feed, opts.rowGesture)
   const { walker, stops } = fakeWalker(opts.walkOutcome)
   const clock = fakeClock()
   const live = opts.live ?? true
@@ -209,6 +254,7 @@ function make(opts: Options): {
       if (appears !== undefined && clock.now() < appears) return null
       return opts.feed.list[opts.feed.index] ?? null
     },
+    answerFor: (id: string): DialogAnswer | null => (id === CID ? fake.answerFor() : null),
     noticeFor: (id: string): NoticeState | null =>
       id === CID ? (opts.feed.noticeAt?.[opts.feed.index] ?? null) : null,
     log: noop,
@@ -256,6 +302,29 @@ describe('createLaborer', () => {
     // Chose row 2 of 2 (Give clout) then row 1 of 2 (Yes), each by a click.
     expect(fake.clicks).toEqual([rowClick(2, 2), rowClick(2, 1)])
     expect(fake.disarmed).toContain(CID)
+  })
+
+  it('double-clicks a row when the wire shows no answer to the click', async () => {
+    const feed = feedOf([
+      pursuit({ pursuit: 0x0064, options: [{ text: 'Ask' }, { text: 'Give clout' }] }),
+      pursuit({ pursuit: 0x0065, options: [{ text: 'Yes' }, { text: 'No' }] })
+    ])
+    const { laborer, fake } = make({ errand: twoStepErrand(), feed, rowGesture: 'double' })
+    const outcome = await laborer.run({ connectionId: CID, errand: 'Test errand' })
+    expect(outcome).toEqual({ kind: 'done' })
+    // Each row: the click first, then the double click at the same spot.
+    expect(fake.clicks).toEqual([rowClick(2, 2), rowClick(2, 1)])
+    expect(fake.doubleClicks).toEqual([rowClick(2, 2), rowClick(2, 1)])
+  })
+
+  it('does not double-click a row the click was answered on', async () => {
+    const feed = feedOf([
+      pursuit({ pursuit: 0x0064, options: [{ text: 'Ask' }, { text: 'Give clout' }] }),
+      pursuit({ pursuit: 0x0065, options: [{ text: 'Yes' }, { text: 'No' }] })
+    ])
+    const { laborer, fake } = make({ errand: twoStepErrand(), feed })
+    await laborer.run({ connectionId: CID, errand: 'Test errand' })
+    expect(fake.doubleClicks).toEqual([])
   })
 
   it('selects the same row after the rows move', async () => {
@@ -516,9 +585,9 @@ describe('the recorded clout conversation (Eduardo, 2026-09-21)', () => {
     expect(fake.typed).toEqual(player.typed)
     // Row 1 of the 6-row menu, row 1 of 2, row 2 of 2: the measured positions.
     expect(fake.clicks).toEqual([
-      { x: 386, y: 245 },
-      { x: 386, y: 317 },
-      { x: 386, y: 335 }
+      { x: 540, y: 245 },
+      { x: 540, y: 317 },
+      { x: 540, y: 335 }
     ])
     expect(fake.typed).toEqual(['Pandsala'])
   })
@@ -630,8 +699,8 @@ describe('the recorded labor conversation (Evenue at Antonio, 2026-09-21)', () =
     // "Labor" is row 9 of Antonio's 12-row menu; "I want to work" is row 2 of
     // 3. Both are the positions the hand run measured (y 281 and 317).
     expect(fake.clicks).toEqual([
-      { x: 386, y: 281 },
-      { x: 386, y: 317 }
+      { x: 540, y: 281 },
+      { x: 540, y: 317 }
     ])
     expect(fake.typed).toEqual(['Pandsala'])
     expect(outcome).toEqual({

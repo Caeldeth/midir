@@ -106,6 +106,13 @@ export interface ActionLayer {
    * walker uses it to pick a point on the world map.
    */
   click(target: ActionTarget, x: number, y: number): Promise<ActionRefusal | null>
+  /**
+   * Double-click the left button at a position in game coordinates: the
+   * sequence Windows makes for a real double click, with WM_LBUTTONDBLCLK as
+   * the second press. Posted messages are never turned into one by Windows, so
+   * a control that acts on the double click needs this and not two clicks.
+   */
+  doubleClick(target: ActionTarget, x: number, y: number): Promise<ActionRefusal | null>
   /** True while any stop is in force. Drivers poll this between steps. */
   readonly stopped: boolean
   /** Halt every driver now. Idempotent, and safe to call from anywhere. */
@@ -134,6 +141,7 @@ const WM_CHAR = 0x0102
 const WM_MOUSEMOVE = 0x0200
 const WM_LBUTTONDOWN = 0x0201
 const WM_LBUTTONUP = 0x0202
+const WM_LBUTTONDBLCLK = 0x0203
 /** The wParam of a left-button message while the left button is down. */
 const MK_LBUTTON = 0x0001
 export const VK_RETURN = 0x0d
@@ -476,6 +484,28 @@ export function createActionLayer(options: ActionLayerOptions): ActionLayer {
     return null
   }
 
+  async function doubleClick(
+    target: ActionTarget,
+    x: number,
+    y: number
+  ): Promise<ActionRefusal | null> {
+    const refusal = guard(target) ?? rateGate()
+    if (refusal !== null) return refusal
+    const handle = target.windowHandle
+    const size = windows.clientSize(handle)
+    const point = toClientPoint(x, y, size)
+    const lparam = mouseLparam(point.x, point.y)
+    windows.postMessageToWindow(handle, WM_MOUSEMOVE, 0, lparam)
+    windows.postMessageToWindow(handle, WM_LBUTTONDOWN, MK_LBUTTON, lparam)
+    windows.postMessageToWindow(handle, WM_LBUTTONUP, 0, lparam)
+    await wait(keyHoldMs())
+    windows.postMessageToWindow(handle, WM_LBUTTONDBLCLK, MK_LBUTTON, lparam)
+    windows.postMessageToWindow(handle, WM_LBUTTONUP, 0, lparam)
+    const where = point.scaled ? `(${point.x}, ${point.y}) for game (${x}, ${y})` : `(${x}, ${y})`
+    log.info('assist', `Double-clicked ${where}, handle ${handle}.`)
+    return null
+  }
+
   async function typeText(target: ActionTarget, text: string): Promise<ActionRefusal | null> {
     const refusal = guard(target) ?? rateGate()
     if (refusal !== null) return refusal
@@ -622,6 +652,7 @@ export function createActionLayer(options: ActionLayerOptions): ActionLayer {
     pressKey,
     typeLine,
     typeText,
+    doubleClick,
     click,
     get stopped(): boolean {
       return stopped
