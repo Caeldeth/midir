@@ -44,8 +44,8 @@ import type { DialogStep, Errand, ErrandParam } from '../../shared/types'
  * The NPC tiles are from the world repo's `Old*.xml` (`<Npc Name X Y>`),
  * except the two officials: the xml puts Eduardo on 1,9, and a click on 1,12
  * opened his dialog in the live run of 2026-09-21, so the measured tile
- * stands and Arilan takes the same. Riona is not in the xml's Mileth Inn, so
- * her errand waits for the player to open the conversation.
+ * stands and Arilan takes the same. Riona is not in the xml's Mileth Inn;
+ * Sabrael puts her on 3,3, where Maria stands in Rucesion's.
  */
 /**
  * The civic errand: support one citizen, by name.
@@ -228,6 +228,7 @@ export const BUILTIN_ERRANDS: Errand[] = [
     name: 'Clout — Riona (Mileth Inn)',
     destination: 'Mileth Inn',
     standTile: { x: 6, y: 4 },
+    npcTile: { x: 3, y: 3 },
     npcName: 'Riona',
     ...cloutSteps(MILETH)
   },

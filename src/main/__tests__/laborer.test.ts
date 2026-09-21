@@ -744,10 +744,10 @@ describe('opening the conversation', () => {
   })
 
   it('waits for the player when the NPC tile is not known', async () => {
-    const maria = builtinErrands().find((e) => e.npcName === 'Maria')!
+    const { npcTile: _tile, ...noTile } = errand
     const feed = { list: serverDialogs(0, 8), index: 0 }
-    const { laborer, fake } = make({ errand: maria, feed, position: standing })
-    await laborer.run({ ...request, errand: maria.name })
+    const { laborer, fake } = make({ errand: noTile, feed, position: standing })
+    await laborer.run(request)
     expect(fake.clicks[0]).toEqual(rowClick(6, 1))
   })
 
