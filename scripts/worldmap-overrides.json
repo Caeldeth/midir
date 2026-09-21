@@ -1,11 +1,15 @@
 {
-  "note": "Corrections to DA Walker's WorldMap.dat, learned from the wire. import-worldmap.mjs applies each entry after the parse: it replaces the warp tiles of one exit (fromMapId to toMapId) with `tiles`. The .dat itself stays as DA Walker shipped it. Each entry names the observation that justifies it.",
+  "note": "Corrections and additions to DA Walker's WorldMap.dat, learned from the wire or from Sabrael's captures. import-worldmap.mjs applies them after the parse. `exits` replaces the warp tiles of one exit (fromMapId to toMapId) with `tiles`. `nodes` adds a map the .dat lacks, with its name and its exits, or adds exits to a map the .dat has. The .dat itself stays as DA Walker shipped it. Each entry names the observation that justifies it. `arrival` on a node is where the character lands on entering it, kept as a fact; the walker reads the position off the wire and does not use it.",
   "exits": [
     {
       "fromMapId": 3048,
       "toMapId": 3010,
-      "tiles": [[0, 9]],
-      "seen": "2026-09-21 live check: standing on the .dat's (1,9) did not fire; the warp fired on the step onto (0,9)."
+      "tiles": [
+        [0, 8],
+        [0, 9],
+        [0, 10]
+      ],
+      "seen": "2026-09-21 live check: standing on the .dat's (1,9) did not fire; the warp fired on the step onto (0,9). Sabrael's capture: the strip is 0,8 0,9 0,10."
     },
     {
       "fromMapId": 3048,
@@ -18,9 +22,147 @@
       "toMapId": 505,
       "tiles": [
         [14, 15],
+        [15, 15],
         [16, 15]
       ],
-      "seen": "2026-09-21 live check: the warp fired on the step from (16,14) onto (16,15). The .dat's (14,15) is kept; the strip is wider than one tile."
+      "seen": "2026-09-21 live check: the warp fired on the step from (16,14) onto (16,15). Sabrael's capture: the strip is 14,15 15,15 16,15."
+    },
+    {
+      "fromMapId": 3049,
+      "toMapId": 3048,
+      "tiles": [
+        [6, 15],
+        [7, 15]
+      ],
+      "seen": "2026-09-21 Sabrael: the Town Hall leaves at 6,15 and 7,15; the .dat had only 7,15."
+    },
+    {
+      "fromMapId": 505,
+      "toMapId": 498,
+      "tiles": [
+        [41, 41],
+        [41, 42],
+        [41, 43]
+      ],
+      "seen": "2026-09-21 Sabrael: Rucesion Village to Rucesion Inn at 41,41 41,42 41,43; the .dat had 41,41."
+    },
+    {
+      "fromMapId": 505,
+      "toMapId": 3010,
+      "tiles": [
+        [28, 0],
+        [29, 0],
+        [30, 0]
+      ],
+      "seen": "2026-09-21 Sabrael: Rucesion Village to Rucesion Village Way at 28,0 29,0 30,0; the .dat had 29,0."
+    },
+    {
+      "fromMapId": 3010,
+      "toMapId": 3048,
+      "tiles": [
+        [23, 9],
+        [23, 10],
+        [23, 11]
+      ],
+      "seen": "2026-09-21 Sabrael: Rucesion Village Way to Rucesion Commons at 23,9 23,10 23,11; the .dat had 23,11 (the live check warped from 22,11 onto it)."
+    },
+    {
+      "fromMapId": 505,
+      "toMapId": 422,
+      "tiles": [[42, 11]],
+      "seen": "2026-09-21 Sabrael: Rucesion Village to Rucesion Bank at 42,11, as the .dat has. Recorded as confirmed."
+    }
+  ],
+  "nodes": [
+    {
+      "mapId": 3026,
+      "name": "Mileth Town Hall",
+      "arrival": {
+        "x": 6,
+        "y": 14,
+        "note": "or 7,14"
+      },
+      "exits": [
+        {
+          "toMapId": 500,
+          "tiles": [
+            [6, 15],
+            [7, 15]
+          ]
+        }
+      ],
+      "seen": "2026-09-21 Sabrael: lod3026; arrive on 6,14 (might be 7,14); exits 6,15 and 7,15. The Mileth-side door tile is not captured yet, so Mileth (500) has no exit to it."
+    },
+    {
+      "mapId": 134,
+      "name": "Mileth Tavern",
+      "arrival": {
+        "x": 13,
+        "y": 4,
+        "note": "or 13,5"
+      },
+      "exits": [
+        {
+          "toMapId": 500,
+          "tiles": [
+            [14, 5],
+            [14, 4]
+          ]
+        }
+      ],
+      "seen": "2026-09-21 Sabrael: lod134; arrive on 13,4 (might be 13,5); exits 14,5 and 14,4. The Mileth-side door tile is not captured yet, so Mileth (500) has no exit to it."
+    },
+    {
+      "mapId": 135,
+      "name": "Mileth Bank",
+      "arrival": {
+        "x": 5,
+        "y": 10,
+        "note": "or 6,10"
+      },
+      "exits": [],
+      "seen": "2026-09-21 Sabrael: arrive on 5,10 (might be 6,10); exits 5,11 and 6,11, which the .dat has (plus 7,11). Recorded for the arrival only."
+    },
+    {
+      "mapId": 136,
+      "name": "Mileth Inn",
+      "arrival": {
+        "x": 6,
+        "y": 10
+      },
+      "exits": [],
+      "seen": "2026-09-21 Sabrael: arrive on 6,10; exits 5,11 6,11 11,2 11,3, which the .dat has. Recorded for the arrival only."
+    },
+    {
+      "mapId": 498,
+      "name": "Rucesion Inn",
+      "arrival": {
+        "x": 6,
+        "y": 10
+      },
+      "exits": [],
+      "seen": "2026-09-21 Sabrael: arrive on 6,10; exits 4,11 to 7,11, which the .dat has. Recorded for the arrival only."
+    },
+    {
+      "mapId": 422,
+      "name": "Rucesion Bank",
+      "arrival": {
+        "x": 5,
+        "y": 10
+      },
+      "exits": [],
+      "seen": "2026-09-21 Sabrael: the game calls it Rucesion Storage; arrive on 5,10; exits 5,14 and 6,14, which the .dat has. Recorded for the arrival only."
+    },
+    {
+      "mapId": 3049,
+      "name": "Rucesion Town Hall",
+      "arrival": {
+        "x": 6,
+        "y": 14,
+        "note": "or 7,14"
+      },
+      "exits": [],
+      "seen": "2026-09-21 Sabrael: arrive on 6,14 or 7,14; exits 6,15 and 7,15 (see the exit correction). Recorded for the arrival only."
     }
   ]
 }

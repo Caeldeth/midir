@@ -147,6 +147,29 @@ describe('the assist handlers', () => {
     expect(ctx.walker.go).toHaveBeenCalledWith({ connectionId: 'A', destination: 500 })
   })
 
+  it('passes a tile and how to arrive at it through', async () => {
+    const ctx = fakeContext()
+    const request = {
+      connectionId: 'A',
+      destination: 'Rucesion Bank',
+      tile: { x: 5, y: 8 },
+      arrive: 'on'
+    }
+    await startWalker(ctx, request)
+    expect(ctx.walker.go).toHaveBeenCalledWith(request)
+  })
+
+  it('rejects a tile that is not two small integers', async () => {
+    const ctx = fakeContext()
+    await expect(
+      startWalker(ctx, { connectionId: 'A', destination: 'Mileth', tile: { x: -1, y: 8 } })
+    ).rejects.toThrow()
+    await expect(
+      startWalker(ctx, { connectionId: 'A', destination: 'Mileth', arrive: 'near' })
+    ).rejects.toThrow()
+    expect(ctx.walker.go).not.toHaveBeenCalled()
+  })
+
   it('rejects a walk request with no connection', async () => {
     const ctx = fakeContext()
     await expect(startWalker(ctx, { connectionId: '', destination: 'Mileth' })).rejects.toThrow()

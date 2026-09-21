@@ -429,6 +429,22 @@
       ]
     },
     {
+      "mapId": 134,
+      "name": "Mileth Tavern",
+      "exits": [
+        {
+          "toMapId": 500,
+          "x": 14,
+          "y": 4
+        },
+        {
+          "toMapId": 500,
+          "x": 14,
+          "y": 5
+        }
+      ]
+    },
+    {
       "mapId": 135,
       "name": "Mileth Bank",
       "exits": [
@@ -985,6 +1001,16 @@
           "y": 41
         },
         {
+          "toMapId": 498,
+          "x": 41,
+          "y": 42
+        },
+        {
+          "toMapId": 498,
+          "x": 41,
+          "y": 43
+        },
+        {
           "toMapId": 502,
           "x": 21,
           "y": 44,
@@ -1026,7 +1052,17 @@
         },
         {
           "toMapId": 3010,
+          "x": 28,
+          "y": 0
+        },
+        {
+          "toMapId": 3010,
           "x": 29,
+          "y": 0
+        },
+        {
+          "toMapId": 3010,
+          "x": 30,
           "y": 0
         },
         {
@@ -3937,8 +3973,23 @@
         },
         {
           "toMapId": 505,
+          "x": 15,
+          "y": 15
+        },
+        {
+          "toMapId": 505,
           "x": 16,
           "y": 15
+        },
+        {
+          "toMapId": 3048,
+          "x": 23,
+          "y": 9
+        },
+        {
+          "toMapId": 3048,
+          "x": 23,
+          "y": 10
         },
         {
           "toMapId": 3048,
@@ -4572,13 +4623,39 @@
       ]
     },
     {
+      "mapId": 3026,
+      "name": "Mileth Town Hall",
+      "exits": [
+        {
+          "toMapId": 500,
+          "x": 6,
+          "y": 15
+        },
+        {
+          "toMapId": 500,
+          "x": 7,
+          "y": 15
+        }
+      ]
+    },
+    {
       "mapId": 3048,
       "name": "Rucesion Commons",
       "exits": [
         {
           "toMapId": 3010,
           "x": 0,
+          "y": 8
+        },
+        {
+          "toMapId": 3010,
+          "x": 0,
           "y": 9
+        },
+        {
+          "toMapId": 3010,
+          "x": 0,
+          "y": 10
         },
         {
           "toMapId": 3049,
@@ -4591,6 +4668,11 @@
       "mapId": 3049,
       "name": "Rucesion Town Hall",
       "exits": [
+        {
+          "toMapId": 3048,
+          "x": 6,
+          "y": 15
+        },
         {
           "toMapId": 3048,
           "x": 7,

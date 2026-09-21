@@ -7,9 +7,9 @@
 imported `WorldMap.dat` graph does not have all of them. This WP starts when a shipped errand needs a
 node the graph lacks.
 
-**The cross-town hop is built (PR1), and the first live check has been read back off the wire.**
-What is left: a second live check of the corrected click, and a capture of the five building
-interiors.
+**The cross-town hop is built and proven live (PR1). PR2 adds the interiors Sabrael captured, an
+arrival tile the user can enter, and the `nodes` section of the overrides file.** What is left: the
+Mileth-side door tiles for the Town Hall and the Tavern, and the three other-town banks.
 
 ## Goal
 
@@ -139,24 +139,24 @@ Three walks: Rucesion Inn to Abel Outskirts, Inn to Rucesion Town Hall, and Town
 
 ## What is left
 
-1. **The second live check (hand to Sabrael).** Rucesion Inn to Abel Outskirts again. The log now
-   says, for each click, whether the client answered and how long it took; and Town Hall to Inn
-   should need no hand.
-2. **The five building nodes.** Mileth Tavern, Mileth Town Hall, Piet Bank, Abel Bank, and Undine
-   Bank are not in `WorldMap.dat` at all. An interior is an ordinary map with its own id (Rucesion
-   Inn is node 498, with a warp back to 505), so each needs exactly two facts: its map id, and the
-   town-side warp tile that enters it, plus the tile that leaves it. One capture of walking in and
-   out gives both (WP29 would learn it from the wire). The place to put them is a `nodes` section
-   of `scripts/worldmap-overrides.json`, so a node the `.dat` lacks is added at import with its
-   observation, the same way a wrong tile is corrected. The errand entries in
-   `src/main/laborer/errands.ts` already name them, so each errand works the moment its node
-   resolves.
-3. **An arrival tile the user can enter.** A destination is a map today. A walk should be able to
-   name a tile on it too — a bank counter, a spot to stand — typed on the Walker tab beside the
-   destination and kept with a pinned destination. `WalkRequest.tile` already exists for the
-   Laborer, but it finishes _beside_ the tile (an NPC's own tile is occupied); a user's tile is one
-   to stand on, so the request gains `arrive: 'on' | 'beside'` and `approachTile` honours it. The
-   input is coordinates for now; a click on the map is WP30's, when the map viewer exists.
+1. **A walk to a tile, watched (hand to Sabrael).** `Rucesion Bank @ 5,8` from the Inn: the walk
+   should end on the counter tile with no hand.
+2. **The Mileth-side doors.** Sabrael's capture of 2026-09-21 gave the seven Mileth and Rucesion
+   interiors their arrival tile, the spot to stand on, and their exit tiles, and Rucesion's own
+   warps as full strips (PR2 put them in `scripts/worldmap-overrides.json`, the interiors under
+   `nodes`, and the stand tiles on the errands). An interior is an ordinary map with its own id, so
+   Mileth Town Hall (3026) and Mileth Tavern (134) are nodes now, with their exits back to Mileth.
+   What they still lack is the tile on Mileth (500) that enters each, so `planRoute` to them
+   returns null until it is captured: one walk in, recorded, gives it (the replay learner in
+   WP29's shape reads it straight off the `0x15`).
+3. **The three other-town banks.** Piet Bank, Abel Bank, and Undine Bank: map id, arrival, stand
+   tile, exits, and the town-side door, the same way.
+
+Done in PR2: **an arrival tile the user can enter.** `Place @ x,y` on the Walker tab walks to the
+place and then onto the tile; `parseDestination` in `shared/` splits it, so a pinned destination
+carries its tile as text. `WalkRequest.arrive` is `'on'` for a spot to stand on and `'beside'` for
+an NPC's own tile (the Laborer's `npcTile`); an errand's `standTile` uses `'on'`. A click on the
+map to pick a tile is WP30's, when the map viewer exists.
 
 ## Non-goals
 

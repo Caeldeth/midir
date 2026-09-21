@@ -76,9 +76,16 @@ export function speakerState(ctx: AssistHandlerContext): SpeakerState[] {
   return ctx.speaker.states()
 }
 
+const tileSchema = z.object({
+  x: z.number().int().min(0).max(255),
+  y: z.number().int().min(0).max(255)
+})
+
 const walkRequestSchema = z.object({
   connectionId: z.string().min(1, 'Pick a window to drive first.'),
-  destination: z.union([z.string().min(1), z.number().int()])
+  destination: z.union([z.string().min(1), z.number().int()]),
+  tile: tileSchema.optional(),
+  arrive: z.enum(['on', 'beside']).optional()
 })
 
 export async function startWalker(

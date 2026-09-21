@@ -563,6 +563,33 @@ describe('walker tile goal', () => {
     expect(world.presses).toBeGreaterThan(0)
   })
 
+  it('steps onto the tile itself when asked to arrive on it', async () => {
+    // A spot to stand on, in front of a counter: the walk ends on the tile.
+    const world = roomWorld({ x: 0, y: 0 })
+    const { walker } = harness(world, roomGraph)
+    const outcome = await walker.go({
+      connectionId: CID,
+      destination: 1,
+      tile: { x: 2, y: 2 },
+      arrive: 'on'
+    })
+    expect(outcome).toEqual({ kind: 'arrived' })
+    expect(world.position).toMatchObject({ x: 2, y: 2 })
+  })
+
+  it('arrives with no steps when already on the tile it was asked to stand on', async () => {
+    const world = roomWorld({ x: 2, y: 2 })
+    const { walker } = harness(world, roomGraph)
+    const outcome = await walker.go({
+      connectionId: CID,
+      destination: 1,
+      tile: { x: 2, y: 2 },
+      arrive: 'on'
+    })
+    expect(outcome).toEqual({ kind: 'arrived' })
+    expect(world.presses).toBe(0)
+  })
+
   it('arrives with no steps when already beside the NPC', async () => {
     const world = roomWorld({ x: 2, y: 1 }) // one tile north of (2,2)
     const { walker } = harness(world, roomGraph)

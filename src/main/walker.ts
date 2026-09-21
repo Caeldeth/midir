@@ -718,36 +718,44 @@ export function createWalker(options: WalkerOptions): Walker {
   }
 
   /**
-   * Walk the last stretch to a tile beside `destTile` on the current map.
+   * Walk the last stretch to `destTile` on the current map, or to a tile
+   * beside it.
    *
    * The map walk stops on the destination map at whatever tile the route
-   * reached. An errand needs the character beside the NPC, so this steps to a
-   * tile next to `destTile`. It follows the same step-and-confirm rule as the
-   * map walk: one key, one confirmation, re-plan when a step does not land, and
-   * stop when something else moves the character. It is simpler than the map
-   * walk because there is no warp to take.
+   * reached. An errand needs the character at the NPC, and a user may name a
+   * spot to stand on, so this steps the rest of the way. `arrive` says which:
+   * `on` ends on the tile itself (a spot in front of a counter); `beside` ends
+   * next to it (an NPC's own tile, which is occupied). It follows the same
+   * step-and-confirm rule as the map walk: one key, one confirmation, re-plan
+   * when a step does not land, and stop when something else moves the
+   * character. It is simpler than the map walk because there is no warp.
    */
   async function approachTile(
     run: Run,
     target: ActionTarget,
     destMapId: number,
-    destTile: { x: number; y: number }
+    destTile: { x: number; y: number },
+    arrive: 'on' | 'beside'
   ): Promise<WalkOutcome> {
     let stalls = 0
     let stallKey = ''
     let facing = -1
     const blocked = new Set<string>()
 
-    // The tiles beside the NPC. The NPC's own tile is occupied, so the walker
-    // finishes on one of its four neighbours.
-    const goals = [
-      { x: destTile.x, y: destTile.y - 1 },
-      { x: destTile.x + 1, y: destTile.y },
-      { x: destTile.x, y: destTile.y + 1 },
-      { x: destTile.x - 1, y: destTile.y }
-    ]
+    // Where the walk ends: the tile itself, or one of its four neighbours.
+    const goals =
+      arrive === 'on'
+        ? [destTile]
+        : [
+            { x: destTile.x, y: destTile.y - 1 },
+            { x: destTile.x + 1, y: destTile.y },
+            { x: destTile.x, y: destTile.y + 1 },
+            { x: destTile.x - 1, y: destTile.y }
+          ]
     const isAdjacent = (x: number, y: number): boolean =>
-      Math.abs(x - destTile.x) + Math.abs(y - destTile.y) === 1
+      arrive === 'on'
+        ? x === destTile.x && y === destTile.y
+        : Math.abs(x - destTile.x) + Math.abs(y - destTile.y) === 1
 
     for (;;) {
       if (!run.running) return { kind: 'stopped', reason: run.stopReason ?? 'user' }
@@ -765,7 +773,7 @@ export function createWalker(options: WalkerOptions): Walker {
       // Something else moved the character off the destination map.
       if (position.mapId !== destMapId) return { kind: 'stopped', reason: 'lostPosition' }
 
-      // Beside the NPC: done.
+      // At the goal: done.
       if (isAdjacent(position.x, position.y)) {
         publish(run)
         return { kind: 'arrived' }
@@ -975,7 +983,13 @@ export function createWalker(options: WalkerOptions): Walker {
       outcome = await runLoop(run, destMapId, armed)
       // Once on the destination map, step the last stretch to the NPC's tile.
       if (outcome.kind === 'arrived' && request.tile !== undefined) {
-        outcome = await approachTile(run, armed, destMapId, request.tile)
+        outcome = await approachTile(
+          run,
+          armed,
+          destMapId,
+          request.tile,
+          request.arrive ?? 'beside'
+        )
       }
     } catch (error) {
       log.warn('walker', `Walker on ${connectionId} threw: ${String(error)}.`)
