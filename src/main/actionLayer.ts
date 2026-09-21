@@ -151,13 +151,27 @@ const KEYUP_LPARAM = 0xc0000001
 // bare KEYDOWN_LPARAM above is enough only for a control that reads the virtual
 // key alone (the chat input reads Enter that way).
 const VK_ARROWS = new Set([0x25, 0x26, 0x27, 0x28])
-const ARROW_SCAN_CODE: Record<number, number> = {
+const SCAN_CODE: Record<number, number> = {
+  0x1b: 0x01, // VK_ESCAPE
   0x25: 0x4b, // VK_LEFT
   0x26: 0x48, // VK_UP
   0x27: 0x4d, // VK_RIGHT
   0x28: 0x50 // VK_DOWN
 }
 const EXTENDED_KEY_BIT = 0x01000000
+
+/**
+ * The keys a real press also delivers as a character. TranslateMessage turns
+ * a key-down for these into a WM_CHAR between the down and the up, and a pane
+ * that reads characters (the dialog's text field does; the exchange window's
+ * cancel on Escape is the live question) sees only that message. A posted
+ * key-down alone is invisible to it: the live run of 2026-09-21 11:29Z posted
+ * Escape as down and up at a dialog and at an exchange window, and both
+ * stayed up, while Sabrael's own Escape cancelled the exchange at once.
+ */
+const CHAR_OF_KEY: Record<number, number> = {
+  0x1b: 0x1b // VK_ESCAPE
+}
 
 /** How long a driver holds a movement key down, in milliseconds. */
 const KEY_HOLD_BASE_MS = 60
@@ -203,7 +217,7 @@ function mouseLparam(x: number, y: number): number {
 
 /** Build the lParam for a key message, with the scan code and extended-key bit. */
 function keyLparam(vk: number, up: boolean): number {
-  const scan = ARROW_SCAN_CODE[vk] ?? 0
+  const scan = SCAN_CODE[vk] ?? 0
   let lparam = 0x00000001 | (scan << 16)
   if (VK_ARROWS.has(vk)) lparam |= EXTENDED_KEY_BIT
   if (up) lparam |= 0xc0000000
@@ -386,7 +400,9 @@ export function createActionLayer(options: ActionLayerOptions): ActionLayer {
    * The client reads movement by polling the keyboard, not from the message
    * queue, so a key that goes down and up in the same instant is never sampled
    * as down. The driver holds the key for a short time, exactly as a player's
-   * finger does, and uses the extended-key lParam a real arrow key carries.
+   * finger does, and uses the extended-key lParam a real arrow key carries. A
+   * key that a real press also delivers as a character (Escape) gets its
+   * WM_CHAR after the down, as TranslateMessage would give it.
    */
   async function pressKey(target: ActionTarget, key: number): Promise<ActionRefusal | null> {
     const refusal = guard(target) ?? rateGate()
@@ -394,9 +410,16 @@ export function createActionLayer(options: ActionLayerOptions): ActionLayer {
     const handle = target.windowHandle
     const hold = keyHoldMs()
     windows.postMessageToWindow(handle, WM_KEYDOWN, key, keyLparam(key, false))
+    const character = CHAR_OF_KEY[key]
+    if (character !== undefined) {
+      windows.postMessageToWindow(handle, WM_CHAR, character, keyLparam(key, false))
+    }
     await wait(hold)
     windows.postMessageToWindow(handle, WM_KEYUP, key, keyLparam(key, true))
-    log.info('assist', `Posted key 0x${key.toString(16)} held ${hold} ms to window ${handle}.`)
+    log.info(
+      'assist',
+      `Posted key 0x${key.toString(16)}${character !== undefined ? ' with its character' : ''} held ${hold} ms to window ${handle}.`
+    )
     return null
   }
 

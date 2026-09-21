@@ -94,13 +94,12 @@ class World {
   dialog: DialogState | null = null
   /** The exchange window, or the alert it left. An open window holds the character still. */
   exchange: ExchangeState | null = null
-  /** Whether the pane's button honours the posted click. Off models a click that misses. */
+  /** Whether a pane honours the posted gesture. Off models a click that misses or a key unread. */
   buttonsWork = true
   /** Every key the walker posted that was not an arrow. */
   otherKeys: number[] = []
-  /** Every click on the dialog's Close button, and on the exchange's Cancel. */
+  /** Every click on the dialog's Close button. */
   closeClicks = 0
-  cancelClicks = 0
 
   constructor(
     readonly maps: Map<number, FakeMap>,
@@ -216,21 +215,12 @@ class World {
   /**
    * A click on the pane: the client answers with its 0x3F for the point under
    * the pointer, then the server moves the character there. A click on the
-   * dialog's Close button closes a dialog instead, and one on the exchange's
-   * Cancel sends the cancel, which the server answers by closing the window
-   * into its alert.
+   * dialog's Close button closes a dialog instead.
    */
   click(x: number, y: number): void {
     if (x === 589 && y === 461) {
       this.closeClicks++
       if (this.buttonsWork) this.dialog = null
-      return
-    }
-    if (x === 276 && y === 355) {
-      this.cancelClicks++
-      if (this.buttonsWork && this.exchange?.kind === 'open') {
-        this.exchange = { kind: 'alert', message: 'Exchange was cancelled.', asOfMs: ++this.clock }
-      }
       return
     }
     this.clicks.push({ x, y })
@@ -297,6 +287,15 @@ function harness(world: World, graphNodes: RouteNode[]): Harness {
       const direction = [0x26, 0x27, 0x28, 0x25].indexOf(_key)
       if (direction >= 0) world.press(direction)
       else world.otherKeys.push(_key)
+      // Escape is the exchange window's own cancel: the client sends it, and
+      // the server's cancel closes the window into its alert.
+      if (_key === 0x1b && world.buttonsWork && world.exchange?.kind === 'open') {
+        world.exchange = {
+          kind: 'alert',
+          message: 'Exchange was cancelled.',
+          asOfMs: ++world.clock
+        }
+      }
       return null
     },
     click: async (_t: ActionTarget, x: number, y: number): Promise<null | string> => {
@@ -823,9 +822,10 @@ describe('walker and a popup mid-walk (WP34)', () => {
     expect(world.presses).toBe(pressesAtPopup + 1)
   })
 
-  it('cancels an exchange window with a click on Cancel, and walks on', async () => {
+  it('cancels an exchange window with Escape, and walks on', async () => {
     // The popup Sabrael can make on demand: another player drags an item
-    // onto the character. SExchange 0x42, not a dialog. Cancel, never OK.
+    // onto the character. SExchange 0x42, not a dialog. Escape is its own
+    // cancel; OK is never touched.
     const world = lineWorld()
     let moves = 0
     world.afterMove = (w): void => {
@@ -837,13 +837,13 @@ describe('walker and a popup mid-walk (WP34)', () => {
     const { walker } = harness(world, lineGraph())
     const outcome = await walker.go({ connectionId: CID, destination: 'Cave' })
     expect(outcome).toEqual({ kind: 'arrived' })
-    expect(world.cancelClicks).toBe(1)
+    expect(world.otherKeys).toEqual([0x1b])
     expect(world.clicks).toEqual([])
-    expect(world.otherKeys).toEqual([])
+    expect(world.closeClicks).toBe(0)
     expect(world.exchange?.kind).toBe('alert')
   })
 
-  it('clicks Cancel once at an exchange the client keeps open, then stops with dialog', async () => {
+  it('posts one Escape at an exchange the client keeps open, then stops with dialog', async () => {
     const world = lineWorld()
     world.buttonsWork = false
     let moves = 0
@@ -856,7 +856,7 @@ describe('walker and a popup mid-walk (WP34)', () => {
     const { walker } = harness(world, lineGraph())
     const outcome = await walker.go({ connectionId: CID, destination: 'Cave' })
     expect(outcome).toEqual({ kind: 'stopped', reason: 'dialog' })
-    expect(world.cancelClicks).toBe(1)
+    expect(world.otherKeys).toEqual([0x1b])
   })
 
   it('clears a notice on the way to a tile as well', async () => {
