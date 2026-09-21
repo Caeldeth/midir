@@ -3,18 +3,22 @@
 **Size:** S. **Depends on:** WP11 and WP17 PR1 (the dialog decode), WP15 (the walker), WP14 (the
 position). Read `00-overview.md` first. **IN PROGRESS.** **Card:** `HTOO-83`.
 
-**Built 2026-09-21; the dialog side is proven live, the exchange's Cancel point is not yet.** The
+**Built 2026-09-21; the dialog side is proven live, the exchange's Escape is the next run.** The
 walker reads what is on screen before a missed step counts as a stall (`checkPopup` in
 `walker.ts`). A dialog gets a click on its Close button and is never answered; one that survives
 the click stops the walk with the reason `dialog`, and the credential pane stops it with
-`protected` before any click. An exchange window gets a click on its Cancel button and is never
-accepted. The rule and the two buttons live in `dialogScreen.ts`, shared with the Laborer's close
+`protected` before any click. An exchange window gets Escape, its own cancel, and is never
+accepted. The rule and the gestures live in `dialogScreen.ts`, shared with the Laborer's close
 step.
 
-**A posted key does nothing on a pane.** The second live run posted Escape at the prayer invite and
-at the exchange window, and both stayed up; the Close click then closed the dialog. That is the
-same fact as the dialog rows (a posted digit does nothing): the pane reads the pointer, not the
-posted key. So every dismiss is a click, and Escape is gone from the walker.
+**A posted key is not a pressed key until it carries everything a press does.** The second live
+run posted Escape at the prayer invite and at the exchange window, and both stayed up; the Close
+click then closed the dialog, and a click at the exchange's Cancel from a guessed pane position
+missed. Then Sabrael pressed Escape by hand and the exchange cancelled at once. The posted Escape
+was key-down and key-up alone, with no scan code; a real press also delivers `WM_CHAR` 0x1B, and a
+pane that reads characters (as the dialog's text field does) sees only that. `pressKey` now posts
+Escape with its scan code and its character, and the exchange goes back to Escape. Whether that is
+enough is the next run's fact.
 
 **The first live try (on the pre-WP34 build, as the log showed) named the two popups that matter.**
 The popups Sabrael can make on demand are another character's doing: an exchange window (an item
@@ -43,13 +47,12 @@ the one on screen. The exchange window is `SExchange 0x42`, one packet for open,
 accept, and `model/exchange.ts` keeps it the same way. So a walker that stalls can ask "is a popup
 up?" and clear it, rather than treating it as a wall.
 
-The exchange has two things the dialog does not. The layout (`_nexch.txt`) gives the Cancel button
-inside the pane (136 to 197 by 252 to 274 of a 421 x 296 pane) but not where the client puts the
-pane, so `EXCHANGE_CANCEL` (276, 355) is the middle of Cancel with the pane centred on the canvas,
-a guess until measured. It is a safe guess: under every other origin the pane could have, that
-point is outside the pane or on Cancel, never on OK. The measurement is the pane watcher's: it logs
-a hand click while the exchange is up and pairs it with the client's `0x4A` cancel (decoded for
-this), the way the dialog rows were measured.
+The exchange has two things the dialog does not. Its cancel is Escape, and the pane's Cancel
+button has no known place: the layout (`_nexch.txt`) gives the button inside the pane (136 to 197
+by 252 to 274 of a 421 x 296 pane) but not where the client puts the pane, and a click at (276,
+355), the button with the pane centred on the canvas, missed. If Escape fails again the button is
+measured, not guessed: the pane watcher logs a hand click while the exchange is up and pairs it
+with the client's `0x4A` cancel (decoded for this), the way the dialog rows were measured.
 
 And when the server closes the window (a cancel from either side, or the second accept), the client
 puts up a one-button alert with the closing message, and that alert is local: nothing on the wire
@@ -74,12 +77,12 @@ server reads it as no answer; choosing makes a choice the player did not. And th
    stricter rule, because its dialogs are ones it asked for and a wrong close there loses the
    errand.
 2. **Close the way the client does**, with the same key the player presses to dismiss a notice.
-   **Taken, and corrected live:** Escape cancels a popup by hand, and a posted Escape does nothing
-   (the run of 2026-09-21 11:29Z: the dialog stayed up through Escape and closed on the click).
-   So the gesture is the pane's own button: the dialog's Close at (589, 461), proven by the
-   Laborer's labor-fix step in WP17 and again here; the exchange's Cancel at (276, 355), a guess
-   from the layout until the pane watcher measures it. One click per popup; a popup still up after
-   its click stops the walk as `dialog`, so nothing loops.
+   **Taken, and corrected live:** the dialog closes on a click on its Close button at (589, 461),
+   proven by the Laborer's labor-fix step in WP17 and again here (the run of 2026-09-21 11:29Z: the
+   dialog stayed up through a posted Escape and closed on the click). The exchange cancels on
+   Escape, by hand at once; the posted Escape of 11:29Z lacked the character message a real press
+   delivers, and carries it now. One gesture per popup; a popup still up after it stops the walk as
+   `dialog`, so nothing loops.
 3. **The walker gains a "clear a notice" step** before it calls a stall a block: if a no-choice
    dialog is on screen, close it and retry the step rather than counting it as a stall. **Taken:**
    both walk loops (map to map, and to a tile) call `checkPopup` on a missed step that was not a
@@ -90,10 +93,10 @@ server reads it as no answer; choosing makes a choice the player did not. And th
    any click; every other dialog is closed (decision 1), and the log names it. The Laborer reads
    no dialog until its walk has ended, so a dialog the walker closes mid-walk is never one an
    errand expected.
-5. **An exchange is cancelled, never accepted.** The Cancel button sends the player's own cancel,
-   which loses nothing: every offer goes back. An accept would give something away, so no click of
-   the walker's is on OK, and an exchange the player set up with items in it is cancelled like any
-   other — the walker was not running for a reason if the player was trading. One click per
+5. **An exchange is cancelled, never accepted.** Escape sends the player's own cancel, which loses
+   nothing: every offer goes back. An accept would give something away, so no gesture of the
+   walker's reaches OK, and an exchange the player set up with items in it is cancelled like any
+   other — the walker was not running for a reason if the player was trading. One Escape per
    window; a window still open after it stops the walk as `dialog`.
 
 ## Non-goals
@@ -114,24 +117,25 @@ server reads it as no answer; choosing makes a choice the player did not. And th
    with no click and no key; the only key posted was the step whose miss revealed the pane.
 4. Nothing sends a packet. **Holds by construction**: the walker's only calls are `pressKey` and
    `click`.
-5. An exchange window mid-walk is cancelled and the walk continues. **Unit test passes**: one click
-   on Cancel, no other click and no key, arrived; a window still open after it stops as `dialog`.
-   The decoders (`0x42`, `0x4A`) and the reducer have their own tests, including the accept that
-   closes only on the second side and the client's cancel carried onto the alert. **Live: not yet**
-   — the Cancel point is a guess until the pane watcher measures it (below).
+5. An exchange window mid-walk is cancelled and the walk continues. **Unit test passes**: one
+   Escape, no click, arrived; a window still open after it stops as `dialog`. The decoders (`0x42`,
+   `0x4A`), the reducer (the accept that closes only on the second side; the client's cancel
+   carried onto the alert), and the action layer (Escape posted as down with scan code, character,
+   up) have their own tests. **Live: not yet** — two posted forms have failed (a bare key, a click
+   at a guessed point); the full key press is the next run.
 
 ## Live check (hand to Sabrael)
 
-The unit tests prove the logic against a scripted feed. What they cannot prove is where the
-exchange's two buttons are on screen:
+The unit tests prove the logic against a scripted feed. What they cannot prove is what the client
+does with a posted Escape, and where the exchange's buttons are on screen:
 
 1. Start a walk, and have a second character drag an item onto the walking one. The walker log
-   reads "An exchange with X is on screen; clicking Cancel at game (276, 355)." then either "The
-   exchange closed; retrying the step." (the guess is right) or "still open after 1500 ms" and a
-   stop as `dialog` (it is not). In the second case, cancel the exchange by hand: the pane watcher
-   logs "Hand click released at game (x, y) on the exchange with X." and "The client sent the
-   exchange's cancel, N ms after the hand click at game (x, y)." — that (x, y) replaces
-   `EXCHANGE_CANCEL`.
+   reads "An exchange with X is on screen; pressing Escape to cancel it." then either "The exchange
+   closed; retrying the step." (done) or "still open after 1500 ms" and a stop as `dialog`. In the
+   second case, cancel the exchange **by clicking its Cancel button** (not Escape): the pane
+   watcher logs "Hand click released at game (x, y) on the exchange with X." and "The client sent
+   the exchange's cancel, N ms after the hand click at game (x, y)." — that (x, y) is the button,
+   and the walker gains a click on it.
 2. After the cancel, the client's alert ("Exchange was cancelled.") is up. If it holds the character
    still, the walk stops as `blocked` with stalls after "The exchange closed". Clear it by hand: the
    watcher logs "Hand click released at game (x, y) with the exchange's closing alert (…) up." —
