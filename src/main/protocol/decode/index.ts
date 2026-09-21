@@ -26,6 +26,7 @@ import {
 import { decodeScreenMenu, type BankContents, type NpcMenu } from './dialog'
 import { decodeFieldMap, decodeFieldMapClick, type FieldMap, type FieldMapClick } from './fieldMap'
 import { decodeSystemMessage, type SystemMessage } from './message'
+import { decodeExchange, type Exchange } from './exchange'
 import { decodePursuitMessage, type PursuitMessage } from './pursuit'
 import {
   decodeMapInfo,
@@ -92,6 +93,7 @@ export type DecodedPacket =
   | FieldMap
   | FieldMapClick
   | SystemMessage
+  | Exchange
   | ClientExit
   | MerchantResponse
   | PursuitResponse
@@ -120,7 +122,8 @@ const DECODERS = new Map<number, Decoder>([
   [ServerOpcode.ScreenMenu, decodeScreenMenu],
   [ServerOpcode.PursuitMessage, decodePursuitMessage],
   [ServerOpcode.FieldMap, decodeFieldMap],
-  [ServerOpcode.SystemMessage, decodeSystemMessage]
+  [ServerOpcode.SystemMessage, decodeSystemMessage],
+  [ServerOpcode.Exchange, decodeExchange]
 ])
 
 const CLIENT_DECODERS = new Map<number, Decoder>([

@@ -8,6 +8,7 @@ import type { MapProvider } from '../route/mapSource'
 import type { Position } from '../model/position'
 import type { FieldMapState } from '../model/fieldMap'
 import type { DialogState } from '../model/dialog'
+import type { ExchangeState } from '../model/exchange'
 import type { FieldMap } from '../protocol/decode/fieldMap'
 import type { PursuitMessage } from '../protocol/decode/pursuit'
 import type { Logger } from '../log'
@@ -91,6 +92,12 @@ class World {
   pendingHop: { mapId: number; x: number; y: number } | null = null
   /** The dialog on screen. A dialog up holds the character still, as in the game. */
   dialog: DialogState | null = null
+  /**
+   * The exchange window, or the alert it left. An open window holds the
+   * character still; the alert holds it too while `alertBlocks` is on.
+   */
+  exchange: ExchangeState | null = null
+  alertBlocks = true
   /** Whether Escape clears a notice, and whether the Close click does. */
   escapeClears = true
   closeClears = true
@@ -120,6 +127,8 @@ class World {
     this.presses++
     // A popup holds the character still until it is cleared.
     if (this.dialog !== null) return
+    if (this.exchange?.kind === 'open') return
+    if (this.exchange?.kind === 'alert' && this.alertBlocks) return
     if (this.dropPresses > 0) {
       this.dropPresses--
       return
@@ -209,10 +218,20 @@ class World {
     this.afterMove?.(this)
   }
 
-  /** Escape: the client cancels a popup, and the server's close clears it. */
+  /**
+   * Escape: the client cancels a popup, and the server's close clears it. An
+   * open exchange becomes its closing alert on the wire; the alert goes with
+   * no word on the wire, so the world only stops it blocking.
+   */
   escape(): void {
     this.escapes++
-    if (this.escapeClears) this.dialog = null
+    if (!this.escapeClears) return
+    this.dialog = null
+    if (this.exchange?.kind === 'open') {
+      this.exchange = { kind: 'alert', message: 'Exchange was cancelled.', asOfMs: ++this.clock }
+    } else if (this.exchange?.kind === 'alert') {
+      this.alertBlocks = false
+    }
   }
 
   /**
@@ -320,6 +339,7 @@ function harness(world: World, graphNodes: RouteNode[]): Harness {
     positionFor: (id: string): Position | null => (id === CID ? world.position : null),
     fieldMapFor: (id: string): FieldMapState | null => (id === CID ? world.fieldMap : null),
     dialogFor: (id: string): DialogState | null => (id === CID ? world.dialog : null),
+    exchangeFor: (id: string): ExchangeState | null => (id === CID ? world.exchange : null),
     maps,
     graph: createRouteGraph(graphNodes),
     log: noop,
@@ -820,6 +840,42 @@ describe('walker and a popup mid-walk (WP34)', () => {
     // One step was posted before the walker could know the pane was up: the
     // step whose miss revealed it. Nothing followed.
     expect(world.presses).toBe(pressesAtPopup + 1)
+  })
+
+  it('cancels an exchange window with Escape, clears its alert, and walks on', async () => {
+    // The popup Sabrael can make on demand: another player drags an item
+    // onto the character. SExchange 0x42, not a dialog.
+    const world = lineWorld()
+    let moves = 0
+    world.afterMove = (w): void => {
+      moves++
+      if (moves === 2) {
+        w.exchange = { kind: 'open', partnerName: 'Pandsala', asOfMs: ++w.clock, accepted: [] }
+      }
+    }
+    const { walker } = harness(world, lineGraph())
+    const outcome = await walker.go({ connectionId: CID, destination: 'Cave' })
+    expect(outcome).toEqual({ kind: 'arrived' })
+    // One Escape for the window, one for the alert it left.
+    expect(world.escapes).toBe(2)
+    expect(world.closeClicks).toBe(0)
+    expect(world.exchange?.kind).toBe('alert')
+  })
+
+  it('posts one Escape at an exchange the client keeps open, then stops blocked', async () => {
+    const world = lineWorld()
+    world.escapeClears = false
+    let moves = 0
+    world.afterMove = (w): void => {
+      moves++
+      if (moves === 2) {
+        w.exchange = { kind: 'open', partnerName: 'Pandsala', asOfMs: ++w.clock, accepted: [] }
+      }
+    }
+    const { walker } = harness(world, lineGraph())
+    const outcome = await walker.go({ connectionId: CID, destination: 'Cave' })
+    expect(outcome).toEqual({ kind: 'stopped', reason: 'blocked' })
+    expect(world.escapes).toBe(1)
   })
 
   it('clears a notice on the way to a tile as well', async () => {

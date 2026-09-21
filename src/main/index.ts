@@ -274,6 +274,7 @@ const walker = createWalker({
   fieldMapFor: (connectionId) => captureService.fieldMapFor(connectionId),
   // A popup mid-walk is cleared, not counted as a stall (WP34).
   dialogFor: (connectionId) => captureService.dialogFor(connectionId),
+  exchangeFor: (connectionId) => captureService.exchangeFor(connectionId),
   // The errands' stand tiles, offered as `Place @ x,y` beside the map names.
   spots: () =>
     builtinErrands()

@@ -15,6 +15,7 @@ import {
 import { reducePosition, type Position } from './model/position'
 import { reduceAnswer, reduceDialog, type DialogAnswer, type DialogState } from './model/dialog'
 import { reduceNotice, type NoticeState } from './model/notice'
+import { reduceExchange, type ExchangeState } from './model/exchange'
 import { reduceFieldMap, type FieldMapState } from './model/fieldMap'
 import { mergeCharacter, withCharacter, type CharacterStore } from './store/characterStore'
 
@@ -106,6 +107,12 @@ export interface CaptureService {
    */
   noticeFor(connectionId: string): NoticeState | null
   /**
+   * The exchange window on `connectionId` now, or the alert it left behind,
+   * or null while there is neither. A live fact, never saved. The walker
+   * reads it beside the dialog: an open exchange holds the character still.
+   */
+  exchangeFor(connectionId: string): ExchangeState | null
+  /**
    * The world map on screen on `connectionId` now, or null while there is
    * none. A live fact, never saved. The walker reads it to click the point of
    * a cross-town hop and wait for the map change.
@@ -140,6 +147,7 @@ export function createCaptureService(options: CaptureServiceOptions): CaptureSer
   const answers = new Map<string, DialogAnswer>()
   /** The newest server notice for each connection. A live fact, like the dialog. */
   const notices = new Map<string, NoticeState>()
+  const exchanges = new Map<string, ExchangeState>()
   /** The world map on screen for each connection. A live fact, like the dialog. */
   const fieldMaps = new Map<string, FieldMapState>()
   /** Records changed but not yet written, by character name. */
@@ -326,6 +334,14 @@ export function createCaptureService(options: CaptureServiceOptions): CaptureSer
     if (noticeAfter === null) notices.delete(id)
     else notices.set(id, noticeAfter)
 
+    const exchangeAfter = reduceExchange(exchanges.get(id) ?? null, {
+      packet: tracked.event.packet,
+      timestampMs: tracked.timestampMs,
+      sawLoss
+    })
+    if (exchangeAfter === null) exchanges.delete(id)
+    else exchanges.set(id, exchangeAfter)
+
     const fieldMapBefore = fieldMaps.get(id) ?? null
     const fieldMapAfter = reduceFieldMap(fieldMapBefore, {
       packet: tracked.event.packet,
@@ -375,6 +391,7 @@ export function createCaptureService(options: CaptureServiceOptions): CaptureSer
       dialogs.clear()
       answers.clear()
       notices.clear()
+      exchanges.clear()
       fieldMaps.clear()
       lossy.clear()
       tracker.clear()
@@ -406,6 +423,7 @@ export function createCaptureService(options: CaptureServiceOptions): CaptureSer
           dialogs.delete(connection.id)
           answers.delete(connection.id)
           notices.delete(connection.id)
+          exchanges.delete(connection.id)
           fieldMaps.delete(connection.id)
           connectionCount = tracker.activeConnections().length
           publishStatus()
@@ -456,6 +474,7 @@ export function createCaptureService(options: CaptureServiceOptions): CaptureSer
       dialogs.clear()
       answers.clear()
       notices.clear()
+      exchanges.clear()
       fieldMaps.clear()
       await flush()
       publishStatus()
@@ -477,6 +496,9 @@ export function createCaptureService(options: CaptureServiceOptions): CaptureSer
     },
     noticeFor(connectionId: string): NoticeState | null {
       return notices.get(connectionId) ?? null
+    },
+    exchangeFor(connectionId: string): ExchangeState | null {
+      return exchanges.get(connectionId) ?? null
     },
     fieldMapFor(connectionId: string): FieldMapState | null {
       return fieldMaps.get(connectionId) ?? null

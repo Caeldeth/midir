@@ -75,6 +75,8 @@ export const ServerOpcode = {
   UserAppearance: 0x05,
   /** The server's general text: chat, the system notice, a prompt. See decode/message.ts. */
   SystemMessage: 0x0a,
+  /** The player-to-player exchange window. See decode/exchange.ts. */
+  Exchange: 0x42,
   /** The player's own confirmed step. See decode/movement.ts. */
   Move: 0x0b,
   Status: 0x08,
