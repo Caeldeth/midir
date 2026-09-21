@@ -55,7 +55,8 @@ function context(
     dialogFor: () => null,
     noticeFor: () => null,
     answerFor: () => null,
-    fieldMapFor: () => null
+    fieldMapFor: () => null,
+    exchangeFor: () => null
   }
   return {
     log: fakeLogger(currentLogFile),

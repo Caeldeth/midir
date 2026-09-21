@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { PointerState } from 'da-pcap'
 import { createPaneWatcher } from '../paneWatcher'
 import type { DialogAnswer, DialogState } from '../model/dialog'
+import type { ExchangeState } from '../model/exchange'
 import type { FieldMapState } from '../model/fieldMap'
 import type { FieldMap } from '../protocol/decode/fieldMap'
 import type { Logger } from '../log'
@@ -23,6 +24,7 @@ function harness() {
   let pane: FieldMapState | null = null
   let dialog: DialogState | null = null
   let answer: DialogAnswer | null = null
+  let exchange: ExchangeState | null = null
   let pointer: PointerState | null = {
     x: 0,
     y: 0,
@@ -46,6 +48,7 @@ function harness() {
     fieldMapFor: (id) => (id === CID ? pane : null),
     dialogFor: (id) => (id === CID ? dialog : null),
     answerFor: (id) => (id === CID ? answer : null),
+    exchangeFor: (id) => (id === CID ? exchange : null),
     log,
     now: () => clock
   })
@@ -71,6 +74,19 @@ function harness() {
     },
     closeDialog: () => {
       dialog = null
+    },
+    openExchange: () => {
+      exchange = { kind: 'open', partnerName: 'Evenue', asOfMs: clock, accepted: [] }
+    },
+    /** The client sends its cancel, and the server's close follows in the same batch. */
+    cancelExchange: (afterMs = 300) => {
+      clock += afterMs
+      exchange = {
+        kind: 'alert',
+        message: 'Exchange was cancelled.',
+        asOfMs: clock + 40,
+        sent: { action: 'cancel', asOfMs: clock }
+      }
     },
     /** The client answers the dialog on screen, and the server's reply replaces it. */
     answerDialog: (pursuit: number, afterMs = 400) => {
@@ -199,6 +215,38 @@ describe('the pane watcher', () => {
     // One click, one close pairing, and nothing for the fresh pane.
     expect(h.lines).toHaveLength(2)
     expect(h.lines[1]).toMatch(/^The world map closed \d+ ms after the hand click/)
+  })
+})
+
+describe('the pane watcher on an exchange window', () => {
+  it('logs a hand click on the window and pairs the cancel the client sent', () => {
+    const h = harness()
+    h.openExchange()
+    h.watcher.tick()
+    h.handClick(276, 355)
+    expect(h.lines.at(-1)).toBe(
+      'Hand click released at game (276, 355) on the exchange with Evenue.'
+    )
+    h.cancelExchange()
+    h.watcher.tick()
+    expect(h.lines.at(-1)).toBe(
+      "The client sent the exchange's cancel, 300 ms after the hand click at game (276, 355)."
+    )
+  })
+
+  it('logs a hand click with the closing alert up, and a cancel with no click', () => {
+    const h = harness()
+    h.openExchange()
+    h.watcher.tick()
+    h.cancelExchange()
+    h.watcher.tick()
+    expect(h.lines.at(-1)).toBe(
+      "The client sent the exchange's cancel with no hand click before it."
+    )
+    h.handClick(320, 260)
+    expect(h.lines.at(-1)).toBe(
+      'Hand click released at game (320, 260) with the exchange\'s closing alert ("Exchange was cancelled.") up.'
+    )
   })
 })
 

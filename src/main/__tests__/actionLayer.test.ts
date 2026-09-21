@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ClientSize, GameWindow, TcpConnection } from 'da-pcap'
 import {
   createActionLayer,
+  VK_ESCAPE,
   VK_RETURN,
   type ActionLayer,
   type HotkeyRegistrar,
@@ -157,6 +158,29 @@ describe('the action layer', () => {
     expect(await layer.pressKey(target, VK_RETURN)).toBeNull()
     expect(windows.posted.every((p) => p.handle === CLIENT_A.handle)).toBe(true)
     expect(windows.posted.length).toBeGreaterThan(0)
+  })
+
+  it('posts Escape as a real press does: down with its scan code, its character, then up', async () => {
+    // A pane that reads characters never sees a posted key-down alone (live,
+    // 2026-09-21: Escape as down and up left the exchange window open).
+    const windows = fakeWindows([CLIENT_A])
+    const { layer } = build(windows, () => [{ connectionId: idOf(CLIENT_A.local), name: 'Alice' }])
+    const target = layer.resolveTarget(idOf(CLIENT_A.local))!
+    expect(await layer.pressKey(target, VK_ESCAPE)).toBeNull()
+    const down = (0x01 << 16) | 1
+    expect(windows.posted.map((p) => [p.message, p.wParam, p.lParam])).toEqual([
+      [0x0100, 0x1b, down],
+      [0x0102, 0x1b, down],
+      [0x0101, 0x1b, (down | 0xc0000000) >>> 0]
+    ])
+  })
+
+  it('posts Enter without a character, as the chat input reads the key alone', async () => {
+    const windows = fakeWindows([CLIENT_A])
+    const { layer } = build(windows, () => [{ connectionId: idOf(CLIENT_A.local), name: 'Alice' }])
+    const target = layer.resolveTarget(idOf(CLIENT_A.local))!
+    expect(await layer.pressKey(target, VK_RETURN)).toBeNull()
+    expect(windows.posted.map((p) => p.message)).toEqual([0x0100, 0x0101])
   })
 
   it('clicks as a move then two down-up pairs at the client position', async () => {

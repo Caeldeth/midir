@@ -7,7 +7,10 @@ import type { ActionTarget } from '../../shared/actionLayer'
 import type { MapProvider } from '../route/mapSource'
 import type { Position } from '../model/position'
 import type { FieldMapState } from '../model/fieldMap'
+import type { DialogState } from '../model/dialog'
+import type { ExchangeState } from '../model/exchange'
 import type { FieldMap } from '../protocol/decode/fieldMap'
+import type { PursuitMessage } from '../protocol/decode/pursuit'
 import type { Logger } from '../log'
 
 // --- Test doubles ---------------------------------------------------------
@@ -87,6 +90,20 @@ class World {
   missClicks = 0
   /** A hop the server has yet to complete: applied on the next tick, after the client's answer. */
   pendingHop: { mapId: number; x: number; y: number } | null = null
+  /** The dialog on screen. A dialog up holds the character still, as in the game. */
+  dialog: DialogState | null = null
+  /**
+   * The exchange window, or the alert it left. An open window holds the
+   * character still, and so does the alert until it is dismissed.
+   */
+  exchange: ExchangeState | null = null
+  alertBlocks = false
+  /** Whether a pane honours the posted gesture. Off models a click that misses or a key unread. */
+  buttonsWork = true
+  /** Every key the walker posted that was not an arrow. */
+  otherKeys: number[] = []
+  /** Every click on the dialog's Close button. */
+  closeClicks = 0
 
   constructor(
     readonly maps: Map<number, FakeMap>,
@@ -107,6 +124,10 @@ class World {
 
   press(direction: number): void {
     this.presses++
+    // A popup holds the character still until it is cleared.
+    if (this.dialog !== null) return
+    if (this.exchange?.kind === 'open') return
+    if (this.exchange?.kind === 'alert' && this.alertBlocks) return
     if (this.dropPresses > 0) {
       this.dropPresses--
       return
@@ -198,9 +219,15 @@ class World {
 
   /**
    * A click on the pane: the client answers with its 0x3F for the point under
-   * the pointer, then the server moves the character there.
+   * the pointer, then the server moves the character there. A click on the
+   * dialog's Close button closes a dialog instead.
    */
   click(x: number, y: number): void {
+    if (x === 589 && y === 461) {
+      this.closeClicks++
+      if (this.buttonsWork) this.dialog = null
+      return
+    }
     this.clicks.push({ x, y })
     if (this.fieldMap === null) return
     if (this.missClicks > 0) {
@@ -264,6 +291,18 @@ function harness(world: World, graphNodes: RouteNode[]): Harness {
       // The key encodes the direction through DIRECTION_KEY = [UP,RIGHT,DOWN,LEFT].
       const direction = [0x26, 0x27, 0x28, 0x25].indexOf(_key)
       if (direction >= 0) world.press(direction)
+      else world.otherKeys.push(_key)
+      // Escape is the exchange window's own cancel: the client sends it, and
+      // the server's cancel closes the window into its alert, which holds the
+      // character until its own Escape.
+      if (_key === 0x1b && world.buttonsWork) {
+        if (world.exchange?.kind === 'open') {
+          world.exchange = { kind: 'alert', message: 'Exchange cancelled.', asOfMs: ++world.clock }
+          world.alertBlocks = true
+        } else if (world.exchange?.kind === 'alert') {
+          world.alertBlocks = false
+        }
+      }
       return null
     },
     click: async (_t: ActionTarget, x: number, y: number): Promise<null | string> => {
@@ -290,6 +329,8 @@ function harness(world: World, graphNodes: RouteNode[]): Harness {
     liveConnections,
     positionFor: (id: string): Position | null => (id === CID ? world.position : null),
     fieldMapFor: (id: string): FieldMapState | null => (id === CID ? world.fieldMap : null),
+    dialogFor: (id: string): DialogState | null => (id === CID ? world.dialog : null),
+    exchangeFor: (id: string): ExchangeState | null => (id === CID ? world.exchange : null),
     maps,
     graph: createRouteGraph(graphNodes),
     log: noop,
@@ -668,6 +709,174 @@ describe('walker tile goal', () => {
     const { walker } = harness(world, roomGraph)
     const outcome = await walker.go({ connectionId: CID, destination: 1, tile: { x: 4, y: 4 } })
     expect(outcome).toEqual({ kind: 'stopped', reason: 'lostPosition' })
+  })
+})
+
+// --- WP34: a popup mid-walk ------------------------------------------------
+
+function pursuit(overrides: Partial<PursuitMessage> = {}): PursuitMessage {
+  return {
+    kind: 'pursuitMessage',
+    dialogType: 0,
+    dialogKind: 'text',
+    objectType: 1,
+    sourceId: 0x1f6f,
+    npcName: 'Eduardo',
+    pursuit: 588,
+    step: 1,
+    hasPrevious: false,
+    hasNext: false,
+    isProtected: false,
+    text: 'You give political support to Arachne for these Temuairan four days.',
+    ...overrides
+  }
+}
+
+/** A notice pops up after the second step, as a clout verdict does. */
+function popupAfterTwoSteps(world: World, packet: PursuitMessage): void {
+  let moves = 0
+  world.afterMove = (w): void => {
+    moves++
+    if (moves === 2) w.dialog = { packet, asOfMs: ++w.clock }
+  }
+}
+
+describe('walker and a popup mid-walk (WP34)', () => {
+  it('clicks Close on a plain notice and walks on, with no stall counted', async () => {
+    // Acceptance criterion 1: a notice that blocks the walk is closed, and the
+    // walk continues. The close is a click; a posted key does nothing on a
+    // pane (live, 2026-09-21).
+    const world = lineWorld()
+    popupAfterTwoSteps(world, pursuit())
+    const { walker } = harness(world, lineGraph())
+    const outcome = await walker.go({ connectionId: CID, destination: 'Cave' })
+    expect(outcome).toEqual({ kind: 'arrived' })
+    expect(world.closeClicks).toBe(1)
+    expect(world.otherKeys).toEqual([])
+    expect(world.dialog).toBeNull()
+  })
+
+  it('clicks once and then stops with dialog when the click did not close it', async () => {
+    // No loop on a popup the client keeps up, and a reason that names it.
+    const world = lineWorld()
+    world.buttonsWork = false
+    popupAfterTwoSteps(world, pursuit())
+    const { walker } = harness(world, lineGraph())
+    const outcome = await walker.go({ connectionId: CID, destination: 'Cave' })
+    expect(outcome).toEqual({ kind: 'stopped', reason: 'dialog' })
+    expect(world.closeClicks).toBe(1)
+  })
+
+  it('closes a menu pushed on the character, and never chooses a row', async () => {
+    // Acceptance criterion 2: the prayer invite of the live try (2026-09-21):
+    // "Evenue is praying to Ceannlaidir." with No, Assist, and a curse. A
+    // close chooses none of them; the walk goes on.
+    const world = lineWorld()
+    popupAfterTwoSteps(
+      world,
+      pursuit({
+        dialogType: 2,
+        dialogKind: 'options',
+        objectType: 4,
+        pursuit: 548,
+        step: 135,
+        hasNext: true,
+        text: 'Evenue is praying to Ceannlaidir.',
+        options: [{ text: 'No' }, { text: 'Assist' }, { text: 'A curse on you for bothering me!' }]
+      })
+    )
+    const { walker } = harness(world, lineGraph())
+    const outcome = await walker.go({ connectionId: CID, destination: 'Cave' })
+    expect(outcome).toEqual({ kind: 'arrived' })
+    expect(world.closeClicks).toBe(1)
+    // No row click, no key into the pane.
+    expect(world.clicks).toEqual([])
+    expect(world.otherKeys).toEqual([])
+  })
+
+  it('closes a text field the same way', async () => {
+    const world = lineWorld()
+    popupAfterTwoSteps(world, pursuit({ dialogType: 4, dialogKind: 'textInput' }))
+    const { walker } = harness(world, lineGraph())
+    const outcome = await walker.go({ connectionId: CID, destination: 'Cave' })
+    expect(outcome).toEqual({ kind: 'arrived' })
+    expect(world.closeClicks).toBe(1)
+    expect(world.otherKeys).toEqual([])
+  })
+
+  it('stops with protected at the credential pane, before any click', async () => {
+    // Acceptance criterion 3: a dialogType-9 pane is never closed and always
+    // stops the run.
+    const world = lineWorld()
+    let pressesAtPopup = 0
+    let moves = 0
+    world.afterMove = (w): void => {
+      moves++
+      if (moves !== 2) return
+      w.dialog = {
+        packet: pursuit({ dialogType: 9, dialogKind: 'protected', isProtected: true }),
+        asOfMs: ++w.clock
+      }
+      pressesAtPopup = w.presses
+    }
+    const { walker } = harness(world, lineGraph())
+    const outcome = await walker.go({ connectionId: CID, destination: 'Cave' })
+    expect(outcome).toEqual({ kind: 'stopped', reason: 'protected' })
+    expect(world.closeClicks).toBe(0)
+    expect(world.otherKeys).toEqual([])
+    // One step was posted before the walker could know the pane was up: the
+    // step whose miss revealed it. Nothing followed.
+    expect(world.presses).toBe(pressesAtPopup + 1)
+  })
+
+  it('cancels an exchange window with Escape, clears its alert the same way, and walks on', async () => {
+    // The popup Sabrael can make on demand: another player drags an item
+    // onto the character. SExchange 0x42, not a dialog. Escape is its own
+    // cancel, and the "Exchange cancelled." alert takes Escape too; OK is
+    // never touched.
+    const world = lineWorld()
+    let moves = 0
+    world.afterMove = (w): void => {
+      moves++
+      if (moves === 2) {
+        w.exchange = { kind: 'open', partnerName: 'Pandsala', asOfMs: ++w.clock, accepted: [] }
+      }
+    }
+    const { walker } = harness(world, lineGraph())
+    const outcome = await walker.go({ connectionId: CID, destination: 'Cave' })
+    expect(outcome).toEqual({ kind: 'arrived' })
+    // One Escape for the window, one for the alert it left.
+    expect(world.otherKeys).toEqual([0x1b, 0x1b])
+    expect(world.clicks).toEqual([])
+    expect(world.closeClicks).toBe(0)
+    expect(world.exchange?.kind).toBe('alert')
+    expect(world.alertBlocks).toBe(false)
+  })
+
+  it('posts one Escape at an exchange the client keeps open, then stops with dialog', async () => {
+    const world = lineWorld()
+    world.buttonsWork = false
+    let moves = 0
+    world.afterMove = (w): void => {
+      moves++
+      if (moves === 2) {
+        w.exchange = { kind: 'open', partnerName: 'Pandsala', asOfMs: ++w.clock, accepted: [] }
+      }
+    }
+    const { walker } = harness(world, lineGraph())
+    const outcome = await walker.go({ connectionId: CID, destination: 'Cave' })
+    expect(outcome).toEqual({ kind: 'stopped', reason: 'dialog' })
+    expect(world.otherKeys).toEqual([0x1b])
+  })
+
+  it('clears a notice on the way to a tile as well', async () => {
+    // The within-map approach shares the check.
+    const world = roomWorld({ x: 0, y: 0 })
+    popupAfterTwoSteps(world, pursuit())
+    const { walker } = harness(world, roomGraph)
+    const outcome = await walker.go({ connectionId: CID, destination: 1, tile: { x: 4, y: 4 } })
+    expect(outcome).toEqual({ kind: 'arrived' })
+    expect(world.closeClicks).toBe(1)
   })
 })
 
