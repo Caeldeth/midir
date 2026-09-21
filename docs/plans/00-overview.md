@@ -141,7 +141,7 @@ WP13 (the action layer: window, keys, the stop)   COMPLETE — complete/13-actio
  └── WP15 (Walker)   COMPLETE — complete/15-walker.md
       └── WP17 (Laborer)   COMPLETE — complete/17-clout-assistant.md — sixteen errands, proven live
            ├── WP33 (world-map coverage for errand nodes)   COMPLETE — complete/33-errand-map-coverage.md — every errand routes
-           ├── WP34 (dismiss blocking popups)   COMPLETE — 34-dismiss-blocking-popups.md — three popups, proven live
+           ├── WP34 (dismiss blocking popups)   COMPLETE — complete/34-dismiss-blocking-popups.md — three popups, proven live
            └── WP35 (right-click walking)   PLANNED — the client's own pathfinder for a smoother walk
 WP14 (position and map, off the wire)   COMPLETE — complete/14-position-and-map.md — what WP15 steers by
 WP18 (the packet-send spike)   PLANNED — gates every forged packet; WP17 is the only caller waiting
@@ -203,32 +203,33 @@ Build order: **WP13, WP16, WP14, WP15, and WP17 are done** — the action layer,
 proves it, the position off the wire, the Walker that steers by it, and the Laborer that walks to an
 NPC and works its dialog, proven live on 2026-09-21 with no packet sent. **WP18** gates any forged
 packet a later feature turns out to want; WP17 needed none. WP15 also surfaced WP29–WP32 (learn
-transitions, map viewer, dynamic doors, registration-aware routing), and WP17 surfaced WP33 (done)
-and WP34.
+transitions, map viewer, dynamic doors, registration-aware routing), and WP17 surfaced WP33 and WP34
+(both done: the walker crosses the world map, and clears a dialog, an exchange, and its confirm
+mid-walk).
 
 ### Triggered follow-ons
 
 Each is a real WP with a doc, but is trigger-gated: it starts when its trigger fires, not before. The
 trigger is in each doc's header.
 
-| WP   | Size | Title                           | Card     | Status                                           |
-| ---- | ---- | ------------------------------- | -------- | ------------------------------------------------ |
-| WP20 | M    | The packet inspector            | HTOO-69  | PLANNED — `20-packet-inspector.md`               |
-| WP21 | S    | e2e of the capture surface      | HTOO-70  | PLANNED — `21-e2e-capture-surface.md`            |
-| WP22 | S    | Deposit Item `0x43` decode      | HTOO-71  | PLANNED — `22-deposit-item-decode.md` (blocked)  |
-| WP23 | S    | The `0x39` response tail decode | HTOO-72  | PLANNED — `23-pursuit-response-tail.md`          |
-| WP24 | M    | Route graph from ceridwen       | HTOO-73  | PLANNED — `24-ceridwen-route-graph.md` (blocked) |
-| WP25 | S    | Record pruning / hide unseen    | HTOO-74  | PLANNED — `25-record-pruning.md`                 |
-| WP26 | M    | The bug report to cernunnos     | HTOO-75  | PLANNED — `26-bug-report.md`                     |
-| WP27 | M    | Cut the first release           | HTOO-76  | PLANNED — `27-first-release.md`                  |
-| WP28 | S    | App standards adoption          | HTOO-77  | PLANNED — `28-app-standards.md`                  |
-| WP29 | M    | Learn map transitions from wire | HTOO-78  | PLANNED — `29-learn-transitions.md`              |
-| WP30 | M    | Map viewer / route inspector    | HTOO-79  | PLANNED — `30-map-viewer.md`                     |
-| WP31 | S    | Dynamic door collision (`0x32`) | HTOO-80  | PLANNED — `31-door-collision.md`                 |
-| WP32 | M    | Registration-aware routing      | HTOO-81  | PLANNED — `32-registration-aware-routing.md`     |
-| WP33 | S    | Map coverage for errand nodes   | HTOO-82  | COMPLETE — `complete/33-errand-map-coverage.md`  |
-| WP34 | S    | Dismiss blocking popups         | HTOO-83  | COMPLETE — `34-dismiss-blocking-popups.md`       |
-| WP35 | M    | Right-click walking             | HTOO-468 | PLANNED — `35-right-click-walking.md`            |
+| WP   | Size | Title                           | Card     | Status                                              |
+| ---- | ---- | ------------------------------- | -------- | --------------------------------------------------- |
+| WP20 | M    | The packet inspector            | HTOO-69  | PLANNED — `20-packet-inspector.md`                  |
+| WP21 | S    | e2e of the capture surface      | HTOO-70  | PLANNED — `21-e2e-capture-surface.md`               |
+| WP22 | S    | Deposit Item `0x43` decode      | HTOO-71  | PLANNED — `22-deposit-item-decode.md` (blocked)     |
+| WP23 | S    | The `0x39` response tail decode | HTOO-72  | PLANNED — `23-pursuit-response-tail.md`             |
+| WP24 | M    | Route graph from ceridwen       | HTOO-73  | PLANNED — `24-ceridwen-route-graph.md` (blocked)    |
+| WP25 | S    | Record pruning / hide unseen    | HTOO-74  | PLANNED — `25-record-pruning.md`                    |
+| WP26 | M    | The bug report to cernunnos     | HTOO-75  | PLANNED — `26-bug-report.md`                        |
+| WP27 | M    | Cut the first release           | HTOO-76  | PLANNED — `27-first-release.md`                     |
+| WP28 | S    | App standards adoption          | HTOO-77  | PLANNED — `28-app-standards.md`                     |
+| WP29 | M    | Learn map transitions from wire | HTOO-78  | PLANNED — `29-learn-transitions.md`                 |
+| WP30 | M    | Map viewer / route inspector    | HTOO-79  | PLANNED — `30-map-viewer.md`                        |
+| WP31 | S    | Dynamic door collision (`0x32`) | HTOO-80  | PLANNED — `31-door-collision.md`                    |
+| WP32 | M    | Registration-aware routing      | HTOO-81  | PLANNED — `32-registration-aware-routing.md`        |
+| WP33 | S    | Map coverage for errand nodes   | HTOO-82  | COMPLETE — `complete/33-errand-map-coverage.md`     |
+| WP34 | S    | Dismiss blocking popups         | HTOO-83  | COMPLETE — `complete/34-dismiss-blocking-popups.md` |
+| WP35 | M    | Right-click walking             | HTOO-468 | PLANNED — `35-right-click-walking.md`               |
 
 `00a-backlog.md` now holds only what is not a WP: the non-goals, the debts owed to another repo, and
 the one conditional rule.
