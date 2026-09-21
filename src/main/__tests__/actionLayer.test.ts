@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { GameWindow, TcpConnection } from 'da-pcap'
+import type { ClientSize, GameWindow, TcpConnection } from 'da-pcap'
 import {
   createActionLayer,
   VK_RETURN,
@@ -43,7 +43,10 @@ interface Posted {
 }
 
 /** A fake window API over one or two game clients. */
-function fakeWindows(clients: { pid: number; handle: number; local: number; title?: string }[]) {
+function fakeWindows(
+  clients: { pid: number; handle: number; local: number; title?: string }[],
+  sizes = new Map<number, ClientSize>()
+) {
   const live = new Set(clients.map((c) => c.handle))
   let foreground = 0
   const posted: Posted[] = []
@@ -69,7 +72,9 @@ function fakeWindows(clients: { pid: number; handle: number; local: number; titl
       return true
     },
     foregroundWindow: () => foreground,
-    isWindow: (handle) => live.has(handle)
+    isWindow: (handle) => live.has(handle),
+    pointerIn: () => null,
+    clientSize: (handle) => sizes.get(handle) ?? null
   }
 
   return {
@@ -152,6 +157,86 @@ describe('the action layer', () => {
     expect(await layer.pressKey(target, VK_RETURN)).toBeNull()
     expect(windows.posted.every((p) => p.handle === CLIENT_A.handle)).toBe(true)
     expect(windows.posted.length).toBeGreaterThan(0)
+  })
+
+  it('clicks as a move then two down-up pairs at the client position', async () => {
+    // DA Walker's world-map gesture. The pairs are posted back to back, with
+    // no hold: the pane selects on the release, and a hold is a window for the
+    // real mouse to move the pointer off the point first.
+    const windows = fakeWindows([CLIENT_A])
+    const { layer } = build(windows, () => [{ connectionId: idOf(CLIENT_A.local), name: 'Alice' }])
+    const target = layer.resolveTarget(idOf(CLIENT_A.local))!
+    expect(await layer.click(target, 307, 77)).toBeNull()
+    const lparam = (77 << 16) | 307
+    expect(windows.posted.map((p) => [p.message, p.wParam, p.lParam])).toEqual([
+      [0x0200, 0, lparam],
+      [0x0201, 1, lparam],
+      [0x0202, 0, lparam],
+      [0x0201, 1, lparam],
+      [0x0202, 0, lparam]
+    ])
+  })
+
+  it('scales a click to a larger DPI-aware window', async () => {
+    // A 150 % display: the window is 960 x 720 and stretches the game's
+    // 640 x 480, so the game's (307, 77) is the window's (461, 116).
+    const windows = fakeWindows(
+      [CLIENT_A],
+      new Map([[CLIENT_A.handle, { width: 960, height: 720, dpiAware: true }]])
+    )
+    const { layer } = build(windows, () => [{ connectionId: idOf(CLIENT_A.local), name: 'Alice' }])
+    const target = layer.resolveTarget(idOf(CLIENT_A.local))!
+    expect(await layer.click(target, 307, 77)).toBeNull()
+    expect(windows.posted[0].lParam).toBe((116 << 16) | 461)
+  })
+
+  it('scales a click to a window Windows is stretching, the same way', async () => {
+    // A DPI-unaware window on the same display: Windows draws it at 960 x 720
+    // and translates a posted coordinate from Midir's space to the window's,
+    // so the physical position is the one to post (live check, 2026-09-21).
+    const windows = fakeWindows(
+      [CLIENT_A],
+      new Map([[CLIENT_A.handle, { width: 960, height: 720, dpiAware: false }]])
+    )
+    const { layer } = build(windows, () => [{ connectionId: idOf(CLIENT_A.local), name: 'Alice' }])
+    const target = layer.resolveTarget(idOf(CLIENT_A.local))!
+    expect(await layer.click(target, 307, 77)).toBeNull()
+    expect(windows.posted[0].lParam).toBe((116 << 16) | 461)
+  })
+
+  it('states the window size and the scale when it arms', () => {
+    const windows = fakeWindows(
+      [CLIENT_A],
+      new Map([[CLIENT_A.handle, { width: 960, height: 720, dpiAware: false }]])
+    )
+    const { layer, log } = build(windows, () => [
+      { connectionId: idOf(CLIENT_A.local), name: 'Alice' }
+    ])
+    layer.arm(idOf(CLIENT_A.local))
+    const armed = log.info.mock.calls.map((c) => String(c[1])).find((l) => l.startsWith('Armed'))
+    expect(armed).toBe(
+      `Armed a driver on window ${CLIENT_A.handle} (960 x 720, DPI-unaware; game coordinates scale by 1.50 x 1.50).`
+    )
+  })
+
+  it('posts a click as it is to a 640 x 480 window', async () => {
+    const windows = fakeWindows(
+      [CLIENT_A],
+      new Map([[CLIENT_A.handle, { width: 640, height: 480, dpiAware: false }]])
+    )
+    const { layer } = build(windows, () => [{ connectionId: idOf(CLIENT_A.local), name: 'Alice' }])
+    const target = layer.resolveTarget(idOf(CLIENT_A.local))!
+    expect(await layer.click(target, 307, 77)).toBeNull()
+    expect(windows.posted[0].lParam).toBe((77 << 16) | 307)
+  })
+
+  it('refuses a click while stopped', async () => {
+    const windows = fakeWindows([CLIENT_A])
+    const { layer } = build(windows, () => [{ connectionId: idOf(CLIENT_A.local), name: 'Alice' }])
+    const target = layer.resolveTarget(idOf(CLIENT_A.local))!
+    layer.stopAll('test')
+    expect(await layer.click(target, 1, 1)).toBe('stopped')
+    expect(windows.posted).toHaveLength(0)
   })
 
   it('refuses and posts nothing while stopped', async () => {

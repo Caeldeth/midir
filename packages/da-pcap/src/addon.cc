@@ -613,6 +613,87 @@ static Napi::Value IsWindowFn(const Napi::CallbackInfo& info) {
   return Napi::Boolean::New(env, IsWindow(handle) != 0);
 }
 
+// pointerIn(handle) -> { x, y, inside, leftDown } | null
+//
+// Where the real pointer is, in the window's client coordinates, and whether
+// the left button is down now. This reads the operating system's input state
+// (GetCursorPos, GetAsyncKeyState), never the client's memory. A posted click
+// moves nothing here, so a watcher on this sees only the user's own clicks.
+// Returns null when the handle is not a live window.
+static Napi::Value PointerIn(const Napi::CallbackInfo& info) {
+  Napi::Env env = info.Env();
+  if (info.Length() < 1 || !info[0].IsNumber()) {
+    Napi::TypeError::New(env, "pointerIn(handle) expects a number").ThrowAsJavaScriptException();
+    return env.Undefined();
+  }
+  HWND handle = numberToHandle(info[0].As<Napi::Number>().DoubleValue());
+  if (!IsWindow(handle)) return env.Null();
+  POINT point;
+  if (!GetCursorPos(&point)) return env.Null();
+  if (!ScreenToClient(handle, &point)) return env.Null();
+  RECT client;
+  if (!GetClientRect(handle, &client)) return env.Null();
+  const bool inside = point.x >= client.left && point.x < client.right &&
+                      point.y >= client.top && point.y < client.bottom;
+  const bool leftDown = (GetAsyncKeyState(VK_LBUTTON) & 0x8000) != 0;
+  Napi::Object result = Napi::Object::New(env);
+  result.Set("x", Napi::Number::New(env, static_cast<double>(point.x)));
+  result.Set("y", Napi::Number::New(env, static_cast<double>(point.y)));
+  result.Set("inside", Napi::Boolean::New(env, inside));
+  result.Set("leftDown", Napi::Boolean::New(env, leftDown));
+  result.Set("width", Napi::Number::New(env, static_cast<double>(client.right - client.left)));
+  result.Set("height", Napi::Number::New(env, static_cast<double>(client.bottom - client.top)));
+  return result;
+}
+
+// Is a window DPI-aware? A DPI-unaware window is stretched by Windows on a
+// scaled display: its client area is larger on screen than the window itself
+// believes, and a posted message must carry the window's own, unscaled
+// coordinates. A DPI-aware window's client area is what it says it is, and a
+// position in the game's 640 x 480 coordinates must be scaled to it.
+//
+// GetWindowDpiAwarenessContext is Windows 10 1607 and later, so it is looked
+// up at run time. Where it is missing, every window is reported as aware and
+// the caller scales by the client size, which is the pre-1607 behaviour too.
+static bool isDpiAware(HWND handle) {
+  typedef DPI_AWARENESS_CONTEXT(WINAPI * GetContextFn)(HWND);
+  typedef DPI_AWARENESS(WINAPI * GetAwarenessFn)(DPI_AWARENESS_CONTEXT);
+  HMODULE user32 = GetModuleHandleW(L"user32.dll");
+  if (user32 == nullptr) return true;
+  auto getContext =
+      reinterpret_cast<GetContextFn>(GetProcAddress(user32, "GetWindowDpiAwarenessContext"));
+  auto getAwareness =
+      reinterpret_cast<GetAwarenessFn>(GetProcAddress(user32, "GetAwarenessFromDpiAwarenessContext"));
+  if (getContext == nullptr || getAwareness == nullptr) return true;
+  DPI_AWARENESS_CONTEXT context = getContext(handle);
+  if (context == nullptr) return true;
+  return getAwareness(context) != DPI_AWARENESS_UNAWARE;
+}
+
+// clientSize(handle) -> { width, height, dpiAware } | null
+//
+// The size of a window's client area, and whether the window is DPI-aware.
+// The game draws its 640 x 480 world at whatever size the window is, so a
+// position in the game's own coordinates must be scaled by this before it is
+// posted, unless the window is DPI-unaware and Windows does the stretching.
+// Null when the handle is not a live window.
+static Napi::Value ClientSize(const Napi::CallbackInfo& info) {
+  Napi::Env env = info.Env();
+  if (info.Length() < 1 || !info[0].IsNumber()) {
+    Napi::TypeError::New(env, "clientSize(handle) expects a number").ThrowAsJavaScriptException();
+    return env.Undefined();
+  }
+  HWND handle = numberToHandle(info[0].As<Napi::Number>().DoubleValue());
+  if (!IsWindow(handle)) return env.Null();
+  RECT client;
+  if (!GetClientRect(handle, &client)) return env.Null();
+  Napi::Object result = Napi::Object::New(env);
+  result.Set("width", Napi::Number::New(env, static_cast<double>(client.right - client.left)));
+  result.Set("height", Napi::Number::New(env, static_cast<double>(client.bottom - client.top)));
+  result.Set("dpiAware", Napi::Boolean::New(env, isDpiAware(handle)));
+  return result;
+}
+
 static Napi::Object Init(Napi::Env env, Napi::Object exports) {
   exports.Set("isAvailable", Napi::Function::New(env, IsAvailable));
   exports.Set("loadError", Napi::Function::New(env, LoadError));
@@ -626,6 +707,8 @@ static Napi::Object Init(Napi::Env env, Napi::Object exports) {
   exports.Set("setForegroundWindow", Napi::Function::New(env, SetForegroundWindowFn));
   exports.Set("foregroundWindow", Napi::Function::New(env, ForegroundWindow));
   exports.Set("isWindow", Napi::Function::New(env, IsWindowFn));
+  exports.Set("pointerIn", Napi::Function::New(env, PointerIn));
+  exports.Set("clientSize", Napi::Function::New(env, ClientSize));
   return exports;
 }
 

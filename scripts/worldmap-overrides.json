@@ -1,0 +1,26 @@
+{
+  "note": "Corrections to DA Walker's WorldMap.dat, learned from the wire. import-worldmap.mjs applies each entry after the parse: it replaces the warp tiles of one exit (fromMapId to toMapId) with `tiles`. The .dat itself stays as DA Walker shipped it. Each entry names the observation that justifies it.",
+  "exits": [
+    {
+      "fromMapId": 3048,
+      "toMapId": 3010,
+      "tiles": [[0, 9]],
+      "seen": "2026-09-21 live check: standing on the .dat's (1,9) did not fire; the warp fired on the step onto (0,9)."
+    },
+    {
+      "fromMapId": 3048,
+      "toMapId": 3049,
+      "tiles": [[4, 6]],
+      "seen": "2026-09-21 live check: the warp fired on the step from (3,6) onto (4,6), one tile short of the .dat's (5,6)."
+    },
+    {
+      "fromMapId": 3010,
+      "toMapId": 505,
+      "tiles": [
+        [14, 15],
+        [16, 15]
+      ],
+      "seen": "2026-09-21 live check: the warp fired on the step from (16,14) onto (16,15). The .dat's (14,15) is kept; the strip is wider than one tile."
+    }
+  ]
+}

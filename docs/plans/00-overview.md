@@ -43,7 +43,8 @@ protocol.
   table in `DAData.xml` (absolute addresses and offset chains for the map number, the coordinates,
   the slots, the bank, and the window state in 7.41). It **moves by `PostMessage`/`SendMessage`** —
   synthesized keystrokes to the game window. `WorldMap.dat` is a map graph with warp coordinates,
-  and `InitDistRouteTables` / `BPath` / `doorWalk` pathfind over it.
+  and `InitDistRouteTables` / `BPath` / `doorWalk` pathfind over it. It crosses the world map by
+  a posted double-click at a pixel the `.dat` records for each hop (WP33).
 - **DA Speaker** — `PostMessage` and a timer, and nothing else. No memory access at all.
 
 **Neither injects a packet, writes memory, injects a library, or patches the client.** So most of
@@ -151,6 +152,8 @@ WP29 (learn map transitions from the wire)   PLANNED — needs WP14; feeds WP15'
 WP30 (map viewer / route inspector)   PLANNED — needs WP15, WP14, WP7
 WP31 (dynamic door collision 0x32)   PLANNED — needs WP15; feeds WP17
 WP32 (registration-aware routing)   PLANNED — needs WP15, WP4/WP5; adds a 0x0A decoder
+WP33 (world-map coverage for errands)   IN PROGRESS — needs WP15, WP17; the cross-town hop
+WP35 (right-click walking)   PLANNED — needs WP15, WP13, WP33's click gesture
 ```
 
 WP7 was the one gap in the shipped run. It was specified, deferred for the protocol work that kept
@@ -211,8 +214,9 @@ trigger is in each doc's header.
 | WP30 | M    | Map viewer / route inspector    | PLANNED — `30-map-viewer.md`                     |
 | WP31 | S    | Dynamic door collision (`0x32`) | PLANNED — `31-door-collision.md`                 |
 | WP32 | M    | Registration-aware routing      | PLANNED — `32-registration-aware-routing.md`     |
-| WP33 | S    | Map coverage for errand nodes   | PLANNED — `33-errand-map-coverage.md`            |
+| WP33 | S    | Map coverage for errand nodes   | IN PROGRESS — `33-errand-map-coverage.md`        |
 | WP34 | S    | Dismiss blocking popups         | PLANNED — `34-dismiss-blocking-popups.md`        |
+| WP35 | M    | Right-click walking             | PLANNED — `35-right-click-walking.md`            |
 
 `00a-backlog.md` now holds only what is not a WP: the non-goals, the debts owed to another repo, and
 the one conditional rule.

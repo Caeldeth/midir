@@ -1,4 +1,4 @@
-import type { GameWindow, TcpConnection } from 'da-pcap'
+import type { ClientSize, GameWindow, PointerState, TcpConnection } from 'da-pcap'
 import type { ActionRefusal, ActionTarget, AssistState, AssistWindow } from '../shared/types'
 import { wrapChatLine } from '../shared/types'
 import { connectionIdOf } from './capture/source'
@@ -6,13 +6,13 @@ import { DEFAULT_PROCESS_NAME } from './capture/pcapSource'
 import type { Logger } from './log'
 
 /**
- * The one place that presses a key in the game window, and the one stop that
- * always works.
+ * The one place that presses a key or clicks in the game window, and the one
+ * stop that always works.
  *
  * The layer posts a message to a window's own input queue with PostMessageW. It
  * sends no packet, reads no memory, and injects nothing. The client validates
- * every posted key exactly as it validates a real one, so nothing happens that a
- * player could not do by hand.
+ * every posted key and click exactly as it validates a real one, so nothing
+ * happens that a player could not do by hand.
  *
  * The layer is an interface with one real implementation, so a driver runs
  * against a fake window API with no game — the same seam PacketSource gives the
@@ -28,6 +28,10 @@ export interface WindowApi {
   setForegroundWindow(handle: number): boolean
   foregroundWindow(): number
   isWindow(handle: number): boolean
+  /** The real pointer in a window's client area. See da-pcap `pointerIn`. */
+  pointerIn(handle: number): PointerState | null
+  /** The client area's size and DPI awareness. See da-pcap `clientSize`. */
+  clientSize(handle: number): ClientSize | null
 }
 
 /** The global-hotkey registrar. Injected, so tests need no Electron. */
@@ -90,6 +94,12 @@ export interface ActionLayer {
   pressKey(target: ActionTarget, key: number): Promise<ActionRefusal | null>
   /** Type a whole line into a target, then send it. Refuses, never throws. */
   typeLine(target: ActionTarget, text: string): Promise<ActionRefusal | null>
+  /**
+   * Click the left button at a position in the game's own 640 x 480
+   * coordinates, scaled to the window as it is. Refuses, never throws. The
+   * walker uses it to pick a point on the world map.
+   */
+  click(target: ActionTarget, x: number, y: number): Promise<ActionRefusal | null>
   /** True while any stop is in force. Drivers poll this between steps. */
   readonly stopped: boolean
   /** Halt every driver now. Idempotent, and safe to call from anywhere. */
@@ -115,7 +125,13 @@ export interface ActionLayer {
 const WM_KEYDOWN = 0x0100
 const WM_KEYUP = 0x0101
 const WM_CHAR = 0x0102
+const WM_MOUSEMOVE = 0x0200
+const WM_LBUTTONDOWN = 0x0201
+const WM_LBUTTONUP = 0x0202
+/** The wParam of a left-button message while the left button is down. */
+const MK_LBUTTON = 0x0001
 export const VK_RETURN = 0x0d
+export const VK_SPACE = 0x20
 // lParam for a key message: repeat count 1 for key-down, the transition and
 // previous-state bits set for key-up. Only the low 32 bits are read by a window
 // procedure, so the value is portable to 64-bit.
@@ -139,6 +155,44 @@ const EXTENDED_KEY_BIT = 0x01000000
 /** How long a driver holds a movement key down, in milliseconds. */
 const KEY_HOLD_BASE_MS = 60
 const KEY_HOLD_JITTER_MS = 30
+
+/** The size the game draws itself at, and the space every wire coordinate is in. */
+export const GAME_WIDTH = 640
+export const GAME_HEIGHT = 480
+
+/**
+ * Scale a game coordinate to the window's client area as Midir sees it.
+ *
+ * The game speaks 640 x 480: the world map's points, the view centre, every
+ * position the wire or the legacy tools give. On a scaled display the window
+ * is larger on screen, and the coordinate is scaled to that size whether the
+ * window is DPI-aware or not. A DPI-aware window really is larger and
+ * stretches its 640 x 480 to fit. A DPI-unaware window is stretched by
+ * Windows, and Windows also translates the coordinates of a message posted
+ * to it from a DPI-aware process such as Midir: the live check of 2026-09-21
+ * posted an unscaled (307, 77) to a 960 x 720 unaware window and it landed
+ * on nothing, while the physical (456, 108) of a hand click on the same
+ * label was what the client acted on. So the physical size is the right
+ * space for both. With no size to read, the coordinate is posted as it is.
+ */
+export function toClientPoint(
+  x: number,
+  y: number,
+  size: ClientSize | null
+): { x: number; y: number; scaled: boolean } {
+  if (size === null || size.width <= 0 || size.height <= 0) return { x, y, scaled: false }
+  if (size.width === GAME_WIDTH && size.height === GAME_HEIGHT) return { x, y, scaled: false }
+  return {
+    x: Math.round((x * size.width) / GAME_WIDTH),
+    y: Math.round((y * size.height) / GAME_HEIGHT),
+    scaled: true
+  }
+}
+
+/** Build the lParam for a mouse message: the client-area x in the low word, y in the high. */
+function mouseLparam(x: number, y: number): number {
+  return (((y & 0xffff) << 16) | (x & 0xffff)) >>> 0
+}
 
 /** Build the lParam for a key message, with the scan code and extended-key bit. */
 function keyLparam(vk: number, up: boolean): number {
@@ -339,6 +393,41 @@ export function createActionLayer(options: ActionLayerOptions): ActionLayer {
     return null
   }
 
+  /**
+   * Move the pointer to a client-area position and click there, twice.
+   *
+   * The move first tells the client where the pointer is, as a real click is
+   * always preceded by a move. The button goes down and up in one posting,
+   * with no hold: the pane selects a point on the release over it, and a hold
+   * is a window in which the real mouse can move the pointer off the point
+   * before the release lands. A key is held because the client polls keys; a
+   * click is a message, and needs no hold. The click is posted twice because
+   * that is what DA Walker does for the world map, and it is the proven
+   * gesture: a second release on the same point selects the same point again,
+   * so the repeat costs nothing.
+   */
+  async function click(target: ActionTarget, x: number, y: number): Promise<ActionRefusal | null> {
+    const refusal = guard(target) ?? rateGate()
+    if (refusal !== null) return refusal
+    const handle = target.windowHandle
+    const size = windows.clientSize(handle)
+    const point = toClientPoint(x, y, size)
+    const lparam = mouseLparam(point.x, point.y)
+    windows.postMessageToWindow(handle, WM_MOUSEMOVE, 0, lparam)
+    for (let i = 0; i < 2; i++) {
+      windows.postMessageToWindow(handle, WM_LBUTTONDOWN, MK_LBUTTON, lparam)
+      windows.postMessageToWindow(handle, WM_LBUTTONUP, 0, lparam)
+      if (i === 0) await wait(keyHoldMs())
+    }
+    const window =
+      size === null
+        ? ''
+        : ` in a ${size.width} x ${size.height}${size.dpiAware ? '' : ' DPI-unaware'} window`
+    const where = point.scaled ? `(${point.x}, ${point.y}) for game (${x}, ${y})` : `(${x}, ${y})`
+    log.info('assist', `Clicked ${where}${window}, handle ${handle}.`)
+    return null
+  }
+
   async function typeLine(target: ActionTarget, text: string): Promise<ActionRefusal | null> {
     const refusal = guard(target) ?? rateGate()
     if (refusal !== null) return refusal
@@ -434,8 +523,24 @@ export function createActionLayer(options: ActionLayerOptions): ActionLayer {
       everFocused: windows.foregroundWindow() === target.windowHandle
     })
     ensureWatch()
-    log.info('assist', `Armed a driver on window ${target.windowHandle}.`)
+    // Measure the window up front, so the log states the scale every posted
+    // click will use before anything is driven. Each click measures again,
+    // because the window can be resized mid-run.
+    log.info('assist', `Armed a driver on window ${target.windowHandle}${describeWindow(target)}.`)
     return target
+  }
+
+  /** The window's size and the scale a game coordinate gets, for the log. */
+  function describeWindow(target: ActionTarget): string {
+    const size = windows.clientSize(target.windowHandle)
+    if (size === null) return ''
+    const scaleX = size.width / GAME_WIDTH
+    const scaleY = size.height / GAME_HEIGHT
+    const scale =
+      size.width === GAME_WIDTH && size.height === GAME_HEIGHT
+        ? 'game coordinates post as they are'
+        : `game coordinates scale by ${scaleX.toFixed(2)} x ${scaleY.toFixed(2)}`
+    return ` (${size.width} x ${size.height}${size.dpiAware ? '' : ', DPI-unaware'}; ${scale})`
   }
 
   function disarm(connectionId: string): void {
@@ -489,6 +594,7 @@ export function createActionLayer(options: ActionLayerOptions): ActionLayer {
     disarm,
     pressKey,
     typeLine,
+    click,
     get stopped(): boolean {
       return stopped
     },

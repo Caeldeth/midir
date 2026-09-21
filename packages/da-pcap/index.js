@@ -52,7 +52,9 @@ const unsupported = {
   postMessageToWindow: stub,
   setForegroundWindow: stub,
   foregroundWindow: stub,
-  isWindow: stub
+  isWindow: stub,
+  pointerIn: stub,
+  clientSize: stub
 }
 
 let addon = unsupported

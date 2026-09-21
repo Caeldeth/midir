@@ -8,6 +8,7 @@ import { createActionLayer, type HotkeyRegistrar, type WindowApi } from './actio
 import { createSpeaker } from './speaker'
 import { createWalker } from './walker'
 import { createLaborer } from './laborer'
+import { createPaneWatcher } from './paneWatcher'
 import { createMapSource } from './route/mapSource'
 import { worldGraph } from './route/graph'
 import { createIconService } from './icons/iconService'
@@ -208,7 +209,9 @@ const windowApi: WindowApi = pcap ?? {
   postMessageToWindow: () => false,
   setForegroundWindow: () => false,
   foregroundWindow: () => 0,
-  isWindow: () => false
+  isWindow: () => false,
+  pointerIn: () => null,
+  clientSize: () => null
 }
 
 // globalShortcut is only usable after the app is ready, so registration and
@@ -267,6 +270,7 @@ const walker = createWalker({
   actionLayer,
   liveConnections: () => captureService.liveCharacterEntries(),
   positionFor: (connectionId) => captureService.positionFor(connectionId),
+  fieldMapFor: (connectionId) => captureService.fieldMapFor(connectionId),
   maps: mapSource,
   graph: worldGraph,
   log,
@@ -283,6 +287,17 @@ const laborer = createLaborer({
   dialogFor: (connectionId) => captureService.dialogFor(connectionId),
   log,
   onState: (state) => pushToRenderer(LABORER_STATE_CHANNEL, state)
+})
+
+// While a world map is open, the pane watcher logs where the user clicks by
+// hand and pairs it with the point the client sends (WP33). A diagnostic: it
+// reads the pointer through the operating system and drives nothing.
+const paneWatcher = createPaneWatcher({
+  pointerIn: (handle) => windowApi.pointerIn(handle),
+  resolveTarget: (connectionId) => actionLayer.resolveTarget(connectionId),
+  liveConnections: () => captureService.liveCharacterEntries(),
+  fieldMapFor: (connectionId) => captureService.fieldMapFor(connectionId),
+  log
 })
 
 const ctx: HandlerContext = {
@@ -389,8 +404,12 @@ app.whenReady().then(() => {
         stopOnFocusLoss: settings.assistStopOnFocusLoss
       })
       actionLayer.register()
+      paneWatcher.start()
     })
-    .catch(() => actionLayer.register())
+    .catch(() => {
+      actionLayer.register()
+      paneWatcher.start()
+    })
 
   app.on('browser-window-created', (_, window) => {
     optimizer.watchWindowShortcuts(window)
@@ -422,6 +441,7 @@ app.on('window-all-closed', () => {
 // Stop every driver and release the global hotkey as the app ends. This runs
 // even when before-quit defers the quit for a capture flush.
 app.on('will-quit', () => {
+  paneWatcher.stop()
   laborer.dispose()
   walker.dispose()
   speaker.dispose()

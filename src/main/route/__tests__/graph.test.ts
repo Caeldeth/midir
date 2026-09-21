@@ -131,4 +131,52 @@ describe('the imported world graph', () => {
     expect(plan!.legs[0].fromMapId).toBe(500)
     expect(plan!.legs[plan!.legs.length - 1].toMapId).toBe(502)
   })
+
+  it('crosses the world map from Mileth to Abel through a click', () => {
+    // Mileth Inn -> Mileth -> MilethEnt -> (world map) -> Abel Outskirts -> Abel.
+    // The MilethEnt leg is the hop: its warps open the pane, and the click DA
+    // Walker recorded for Abel Outskirts is (306, 77).
+    const plan = worldGraph.planRoute(136, 502)!
+    expect(plan.legs.map((l) => l.toMapId)).toEqual([500, 3006, 3014, 502])
+    const hop = plan.legs.find((l) => l.fromMapId === 3006)!
+    expect(hop.warps.every((w) => w.via?.kind === 'fieldMap')).toBe(true)
+    expect(hop.warps[0].via).toEqual({ kind: 'fieldMap', screenX: 306, screenY: 77 })
+    // The plain legs carry no hop.
+    expect(plan.legs[0].warps.every((w) => w.via === undefined)).toBe(true)
+  })
+
+  it('reaches Piet and Undine, the other bank towns, across the world map', () => {
+    expect(worldGraph.planRoute(505, 3020)).not.toBeNull()
+    expect(worldGraph.planRoute(505, 504)).not.toBeNull()
+  })
+})
+
+describe('hops', () => {
+  // Town's only way to Cave is a prompt; Field to Cave needs an NPC dialog.
+  const HOPS: RouteNode[] = [
+    {
+      mapId: 1,
+      name: 'Town',
+      exits: [
+        { toMapId: 2, x: 3, y: 4, via: { kind: 'fieldMap', screenX: 100, screenY: 200 } },
+        { toMapId: 3, x: 9, y: 9, via: { kind: 'prompt' } }
+      ]
+    },
+    { mapId: 2, name: 'Field', exits: [{ toMapId: 3, x: 7, y: 8, via: { kind: 'dialog' } }] },
+    { mapId: 3, name: 'Cave', exits: [] },
+    { mapId: 4, name: 'Ship', exits: [{ toMapId: 3, x: 1, y: 1, via: { kind: 'dialog' } }] }
+  ]
+  const graph = createRouteGraph(HOPS)
+
+  it('carries the hop on the leg', () => {
+    expect(graph.planRoute(1, 2)!.legs[0].warps).toEqual([
+      { x: 3, y: 4, via: { kind: 'fieldMap', screenX: 100, screenY: 200 } }
+    ])
+  })
+
+  it('routes through a prompt but never through an NPC dialog', () => {
+    expect(graph.planRoute(1, 3)!.legs.map((l) => l.toMapId)).toEqual([3])
+    expect(graph.planRoute(2, 3)).toBeNull()
+    expect(graph.planRoute(4, 3)).toBeNull()
+  })
 })

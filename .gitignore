@@ -12,5 +12,6 @@ test-results
 playwright-report
 playwright/.cache
 
-# Native addon build output (node-gyp)
+# Native addon build output (node-gyp, and electron-rebuild's prebuild copy)
 packages/*/build
+packages/*/bin
