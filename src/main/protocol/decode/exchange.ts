@@ -48,6 +48,49 @@ export type Exchange =
 /** The party byte that means the player. */
 export const EXCHANGE_PARTY_SELF = 0
 
+/**
+ * CExchange 0x4A, the client's side of the same window: every action the
+ * player takes in it. `[u8 action][u32 exchangeId]`, then for add-item a
+ * slot, for add-stack a slot and a quantity, for set-gold a u32; start,
+ * cancel and accept end after the id. The Cancel button sends 0x04 and the
+ * OK button 0x05, and neither closes the pane locally: the server's event
+ * does. So the client's cancel, paired with the hand click before it, is
+ * how the pane watcher measures where the Cancel button is.
+ */
+export interface ExchangeRequest {
+  kind: 'exchangeRequest'
+  action: 'start' | 'addItem' | 'addStack' | 'setGold' | 'cancel' | 'accept'
+  exchangeId: number
+  slot?: number
+  quantity?: number
+  gold?: number
+}
+
+const REQUEST_ACTIONS: Record<number, ExchangeRequest['action']> = {
+  0x00: 'start',
+  0x01: 'addItem',
+  0x02: 'addStack',
+  0x03: 'setGold',
+  0x04: 'cancel',
+  0x05: 'accept'
+}
+
+/** Decode CExchange 0x4A. Returns null for an action the client never sends. */
+export function decodeExchangeRequest(body: Uint8Array): ExchangeRequest | null {
+  const reader = new PacketReader(body, 1)
+  const action = REQUEST_ACTIONS[reader.u8()]
+  if (action === undefined) return null
+  const exchangeId = reader.u32()
+  const request: ExchangeRequest = { kind: 'exchangeRequest', action, exchangeId }
+  if (action === 'addItem') request.slot = reader.u8()
+  if (action === 'addStack') {
+    request.slot = reader.u8()
+    request.quantity = reader.u8()
+  }
+  if (action === 'setGold') request.gold = reader.u32()
+  return request
+}
+
 /** Decode SExchange 0x42. Returns null for an event byte no client reads. */
 export function decodeExchange(body: Uint8Array): Exchange | null {
   const reader = new PacketReader(body, 1)

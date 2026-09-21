@@ -3,6 +3,7 @@ import type { ActionTarget } from '../shared/actionLayer'
 import { GAME_HEIGHT, GAME_WIDTH, type LiveConnection } from './actionLayer'
 import type { Logger } from './log'
 import type { DialogAnswer, DialogState } from './model/dialog'
+import type { ExchangeState } from './model/exchange'
 import type { FieldMapState } from './model/fieldMap'
 import type { Position } from './model/position'
 import { centreFromClick, type Tile } from './laborer/view'
@@ -44,6 +45,8 @@ export interface PaneWatcherOptions {
   answerFor?: (connectionId: string) => DialogAnswer | null
   /** The character's position, from the capture service. Absent in older tests. */
   positionFor?: (connectionId: string) => Position | null
+  /** The exchange window on screen, from the capture service. Absent in older tests. */
+  exchangeFor?: (connectionId: string) => ExchangeState | null
   /** The NPC tiles the errands know, to turn a hand click on an NPC into the view centre. */
   knownNpcs?: () => { npcName: string; mapId: number; tile: Tile }[]
   log: Logger
@@ -75,6 +78,8 @@ interface WatchedDialog {
   lastClick?: { gameX: number; gameY: number; atMs: number }
   /** Capture time of the last 0x39 or 0x3A written to the log. */
   lastAnsweredAt?: number
+  /** Capture time of the last exchange cancel or accept written to the log. */
+  lastExchangeSentAt?: number
   /** The last hand click on the world with no dialog up, and where the character stood. */
   worldClick?: { gameX: number; gameY: number; atMs: number; own: Tile; mapId: number }
   /** Capture time of the dialog last seen, to notice a new one. */
@@ -112,6 +117,7 @@ export function createPaneWatcher(options: PaneWatcherOptions): PaneWatcher {
   const dialogFor = options.dialogFor ?? ((): null => null)
   const answerFor = options.answerFor ?? ((): null => null)
   const positionFor = options.positionFor ?? ((): null => null)
+  const exchangeFor = options.exchangeFor ?? ((): null => null)
   const knownNpcs = options.knownNpcs ?? ((): [] => [])
   const now = options.now ?? Date.now
   const watched = new Map<string, Watched>()
@@ -174,10 +180,50 @@ export function createPaneWatcher(options: PaneWatcherOptions): PaneWatcher {
       }
     }
 
+    // The exchange side: the client's cancel or accept, paired with the hand
+    // click before it. That pair is where the button is, which the layout
+    // does not say (`dialogScreen.ts`).
+    const exchange = exchangeFor(connectionId)
+    const sent = exchange?.sent
+    if (sent !== undefined && sent.asOfMs !== state.lastExchangeSentAt) {
+      state.lastExchangeSentAt = sent.asOfMs
+      const hand = state.lastClick
+      if (hand !== undefined && Math.abs(sent.asOfMs - hand.atMs) <= PAIR_WINDOW_MS) {
+        log.info(
+          'pane',
+          `The client sent the exchange's ${sent.action}, ${sent.asOfMs - hand.atMs} ms after the hand click at game (${hand.gameX}, ${hand.gameY}).`
+        )
+        state.lastClick = undefined
+      } else {
+        log.info(
+          'pane',
+          `The client sent the exchange's ${sent.action} with no hand click before it.`
+        )
+      }
+    }
+
     const target = resolveTarget(connectionId)
     if (target === null) return
     const pointer = pointerIn(target.windowHandle)
     if (pointer === null) return
+
+    if (dialog === null && exchange !== null) {
+      // An exchange window, or the alert it left, is up: a release is a click
+      // on it, logged so the button's place is measured.
+      if (state.leftDown && !pointer.leftDown && pointer.inside) {
+        const gameX = Math.round((pointer.x * GAME_WIDTH) / Math.max(1, pointer.width))
+        const gameY = Math.round((pointer.y * GAME_HEIGHT) / Math.max(1, pointer.height))
+        state.lastClick = { gameX, gameY, atMs: now() }
+        log.info(
+          'pane',
+          exchange.kind === 'open'
+            ? `Hand click released at game (${gameX}, ${gameY}) on the exchange with ${exchange.partnerName}.`
+            : `Hand click released at game (${gameX}, ${gameY}) with the exchange's closing alert ("${exchange.message}") up.`
+        )
+      }
+      state.leftDown = pointer.leftDown
+      return
+    }
 
     if (dialog === null) {
       // No dialog up: a release on the world is remembered, in case a dialog

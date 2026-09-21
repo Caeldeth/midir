@@ -7,8 +7,8 @@ import type {
   WalkRequest,
   WalkStopReason
 } from '../shared/actionLayer'
-import { VK_ESCAPE, VK_SPACE, type ActionLayer, type LiveConnection } from './actionLayer'
-import { CLOSE_BUTTON, isProtectedDialog } from './dialogScreen'
+import { VK_SPACE, type ActionLayer, type LiveConnection } from './actionLayer'
+import { CLOSE_BUTTON, EXCHANGE_CANCEL, isProtectedDialog } from './dialogScreen'
 import type { Logger } from './log'
 import type { DialogState } from './model/dialog'
 import type { ExchangeState } from './model/exchange'
@@ -119,12 +119,6 @@ const MAX_STALLS = 3
  */
 const DISMISS_WAIT_MS = 1500
 /**
- * How many gestures to post at one dialog: Escape, then the Close button. A
- * dialog still up after both is something the player must look at, and the
- * walk stops and says so.
- */
-const DISMISS_GESTURES = 2
-/**
  * The most tiles of delayed own-progress to accept as one confirmation.
  *
  * Under server lag the confirmations for several of the walker's own steps
@@ -193,15 +187,15 @@ interface Run {
   nextWarp?: { toMapId: number; x: number; y: number }
   /** Capture time of the last world map pane written to the log, so a retry does not repeat it. */
   loggedPaneAt?: number
-  /** Gestures posted at each popup, keyed by its kind and capture time. */
-  dismissed: Map<string, number>
+  /** Popups already clicked, keyed by kind and capture time, so none is clicked twice. */
+  dismissed: Set<string>
 }
 
 /** What a stall turned out to be, once the dialog on screen was read. */
 type PopupCheck =
   /** No popup was up, or the one up has had every gesture: count the stall. */
   | { kind: 'none' }
-  /** A gesture was posted at a notice: retry the step, and count no stall. */
+  /** The popup's button was clicked: retry the step, and count no stall. */
   | { kind: 'dismissed' }
   /** A dialog the walker must not touch is up: stop the walk. */
   | { kind: 'stop'; reason: WalkStopReason }
@@ -317,10 +311,10 @@ export function createWalker(options: WalkerOptions): Walker {
    *
    * A popup stops the character moving until the player clears it, so before
    * a missed step counts as a stall the walker asks whether one is up: an
-   * NPC dialog, or an exchange window. Each is dismissed the way the player
-   * would, once per gesture per popup, and then the step is retried with no
-   * stall counted. A popup the client keeps up through every gesture is left
-   * to the stall count and never to a loop.
+   * NPC dialog, or an exchange window. Each is dismissed with a click on its
+   * own button, once per popup, and then the step is retried with no stall
+   * counted. A popup still up after its click stops the walk with the reason
+   * named, never a loop.
    */
   async function checkPopup(run: Run, target: ActionTarget): Promise<PopupCheck> {
     const dialog = dialogFor(run.connectionId)
@@ -330,19 +324,14 @@ export function createWalker(options: WalkerOptions): Walker {
     return { kind: 'none' }
   }
 
-  /**
-   * Post one gesture at a popup, at most `gestures` per popup. Returns the
-   * ordinal of the gesture to post now (0 first), or null once every gesture
-   * has been posted at this popup.
-   */
-  function nextGesture(run: Run, key: string, gestures: number): number | null {
-    const tries = run.dismissed.get(key) ?? 0
-    if (tries >= gestures) return null
-    run.dismissed.set(key, tries + 1)
-    return tries
+  /** Whether this popup has had its click. Marks it when not. */
+  function firstSight(run: Run, key: string): boolean {
+    if (run.dismissed.has(key)) return false
+    run.dismissed.add(key)
+    return true
   }
 
-  /** Turn a posted gesture's refusal into the walk's outcome. */
+  /** Turn a posted click's refusal into the walk's outcome. */
   function afterGesture(run: Run, refusal: string | null): PopupCheck | null {
     if (refusal === null) return null
     if (refusal === 'stopped') return { kind: 'stop', reason: run.stopReason ?? 'user' }
@@ -368,9 +357,8 @@ export function createWalker(options: WalkerOptions): Walker {
    * one on screen was pushed on the character — a verdict, or another
    * player's prayer or fellowship invite with its rows of No and Assist — and
    * the pane's Close is what the player does with it. A close chooses no row
-   * and types no text. Escape first, and the Close button on the next stall
-   * if the dialog is still up; one that survives both stops the walk with
-   * the reason named. The credential pane stops it before any key.
+   * and types no text. One that survives its click stops the walk with the
+   * reason named. The credential pane stops it before any click.
    */
   async function checkDialog(
     run: Run,
@@ -381,26 +369,21 @@ export function createWalker(options: WalkerOptions): Walker {
       log.warn('walker', 'A login or password dialog is on screen. Stopping before any key.')
       return { kind: 'stop', reason: 'protected' }
     }
-    const gesture = nextGesture(run, `dialog:${dialog.asOfMs}`, DISMISS_GESTURES)
-    if (gesture === null) {
+    if (!firstSight(run, `dialog:${dialog.asOfMs}`)) {
       log.warn(
         'walker',
-        `The dialog is still on screen after Escape and Close (${describeDialog(dialog)}). Stopping.`
+        `The dialog is still on screen after its Close was clicked (${describeDialog(dialog)}). Stopping.`
       )
       return { kind: 'stop', reason: 'dialog' }
     }
-    let refusal: string | null
-    if (gesture === 0) {
-      log.info('walker', `A dialog is on screen (${describeDialog(dialog)}); pressing Escape.`)
-      refusal = await actionLayer.pressKey(target, VK_ESCAPE)
-    } else {
-      log.info(
-        'walker',
-        `The dialog is still on screen; clicking Close at game (${CLOSE_BUTTON.x}, ${CLOSE_BUTTON.y}).`
-      )
-      refusal = await actionLayer.click(target, CLOSE_BUTTON.x, CLOSE_BUTTON.y)
-    }
-    const refused = afterGesture(run, refusal)
+    log.info(
+      'walker',
+      `A dialog is on screen (${describeDialog(dialog)}); clicking Close at game (${CLOSE_BUTTON.x}, ${CLOSE_BUTTON.y}).`
+    )
+    const refused = afterGesture(
+      run,
+      await actionLayer.click(target, CLOSE_BUTTON.x, CLOSE_BUTTON.y)
+    )
     if (refused !== null) return refused
     const gone = await waitGone(() => {
       const current = dialogFor(run.connectionId)
@@ -417,44 +400,39 @@ export function createWalker(options: WalkerOptions): Walker {
 
   /**
    * An exchange window mid-walk: another player dragged an item onto the
-   * character. Escape cancels it (Sabrael, 2026-09-21), which sends the
-   * player's own cancel and loses nothing, and the server's cancel then
-   * closes the window on the wire. The client puts up a one-button alert
-   * with the closing message, which never touches the wire, so the alert
-   * gets one Escape of its own, keyed to the close it followed.
+   * character. Its Cancel button is clicked, which sends the player's own
+   * cancel and loses nothing, and the server's cancel then closes the window
+   * on the wire. OK is never clicked. The client puts up a one-button alert
+   * with the closing message, which never touches the wire and whose button
+   * is not yet measured, so the alert is left to the stall count and the
+   * pane watcher logs the hand click that clears it.
    */
   async function checkExchange(
     run: Run,
     target: ActionTarget,
     exchange: ExchangeState
   ): Promise<PopupCheck> {
-    if (exchange.kind === 'open') {
-      if (nextGesture(run, `exchange:${exchange.asOfMs}`, 1) === null) {
-        log.warn('walker', 'The exchange is still open after Escape. Stopping.')
-        return { kind: 'stop', reason: 'dialog' }
-      }
-      log.info(
-        'walker',
-        `An exchange with ${exchange.partnerName} is on screen; pressing Escape to cancel it.`
-      )
-      const refused = afterGesture(run, await actionLayer.pressKey(target, VK_ESCAPE))
-      if (refused !== null) return refused
-      const gone = await waitGone(() => exchangeFor(run.connectionId)?.kind !== 'open')
-      log.info(
-        'walker',
-        gone
-          ? 'The exchange closed; retrying the step.'
-          : `The exchange is still open after ${DISMISS_WAIT_MS} ms; retrying the step.`
-      )
-      return { kind: 'dismissed' }
+    if (exchange.kind !== 'open') return { kind: 'none' }
+    if (!firstSight(run, `exchange:${exchange.asOfMs}`)) {
+      log.warn('walker', 'The exchange is still open after its Cancel was clicked. Stopping.')
+      return { kind: 'stop', reason: 'dialog' }
     }
-    if (nextGesture(run, `alert:${exchange.asOfMs}`, 1) === null) return { kind: 'none' }
     log.info(
       'walker',
-      `The exchange's closing alert ("${exchange.message}") may be on screen; pressing Escape.`
+      `An exchange with ${exchange.partnerName} is on screen; clicking Cancel at game (${EXCHANGE_CANCEL.x}, ${EXCHANGE_CANCEL.y}).`
     )
-    const refused = afterGesture(run, await actionLayer.pressKey(target, VK_ESCAPE))
+    const refused = afterGesture(
+      run,
+      await actionLayer.click(target, EXCHANGE_CANCEL.x, EXCHANGE_CANCEL.y)
+    )
     if (refused !== null) return refused
+    const gone = await waitGone(() => exchangeFor(run.connectionId)?.kind !== 'open')
+    log.info(
+      'walker',
+      gone
+        ? 'The exchange closed; retrying the step.'
+        : `The exchange is still open after ${DISMISS_WAIT_MS} ms; retrying the step.`
+    )
     return { kind: 'dismissed' }
   }
 
@@ -1235,7 +1213,7 @@ export function createWalker(options: WalkerOptions): Walker {
       destination,
       running: true,
       stepsTaken: 0,
-      dismissed: new Map()
+      dismissed: new Set()
     }
     runs.set(connectionId, run)
 

@@ -26,7 +26,12 @@ import {
 import { decodeScreenMenu, type BankContents, type NpcMenu } from './dialog'
 import { decodeFieldMap, decodeFieldMapClick, type FieldMap, type FieldMapClick } from './fieldMap'
 import { decodeSystemMessage, type SystemMessage } from './message'
-import { decodeExchange, type Exchange } from './exchange'
+import {
+  decodeExchange,
+  decodeExchangeRequest,
+  type Exchange,
+  type ExchangeRequest
+} from './exchange'
 import { decodePursuitMessage, type PursuitMessage } from './pursuit'
 import {
   decodeMapInfo,
@@ -94,6 +99,7 @@ export type DecodedPacket =
   | FieldMapClick
   | SystemMessage
   | Exchange
+  | ExchangeRequest
   | ClientExit
   | MerchantResponse
   | PursuitResponse
@@ -134,7 +140,8 @@ const CLIENT_DECODERS = new Map<number, Decoder>([
   [ClientOpcode.Turn, decodeTurn],
   [ClientOpcode.MerchantResponse, decodeMerchantResponse],
   [ClientOpcode.PursuitResponse, decodePursuitResponse],
-  [ClientOpcode.FieldMapClick, decodeFieldMapClick]
+  [ClientOpcode.FieldMapClick, decodeFieldMapClick],
+  [ClientOpcode.Exchange, decodeExchangeRequest]
 ])
 
 /** True while Midir has a decoder for `opcode`. */

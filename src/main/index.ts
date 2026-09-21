@@ -312,6 +312,7 @@ const paneWatcher = createPaneWatcher({
   dialogFor: (connectionId) => captureService.dialogFor(connectionId),
   answerFor: (connectionId) => captureService.answerFor(connectionId),
   positionFor: (connectionId) => captureService.positionFor(connectionId),
+  exchangeFor: (connectionId) => captureService.exchangeFor(connectionId),
   // The NPC tiles the errands know, so a hand click on one measures the view.
   knownNpcs: () =>
     builtinErrands().flatMap((e) => {

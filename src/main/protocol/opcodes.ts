@@ -126,6 +126,8 @@ export const ClientOpcode = {
   NewPassword: 0x27,
   /** Picks a point on the world map. See decode/fieldMap.ts. */
   FieldMapClick: 0x3f,
+  /** An action in the exchange window. See decode/exchange.ts. */
+  Exchange: 0x4a,
   /** Verifies a one-time password. Wire format unknown. See scrub.ts. */
   Otp: 0x8f
 } as const

@@ -92,19 +92,15 @@ class World {
   pendingHop: { mapId: number; x: number; y: number } | null = null
   /** The dialog on screen. A dialog up holds the character still, as in the game. */
   dialog: DialogState | null = null
-  /**
-   * The exchange window, or the alert it left. An open window holds the
-   * character still; the alert holds it too while `alertBlocks` is on.
-   */
+  /** The exchange window, or the alert it left. An open window holds the character still. */
   exchange: ExchangeState | null = null
-  alertBlocks = true
-  /** Whether Escape clears a notice, and whether the Close click does. */
-  escapeClears = true
-  closeClears = true
-  /** Every Escape the walker posted. */
-  escapes = 0
-  /** Every click on the dialog's Close button. */
+  /** Whether the pane's button honours the posted click. Off models a click that misses. */
+  buttonsWork = true
+  /** Every key the walker posted that was not an arrow. */
+  otherKeys: number[] = []
+  /** Every click on the dialog's Close button, and on the exchange's Cancel. */
   closeClicks = 0
+  cancelClicks = 0
 
   constructor(
     readonly maps: Map<number, FakeMap>,
@@ -128,7 +124,6 @@ class World {
     // A popup holds the character still until it is cleared.
     if (this.dialog !== null) return
     if (this.exchange?.kind === 'open') return
-    if (this.exchange?.kind === 'alert' && this.alertBlocks) return
     if (this.dropPresses > 0) {
       this.dropPresses--
       return
@@ -219,30 +214,23 @@ class World {
   }
 
   /**
-   * Escape: the client cancels a popup, and the server's close clears it. An
-   * open exchange becomes its closing alert on the wire; the alert goes with
-   * no word on the wire, so the world only stops it blocking.
-   */
-  escape(): void {
-    this.escapes++
-    if (!this.escapeClears) return
-    this.dialog = null
-    if (this.exchange?.kind === 'open') {
-      this.exchange = { kind: 'alert', message: 'Exchange was cancelled.', asOfMs: ++this.clock }
-    } else if (this.exchange?.kind === 'alert') {
-      this.alertBlocks = false
-    }
-  }
-
-  /**
    * A click on the pane: the client answers with its 0x3F for the point under
    * the pointer, then the server moves the character there. A click on the
-   * dialog's Close button closes a dialog instead.
+   * dialog's Close button closes a dialog instead, and one on the exchange's
+   * Cancel sends the cancel, which the server answers by closing the window
+   * into its alert.
    */
   click(x: number, y: number): void {
     if (x === 589 && y === 461) {
       this.closeClicks++
-      if (this.closeClears) this.dialog = null
+      if (this.buttonsWork) this.dialog = null
+      return
+    }
+    if (x === 276 && y === 355) {
+      this.cancelClicks++
+      if (this.buttonsWork && this.exchange?.kind === 'open') {
+        this.exchange = { kind: 'alert', message: 'Exchange was cancelled.', asOfMs: ++this.clock }
+      }
       return
     }
     this.clicks.push({ x, y })
@@ -305,13 +293,10 @@ function harness(world: World, graphNodes: RouteNode[]): Harness {
     },
     pressKey: async (_t: ActionTarget, _key: number): Promise<null | string> => {
       if (layerState.stopped) return 'stopped'
-      if (_key === 0x1b) {
-        world.escape()
-        return null
-      }
       // The key encodes the direction through DIRECTION_KEY = [UP,RIGHT,DOWN,LEFT].
       const direction = [0x26, 0x27, 0x28, 0x25].indexOf(_key)
       if (direction >= 0) world.press(direction)
+      else world.otherKeys.push(_key)
       return null
     },
     click: async (_t: ActionTarget, x: number, y: number): Promise<null | string> => {
@@ -751,41 +736,28 @@ function popupAfterTwoSteps(world: World, packet: PursuitMessage): void {
 }
 
 describe('walker and a popup mid-walk (WP34)', () => {
-  it('presses Escape at a plain notice and walks on, with no stall counted', async () => {
+  it('clicks Close on a plain notice and walks on, with no stall counted', async () => {
     // Acceptance criterion 1: a notice that blocks the walk is closed, and the
-    // walk continues.
+    // walk continues. The close is a click; a posted key does nothing on a
+    // pane (live, 2026-09-21).
     const world = lineWorld()
     popupAfterTwoSteps(world, pursuit())
     const { walker } = harness(world, lineGraph())
     const outcome = await walker.go({ connectionId: CID, destination: 'Cave' })
     expect(outcome).toEqual({ kind: 'arrived' })
-    expect(world.escapes).toBe(1)
-    expect(world.closeClicks).toBe(0)
+    expect(world.closeClicks).toBe(1)
+    expect(world.otherKeys).toEqual([])
     expect(world.dialog).toBeNull()
   })
 
-  it('clicks Close when Escape left the notice up, and walks on', async () => {
-    // The second gesture, for a client that ignores the posted key.
-    const world = lineWorld()
-    world.escapeClears = false
-    popupAfterTwoSteps(world, pursuit())
-    const { walker } = harness(world, lineGraph())
-    const outcome = await walker.go({ connectionId: CID, destination: 'Cave' })
-    expect(outcome).toEqual({ kind: 'arrived' })
-    expect(world.escapes).toBe(1)
-    expect(world.closeClicks).toBe(1)
-  })
-
-  it('posts each gesture once and then stops with dialog when neither closes it', async () => {
+  it('clicks once and then stops with dialog when the click did not close it', async () => {
     // No loop on a popup the client keeps up, and a reason that names it.
     const world = lineWorld()
-    world.escapeClears = false
-    world.closeClears = false
+    world.buttonsWork = false
     popupAfterTwoSteps(world, pursuit())
     const { walker } = harness(world, lineGraph())
     const outcome = await walker.go({ connectionId: CID, destination: 'Cave' })
     expect(outcome).toEqual({ kind: 'stopped', reason: 'dialog' })
-    expect(world.escapes).toBe(1)
     expect(world.closeClicks).toBe(1)
   })
 
@@ -810,10 +782,10 @@ describe('walker and a popup mid-walk (WP34)', () => {
     const { walker } = harness(world, lineGraph())
     const outcome = await walker.go({ connectionId: CID, destination: 'Cave' })
     expect(outcome).toEqual({ kind: 'arrived' })
-    expect(world.escapes).toBe(1)
-    // No row click: the only clicks the world saw are none at all.
+    expect(world.closeClicks).toBe(1)
+    // No row click, no key into the pane.
     expect(world.clicks).toEqual([])
-    expect(world.closeClicks).toBe(0)
+    expect(world.otherKeys).toEqual([])
   })
 
   it('closes a text field the same way', async () => {
@@ -822,10 +794,11 @@ describe('walker and a popup mid-walk (WP34)', () => {
     const { walker } = harness(world, lineGraph())
     const outcome = await walker.go({ connectionId: CID, destination: 'Cave' })
     expect(outcome).toEqual({ kind: 'arrived' })
-    expect(world.escapes).toBe(1)
+    expect(world.closeClicks).toBe(1)
+    expect(world.otherKeys).toEqual([])
   })
 
-  it('stops with protected at the credential pane, before any key', async () => {
+  it('stops with protected at the credential pane, before any click', async () => {
     // Acceptance criterion 3: a dialogType-9 pane is never closed and always
     // stops the run.
     const world = lineWorld()
@@ -843,16 +816,16 @@ describe('walker and a popup mid-walk (WP34)', () => {
     const { walker } = harness(world, lineGraph())
     const outcome = await walker.go({ connectionId: CID, destination: 'Cave' })
     expect(outcome).toEqual({ kind: 'stopped', reason: 'protected' })
-    expect(world.escapes).toBe(0)
     expect(world.closeClicks).toBe(0)
+    expect(world.otherKeys).toEqual([])
     // One step was posted before the walker could know the pane was up: the
     // step whose miss revealed it. Nothing followed.
     expect(world.presses).toBe(pressesAtPopup + 1)
   })
 
-  it('cancels an exchange window with Escape, clears its alert, and walks on', async () => {
+  it('cancels an exchange window with a click on Cancel, and walks on', async () => {
     // The popup Sabrael can make on demand: another player drags an item
-    // onto the character. SExchange 0x42, not a dialog.
+    // onto the character. SExchange 0x42, not a dialog. Cancel, never OK.
     const world = lineWorld()
     let moves = 0
     world.afterMove = (w): void => {
@@ -864,15 +837,15 @@ describe('walker and a popup mid-walk (WP34)', () => {
     const { walker } = harness(world, lineGraph())
     const outcome = await walker.go({ connectionId: CID, destination: 'Cave' })
     expect(outcome).toEqual({ kind: 'arrived' })
-    // One Escape for the window, one for the alert it left.
-    expect(world.escapes).toBe(2)
-    expect(world.closeClicks).toBe(0)
+    expect(world.cancelClicks).toBe(1)
+    expect(world.clicks).toEqual([])
+    expect(world.otherKeys).toEqual([])
     expect(world.exchange?.kind).toBe('alert')
   })
 
-  it('posts one Escape at an exchange the client keeps open, then stops with dialog', async () => {
+  it('clicks Cancel once at an exchange the client keeps open, then stops with dialog', async () => {
     const world = lineWorld()
-    world.escapeClears = false
+    world.buttonsWork = false
     let moves = 0
     world.afterMove = (w): void => {
       moves++
@@ -883,7 +856,7 @@ describe('walker and a popup mid-walk (WP34)', () => {
     const { walker } = harness(world, lineGraph())
     const outcome = await walker.go({ connectionId: CID, destination: 'Cave' })
     expect(outcome).toEqual({ kind: 'stopped', reason: 'dialog' })
-    expect(world.escapes).toBe(1)
+    expect(world.cancelClicks).toBe(1)
   })
 
   it('clears a notice on the way to a tile as well', async () => {
@@ -893,7 +866,7 @@ describe('walker and a popup mid-walk (WP34)', () => {
     const { walker } = harness(world, roomGraph)
     const outcome = await walker.go({ connectionId: CID, destination: 1, tile: { x: 4, y: 4 } })
     expect(outcome).toEqual({ kind: 'arrived' })
-    expect(world.escapes).toBe(1)
+    expect(world.closeClicks).toBe(1)
   })
 })
 

@@ -70,6 +70,31 @@ describe('reduceExchange', () => {
     })
   })
 
+  it("keeps the client's cancel beside the window and carries it onto the alert", () => {
+    const cancel: DecodedPacket = { kind: 'exchangeRequest', action: 'cancel', exchangeId: 1 }
+    const sent = reduceExchange(open(), { packet: cancel, timestampMs: 1900 })
+    expect(sent).toMatchObject({ kind: 'open', sent: { action: 'cancel', asOfMs: 1900 } })
+    expect(reduceExchange(sent, { packet: cancelled, timestampMs: 1940 })).toEqual({
+      kind: 'alert',
+      message: 'Exchange was cancelled.',
+      asOfMs: 1940,
+      sent: { action: 'cancel', asOfMs: 1900 }
+    })
+  })
+
+  it('ignores a client action that is not a cancel or an accept, and one with no window', () => {
+    const state = open()
+    const add: DecodedPacket = {
+      kind: 'exchangeRequest',
+      action: 'addItem',
+      exchangeId: 1,
+      slot: 3
+    }
+    expect(reduceExchange(state, { packet: add, timestampMs: 1500 })).toBe(state)
+    const cancel: DecodedPacket = { kind: 'exchangeRequest', action: 'cancel', exchangeId: 1 }
+    expect(reduceExchange(null, { packet: cancel, timestampMs: 1500 })).toBeNull()
+  })
+
   it('ignores an accept with no window open', () => {
     expect(reduceExchange(null, { packet: accepted(0), timestampMs: 2000 })).toBeNull()
   })

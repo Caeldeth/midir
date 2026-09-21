@@ -16,6 +16,19 @@ import type { DecodedPacket } from '../protocol/decode'
  * lost packet clears the state, because the window on screen is then unknown.
  */
 
+/**
+ * The client's own cancel or accept, sent from the window's buttons. Kept
+ * beside the window, and carried onto the alert, because the server's close
+ * follows it within the same batch: a watcher that looked for it beside the
+ * open window would never see it. The pane watcher pairs it with the hand
+ * click before it, which is how the button's place on screen is measured.
+ */
+export interface ExchangeSent {
+  action: 'cancel' | 'accept'
+  /** Capture time of the client's packet. */
+  asOfMs: number
+}
+
 /** The exchange window, or the alert the client shows once it closes. */
 export type ExchangeState =
   | {
@@ -26,6 +39,8 @@ export type ExchangeState =
       asOfMs: number
       /** The party bytes seen on accept events: 0 the player, other the partner. */
       accepted: number[]
+      /** The client's newest cancel or accept, when it sent one. */
+      sent?: ExchangeSent
     }
   | {
       kind: 'alert'
@@ -33,6 +48,8 @@ export type ExchangeState =
       message: string
       /** Capture time of the close. */
       asOfMs: number
+      /** The client's cancel or accept that led to the close, when there was one. */
+      sent?: ExchangeSent
     }
 
 /** One packet, with what the capture layer knows about it. */
@@ -51,20 +68,29 @@ export function reduceExchange(
 ): ExchangeState | null {
   if (input.sawLoss === true) return null
   const { packet, timestampMs } = input
+
+  if (packet.kind === 'exchangeRequest') {
+    if (state === null || state.kind !== 'open') return state
+    if (packet.action !== 'cancel' && packet.action !== 'accept') return state
+    return { ...state, sent: { action: packet.action, asOfMs: timestampMs } }
+  }
+
   if (packet.kind !== 'exchange') return state
+  const sent = state?.sent !== undefined ? { sent: state.sent } : {}
 
   switch (packet.event) {
     case 'started':
       return { kind: 'open', partnerName: packet.partnerName, asOfMs: timestampMs, accepted: [] }
     case 'cancelled':
-      return { kind: 'alert', message: packet.message, asOfMs: timestampMs }
+      return { kind: 'alert', message: packet.message, asOfMs: timestampMs, ...sent }
     case 'accepted': {
       if (state === null || state.kind !== 'open') return state
       const accepted = state.accepted.includes(packet.party)
         ? state.accepted
         : [...state.accepted, packet.party]
-      if (accepted.length >= 2)
-        return { kind: 'alert', message: packet.message, asOfMs: timestampMs }
+      if (accepted.length >= 2) {
+        return { kind: 'alert', message: packet.message, asOfMs: timestampMs, ...sent }
+      }
       return { ...state, accepted }
     }
     default:
