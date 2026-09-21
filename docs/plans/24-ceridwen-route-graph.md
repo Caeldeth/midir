@@ -5,6 +5,13 @@ blocked: ceridwen is not built yet.** **Card:** `HTOO-73`.
 **Trigger to start:** ceridwen built out, or the hand-made `WorldMap.dat` going stale, or WP17
 wanting NPC coordinates the `.dat` cannot give.
 
+**A source is already in hand (2026-09-21).** The production world repo's `xml/maps/.ignore/Old*.xml`
+set is Hybrasyl's authoring of the retail maps — Sabrael's word is that it is spot-on for retail —
+with `<Warp>` edges, `<MapTarget>` arrival tiles, and `<Npc>` tiles, in the same schema this WP
+describes. WP33 took Piet Village and the Piet, Abel, and Undine storages from it, and it agreed
+with the `.dat` on every warp both describe. The importer this WP plans can read that set today;
+the blocker is only the choice to switch the whole graph over, not the data.
+
 ## Goal
 
 Build the walker's route graph from ceridwen instead of the hand-made `WorldMap.dat` that WP15 ships

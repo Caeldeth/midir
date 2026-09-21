@@ -9,8 +9,9 @@ node the graph lacks.
 
 **The cross-town hop is built and proven live (PR1). PR2 adds every Mileth and Rucesion building
 Sabrael captured, Rucesion's and Mileth's warps as full strips, an arrival tile the user can enter,
-and the `nodes` section of the overrides file. All six Mileth and Rucesion errands route.** What is
-left: the three other-town banks, and the game's map names beside the `.dat`'s.
+and the `nodes` section of the overrides file; the three other-town banks come from the Hybrasyl
+world xml. Every built-in errand's destination resolves and routes, and a test says so.** What is
+left: a wire sighting of the three other-town banks, and the game's map names beside the `.dat`'s.
 
 ## Goal
 
@@ -142,8 +143,13 @@ Three walks: Rucesion Inn to Abel Outskirts, Inn to Rucesion Town Hall, and Town
 
 1. **A walk to a tile, watched (hand to Sabrael).** `Rucesion Bank @ 5,8` from the Inn: the walk
    should end on the counter tile with no hand.
-2. **The three other-town banks.** Piet Bank, Abel Bank, and Undine Bank: map id, arrival, stand
-   tile, exit tiles, and the town-side door, the shape of Sabrael's Mileth and Rucesion lists.
+2. **A wire sighting of the three other-town banks.** Piet, Abel, and Undine banks and Piet
+   Village came from the Hybrasyl world xml (`world/xml/maps/.ignore/Old*.xml`). Sabrael's word is
+   that the `Old*` set is spot-on for retail, and it agrees with the `.dat` on every warp both
+   describe. One walk into each with Midir recording confirms the door and the arrival on the wire;
+   it is a confirmation, not a doubt. The same set carries warps and NPC tiles for the whole retail
+   world, which makes it the better source for the graph than the `.dat` — that is WP24's job, and
+   its doc now names the set.
 3. **The game's names beside the `.dat`'s.** The graph calls 3014 "Abel Outskirts" and the game
    calls it Abel Port Way; 500 is "Mileth Altar" and Mileth Village; 3006 is "MilethEnt". Midir
    decodes every map name off the wire (`0x15`), so a name table learned from play, with both names
@@ -156,8 +162,11 @@ interior is an ordinary map, so each is a node with its exits, under `nodes` in
 (3026), Mileth Tavern (134), and Mileth Commons (3025, on the way to the Town Hall) were not in the
 `.dat` at all; the town-side doors (Tavern 69,53–54; Commons from Village Way 12–15,0; Town Hall
 from Commons 4,6) and the warp strips of Rucesion and Mileth came from the same lists. The stand
-tile in front of each NPC went on the errands as `standTile`. All six Mileth and Rucesion errands
-route.
+tile in front of each NPC went on the errands as `standTile`. Piet Village (501) and the Piet, Abel,
+and Undine storages (148, 167, 432) came from the Hybrasyl world xml, with the same 12 x 12 room and
+the NPC on the same tile as Rucesion's, so Rucesion's stand tile carries over. Cassidy turned out to
+be in Mileth Bank, not Rucesion's; her errand now says so. Every built-in errand's destination
+resolves and routes.
 
 Also done in PR2: **an arrival tile the user can enter.** `Place @ x,y` on the Walker tab walks to the
 place and then onto the tile; `parseDestination` in `shared/` splits it, so a pinned destination
@@ -177,7 +186,7 @@ map to pick a tile is WP30's, when the map viewer exists.
 
 ## Acceptance criteria
 
-1. Every built-in errand's `destination` resolves to a route.
+1. Every built-in errand's `destination` resolves to a route. **(Met in PR2, by a test.)**
 2. A same-town errand (Mileth Tavern) and a cross-town errand (Abel Bank) each arrive at the building
    in a replay or a live check, the cross-town one crossing the world map.
 3. The importer still reports its coverage, and no existing node is lost. **(Met in PR1.)**

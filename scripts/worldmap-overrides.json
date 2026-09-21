@@ -223,6 +223,128 @@
         }
       ],
       "seen": "2026-09-21 Sabrael: Mileth Village Way enters Mileth Commons at 12,0 to 15,0."
+    },
+    {
+      "mapId": 501,
+      "name": "Piet Village",
+      "arrival": {
+        "x": 1,
+        "y": 9,
+        "note": "1,8 to 1,11 by the way's tile"
+      },
+      "exits": [
+        {
+          "toMapId": 3020,
+          "tiles": [
+            [0, 8],
+            [0, 9],
+            [0, 10],
+            [0, 11]
+          ]
+        },
+        {
+          "toMapId": 148,
+          "tiles": [
+            [50, 13],
+            [51, 13]
+          ]
+        }
+      ],
+      "seen": "2026-09-21 Hybrasyl world xml (world/xml/maps/.ignore/Old*.xml), spot-on for retail per Sabrael, and in agreement with the .dat wherever both speak; a wire sighting is still to come. Not in the .dat at all: the .dat's Piet (3020) is the Village Way, with no way into the town."
+    },
+    {
+      "mapId": 3020,
+      "exits": [
+        {
+          "toMapId": 501,
+          "tiles": [
+            [23, 8],
+            [23, 9],
+            [23, 10],
+            [23, 11],
+            [23, 12],
+            [23, 13]
+          ]
+        }
+      ],
+      "seen": "2026-09-21 Hybrasyl world xml (world/xml/maps/.ignore/Old*.xml), spot-on for retail per Sabrael, and in agreement with the .dat wherever both speak; a wire sighting is still to come."
+    },
+    {
+      "mapId": 148,
+      "name": "Piet Bank",
+      "arrival": {
+        "x": 5,
+        "y": 10,
+        "note": "or 6,10; the game calls it Piet Storage"
+      },
+      "exits": [
+        {
+          "toMapId": 501,
+          "tiles": [
+            [5, 11],
+            [6, 11]
+          ]
+        }
+      ],
+      "seen": "2026-09-21 Hybrasyl world xml (world/xml/maps/.ignore/Old*.xml), spot-on for retail per Sabrael, and in agreement with the .dat wherever both speak; a wire sighting is still to come. Jilt stands at 3,4, as Antonio does in Rucesion Storage."
+    },
+    {
+      "mapId": 167,
+      "name": "Abel Bank",
+      "arrival": {
+        "x": 6,
+        "y": 10,
+        "note": "the game calls it Abel Storage"
+      },
+      "exits": [
+        {
+          "toMapId": 502,
+          "tiles": [
+            [5, 11],
+            [6, 11]
+          ]
+        }
+      ],
+      "seen": "2026-09-21 Hybrasyl world xml (world/xml/maps/.ignore/Old*.xml), spot-on for retail per Sabrael, and in agreement with the .dat wherever both speak; a wire sighting is still to come. Lamont stands at 3,4."
+    },
+    {
+      "mapId": 502,
+      "exits": [
+        {
+          "toMapId": 167,
+          "tiles": [[14, 8]]
+        }
+      ],
+      "seen": "2026-09-21 Hybrasyl world xml (world/xml/maps/.ignore/Old*.xml), spot-on for retail per Sabrael, and in agreement with the .dat wherever both speak; a wire sighting is still to come. Abel Port enters its Storage at 14,8; the way back lands on 14,9."
+    },
+    {
+      "mapId": 432,
+      "name": "Undine Bank",
+      "arrival": {
+        "x": 5,
+        "y": 10,
+        "note": "the game calls it Undine Storage"
+      },
+      "exits": [
+        {
+          "toMapId": 504,
+          "tiles": [
+            [5, 11],
+            [6, 11]
+          ]
+        }
+      ],
+      "seen": "2026-09-21 Hybrasyl world xml (world/xml/maps/.ignore/Old*.xml), spot-on for retail per Sabrael, and in agreement with the .dat wherever both speak; a wire sighting is still to come. Argus stands at 3,4."
+    },
+    {
+      "mapId": 504,
+      "exits": [
+        {
+          "toMapId": 432,
+          "tiles": [[86, 16]]
+        }
+      ],
+      "seen": "2026-09-21 Hybrasyl world xml (world/xml/maps/.ignore/Old*.xml), spot-on for retail per Sabrael, and in agreement with the .dat wherever both speak; a wire sighting is still to come. Undine Village enters its Storage at 86,16; the way back lands on 86,17."
     }
   ]
 }

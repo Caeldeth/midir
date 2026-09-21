@@ -492,6 +492,38 @@
       ]
     },
     {
+      "mapId": 148,
+      "name": "Piet Bank",
+      "exits": [
+        {
+          "toMapId": 501,
+          "x": 5,
+          "y": 11
+        },
+        {
+          "toMapId": 501,
+          "x": 6,
+          "y": 11
+        }
+      ]
+    },
+    {
+      "mapId": 167,
+      "name": "Abel Bank",
+      "exits": [
+        {
+          "toMapId": 502,
+          "x": 5,
+          "y": 11
+        },
+        {
+          "toMapId": 502,
+          "x": 6,
+          "y": 11
+        }
+      ]
+    },
+    {
       "mapId": 378,
       "name": "Loures Dungeon",
       "exits": [
@@ -578,6 +610,22 @@
           "toMapId": 500,
           "x": 9,
           "y": 15
+        }
+      ]
+    },
+    {
+      "mapId": 432,
+      "name": "Undine Bank",
+      "exits": [
+        {
+          "toMapId": 504,
+          "x": 5,
+          "y": 11
+        },
+        {
+          "toMapId": 504,
+          "x": 6,
+          "y": 11
         }
       ]
     },
@@ -789,9 +837,50 @@
       ]
     },
     {
+      "mapId": 501,
+      "name": "Piet Village",
+      "exits": [
+        {
+          "toMapId": 148,
+          "x": 50,
+          "y": 13
+        },
+        {
+          "toMapId": 148,
+          "x": 51,
+          "y": 13
+        },
+        {
+          "toMapId": 3020,
+          "x": 0,
+          "y": 8
+        },
+        {
+          "toMapId": 3020,
+          "x": 0,
+          "y": 9
+        },
+        {
+          "toMapId": 3020,
+          "x": 0,
+          "y": 10
+        },
+        {
+          "toMapId": 3020,
+          "x": 0,
+          "y": 11
+        }
+      ]
+    },
+    {
       "mapId": 502,
       "name": "Abel",
       "exits": [
+        {
+          "toMapId": 167,
+          "x": 14,
+          "y": 8
+        },
         {
           "toMapId": 3008,
           "x": 14,
@@ -894,6 +983,11 @@
       "mapId": 504,
       "name": "Undine",
       "exits": [
+        {
+          "toMapId": 432,
+          "x": 86,
+          "y": 16
+        },
         {
           "toMapId": 2120,
           "x": 8,
@@ -4495,6 +4589,36 @@
       "mapId": 3020,
       "name": "Piet",
       "exits": [
+        {
+          "toMapId": 501,
+          "x": 23,
+          "y": 8
+        },
+        {
+          "toMapId": 501,
+          "x": 23,
+          "y": 9
+        },
+        {
+          "toMapId": 501,
+          "x": 23,
+          "y": 10
+        },
+        {
+          "toMapId": 501,
+          "x": 23,
+          "y": 11
+        },
+        {
+          "toMapId": 501,
+          "x": 23,
+          "y": 12
+        },
+        {
+          "toMapId": 501,
+          "x": 23,
+          "y": 13
+        },
         {
           "toMapId": 3012,
           "x": 15,
