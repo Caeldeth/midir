@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { PointerState } from 'da-pcap'
 import { createPaneWatcher } from '../paneWatcher'
-import type { DialogState } from '../model/dialog'
+import type { DialogAnswer, DialogState } from '../model/dialog'
 import type { FieldMapState } from '../model/fieldMap'
 import type { FieldMap } from '../protocol/decode/fieldMap'
 import type { Logger } from '../log'
@@ -22,6 +22,7 @@ function harness() {
   let clock = 1000
   let pane: FieldMapState | null = null
   let dialog: DialogState | null = null
+  let answer: DialogAnswer | null = null
   let pointer: PointerState | null = {
     x: 0,
     y: 0,
@@ -44,6 +45,7 @@ function harness() {
     liveConnections: () => [{ connectionId: CID, name: 'Test' }],
     fieldMapFor: (id) => (id === CID ? pane : null),
     dialogFor: (id) => (id === CID ? dialog : null),
+    answerFor: (id) => (id === CID ? answer : null),
     log,
     now: () => clock
   })
@@ -70,21 +72,22 @@ function harness() {
     closeDialog: () => {
       dialog = null
     },
-    answerDialog: (pursuit: number) => {
-      clock += 400
-      dialog = {
-        ...dialog!,
-        answer: {
-          packet: {
-            kind: 'merchantResponse',
-            objectType: 1,
-            objectId: 6703,
-            pursuit,
-            tail: new Uint8Array()
-          },
-          asOfMs: clock
-        }
+    /** The client answers the dialog on screen, and the server's reply replaces it. */
+    answerDialog: (pursuit: number, afterMs = 400) => {
+      clock += afterMs
+      answer = {
+        packet: {
+          kind: 'merchantResponse',
+          objectType: 1,
+          objectId: 6703,
+          pursuit,
+          tail: new Uint8Array()
+        },
+        asOfMs: clock,
+        dialog: dialog!.packet
       }
+      // The reply comes in the same batch as the answer.
+      dialog = null
     },
     open: () => {
       pane = { packet: PANE, asOfMs: clock }
@@ -223,6 +226,18 @@ describe('the pane watcher on an NPC dialog', () => {
     h.watcher.tick()
     expect(h.lines.at(-1)).toBe(
       'The client answered the dialog with row 2 "Rucesion Law" (1615) with no hand click before it.'
+    )
+  })
+
+  it('pairs an answer captured a moment before the release was seen', () => {
+    const h = harness()
+    h.openDialog()
+    h.watcher.tick()
+    h.handClick(300, 140)
+    h.answerDialog(1612, -30)
+    h.watcher.tick()
+    expect(h.lines.at(-1)).toBe(
+      'The client answered the dialog with row 1 "Rucesion Civics" (1612), -30 ms after the hand click at game (300, 140).'
     )
   })
 

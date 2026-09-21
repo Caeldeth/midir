@@ -2,7 +2,7 @@ import type { PointerState } from 'da-pcap'
 import type { ActionTarget } from '../shared/actionLayer'
 import { GAME_HEIGHT, GAME_WIDTH, type LiveConnection } from './actionLayer'
 import type { Logger } from './log'
-import type { DialogState } from './model/dialog'
+import type { DialogAnswer, DialogState } from './model/dialog'
 import type { FieldMapState } from './model/fieldMap'
 
 /**
@@ -38,6 +38,8 @@ export interface PaneWatcherOptions {
   fieldMapFor: (connectionId: string) => FieldMapState | null
   /** The NPC dialog on screen, from the capture service. Absent in older tests. */
   dialogFor?: (connectionId: string) => DialogState | null
+  /** The client's newest dialog answer, from the capture service. Absent in older tests. */
+  answerFor?: (connectionId: string) => DialogAnswer | null
   log: Logger
   /** The clock. Injected by tests. */
   now?: () => number
@@ -70,9 +72,9 @@ interface WatchedDialog {
 }
 
 /** Name the row a client answer chose, from the dialog it answered. */
-function describeAnswer(dialog: DialogState): string {
-  const answer = dialog.answer!.packet
-  const shown = dialog.packet
+function describeAnswer(answered: DialogAnswer): string {
+  const answer = answered.packet
+  const shown = answered.dialog
   if (answer.kind === 'merchantResponse') {
     if (shown.kind === 'npcMenu') {
       const index = shown.options.findIndex((o) => o.pursuit === answer.pursuit)
@@ -95,6 +97,7 @@ const DEFAULT_INTERVAL_MS = 30
 export function createPaneWatcher(options: PaneWatcherOptions): PaneWatcher {
   const { pointerIn, resolveTarget, liveConnections, fieldMapFor, log } = options
   const dialogFor = options.dialogFor ?? ((): null => null)
+  const answerFor = options.answerFor ?? ((): null => null)
   const now = options.now ?? Date.now
   const watched = new Map<string, Watched>()
   const watchedDialogs = new Map<string, WatchedDialog>()
@@ -103,33 +106,40 @@ export function createPaneWatcher(options: PaneWatcherOptions): PaneWatcher {
   /**
    * The dialog side. A hand release on the game window while a dialog is up
    * is logged in game coordinates, and the client's answer that follows is
-   * paired with it: that pair is where the row is.
+   * paired with it: that pair is where the row is. The answer is read from
+   * its own fact, because the dialog it answered is usually gone by the next
+   * look here: the server's reply follows within tens of milliseconds and the
+   * capture delivers both in one batch.
    */
   function tickDialog(connectionId: string): void {
-    const dialog = dialogFor(connectionId)
-    if (dialog === null) {
-      watchedDialogs.delete(connectionId)
-      return
-    }
     const state = watchedDialogs.get(connectionId) ?? { leftDown: false }
     watchedDialogs.set(connectionId, state)
 
-    const answer = dialog.answer
-    if (answer !== undefined && answer.asOfMs !== state.lastAnsweredAt) {
+    const answer = answerFor(connectionId)
+    if (answer !== null && answer.asOfMs !== state.lastAnsweredAt) {
       state.lastAnsweredAt = answer.asOfMs
       const hand = state.lastClick
-      const what = describeAnswer(dialog)
-      if (hand !== undefined && answer.asOfMs - hand.atMs <= PAIR_WINDOW_MS) {
+      const what = describeAnswer(answer)
+      // The client acts on the press, so its answer can be captured a few
+      // milliseconds before the release is seen here; the window runs both ways.
+      if (hand !== undefined && Math.abs(answer.asOfMs - hand.atMs) <= PAIR_WINDOW_MS) {
         log.info(
           'pane',
           `The client answered the dialog with ${what}, ${answer.asOfMs - hand.atMs} ms after the hand click at game (${hand.gameX}, ${hand.gameY}).`
         )
+        state.lastClick = undefined
       } else {
         log.info(
           'pane',
           `The client answered the dialog with ${what} with no hand click before it.`
         )
       }
+    }
+
+    const dialog = dialogFor(connectionId)
+    if (dialog === null) {
+      state.leftDown = false
+      return
     }
 
     const target = resolveTarget(connectionId)

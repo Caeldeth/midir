@@ -54,6 +54,7 @@ function context(
     positionFor: () => null,
     dialogFor: () => null,
     noticeFor: () => null,
+    answerFor: () => null,
     fieldMapFor: () => null
   }
   return {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { reduceDialog, type DialogState } from '../dialog'
+import { reduceAnswer, reduceDialog, type DialogState } from '../dialog'
 import type { PursuitMessage } from '../../protocol/decode/pursuit'
 import type { NpcMenu } from '../../protocol/decode/dialog'
 import type { DecodedPacket } from '../../protocol/decode'
@@ -89,53 +89,47 @@ describe('reduceDialog', () => {
   })
 })
 
-describe('the client answer beside the dialog', () => {
-  it('attaches CMerchant 0x39 to the menu on screen, and CPursuit 0x3A to a pursuit', () => {
+describe('reduceAnswer', () => {
+  const answer = (): DecodedPacket => ({
+    kind: 'merchantResponse',
+    objectType: 1,
+    objectId: 1,
+    pursuit: 1335,
+    tail: new Uint8Array()
+  })
+
+  it('keeps the newest answer with the dialog it answered, past the reply', () => {
     const shown = reduceDialog(null, {
       packet: menu({ options: [{ text: 'Labor', pursuit: 1335 }] }),
       timestampMs: 1000
     })
-    const answered = reduceDialog(shown, {
-      packet: {
-        kind: 'merchantResponse',
-        objectType: 1,
-        objectId: 1,
-        pursuit: 1335,
-        tail: new Uint8Array()
-      },
-      timestampMs: 1500
-    })
-    expect(answered?.asOfMs).toBe(1000)
-    expect(answered?.answer?.packet.kind).toBe('merchantResponse')
-    expect(answered?.answer?.asOfMs).toBe(1500)
-    const next = reduceDialog(answered, { packet: pursuit({ pursuit: 311 }), timestampMs: 2000 })
-    expect(next?.answer).toBeUndefined()
-    const typed = reduceDialog(next, {
+    const answered = reduceAnswer(null, shown, { packet: answer(), timestampMs: 1500 })
+    expect(answered?.asOfMs).toBe(1500)
+    expect(answered?.dialog).toBe(shown!.packet)
+    // The server's reply replaces the dialog and leaves the answer alone.
+    const next = reduceDialog(shown, { packet: pursuit({ pursuit: 311 }), timestampMs: 1600 })
+    expect(reduceAnswer(answered, next, { packet: next!.packet, timestampMs: 1600 })).toBe(answered)
+    const typed = reduceAnswer(answered, next, {
       packet: {
         kind: 'pursuitResponse',
         objectType: 1,
         objectId: 1,
         pursuit: 311,
         step: 25,
-        text: 'Pandsala'
+        text: 'X'
       },
       timestampMs: 2500
     })
-    expect(typed?.answer?.packet).toMatchObject({ kind: 'pursuitResponse', text: 'Pandsala' })
+    expect(typed?.packet).toMatchObject({ kind: 'pursuitResponse', text: 'X' })
+    expect(typed?.dialog).toBe(next!.packet)
   })
 
-  it('drops an answer with no dialog on screen', () => {
+  it('drops an answer with no dialog on screen, and forgets on a lost packet', () => {
+    expect(reduceAnswer(null, null, { packet: answer(), timestampMs: 1500 })).toBeNull()
+    const shown = reduceDialog(null, { packet: menu(), timestampMs: 1000 })
+    const answered = reduceAnswer(null, shown, { packet: answer(), timestampMs: 1500 })
     expect(
-      reduceDialog(null, {
-        packet: {
-          kind: 'merchantResponse',
-          objectType: 1,
-          objectId: 1,
-          pursuit: 1335,
-          tail: new Uint8Array()
-        },
-        timestampMs: 1500
-      })
+      reduceAnswer(answered, shown, { packet: answer(), timestampMs: 1600, sawLoss: true })
     ).toBeNull()
   })
 })

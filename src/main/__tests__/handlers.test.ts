@@ -74,6 +74,7 @@ function fakeService(status: CaptureStatus = STOPPED): CaptureService & {
     positionFor: () => null,
     dialogFor: () => null,
     noticeFor: () => null,
+    answerFor: () => null,
     fieldMapFor: () => null
   }
 }

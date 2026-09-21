@@ -26,13 +26,24 @@ export interface DialogState {
   packet: PursuitMessage | NpcMenu
   /** Capture time of the packet that set it. */
   asOfMs: number
-  /**
-   * The client's answer to this dialog, once it sends one: CMerchant 0x39 for
-   * a menu, CPursuit 0x3A for a pursuit. The dialog stays on screen until the
-   * server replies, so the answer sits beside it. The pane watcher pairs it
-   * with the hand click before it.
-   */
-  answer?: { packet: MerchantResponse | PursuitResponse; asOfMs: number }
+}
+
+/**
+ * The client's newest answer to a dialog: CMerchant 0x39 for a menu, CPursuit
+ * 0x3A for a pursuit, with the dialog it answered.
+ *
+ * A separate fact from the dialog on screen, because the answer outlives it:
+ * the server replies within tens of milliseconds, and the capture delivers
+ * both packets in one batch, so a poller that looked for the answer beside the
+ * dialog would never see it. The pane watcher pairs this with the hand click
+ * before it, which is how a row's screen position is learned.
+ */
+export interface DialogAnswer {
+  packet: MerchantResponse | PursuitResponse
+  /** Capture time of the answer. */
+  asOfMs: number
+  /** The dialog that was on screen when the client answered. */
+  dialog: PursuitMessage | NpcMenu
 }
 
 /** One packet, with what the capture layer knows about it. */
@@ -64,11 +75,23 @@ export function reduceDialog(state: DialogState | null, input: DialogInput): Dia
 
   if (packet.kind === 'npcMenu') return { packet, asOfMs: timestampMs }
 
-  if (packet.kind === 'merchantResponse' || packet.kind === 'pursuitResponse') {
-    if (state === null) return state
-    return { ...state, answer: { packet, asOfMs: timestampMs } }
-  }
-
   // Every other packet, the bank included, leaves the dialog on screen alone.
   return state
+}
+
+/**
+ * Apply one packet to the newest answer. `dialog` is the dialog on screen
+ * before this packet. An answer with no dialog up is not an answer to
+ * anything Midir saw, and is dropped.
+ */
+export function reduceAnswer(
+  state: DialogAnswer | null,
+  dialog: DialogState | null,
+  input: DialogInput
+): DialogAnswer | null {
+  if (input.sawLoss === true) return null
+  const { packet, timestampMs } = input
+  if (packet.kind !== 'merchantResponse' && packet.kind !== 'pursuitResponse') return state
+  if (dialog === null) return state
+  return { packet, asOfMs: timestampMs, dialog: dialog.packet }
 }
