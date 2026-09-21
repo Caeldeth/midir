@@ -31,18 +31,22 @@ Two positive signals, from opposite ends:
    so this is available now with no new decode. Its **presence** means unregistered. It is only
    "sometimes" there, so its absence proves nothing.
 2. **The login message (registered).** `SSystemMessage 0x0A` carries "Your expiration date is …" at
-   login for a registered character. Its **presence** means registered. Midir does not decode `0x0A`
-   yet; this WP adds it.
+   login for a registered character. Its **presence** means registered. `0x0A` is decoded since WP17
+   PR3 (`decode/message.ts`), and `captureService.noticeFor` holds the newest one; this WP reads it.
+3. **The refusal (unregistered).** An unregistered character that asks a bank NPC for Labor, or a
+   civic NPC for a civic action, gets the notice "(( Register first: www.darkages.com -> Click
+   'Register' ))" and a dialog close (Sabrael's capture of 2026-09-21). Its **presence** means
+   unregistered, and it arrives in the middle of play, not only at login.
 
-The rule: an unregistered legend mark makes the character unregistered; else a seen expiration
-message makes it registered; else registered by default.
+The rule: an unregistered legend mark or the refusal makes the character unregistered; else a seen
+expiration message makes it registered; else registered by default.
 
 ## Decisions
 
-1. **Decode `SSystemMessage 0x0A`.** Body: `[u8 type][string16 text]`, with the type-0x07 settings
-   and type-0x11 whisper variants the doc describes. Read both protocol sources and cite the one that
-   verifies it. The decoder is generally useful (it feeds a future chat view or the packet inspector,
-   WP20), so it is not registration-only.
+1. **Decode `SSystemMessage 0x0A`.** Done in WP17 PR3: `decode/message.ts`, body `[u8 type]` and
+   `[string16 text]`, with the type-0x11 confirmation prompt's three reply values; the type table is
+   darkages-741-re's. The decoder is generally useful (it feeds the Laborer's refusal reading now,
+   and a chat view or the packet inspector, WP20, later), so it is not registration-only.
 2. **Registration is a positive fact on the record.** Add `registered?: boolean` to
    `CharacterRecord`, set `false` when the unregistered legend mark is seen and `true` when the
    expiration message is seen. `undefined` means unknown, which the planner treats as registered.
@@ -74,8 +78,8 @@ message makes it registered; else registered by default.
 
 - [protocol/decode/character.ts:257](../../src/main/protocol/decode/character.ts#L257) — the legend
   is decoded, with each mark's `text`, ready to scan for the unregistered mark.
-- [protocol/opcodes.ts](../../src/main/protocol/opcodes.ts) — `0x0A` is a known startup opcode with
-  no decoder; this WP adds one.
+- [protocol/decode/message.ts](../../src/main/protocol/decode/message.ts) — `0x0A` decoded;
+  [model/notice.ts](../../src/main/model/notice.ts) keeps the newest notice per connection.
 - [route/graph.ts](../../src/main/route/graph.ts) — `planRoute` gains the registration option and the
   gated-map exclusion.
 - [walker.ts](../../src/main/walker.ts) — reads the bound character's registration and passes it to
@@ -112,7 +116,7 @@ export interface AccessOverlay {
 4. The gated-map overlay survives a re-import of `WorldMap.dat`.
 5. A learned gate needs an unregistered character to have hit it, and a creature-block is not
    mistaken for a gate.
-6. `0x0A` decodes to the right type and text against wire bytes.
+6. `0x0A` decodes to the right type and text against wire bytes (done in WP17 PR3).
 
 ## Verification
 

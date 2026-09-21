@@ -3,10 +3,12 @@ import { createLaborer, type Sleeper } from '../laborer'
 import type { ActionLayer, LiveConnection } from '../actionLayer'
 import type { ActionRefusal, ActionTarget, Errand, WalkOutcome } from '../../shared/types'
 import type { DialogState } from '../model/dialog'
+import type { NoticeState } from '../model/notice'
 import type { NpcMenu } from '../protocol/decode/dialog'
 import type { PursuitMessage } from '../protocol/decode/pursuit'
 import { builtinErrands } from '../laborer/errands'
 import cloutExchange from '../laborer/__tests__/fixtures/clout-exchange-2026-09-21.json'
+import laborExchange from '../laborer/__tests__/fixtures/labor-exchange-2026-09-21.json'
 import type { Walker } from '../walker'
 import type { Logger } from '../log'
 
@@ -43,10 +45,19 @@ function pursuit(overrides: Partial<PursuitMessage> = {}): PursuitMessage {
   }
 }
 
-/** A dialog feed: a list of dialogs the server shows, one per acted step. */
+/**
+ * A dialog feed: a list of dialogs the server shows, one per acted step. A
+ * notice at an index is the newest server notice while the feed is there; an
+ * index past the list is a closed dialog.
+ */
 interface Feed {
   list: DialogState[]
   index: number
+  noticeAt?: Record<number, NoticeState>
+}
+
+function notice(text: string, asOfMs: number): NoticeState {
+  return { packet: { kind: 'systemMessage', messageType: 3, text }, asOfMs }
 }
 
 interface FakeLayer {
@@ -180,6 +191,8 @@ function make(opts: Options): {
     liveConnections,
     dialogFor: (id: string): DialogState | null =>
       id === CID ? (opts.feed.list[opts.feed.index] ?? null) : null,
+    noticeFor: (id: string): NoticeState | null =>
+      id === CID ? (opts.feed.noticeAt?.[opts.feed.index] ?? null) : null,
     log: noop,
     errands: [opts.errand],
     onState: (state) =>
@@ -320,6 +333,44 @@ describe('createLaborer', () => {
     )
   })
 
+  it('stops on a refusal: no dialog after the step, and a notice that says why', async () => {
+    const feed = feedOf([
+      pursuit({ pursuit: 0x0064, options: [{ text: 'Ask' }, { text: 'Give clout' }] })
+    ])
+    feed.noticeAt = {
+      1: notice("(( Register first: www.darkages.com -> Click 'Register' ))", 2100)
+    }
+    const { laborer, fake } = make({ errand: twoStepErrand(), feed })
+    const outcome = await laborer.run({ connectionId: CID, errand: 'Test errand' })
+    expect(outcome).toEqual({
+      kind: 'stopped',
+      reason: 'serverNotice',
+      saw: "(( Register first: www.darkages.com -> Click 'Register' ))"
+    })
+    expect(fake.keys).toEqual([0x32])
+  })
+
+  it('does not read a notice beside the next dialog as a refusal', async () => {
+    const feed = feedOf([
+      pursuit({ pursuit: 0x0064, options: [{ text: 'Ask' }, { text: 'Give clout' }] }),
+      pursuit({ pursuit: 0x0065, options: [{ text: 'Yes' }, { text: 'No' }] })
+    ])
+    feed.noticeAt = { 1: notice('(( 4 Temauiran days = 12 Terran hours ))', 2200) }
+    const { laborer, fake } = make({ errand: twoStepErrand(), feed })
+    const outcome = await laborer.run({ connectionId: CID, errand: 'Test errand' })
+    expect(outcome).toEqual({ kind: 'done' })
+    expect(fake.keys).toEqual([0x32, 0x31])
+  })
+
+  it('ignores a notice while waiting for the player to open the conversation', async () => {
+    const feed = feedOf([])
+    feed.noticeAt = { 0: notice('[Billy]: anyone have a grand stilla?', 5000) }
+    const { laborer, fake } = make({ errand: twoStepErrand(), feed })
+    const outcome = await laborer.run({ connectionId: CID, errand: 'Test errand' })
+    expect(outcome).toEqual({ kind: 'stopped', reason: 'timeout' })
+    expect(fake.keys).toEqual([])
+  })
+
   it('names every pursuit id in the stop line, so a run is a capture', async () => {
     const feed = feedOf([
       menu({
@@ -448,6 +499,19 @@ describe('the recorded clout conversation (Eduardo, 2026-09-21)', () => {
     expect(fake.keys).toEqual([])
   })
 
+  it('waits for the menu after a withdrawal even though a notice came with the close', async () => {
+    const feed = { list: serverDialogs(10, 15), index: 0 }
+    const withdrawn = feed.list[2]!.asOfMs + 150
+    const { laborer, fake } = make({
+      errand,
+      feed: { ...feed, noticeAt: { 3: notice('You stop supporting Pandsala', withdrawn) } }
+    })
+    const outcome = await laborer.run({ ...request, params: { citizen: 'Sabrael' } })
+    // The player never reopened the menu: a timeout, not a refusal.
+    expect(outcome).toEqual({ kind: 'stopped', reason: 'timeout' })
+    expect(fake.keys).toEqual([0x31, 0x31, 0x32])
+  })
+
   it('stops rather than restart twice', async () => {
     // Two withdrawals in a row: the server keeps saying another is supported.
     const branch = serverDialogs(10, 15)
@@ -459,5 +523,52 @@ describe('the recorded clout conversation (Eduardo, 2026-09-21)', () => {
     expect(outcome.kind).toBe('stopped')
     if (outcome.kind === 'stopped') expect(outcome.reason).toBe('unmatchedDialog')
     expect(fake.keys).toEqual([0x31, 0x31, 0x32, 0x31, 0x31, 0x32])
+  })
+})
+
+describe('the recorded labor conversation (Evenue at Antonio, 2026-09-21)', () => {
+  const errand = builtinErrands().find((e) => e.npcName === 'Antonio')!
+  const exchange = laborExchange as Exchange
+  // Entries 0 to 5 are the menu, the offer, and the name; 7 is the verdict.
+  const dialogs = exchange
+    .slice(0, 6)
+    .filter((entry) => entry.server !== undefined)
+    .map((entry) => ({ packet: entry.server as PursuitMessage | NpcMenu, asOfMs: entry.at }))
+  const verdict = exchange[7]!
+
+  it('works for an Aisling with the keys the player pressed, and reports the verdict', async () => {
+    const feed: Feed = {
+      list: dialogs,
+      index: 0,
+      noticeAt: {
+        3: {
+          packet: verdict.server as NoticeState['packet'],
+          asOfMs: verdict.at
+        }
+      }
+    }
+    const { laborer, fake } = make({ errand, feed })
+    const outcome = await laborer.run({
+      connectionId: CID,
+      errand: errand.name,
+      params: { aisling: 'Pandsala' }
+    })
+    // "Labor" is row 9 of Antonio's menu; "I want to work" is row 2.
+    expect(fake.keys).toEqual([0x39, 0x32])
+    expect(fake.typed).toEqual(['Pandsala'])
+    expect(outcome).toEqual({
+      kind: 'done',
+      saw: "Pandsala doesn't need any jobs done. The Aisling hasn't done anything"
+    })
+  })
+
+  it('is done with no word when the server says nothing after the name', async () => {
+    const { laborer } = make({ errand, feed: { list: dialogs, index: 0 } })
+    const outcome = await laborer.run({
+      connectionId: CID,
+      errand: errand.name,
+      params: { aisling: 'Pandsala' }
+    })
+    expect(outcome).toEqual({ kind: 'done' })
   })
 })

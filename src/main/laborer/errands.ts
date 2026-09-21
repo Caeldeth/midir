@@ -18,9 +18,10 @@ import type { DialogStep, Errand, ErrandParam } from '../../shared/types'
  *    form, the NPC's own tile, which the walker finishes beside. Without either
  *    the walker reaches the map but not the NPC.
  *  - `steps` — the pursuit id and the row text for each dialog step. Every
- *    value is from a recording, never a guess. The Rucesion clout errands have
- *    theirs (see `cloutSteps`); the rest are still a capture away. With no
- *    steps, the Laborer walks to the NPC and stops.
+ *    id is from a recording, never a guess. The Rucesion clout errands have
+ *    theirs (`cloutSteps`) and the labor errands theirs (`laborSteps`); the
+ *    Mileth clout errands are still a capture away. With no steps, the
+ *    Laborer walks to the NPC and stops.
  *
  * A placeholder is safe: the matcher refuses any dialog whose pursuit and row
  * text do not match, so a wrong value stops the run rather than acting on it.
@@ -100,6 +101,44 @@ function cloutSteps(
 /** The "Rucesion Civics" row's pursuit on Maria, Angelo, and Eduardo. */
 const RUCESION_CIVICS_ROW = 1612
 
+/**
+ * The labor errand: work one Temuairan day for another Aisling, by name.
+ *
+ * From Sabrael's capture of 2026-09-21 (Evenue at Antonio): the menu row
+ * "Labor", then under the labor pursuit "You want to work for another
+ * Aisling? …" with the rows "I don't want to work", "I want to work", and
+ * "((labor fix))", then "Who shall you work for?" as a text field. The
+ * server's verdict is a notice, not a dialog: "<name> doesn't need any jobs
+ * done. The Aisling hasn't done anything" when the Aisling is full, so the
+ * run reports the first notice after the last step as its outcome. An Aisling
+ * holds six days of labor, which come back over time (Sabrael: about every
+ * twelve hours).
+ *
+ * "((labor fix))" gives a laborer its own days back, free, once in a while.
+ * What follows that row was not chosen with Midir recording, so it is not an
+ * errand yet.
+ *
+ * The ids: the "Labor" row is 1335 on Antonio and on Cassidy (July 2026), and
+ * the labor pursuit 311 was seen on Antonio. A pursuit is a server-wide script
+ * id, not a per-NPC one (the civic pursuit is 588 on three NPCs, the bank
+ * pursuit 0x56 on three), so the same values are given to every bank NPC. A
+ * wrong one is a safe stop that names the right one.
+ */
+const LABOR_ROW = 1335
+const LABOR_PURSUIT = 311
+const AISLING: ErrandParam = { name: 'aisling', label: 'Aisling to work for' }
+
+function laborSteps(): Pick<Errand, 'params' | 'steps'> {
+  return {
+    params: [AISLING],
+    steps: [
+      { pursuit: LABOR_ROW, choose: 'Labor' },
+      { pursuit: LABOR_PURSUIT, when: 'work for another Aisling', choose: 'I want to work' },
+      { pursuit: LABOR_PURSUIT, when: 'Who shall you work for', answer: '{aisling}' }
+    ]
+  }
+}
+
 export const BUILTIN_ERRANDS: Errand[] = [
   // --- Clout: one errand for each NPC ------------------------------------
   {
@@ -149,22 +188,19 @@ export const BUILTIN_ERRANDS: Errand[] = [
   },
 
   // --- Labor: one errand for each bank NPC -------------------------------
-  // The main menu row is "Labor" (pursuit 1335 on Antonio and Cassidy, July
-  // recordings). What follows it was never chosen with Midir recording, so the
-  // steps wait on one capture.
   {
     name: 'Labor — Antonio (Rucesion Bank)',
     destination: 'Rucesion Bank',
     standTile: { x: 5, y: 8 },
     npcName: 'Antonio',
-    steps: []
+    ...laborSteps()
   },
   {
     name: 'Labor — Cassidy (Mileth Bank)',
     destination: 'Mileth Bank',
     standTile: { x: 6, y: 6 },
     npcName: 'Cassidy',
-    steps: []
+    ...laborSteps()
   },
   // The three other-town storages are the same 12 x 12 room as Rucesion's,
   // with the NPC on the same tile (3,4), so Rucesion's stand tile carries over.
@@ -174,7 +210,7 @@ export const BUILTIN_ERRANDS: Errand[] = [
     standTile: { x: 5, y: 8 },
     npcTile: { x: 3, y: 4 },
     npcName: 'Jilt',
-    steps: []
+    ...laborSteps()
   },
   {
     name: 'Labor — Lamont (Abel Bank)',
@@ -182,7 +218,7 @@ export const BUILTIN_ERRANDS: Errand[] = [
     standTile: { x: 5, y: 8 },
     npcTile: { x: 3, y: 4 },
     npcName: 'Lamont',
-    steps: []
+    ...laborSteps()
   },
   {
     name: 'Labor — Argus (Undine Bank)',
@@ -190,7 +226,7 @@ export const BUILTIN_ERRANDS: Errand[] = [
     standTile: { x: 5, y: 8 },
     npcTile: { x: 3, y: 4 },
     npcName: 'Argus',
-    steps: []
+    ...laborSteps()
   }
 ]
 

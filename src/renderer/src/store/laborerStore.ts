@@ -56,8 +56,7 @@ function messageOf(error: unknown): string {
 
 /** A short line for how an errand ended, ready to show the user. */
 export function errandOutcomeMessage(outcome: ErrandOutcome): string {
-  if (outcome.kind === 'done') return 'The errand finished.'
-  const base = errandStopMessage(outcome.reason)
+  const base = outcome.kind === 'done' ? 'The errand finished.' : errandStopMessage(outcome.reason)
   return outcome.saw !== undefined ? `${base} (${outcome.saw})` : base
 }
 

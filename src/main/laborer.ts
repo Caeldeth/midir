@@ -10,6 +10,7 @@ import type { Errand } from '../shared/types'
 import { errandStopMessage } from '../shared/types'
 import type { ActionLayer, LiveConnection } from './actionLayer'
 import type { DialogState } from './model/dialog'
+import type { NoticeState } from './model/notice'
 import type { Logger } from './log'
 import type { Walker } from './walker'
 import { builtinErrands } from './laborer/errands'
@@ -58,6 +59,11 @@ export interface LaborerOptions {
   liveConnections: () => LiveConnection[]
   /** The NPC dialog on screen for a connection. From the capture service. */
   dialogFor: (connectionId: string) => DialogState | null
+  /**
+   * The newest server notice for a connection. From the capture service. A
+   * notice and a dialog close in place of the next dialog is a refusal.
+   */
+  noticeFor?: (connectionId: string) => NoticeState | null
   log: Logger
   /** Called whenever a Laborer changes, so main can push it. */
   onState?: (state: LaborerState) => void
@@ -101,6 +107,16 @@ const DIALOG_WAIT_MS = 6000
  * server, so this wait is the long one.
  */
 const FIRST_DIALOG_WAIT_MS = 30000
+
+/**
+ * How long to wait for the server's word after the last step, in milliseconds.
+ *
+ * A labor errand ends on a name, and the verdict comes back as a notice, not
+ * a dialog: "<name> doesn't need any jobs done …". The run waits this long for
+ * the first notice after its last key and reports it, so "done" says what was
+ * done. Nothing is posted in this wait.
+ */
+const OUTCOME_WAIT_MS = 1500
 
 /**
  * How many times a `restart` branch may send the run back to the first step.
@@ -183,6 +199,7 @@ function missingParams(errand: Errand, values: Record<string, string>): string[]
 
 export function createLaborer(options: LaborerOptions): Laborer {
   const { actionLayer, walker, liveConnections, dialogFor, log, onState } = options
+  const noticeFor = options.noticeFor ?? ((): null => null)
   const sleep = options.sleep ?? defaultSleep
   const errandList = options.errands ?? builtinErrands()
 
@@ -211,7 +228,7 @@ export function createLaborer(options: LaborerOptions): Laborer {
     actionLayer.disarm(run.connectionId)
     const reason =
       outcome.kind === 'done'
-        ? 'the errand finished'
+        ? `the errand finished${outcome.saw !== undefined ? ` (${outcome.saw})` : ''}`
         : `${errandStopMessage(outcome.reason)}${outcome.saw !== undefined ? ` (${outcome.saw})` : ''}`
     onState?.({
       connectionId: run.connectionId,
@@ -224,18 +241,45 @@ export function createLaborer(options: LaborerOptions): Laborer {
     return outcome
   }
 
-  /** Wait for a dialog whose capture time is after `afterMs`, or null on timeout. */
+  /** What a wait for the next dialog ended with. */
+  type Waited =
+    | { kind: 'dialog'; dialog: DialogState }
+    /** No dialog came, and a server notice did: the step was refused. */
+    | { kind: 'notice'; notice: NoticeState }
+    | { kind: 'timeout' }
+    | { kind: 'stopped' }
+
+  /**
+   * Wait for a dialog whose capture time is after `afterMs`.
+   *
+   * A new dialog always wins. A server notice on its own is not a refusal:
+   * the clout capture of 2026-09-21 shows "(( 4 Temauiran days = 12 Terran
+   * hours ))" beside the confirmation, "You stop supporting …" beside the
+   * close after a withdrawal, and world chat is the same packet. So a notice
+   * counts only when the wait ends with no dialog at all, and then the first
+   * notice after the step is the reason: "(( Register first …" is what an
+   * unregistered character gets for Labor. `watchNotices` is off for the
+   * opening wait, where nothing was asked of the server.
+   */
   async function waitForDialog(
     run: Run,
     afterMs: number,
-    timeoutMs: number
-  ): Promise<DialogState | null> {
+    timeoutMs: number,
+    watchNotices: boolean
+  ): Promise<Waited> {
     const deadline = (options.now ?? Date.now)() + timeoutMs
+    let first: NoticeState | null = null
     for (;;) {
-      if (!run.running || actionLayer.stopped) return null
+      if (!run.running || actionLayer.stopped) return { kind: 'stopped' }
       const dialog = dialogFor(run.connectionId)
-      if (dialog !== null && dialog.asOfMs > afterMs) return dialog
-      if ((options.now ?? Date.now)() >= deadline) return null
+      if (dialog !== null && dialog.asOfMs > afterMs) return { kind: 'dialog', dialog }
+      if (watchNotices && first === null) {
+        const notice = noticeFor(run.connectionId)
+        if (notice !== null && notice.asOfMs > afterMs) first = notice
+      }
+      if ((options.now ?? Date.now)() >= deadline) {
+        return first !== null ? { kind: 'notice', notice: first } : { kind: 'timeout' }
+      }
       const sleeper = sleep(POLL_MS)
       run.cancelWait = sleeper.cancel
       await sleeper.promise
@@ -328,17 +372,22 @@ export function createLaborer(options: LaborerOptions): Laborer {
           : `the dialog for step ${index + 1}`
       )
 
-      const dialog = await waitForDialog(
+      const waited = await waitForDialog(
         runState,
         lastAsOf,
-        opening ? FIRST_DIALOG_WAIT_MS : DIALOG_WAIT_MS
+        opening ? FIRST_DIALOG_WAIT_MS : DIALOG_WAIT_MS,
+        !opening
       )
-      if (dialog === null) {
-        if (!runState.running || actionLayer.stopped) {
-          return finish(runState, { kind: 'stopped', reason: runState.stopReason ?? 'user' })
-        }
-        return finish(runState, { kind: 'stopped', reason: 'timeout' })
+      if (waited.kind === 'stopped') {
+        return finish(runState, { kind: 'stopped', reason: runState.stopReason ?? 'user' })
       }
+      if (waited.kind === 'timeout') return finish(runState, { kind: 'stopped', reason: 'timeout' })
+      if (waited.kind === 'notice') {
+        const saw = waited.notice.packet.text.trim()
+        log.warn('laborer', `The server answered step ${index} with a notice: ${saw}. Stopping.`)
+        return finish(runState, { kind: 'stopped', reason: 'serverNotice', saw })
+      }
+      const { dialog } = waited
       lastAsOf = dialog.asOfMs
 
       // The next step first. When it does not match, a branch may: a dialog the
@@ -396,6 +445,13 @@ export function createLaborer(options: LaborerOptions): Laborer {
       }
     }
 
+    // The server's word after the last step, when it gives one.
+    const after = await waitForDialog(runState, lastAsOf, OUTCOME_WAIT_MS, true)
+    if (after.kind === 'notice') {
+      const saw = after.notice.packet.text.trim()
+      log.info('laborer', `The server said, after the last step: ${saw}.`)
+      return finish(runState, { kind: 'done', saw })
+    }
     return finish(runState, { kind: 'done' })
   }
 

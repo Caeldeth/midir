@@ -124,6 +124,12 @@ describe('useLaborerStore', () => {
 
   it('reports an outcome as a line', () => {
     expect(errandOutcomeMessage({ kind: 'done' })).toBe('The errand finished.')
+    expect(errandOutcomeMessage({ kind: 'done', saw: 'You give labor to X' })).toBe(
+      'The errand finished. (You give labor to X)'
+    )
+    expect(errandOutcomeMessage({ kind: 'stopped', reason: 'serverNotice', saw: '(( x ))' })).toBe(
+      'The server refused the step with a notice. ((( x )))'
+    )
     expect(errandOutcomeMessage({ kind: 'stopped', reason: 'protected' })).toContain('login')
     expect(
       errandOutcomeMessage({ kind: 'stopped', reason: 'unmatchedDialog', saw: 'pursuit 0x99' })

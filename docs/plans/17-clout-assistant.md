@@ -75,12 +75,27 @@ its stop line names every pursuit id the dialog carried, so that run is itself t
   opens the conversation, and a player is slower than a server.
 - The recorded exchange is a fixture (`laborer/__tests__/fixtures/clout-exchange-2026-09-21.json`),
   and the driver replays it whole and posts the keys the player pressed: acceptance criterion 1.
+- **The five labor errands have their steps**, from Sabrael's capture of the same night (Evenue at
+  Antonio): the menu row "Labor" (1335), then under the labor pursuit (311) "I want to work" and the
+  Aisling's name into a text field, as `{aisling}`. The third row of that dialog, "((labor fix))",
+  gives a laborer its own days back and is not scripted: what follows it was not chosen. An Aisling
+  holds six days of labor, which come back over time. The ids are from recordings; a pursuit is a
+  server-wide script id (588 on three civic NPCs, 0x56 on three banks), so Antonio's serve every
+  bank NPC, and a wrong one is a safe stop that names the right one.
+- **`SSystemMessage 0x0A` is decoded** (`decode/message.ts`, WP32 decision 1 brought forward), and
+  the newest notice is a live fact beside the dialog (`model/notice.ts`, `captureService.noticeFor`).
+  The server's verdict on a step is often a notice, not a dialog: "(( Register first: … ))" for an
+  unregistered character's Labor or civic action, "<name> doesn't need any jobs done" for a full
+  Aisling. **A notice on its own is not a refusal**: the same packet carries "(( 4 Temauiran days =
+  12 Terran hours ))" beside the confirmation, "You stop supporting …" beside the close after a
+  withdrawal, and world chat. So the Laborer reads a notice only when a step of its own gets no
+  dialog within the wait, and then stops with `serverNotice` and the first notice's text; and after
+  the last step it waits `OUTCOME_WAIT_MS` for the server's word and reports it on `done`.
 
 **What still waits on a capture.** The three Mileth clout errands, which Sabrael expects to be the
-same conversation under "Mileth Civics" with their own ids; and the five labor errands, whose menu
-row is "Labor" (1335 on Antonio and Cassidy) and whose dialog behind it was never chosen with Midir
-recording. One run of each with Midir recording, or one run of the errand as it stands, gives the
-ids.
+same conversation under "Mileth Civics" with their own ids. One run of each with Midir recording, or
+one run of the errand as it stands, gives the ids. And the labor errands' success notice, which the
+capture did not reach.
 
 **Two follow-ups this surfaced.** `WP33` (complete, 2026-09-21) made every errand destination
 route: the walker crosses the world map, every building is a node, and each errand carries the tile

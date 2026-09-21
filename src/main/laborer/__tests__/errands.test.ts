@@ -30,6 +30,17 @@ describe('built-in errands', () => {
     }
   })
 
+  it('gives the five labor errands the recorded conversation', () => {
+    for (const errand of builtinErrands().filter((e) => e.name.startsWith('Labor —'))) {
+      expect(errand.params).toEqual([{ name: 'aisling', label: 'Aisling to work for' }])
+      expect(errand.steps.map((s) => s.choose ?? s.answer)).toEqual([
+        'Labor',
+        'I want to work',
+        '{aisling}'
+      ])
+    }
+  })
+
   it('names every placeholder a step uses among the errand params', () => {
     for (const errand of builtinErrands()) {
       const declared = new Set((errand.params ?? []).map((p) => p.name))

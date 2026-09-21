@@ -269,10 +269,16 @@ export type ErrandStopReason =
   | 'walker'
   /** A credential pane appeared. The Laborer never works one. */
   | 'protected'
+  /** The server answered a step with a notice and no dialog: a refusal. */
+  | 'serverNotice'
 
 /** How an errand ended. */
 export type ErrandOutcome =
-  | { kind: 'done' }
+  | {
+      kind: 'done'
+      /** The server's word after the last step, when it gave one as a notice. */
+      saw?: string
+    }
   | {
       kind: 'stopped'
       reason: ErrandStopReason
@@ -318,6 +324,8 @@ export function errandStopMessage(reason: ErrandStopReason): string {
       return 'The Laborer could not walk to the NPC.'
     case 'protected':
       return 'The Laborer saw a login or password dialog and stopped.'
+    case 'serverNotice':
+      return 'The server refused the step with a notice.'
   }
 }
 
