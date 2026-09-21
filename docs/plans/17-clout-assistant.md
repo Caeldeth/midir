@@ -53,10 +53,10 @@ values per entry come from a recorded session or the live check, not a guess: th
 walker finishes beside the NPC), and the `steps` (the pursuit id and the row text). The matcher
 refuses any mismatch, so an errand with no steps walks to the map and stops rather than acting.
 
-**Two follow-ups this surfaced.** `WP33` adds the world-graph nodes five errand destinations still
-lack (Mileth Tavern, Mileth Town Hall, Piet Bank, Abel Bank, Undine Bank), which today stop with
-`noRoute`. `WP34` lets an assistant dismiss a movement-blocking notice popup, which a walker reads as
-a stall today.
+**Two follow-ups this surfaced.** `WP33` (complete, 2026-09-21) made every errand destination
+route: the walker crosses the world map, every building is a node, and each errand carries the tile
+to stand on. What each errand still needs is its dialog `steps`, from a capture. `WP34` lets an
+assistant dismiss a movement-blocking notice popup, which a walker reads as a stall today.
 
 ## Goal
 

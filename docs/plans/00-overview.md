@@ -140,7 +140,7 @@ WP13 (the action layer: window, keys, the stop)   COMPLETE — complete/13-actio
  ├── WP16 (Speaker)   COMPLETE — complete/16-speaker.md — the smallest user of WP13, and its proof
  └── WP15 (Walker)   COMPLETE — complete/15-walker.md
       └── WP17 (Laborer)   IN PROGRESS — both PRs merged; the rest needs a live game
-           ├── WP33 (world-map coverage for errand nodes)   IN PROGRESS — the hop is built; five building nodes still need a capture
+           ├── WP33 (world-map coverage for errand nodes)   COMPLETE — complete/33-errand-map-coverage.md — every errand routes
            ├── WP34 (dismiss blocking popups)   PLANNED — a notice reads as a stall today
            └── WP35 (right-click walking)   PLANNED — the client's own pathfinder for a smoother walk
 WP14 (position and map, off the wire)   COMPLETE — complete/14-position-and-map.md — what WP15 steers by
@@ -161,7 +161,7 @@ WP29 (learn map transitions from the wire)   PLANNED — needs WP14; feeds WP15'
 WP30 (map viewer / route inspector)   PLANNED — needs WP15, WP14, WP7
 WP31 (dynamic door collision 0x32)   PLANNED — needs WP15; feeds WP17
 WP32 (registration-aware routing)   PLANNED — needs WP15, WP4/WP5; adds a 0x0A decoder
-WP33 (world-map coverage for errands)   IN PROGRESS — needs WP15, WP17; the cross-town hop is built
+WP33 (world-map coverage for errands)   COMPLETE — complete/33-errand-map-coverage.md
 WP34 (dismiss blocking popups)   PLANNED — needs WP11, WP17 PR1, WP15, WP14
 WP35 (right-click walking)   PLANNED — needs WP15, WP13, WP33's click gesture
 ```
@@ -226,7 +226,7 @@ trigger is in each doc's header.
 | WP30 | M    | Map viewer / route inspector    | HTOO-79  | PLANNED — `30-map-viewer.md`                     |
 | WP31 | S    | Dynamic door collision (`0x32`) | HTOO-80  | PLANNED — `31-door-collision.md`                 |
 | WP32 | M    | Registration-aware routing      | HTOO-81  | PLANNED — `32-registration-aware-routing.md`     |
-| WP33 | S    | Map coverage for errand nodes   | HTOO-82  | IN PROGRESS — `33-errand-map-coverage.md`        |
+| WP33 | S    | Map coverage for errand nodes   | HTOO-82  | COMPLETE — `complete/33-errand-map-coverage.md`  |
 | WP34 | S    | Dismiss blocking popups         | HTOO-83  | PLANNED — `34-dismiss-blocking-popups.md`        |
 | WP35 | M    | Right-click walking             | HTOO-468 | PLANNED — `35-right-click-walking.md`            |
 

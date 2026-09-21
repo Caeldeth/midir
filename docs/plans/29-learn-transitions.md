@@ -5,6 +5,12 @@
 **Trigger to start:** the imported `WorldMap.dat` graph proves stale in play, or a want to let the
 wire verify and extend the graph without a hand edit.
 
+**Also to learn, noted by WP33 (2026-09-21):** the game's map names. The graph's names come from
+DA Walker's `.dat` ("Abel Outskirts", "Mileth Altar", "MilethEnt"); the game's are on every
+`SMapInfo 0x15` ("Abel Port Way", "Mileth Village"). A name table learned from play, with both
+names resolving on the Walker tab and the game's shown first, is the same shape as a learned edge:
+provenance on the record, the `.dat` name kept because the errands and the pins use it.
+
 ## Goal
 
 Learn warp edges from real play, off the wire, and use them to correct and extend the walker's route
