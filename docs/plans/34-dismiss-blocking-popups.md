@@ -3,18 +3,21 @@
 **Size:** S. **Depends on:** WP11 and WP17 PR1 (the dialog decode), WP15 (the walker), WP14 (the
 position). Read `00-overview.md` first. **IN PROGRESS.** **Card:** `HTOO-83`.
 
-**Built 2026-09-21; the live check is what is left.** The walker reads the dialog on screen before
-a missed step counts as a stall (`checkPopup` in `walker.ts`). A plain notice gets Escape, then the
-Close click if it is still up on the next stall; a dialog that asks something stops the walk with
-the reason `dialog`, and the credential pane stops it with `protected` before any key. The rule and
-the two gestures live in `dialogScreen.ts`, shared with the Laborer's close step.
+**Built 2026-09-21; the live check is what is left.** The walker reads what is on screen before a
+missed step counts as a stall (`checkPopup` in `walker.ts`). A dialog gets Escape, then the Close
+click if it is still up on the next stall, and is never answered; one that survives both stops the
+walk with the reason `dialog`, and the credential pane stops it with `protected` before any key. An
+exchange window is cancelled with Escape and never accepted. The rule and the two gestures live in
+`dialogScreen.ts`, shared with the Laborer's close step.
 
-**The first live try found a second popup.** The one popup Sabrael can make on demand is an
-exchange window — another character drags an item onto the walking one — and that is `SExchange
-0x42`, not a dialog, so the first build saw nothing and stopped `blocked`. Now `0x42` is decoded
-(`decode/exchange.ts`), a reducer keeps the window's state (`model/exchange.ts`), and the walker
-cancels an open exchange with Escape, then gives one more Escape to the one-button alert the client
-shows after the close, which never touches the wire.
+**The first live try (on the pre-WP34 build, as the log showed) named the two popups that matter.**
+The popups Sabrael can make on demand are another character's doing: an exchange window (an item
+dragged onto the walking one), which is `SExchange 0x42` and not a dialog at all; and a prayer
+invite from a Ceannlaidir necklace, which is a `0x30` **with options** — "Evenue is praying to
+Ceannlaidir." with No, Assist, and a curse. The first cut would have stopped on the second by
+design, "never a menu". That rule was aimed at the wrong thing: the danger was ever _answering_ a
+menu, and a close answers nothing. So the rule is now **close, never choose**, and `0x42` is decoded
+(`decode/exchange.ts`) with a reducer for the window (`model/exchange.ts`).
 
 **Trigger:** surfaced by WP17. A server dialog popup — a clout notice, a level-up, an item prompt —
 stops the character moving until the player dismisses it. To the walker this looks like a stall, and
@@ -42,16 +45,20 @@ retried step is not posted into it and no second Escape follows.
 
 ## The one way to get this wrong
 
-**Dismissing a dialog that carries a decision.** A clear-the-popup reflex must never answer a menu, a
-text field, or a credential pane — only close a dialog that is purely a notice. Closing sends the
-same "close" the player would; answering makes a choice the player did not. And the credential pane
+**Answering a dialog that carries a decision.** A clear-the-popup reflex must never choose a row,
+type into a field, or accept an exchange. Closing sends the same "close" the player would, and the
+server reads it as no answer; choosing makes a choice the player did not. And the credential pane
 (dialogType 9) is never touched, closed or otherwise.
 
 ## Decisions to take when this is built
 
-1. **Close only a no-choice dialog.** A plain-text notice (dialogType 0/1, no options, no input) is
-   safe to close. Anything with options or input stops the assistant, exactly as WP17 already does.
-   **Taken:** `isPlainNotice` in `dialogScreen.ts` is the one test; a `0x2F` menu never passes it.
+1. **Close, never choose.** Planned as "close only a no-choice dialog", and changed on the first
+   live try (above): the walker opens no dialog, so one on screen mid-walk was pushed on the
+   character, and a close is what the player does with it whatever its rows say. **Taken:** every
+   `0x30` and `0x2F` dialog but the credential pane is closed the same way; no gesture of the
+   walker's is a row click, a keystroke into a field, or an accept. The Laborer keeps its own
+   stricter rule, because its dialogs are ones it asked for and a wrong close there loses the
+   errand.
 2. **Close the way the client does**, with the same key the player presses to dismiss a notice.
    **Taken:** Escape cancels a popup (Sabrael, 2026-09-21), so the walker posts Escape first. The
    Close button click at (589, 461), proven by the Laborer's labor-fix step in WP17, is the second
@@ -75,7 +82,7 @@ same "close" the player would; answering makes a choice the player did not. And 
 
 ## Non-goals
 
-- **No answering a menu or a text field to get past it.** Only a no-choice notice is closed.
+- **No answering a menu or a text field to get past it.** A dialog is closed, never chosen.
 - **No packet.** The close is a posted key, like every other assistant action.
 
 ## Acceptance criteria
@@ -84,8 +91,9 @@ same "close" the player would; answering makes a choice the player did not. And 
    scripted dialog feed. **Unit test passes** (`walker.test.ts`, "a popup mid-walk"): Escape clears
    it and the walk arrives; a client that ignores Escape gets the click; a client that ignores both
    gets each gesture once and then `blocked`.
-2. A dialog with options or input still stops the assistant; it is never auto-answered. **Unit test
-   passes**: a menu and a text field both stop with `dialog`, with no key or click posted.
+2. A dialog with options or input is never auto-answered. **Unit test passes**: the prayer invite
+   of the live try is closed with Escape and no row is clicked; a text field the same; a dialog that
+   survives Escape and the Close click stops with `dialog`.
 3. A dialogType-9 pane is never closed and always stops the run. **Unit test passes**: `protected`,
    with no Escape and no click; the only key posted was the step whose miss revealed the pane.
 4. Nothing sends a packet. **Holds by construction**: the walker's only calls are `pressKey` and
