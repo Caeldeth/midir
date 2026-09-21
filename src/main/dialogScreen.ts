@@ -1,22 +1,22 @@
 import type { DialogState } from './model/dialog'
 
 /**
- * The dialog facts a driving assistant shares: which dialog is safe to
- * dismiss, and the two gestures that dismiss one.
+ * The dialog facts a driving assistant shares: which dialog it must never
+ * touch, and the two gestures that close one.
  *
  * A dialog on screen stops the character moving until the player clears it.
- * The walker meets one mid-walk (a clout notice, a level-up), and the Laborer
- * closes one as a step of an errand. Both read the same rule and post the
- * same gestures, so the rule lives here and not in either.
+ * The walker meets one mid-walk (a verdict, another player's prayer or
+ * fellowship invite), and the Laborer closes one as a step of an errand.
+ * Both read the same rule and post the same gestures, so the rule lives here
+ * and not in either.
  *
- * ## Which dialog may be dismissed
+ * ## Close, never choose
  *
- * Only a plain notice: SPursuitMessage 0x30 with dialogType 0 or 1, which
- * carries prose and no choice. A menu (0x2F, or 0x30 with options), a text
- * field, and the credential pane (dialogType 9) are the player's to answer,
- * and an assistant stops when it meets one it did not expect. Closing a
- * notice sends what the player's own close sends; answering a menu makes a
- * choice the player did not.
+ * A close chooses no row and types no text: it is the pane's own Close, what
+ * the player does with a dialog they did not ask for, and the server reads
+ * it as no answer. So an assistant may close any dialog it did not open, and
+ * must never answer one it did not expect. The one dialog no assistant
+ * touches is the credential pane (dialogType 9): it stops before any key.
  *
  * ## The gestures
  *
@@ -32,14 +32,6 @@ import type { DialogState } from './model/dialog'
 
 /** The dialog's Close button, in the game's 640 x 480 space. */
 export const CLOSE_BUTTON = { x: 589, y: 461 }
-
-/**
- * Whether the dialog is a plain notice: prose and no choice. Only this may be
- * dismissed without a step that names it.
- */
-export function isPlainNotice(dialog: DialogState): boolean {
-  return dialog.packet.kind === 'pursuitMessage' && dialog.packet.dialogKind === 'text'
-}
 
 /** Whether the dialog is the credential pane, which no assistant touches. */
 export function isProtectedDialog(dialog: DialogState): boolean {

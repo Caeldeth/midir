@@ -776,45 +776,53 @@ describe('walker and a popup mid-walk (WP34)', () => {
     expect(world.closeClicks).toBe(1)
   })
 
-  it('posts each gesture once and then stops blocked when neither clears the notice', async () => {
-    // No loop on a popup the client keeps up: the stall count runs as for a wall.
+  it('posts each gesture once and then stops with dialog when neither closes it', async () => {
+    // No loop on a popup the client keeps up, and a reason that names it.
     const world = lineWorld()
     world.escapeClears = false
     world.closeClears = false
     popupAfterTwoSteps(world, pursuit())
     const { walker } = harness(world, lineGraph())
     const outcome = await walker.go({ connectionId: CID, destination: 'Cave' })
-    expect(outcome).toEqual({ kind: 'stopped', reason: 'blocked' })
+    expect(outcome).toEqual({ kind: 'stopped', reason: 'dialog' })
     expect(world.escapes).toBe(1)
     expect(world.closeClicks).toBe(1)
   })
 
-  it('stops with dialog at a menu, and never answers or closes it', async () => {
-    // Acceptance criterion 2: a dialog with options stops the walker.
+  it('closes a menu pushed on the character, and never chooses a row', async () => {
+    // Acceptance criterion 2: the prayer invite of the live try (2026-09-21):
+    // "Evenue is praying to Ceannlaidir." with No, Assist, and a curse. A
+    // close chooses none of them; the walk goes on.
     const world = lineWorld()
     popupAfterTwoSteps(
       world,
       pursuit({
         dialogType: 2,
         dialogKind: 'options',
-        options: [{ text: 'Withdraw support' }, { text: 'I continue to support the Aisling' }]
+        objectType: 4,
+        pursuit: 548,
+        step: 135,
+        hasNext: true,
+        text: 'Evenue is praying to Ceannlaidir.',
+        options: [{ text: 'No' }, { text: 'Assist' }, { text: 'A curse on you for bothering me!' }]
       })
     )
     const { walker } = harness(world, lineGraph())
     const outcome = await walker.go({ connectionId: CID, destination: 'Cave' })
-    expect(outcome).toEqual({ kind: 'stopped', reason: 'dialog' })
-    expect(world.escapes).toBe(0)
+    expect(outcome).toEqual({ kind: 'arrived' })
+    expect(world.escapes).toBe(1)
+    // No row click: the only clicks the world saw are none at all.
+    expect(world.clicks).toEqual([])
     expect(world.closeClicks).toBe(0)
-    expect(world.dialog).not.toBeNull()
   })
 
-  it('stops with dialog at a text field', async () => {
+  it('closes a text field the same way', async () => {
     const world = lineWorld()
     popupAfterTwoSteps(world, pursuit({ dialogType: 4, dialogKind: 'textInput' }))
     const { walker } = harness(world, lineGraph())
     const outcome = await walker.go({ connectionId: CID, destination: 'Cave' })
-    expect(outcome).toEqual({ kind: 'stopped', reason: 'dialog' })
-    expect(world.escapes).toBe(0)
+    expect(outcome).toEqual({ kind: 'arrived' })
+    expect(world.escapes).toBe(1)
   })
 
   it('stops with protected at the credential pane, before any key', async () => {
@@ -862,7 +870,7 @@ describe('walker and a popup mid-walk (WP34)', () => {
     expect(world.exchange?.kind).toBe('alert')
   })
 
-  it('posts one Escape at an exchange the client keeps open, then stops blocked', async () => {
+  it('posts one Escape at an exchange the client keeps open, then stops with dialog', async () => {
     const world = lineWorld()
     world.escapeClears = false
     let moves = 0
@@ -874,7 +882,7 @@ describe('walker and a popup mid-walk (WP34)', () => {
     }
     const { walker } = harness(world, lineGraph())
     const outcome = await walker.go({ connectionId: CID, destination: 'Cave' })
-    expect(outcome).toEqual({ kind: 'stopped', reason: 'blocked' })
+    expect(outcome).toEqual({ kind: 'stopped', reason: 'dialog' })
     expect(world.escapes).toBe(1)
   })
 

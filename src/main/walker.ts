@@ -8,7 +8,7 @@ import type {
   WalkStopReason
 } from '../shared/actionLayer'
 import { VK_ESCAPE, VK_SPACE, type ActionLayer, type LiveConnection } from './actionLayer'
-import { CLOSE_BUTTON, isPlainNotice, isProtectedDialog } from './dialogScreen'
+import { CLOSE_BUTTON, isProtectedDialog } from './dialogScreen'
 import type { Logger } from './log'
 import type { DialogState } from './model/dialog'
 import type { ExchangeState } from './model/exchange'
@@ -119,9 +119,9 @@ const MAX_STALLS = 3
  */
 const DISMISS_WAIT_MS = 1500
 /**
- * How many gestures to post at one popup before the stall counts: Escape, then
- * the Close button. A popup still up after both is something the player must
- * look at, and the stall count runs as for any wall.
+ * How many gestures to post at one dialog: Escape, then the Close button. A
+ * dialog still up after both is something the player must look at, and the
+ * walk stops and says so.
  */
 const DISMISS_GESTURES = 2
 /**
@@ -364,11 +364,13 @@ export function createWalker(options: WalkerOptions): Walker {
   }
 
   /**
-   * An NPC dialog mid-walk. A plain notice is dismissed with Escape first,
-   * and the Close button on the next stall if the notice is still up. A
-   * dialog that asks something stops the walk with the reason named, because
-   * answering it is a choice the player did not make; the credential pane
-   * stops it before any key.
+   * A dialog mid-walk: closed, never answered. The walker opens no dialog, so
+   * one on screen was pushed on the character — a verdict, or another
+   * player's prayer or fellowship invite with its rows of No and Assist — and
+   * the pane's Close is what the player does with it. A close chooses no row
+   * and types no text. Escape first, and the Close button on the next stall
+   * if the dialog is still up; one that survives both stops the walk with
+   * the reason named. The credential pane stops it before any key.
    */
   async function checkDialog(
     run: Run,
@@ -379,23 +381,22 @@ export function createWalker(options: WalkerOptions): Walker {
       log.warn('walker', 'A login or password dialog is on screen. Stopping before any key.')
       return { kind: 'stop', reason: 'protected' }
     }
-    if (!isPlainNotice(dialog)) {
+    const gesture = nextGesture(run, `dialog:${dialog.asOfMs}`, DISMISS_GESTURES)
+    if (gesture === null) {
       log.warn(
         'walker',
-        `A dialog that asks something is on screen (${describeDialog(dialog)}). Stopping.`
+        `The dialog is still on screen after Escape and Close (${describeDialog(dialog)}). Stopping.`
       )
       return { kind: 'stop', reason: 'dialog' }
     }
-    const gesture = nextGesture(run, `dialog:${dialog.asOfMs}`, DISMISS_GESTURES)
-    if (gesture === null) return { kind: 'none' }
     let refusal: string | null
     if (gesture === 0) {
-      log.info('walker', `A notice is on screen (${describeDialog(dialog)}); pressing Escape.`)
+      log.info('walker', `A dialog is on screen (${describeDialog(dialog)}); pressing Escape.`)
       refusal = await actionLayer.pressKey(target, VK_ESCAPE)
     } else {
       log.info(
         'walker',
-        `The notice is still on screen; clicking Close at game (${CLOSE_BUTTON.x}, ${CLOSE_BUTTON.y}).`
+        `The dialog is still on screen; clicking Close at game (${CLOSE_BUTTON.x}, ${CLOSE_BUTTON.y}).`
       )
       refusal = await actionLayer.click(target, CLOSE_BUTTON.x, CLOSE_BUTTON.y)
     }
@@ -408,8 +409,8 @@ export function createWalker(options: WalkerOptions): Walker {
     log.info(
       'walker',
       gone
-        ? 'The notice closed; retrying the step.'
-        : `The notice is still on screen after ${DISMISS_WAIT_MS} ms; retrying the step.`
+        ? 'The dialog closed; retrying the step.'
+        : `The dialog is still on screen after ${DISMISS_WAIT_MS} ms; retrying the step.`
     )
     return { kind: 'dismissed' }
   }
@@ -428,7 +429,10 @@ export function createWalker(options: WalkerOptions): Walker {
     exchange: ExchangeState
   ): Promise<PopupCheck> {
     if (exchange.kind === 'open') {
-      if (nextGesture(run, `exchange:${exchange.asOfMs}`, 1) === null) return { kind: 'none' }
+      if (nextGesture(run, `exchange:${exchange.asOfMs}`, 1) === null) {
+        log.warn('walker', 'The exchange is still open after Escape. Stopping.')
+        return { kind: 'stop', reason: 'dialog' }
+      }
       log.info(
         'walker',
         `An exchange with ${exchange.partnerName} is on screen; pressing Escape to cancel it.`
@@ -1345,7 +1349,7 @@ function walkStopReasonText(reason: WalkStopReason): string {
     case 'noRoute':
       return 'there is no route there'
     case 'dialog':
-      return 'a dialog that needs an answer is on screen'
+      return 'a dialog is on screen that it could not close'
     case 'protected':
       return 'a login or password dialog is on screen'
   }
