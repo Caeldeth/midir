@@ -138,6 +138,50 @@ export declare function postMessageToWindow(
   lParam: number
 ): boolean
 
+/** Where the real pointer is, relative to a window's client area. */
+export interface PointerState {
+  /** Client-area coordinates. Negative or past the size when outside. */
+  x: number
+  y: number
+  /** True while the pointer is over the client area. */
+  inside: boolean
+  /** True while the left button is held down. */
+  leftDown: boolean
+  /** The client area's size, for scaling to the game's own 640 x 480 coordinates. */
+  width: number
+  height: number
+}
+
+/** The size of a window's client area, and whether the window is DPI-aware. */
+export interface ClientSize {
+  width: number
+  height: number
+  /**
+   * False when Windows stretches the window on a scaled display. Such a
+   * window believes it is its own unscaled size, and a posted message must
+   * carry its unscaled coordinates. True means the client area is what it
+   * says, and a game coordinate is scaled to it.
+   */
+  dpiAware: boolean
+}
+
+/**
+ * The size of a window's client area, or null when the handle is not a live
+ * window. The game draws its 640 x 480 world at whatever size the window is,
+ * so a position in the game's own coordinates is scaled by this before it is
+ * posted, unless Windows is doing the stretching (`dpiAware` false).
+ */
+export declare function clientSize(handle: number): ClientSize | null
+
+/**
+ * The real pointer's position in a window's client area, and the left button.
+ *
+ * This reads the operating system's input state, never the client's memory. A
+ * posted click moves nothing here, so a watcher on this sees only the user's
+ * own clicks. Returns null when the handle is not a live window.
+ */
+export declare function pointerIn(handle: number): PointerState | null
+
 /** Bring a window to the foreground once, so the user sees the target. */
 export declare function setForegroundWindow(handle: number): boolean
 

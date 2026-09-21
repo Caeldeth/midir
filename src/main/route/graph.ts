@@ -14,13 +14,47 @@ import worldmapData from './worldmap.json'
  * scripts/import-worldmap.mjs for the import.
  */
 
+/**
+ * What a warp tile needs beyond a step onto it, when a step is not enough.
+ *
+ * Most warps fire on the step. Three kinds do not, and WorldMap.dat records
+ * the gesture DA Walker performs for each (scripts/import-worldmap.mjs):
+ *
+ * - `fieldMap`: the tile opens the world map (SFieldMap 0x2E), and a click on
+ *   one of its points picks the destination. `screenX`/`screenY` is the point
+ *   DA Walker clicked, on the 640 x 480 pane. The walker prefers the position
+ *   the wire gives for the point whose map id matches, and uses this when the
+ *   wire has no such point.
+ * - `prompt`: the tile opens a yes/no prompt, and Space accepts it.
+ * - `dialog`: the tile needs an NPC conversation (a ship, a caravan). That is
+ *   an errand, not a walk, so the planner never routes through it.
+ */
+export type RouteHop =
+  { kind: 'fieldMap'; screenX: number; screenY: number } | { kind: 'prompt' } | { kind: 'dialog' }
+
+/** One warp tile on a map, and where it leads. */
+export interface RouteExit {
+  toMapId: number
+  x: number
+  y: number
+  /** Absent for a warp that fires on the step. */
+  via?: RouteHop
+}
+
 /** One map in the graph, and the warp tiles that leave it. */
 export interface RouteNode {
   mapId: number
   /** The map name, or an empty string when WorldMap.dat had none. */
   name: string
   /** Where this map warps to, and the tile that does it. */
-  exits: { toMapId: number; x: number; y: number }[]
+  exits: RouteExit[]
+}
+
+/** A warp tile of one leg: where it is, and what it needs beyond the step. */
+export interface RouteWarp {
+  x: number
+  y: number
+  via?: RouteHop
 }
 
 /** One step of a route: cross from one map to the next through a warp tile. */
@@ -32,7 +66,7 @@ export interface RouteLeg {
    * nearest one it can actually path to, because a map often has more than one
    * door to the same place.
    */
-  warps: { x: number; y: number }[]
+  warps: RouteWarp[]
 }
 
 /** A full route between two maps. `legs` is empty when the goal is this map. */
@@ -63,9 +97,16 @@ export interface RouteGraph {
    * Plan a route from one map to another, or null when none exists.
    *
    * The search is a breadth-first walk over the map graph, so the plan crosses
-   * the fewest maps. A same-map request returns a plan with no legs.
+   * the fewest maps. A same-map request returns a plan with no legs. An exit
+   * that needs an NPC dialog (`via.kind === 'dialog'`) is not a walk, so the
+   * search never uses it.
    */
   planRoute(fromMapId: number, toMapId: number): RoutePlan | null
+}
+
+/** True for an exit the walker can take: a step, a world-map click, or a prompt. */
+function walkable(exit: RouteExit): boolean {
+  return exit.via?.kind !== 'dialog'
 }
 
 export function createRouteGraph(nodes: RouteNode[]): RouteGraph {
@@ -113,6 +154,7 @@ export function createRouteGraph(nodes: RouteNode[]): RouteGraph {
     while (queue.length > 0 && !found) {
       const current = queue.shift()!
       for (const exit of byId.get(current)!.exits) {
+        if (!walkable(exit)) continue
         if (visited.has(exit.toMapId) || !byId.has(exit.toMapId)) continue
         visited.add(exit.toMapId)
         predecessor.set(exit.toMapId, current)
@@ -140,8 +182,8 @@ export function createRouteGraph(nodes: RouteNode[]): RouteGraph {
       const to = path[i + 1]
       const warps = byId
         .get(from)!
-        .exits.filter((e) => e.toMapId === to)
-        .map((e) => ({ x: e.x, y: e.y }))
+        .exits.filter((e) => e.toMapId === to && walkable(e))
+        .map((e) => ({ x: e.x, y: e.y, ...(e.via !== undefined ? { via: e.via } : {}) }))
       legs.push({ fromMapId: from, toMapId: to, warps })
     }
     return { fromMapId, toMapId, legs }

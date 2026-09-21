@@ -6,6 +6,8 @@ import type { ActionLayer, LiveConnection } from '../actionLayer'
 import type { ActionTarget } from '../../shared/actionLayer'
 import type { MapProvider } from '../route/mapSource'
 import type { Position } from '../model/position'
+import type { FieldMapState } from '../model/fieldMap'
+import type { FieldMap } from '../protocol/decode/fieldMap'
 import type { Logger } from '../log'
 
 // --- Test doubles ---------------------------------------------------------
@@ -36,10 +38,19 @@ interface FakeMap {
   height: number
   /** Warp tiles: key `${x},${y}` -> the map and tile it lands on. */
   warps: Map<string, { toMap: number; ax: number; ay: number }>
+  /**
+   * World-map tiles: key `${x},${y}` -> the pane that opens on the step, or
+   * null for a tile whose pane never opens.
+   */
+  panes: Map<string, FieldMap | null>
 }
 
-function fakeMap(rows: string[], warps: FakeMap['warps'] = new Map()): FakeMap {
-  return { rows, width: rows[0].length, height: rows.length, warps }
+function fakeMap(
+  rows: string[],
+  warps: FakeMap['warps'] = new Map(),
+  panes: FakeMap['panes'] = new Map()
+): FakeMap {
+  return { rows, width: rows[0].length, height: rows.length, warps, panes }
 }
 
 const noop: Logger = {
@@ -68,6 +79,14 @@ class World {
   stride = 1
   /** Called after each successful move, for a test to intervene. */
   afterMove?: (world: World) => void
+  /** The world map on screen, as the capture service would report it. */
+  fieldMap: FieldMapState | null = null
+  /** Every click the walker posted, in order. */
+  clicks: { x: number; y: number }[] = []
+  /** Ignore the next N clicks on the pane, to model a release that missed. */
+  missClicks = 0
+  /** A hop the server has yet to complete: applied on the next tick, after the client's answer. */
+  pendingHop: { mapId: number; x: number; y: number } | null = null
 
   constructor(
     readonly maps: Map<number, FakeMap>,
@@ -166,7 +185,56 @@ class World {
       asOfMs: ++this.clock,
       confidence: this.moveConfidence
     }
+    // A world-map tile opens the pane instead of changing the map.
+    const pane = map.panes.get(`${cx},${cy}`)
+    if (pane !== undefined && pane !== null) {
+      this.fieldMap = { packet: pane, asOfMs: ++this.clock }
+    }
     this.afterMove?.(this)
+  }
+
+  /**
+   * A click on the pane: the client answers with its 0x3F for the point under
+   * the pointer, then the server moves the character there.
+   */
+  click(x: number, y: number): void {
+    this.clicks.push({ x, y })
+    if (this.fieldMap === null) return
+    if (this.missClicks > 0) {
+      this.missClicks--
+      return
+    }
+    const point = this.fieldMap.packet.points.find((p) => p.screenX === x && p.screenY === y)
+    if (point === undefined) return
+    const dest = this.maps.get(point.mapId)
+    if (dest === undefined) return
+    this.fieldMap = {
+      ...this.fieldMap,
+      click: {
+        packet: { kind: 'fieldMapClick', checksum: 0, mapId: point.mapId, x: point.x, y: point.y },
+        asOfMs: ++this.clock
+      }
+    }
+    this.pendingHop = { mapId: point.mapId, x: point.x, y: point.y }
+  }
+
+  /** Time passes: the server completes a hop the client asked for. */
+  tick(): void {
+    if (this.pendingHop === null) return
+    const { mapId, x, y } = this.pendingHop
+    this.pendingHop = null
+    const dest = this.maps.get(mapId)!
+    this.fieldMap = null
+    this.position = {
+      mapId,
+      mapWidth: dest.width,
+      mapHeight: dest.height,
+      x,
+      y,
+      facing: this.position.facing,
+      asOfMs: ++this.clock,
+      confidence: 'confirmed'
+    }
   }
 }
 
@@ -192,7 +260,12 @@ function harness(world: World, graphNodes: RouteNode[]): Harness {
       if (layerState.stopped) return 'stopped'
       // The key encodes the direction through DIRECTION_KEY = [UP,RIGHT,DOWN,LEFT].
       const direction = [0x26, 0x27, 0x28, 0x25].indexOf(_key)
-      world.press(direction)
+      if (direction >= 0) world.press(direction)
+      return null
+    },
+    click: async (_t: ActionTarget, x: number, y: number): Promise<null | string> => {
+      if (layerState.stopped) return 'stopped'
+      world.click(x, y)
       return null
     },
     get stopped(): boolean {
@@ -213,12 +286,14 @@ function harness(world: World, graphNodes: RouteNode[]): Harness {
     actionLayer,
     liveConnections,
     positionFor: (id: string): Position | null => (id === CID ? world.position : null),
+    fieldMapFor: (id: string): FieldMapState | null => (id === CID ? world.fieldMap : null),
     maps,
     graph: createRouteGraph(graphNodes),
     log: noop,
     now: () => world.clock,
     sleep: async (ms: number): Promise<void> => {
       world.clock += ms
+      world.tick()
     }
   })
 
@@ -513,5 +588,187 @@ describe('walker tile goal', () => {
     const { walker } = harness(world, roomGraph)
     const outcome = await walker.go({ connectionId: CID, destination: 1, tile: { x: 4, y: 4 } })
     expect(outcome).toEqual({ kind: 'stopped', reason: 'lostPosition' })
+  })
+})
+
+describe('a warp one tile past the graph', () => {
+  it('steps one tile further the way it came, and warps', async () => {
+    // The graph names (3,0), the hand-made way; the world warps at (4,0). The
+    // walker stands on (3,0), sees nothing fire, steps East once more.
+    const maps = new Map<number, FakeMap>([
+      [1, fakeMap(['.....'], new Map([['4,0', { toMap: 2, ax: 0, ay: 0 }]]))],
+      [2, fakeMap(['.....'])]
+    ])
+    const world = new World(maps, { mapId: 1, x: 0, y: 0 })
+    const { walker } = harness(world, [
+      { mapId: 1, name: 'Town', exits: [{ toMapId: 2, x: 3, y: 0 }] },
+      { mapId: 2, name: 'Field', exits: [] }
+    ])
+    const outcome = await walker.go({ connectionId: CID, destination: 'Field' })
+    expect(outcome).toEqual({ kind: 'arrived' })
+    expect(world.position.mapId).toBe(2)
+  })
+
+  it('does not step past the map edge', async () => {
+    // The graph's tile is the last one in the row, so there is no "further".
+    const maps = new Map<number, FakeMap>([
+      [1, fakeMap(['.....'])],
+      [2, fakeMap(['.....'])]
+    ])
+    const world = new World(maps, { mapId: 1, x: 0, y: 0 })
+    const { walker } = harness(world, [
+      { mapId: 1, name: 'Town', exits: [{ toMapId: 2, x: 4, y: 0 }] },
+      { mapId: 2, name: 'Field', exits: [] }
+    ])
+    const outcome = await walker.go({ connectionId: CID, destination: 'Field' })
+    expect(outcome).toEqual({ kind: 'stopped', reason: 'blocked' })
+    expect(world.position).toMatchObject({ mapId: 1, x: 4, y: 0 })
+  })
+})
+
+describe('a warp that never fires', () => {
+  it('stops as blocked instead of waiting on the tile for ever', async () => {
+    // Town's only warp is at (4,0), and the fake world never fires it. The
+    // walker stands on it, counts its stalls, learns the tile, and then has no
+    // warp left to aim at. Before the fix it chose the tile it stood on again.
+    const maps = new Map<number, FakeMap>([
+      [1, fakeMap(['.....'])],
+      [2, fakeMap(['.....'])]
+    ])
+    const world = new World(maps, { mapId: 1, x: 0, y: 0 })
+    const { walker } = harness(world, [
+      { mapId: 1, name: 'Town', exits: [{ toMapId: 2, x: 4, y: 0 }] },
+      { mapId: 2, name: 'Field', exits: [] }
+    ])
+    const outcome = await walker.go({ connectionId: CID, destination: 'Field' })
+    expect(outcome).toEqual({ kind: 'stopped', reason: 'blocked' })
+    expect(world.position).toMatchObject({ mapId: 1, x: 4, y: 0 })
+  })
+})
+
+// --- The world map ----------------------------------------------------------
+
+// Town(1) --> Gateway(2), whose east tile opens the world map. The pane lists
+// Abel Outskirts(3) at (306, 77) and Loures(4) at (344, 250). Town and Gateway
+// are one open row of five tiles.
+const PANE: FieldMap = {
+  kind: 'fieldMap',
+  fieldName: 'field001',
+  currentIndex: 0,
+  points: [
+    { screenX: 218, screenY: 99, name: 'Mileth', checksum: 0, mapId: 2, x: 4, y: 0 },
+    { screenX: 306, screenY: 77, name: 'Abel', checksum: 0, mapId: 3, x: 0, y: 0 },
+    { screenX: 344, screenY: 250, name: 'Loures', checksum: 0, mapId: 4, x: 0, y: 0 }
+  ]
+}
+
+function fieldGraph(recordedClick = { screenX: 306, screenY: 77 }): RouteNode[] {
+  return [
+    { mapId: 1, name: 'Town', exits: [{ toMapId: 2, x: 4, y: 0 }] },
+    {
+      mapId: 2,
+      name: 'Gateway',
+      exits: [
+        { toMapId: 1, x: 0, y: 0 },
+        { toMapId: 3, x: 4, y: 0, via: { kind: 'fieldMap', ...recordedClick } },
+        { toMapId: 4, x: 4, y: 0, via: { kind: 'fieldMap', screenX: 344, screenY: 250 } }
+      ]
+    },
+    { mapId: 3, name: 'Abel Outskirts', exits: [] },
+    { mapId: 4, name: 'Loures', exits: [] }
+  ]
+}
+
+function fieldWorld(pane: FieldMap | null = PANE): World {
+  const maps = new Map<number, FakeMap>([
+    [1, fakeMap(['.....'], new Map([['4,0', { toMap: 2, ax: 0, ay: 0 }]]))],
+    [
+      2,
+      fakeMap(['.....'], new Map([['0,0', { toMap: 1, ax: 4, ay: 0 }]]), new Map([['4,0', pane]]))
+    ],
+    [3, fakeMap(['.....'])],
+    [4, fakeMap(['.....'])]
+  ])
+  return new World(maps, { mapId: 1, x: 0, y: 0 })
+}
+
+describe('walker across the world map', () => {
+  it('steps onto the gateway tile, clicks the wire point for the next map, and arrives', async () => {
+    const { walker, world } = harness(fieldWorld(), fieldGraph())
+    const outcome = await walker.go({ connectionId: CID, destination: 'Abel Outskirts' })
+    expect(outcome).toEqual({ kind: 'arrived' })
+    expect(world.position.mapId).toBe(3)
+    expect(world.clicks).toEqual([{ x: 306, y: 77 }])
+    expect(world.fieldMap).toBeNull()
+  })
+
+  it('picks the point by map id, not by the imported position', async () => {
+    // The imported click is stale: the wire says Abel is at (306, 77).
+    const { walker, world } = harness(fieldWorld(), fieldGraph({ screenX: 10, screenY: 10 }))
+    const outcome = await walker.go({ connectionId: CID, destination: 'Abel Outskirts' })
+    expect(outcome).toEqual({ kind: 'arrived' })
+    expect(world.clicks).toEqual([{ x: 306, y: 77 }])
+  })
+
+  it('reaches a different destination through the same tile by a different click', async () => {
+    const { walker, world } = harness(fieldWorld(), fieldGraph())
+    const outcome = await walker.go({ connectionId: CID, destination: 'Loures' })
+    expect(outcome).toEqual({ kind: 'arrived' })
+    expect(world.position.mapId).toBe(4)
+    expect(world.clicks).toEqual([{ x: 344, y: 250 }])
+  })
+
+  it('falls back to the imported position when the pane has no point for the map', async () => {
+    const pane: FieldMap = { ...PANE, points: PANE.points.filter((p) => p.mapId !== 3) }
+    const world = fieldWorld(pane)
+    // The fake pane lands the click only on a listed point, so the fallback
+    // click cannot warp here. What is under test is which position it clicks.
+    const { walker } = harness(world, fieldGraph({ screenX: 306, screenY: 77 }))
+    const outcome = await walker.go({ connectionId: CID, destination: 'Abel Outskirts' })
+    expect(world.clicks[0]).toEqual({ x: 306, y: 77 })
+    expect(outcome.kind).toBe('stopped')
+  })
+
+  it('clicks again when the client does not answer, and hops on the retry', async () => {
+    const world = fieldWorld()
+    world.missClicks = 1
+    const { walker } = harness(world, fieldGraph())
+    const outcome = await walker.go({ connectionId: CID, destination: 'Abel Outskirts' })
+    expect(outcome).toEqual({ kind: 'arrived' })
+    expect(world.clicks).toEqual([
+      { x: 306, y: 77 },
+      { x: 306, y: 77 }
+    ])
+  })
+
+  it('gives up on the tile after three unanswered clicks', async () => {
+    const world = fieldWorld()
+    world.missClicks = 100
+    const { walker } = harness(world, fieldGraph())
+    const outcome = await walker.go({ connectionId: CID, destination: 'Abel Outskirts' })
+    expect(outcome).toEqual({ kind: 'stopped', reason: 'blocked' })
+    // Three tries per stand on the tile, three stands before the tile is
+    // learned as blocked.
+    expect(world.clicks.length).toBe(9)
+    expect(world.position.mapId).toBe(2)
+  })
+
+  it('stops as blocked when the pane never opens, rather than waiting forever', async () => {
+    const { walker, world } = harness(fieldWorld(null), fieldGraph())
+    const outcome = await walker.go({ connectionId: CID, destination: 'Abel Outskirts' })
+    expect(outcome).toEqual({ kind: 'stopped', reason: 'blocked' })
+    expect(world.clicks).toEqual([])
+    expect(world.position.mapId).toBe(2)
+  })
+
+  it('does not click when the global stop is in force', async () => {
+    const world = fieldWorld()
+    const { walker, layer } = harness(world, fieldGraph())
+    world.afterMove = (w) => {
+      if (w.fieldMap !== null) layer.stopped = true
+    }
+    const outcome = await walker.go({ connectionId: CID, destination: 'Abel Outskirts' })
+    expect(outcome.kind).toBe('stopped')
+    expect(world.clicks).toEqual([])
   })
 })

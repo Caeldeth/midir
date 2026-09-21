@@ -24,6 +24,7 @@ import {
   type VersionCheck
 } from './handshake'
 import { decodeScreenMenu, type BankContents, type NpcMenu } from './dialog'
+import { decodeFieldMap, decodeFieldMapClick, type FieldMap, type FieldMapClick } from './fieldMap'
 import { decodePursuitMessage, type PursuitMessage } from './pursuit'
 import {
   decodeMapInfo,
@@ -55,6 +56,7 @@ import {
 export * from './character'
 export * from './client'
 export * from './dialog'
+export * from './fieldMap'
 export * from './handshake'
 export * from './items'
 export * from './merchant'
@@ -82,6 +84,8 @@ export type DecodedPacket =
   | BankContents
   | NpcMenu
   | PursuitMessage
+  | FieldMap
+  | FieldMapClick
   | ClientExit
   | MerchantResponse
   | PursuitResponse
@@ -108,7 +112,8 @@ const DECODERS = new Map<number, Decoder>([
   [ServerOpcode.DrawHumanObjects, decodeDrawHumanObjects],
   [ServerOpcode.SelfLook, decodeSelfLook],
   [ServerOpcode.ScreenMenu, decodeScreenMenu],
-  [ServerOpcode.PursuitMessage, decodePursuitMessage]
+  [ServerOpcode.PursuitMessage, decodePursuitMessage],
+  [ServerOpcode.FieldMap, decodeFieldMap]
 ])
 
 const CLIENT_DECODERS = new Map<number, Decoder>([
@@ -117,7 +122,8 @@ const CLIENT_DECODERS = new Map<number, Decoder>([
   [ClientOpcode.ClientExit, decodeClientExit],
   [ClientOpcode.Walk, decodeWalk],
   [ClientOpcode.MerchantResponse, decodeMerchantResponse],
-  [ClientOpcode.PursuitResponse, decodePursuitResponse]
+  [ClientOpcode.PursuitResponse, decodePursuitResponse],
+  [ClientOpcode.FieldMapClick, decodeFieldMapClick]
 ])
 
 /** True while Midir has a decoder for `opcode`. */

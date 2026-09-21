@@ -1,5 +1,5 @@
 {
-  "source": "DA Walker WorldMap.dat",
+  "source": "DA Walker WorldMap.dat, with scripts/worldmap-overrides.json applied",
   "note": "Imported by scripts/import-worldmap.mjs. Do not hand-edit; re-run the script.",
   "nodes": [
     {
@@ -769,12 +769,22 @@
         {
           "toMapId": 3008,
           "x": 14,
-          "y": 67
+          "y": 67,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 111,
+            "screenY": 107
+          }
         },
         {
           "toMapId": 3008,
           "x": 15,
-          "y": 67
+          "y": 67,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 111,
+            "screenY": 107
+          }
         },
         {
           "toMapId": 3014,
@@ -794,22 +804,42 @@
         {
           "toMapId": 3081,
           "x": 14,
-          "y": 67
+          "y": 67,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 494,
+            "screenY": 207
+          }
         },
         {
           "toMapId": 3081,
           "x": 15,
-          "y": 67
+          "y": 67,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 494,
+            "screenY": 207
+          }
         },
         {
           "toMapId": 6228,
           "x": 14,
-          "y": 67
+          "y": 67,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 550,
+            "screenY": 385
+          }
         },
         {
           "toMapId": 6228,
           "x": 15,
-          "y": 67
+          "y": 67,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 550,
+            "screenY": 385
+          }
         }
       ]
     },
@@ -841,22 +871,42 @@
         {
           "toMapId": 2120,
           "x": 8,
-          "y": 86
+          "y": 86,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 56,
+            "screenY": 165
+          }
         },
         {
           "toMapId": 2120,
           "x": 8,
-          "y": 87
+          "y": 87,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 56,
+            "screenY": 165
+          }
         },
         {
           "toMapId": 2120,
           "x": 9,
-          "y": 34
+          "y": 34,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 56,
+            "screenY": 165
+          }
         },
         {
           "toMapId": 2120,
           "x": 9,
-          "y": 35
+          "y": 35,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 56,
+            "screenY": 165
+          }
         },
         {
           "toMapId": 3008,
@@ -876,22 +926,42 @@
         {
           "toMapId": 3016,
           "x": 8,
-          "y": 86
+          "y": 86,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 71,
+            "screenY": 191
+          }
         },
         {
           "toMapId": 3016,
           "x": 8,
-          "y": 87
+          "y": 87,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 71,
+            "screenY": 191
+          }
         },
         {
           "toMapId": 3016,
           "x": 9,
-          "y": 34
+          "y": 34,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 71,
+            "screenY": 191
+          }
         },
         {
           "toMapId": 3016,
           "x": 9,
-          "y": 35
+          "y": 35,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 71,
+            "screenY": 191
+          }
         }
       ]
     },
@@ -917,22 +987,42 @@
         {
           "toMapId": 502,
           "x": 21,
-          "y": 44
+          "y": 44,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 306,
+            "screenY": 77
+          }
         },
         {
           "toMapId": 502,
           "x": 22,
-          "y": 44
+          "y": 44,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 306,
+            "screenY": 77
+          }
         },
         {
           "toMapId": 502,
           "x": 27,
-          "y": 44
+          "y": 44,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 306,
+            "screenY": 77
+          }
         },
         {
           "toMapId": 502,
           "x": 28,
-          "y": 44
+          "y": 44,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 306,
+            "screenY": 77
+          }
         },
         {
           "toMapId": 3010,
@@ -942,82 +1032,162 @@
         {
           "toMapId": 3012,
           "x": 21,
-          "y": 44
+          "y": 44,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 343,
+            "screenY": 250
+          }
         },
         {
           "toMapId": 3012,
           "x": 22,
-          "y": 44
+          "y": 44,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 343,
+            "screenY": 250
+          }
         },
         {
           "toMapId": 3012,
           "x": 27,
-          "y": 44
+          "y": 44,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 343,
+            "screenY": 250
+          }
         },
         {
           "toMapId": 3012,
           "x": 28,
-          "y": 44
+          "y": 44,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 343,
+            "screenY": 250
+          }
         },
         {
           "toMapId": 3271,
           "x": 21,
-          "y": 44
+          "y": 44,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 323,
+            "screenY": 236
+          }
         },
         {
           "toMapId": 3271,
           "x": 22,
-          "y": 44
+          "y": 44,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 323,
+            "screenY": 236
+          }
         },
         {
           "toMapId": 3271,
           "x": 27,
-          "y": 44
+          "y": 44,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 323,
+            "screenY": 236
+          }
         },
         {
           "toMapId": 3271,
           "x": 28,
-          "y": 44
+          "y": 44,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 323,
+            "screenY": 236
+          }
         },
         {
           "toMapId": 6228,
           "x": 21,
-          "y": 44
+          "y": 44,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 550,
+            "screenY": 385
+          }
         },
         {
           "toMapId": 6228,
           "x": 22,
-          "y": 44
+          "y": 44,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 550,
+            "screenY": 385
+          }
         },
         {
           "toMapId": 6228,
           "x": 27,
-          "y": 44
+          "y": 44,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 550,
+            "screenY": 385
+          }
         },
         {
           "toMapId": 6228,
           "x": 28,
-          "y": 44
+          "y": 44,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 550,
+            "screenY": 385
+          }
         },
         {
           "toMapId": 6925,
           "x": 21,
-          "y": 44
+          "y": 44,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 404,
+            "screenY": 295
+          }
         },
         {
           "toMapId": 6925,
           "x": 22,
-          "y": 44
+          "y": 44,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 404,
+            "screenY": 295
+          }
         },
         {
           "toMapId": 6925,
           "x": 27,
-          "y": 44
+          "y": 44,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 404,
+            "screenY": 295
+          }
         },
         {
           "toMapId": 6925,
           "x": 28,
-          "y": 44
+          "y": 44,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 404,
+            "screenY": 295
+          }
         }
       ]
     },
@@ -1043,72 +1213,142 @@
         {
           "toMapId": 2052,
           "x": 14,
-          "y": 24
+          "y": 24,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 101,
+            "screenY": 274
+          }
         },
         {
           "toMapId": 2052,
           "x": 15,
-          "y": 24
+          "y": 24,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 101,
+            "screenY": 274
+          }
         },
         {
           "toMapId": 3012,
           "x": 14,
-          "y": 24
+          "y": 24,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 344,
+            "screenY": 250
+          }
         },
         {
           "toMapId": 3012,
           "x": 15,
-          "y": 24
+          "y": 24,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 344,
+            "screenY": 250
+          }
         },
         {
           "toMapId": 3020,
           "x": 14,
-          "y": 24
+          "y": 24,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 298,
+            "screenY": 188
+          }
         },
         {
           "toMapId": 3020,
           "x": 15,
-          "y": 24
+          "y": 24,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 298,
+            "screenY": 188
+          }
         },
         {
           "toMapId": 3071,
           "x": 14,
-          "y": 24
+          "y": 24,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 364,
+            "screenY": 215
+          }
         },
         {
           "toMapId": 3071,
           "x": 15,
-          "y": 24
+          "y": 24,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 364,
+            "screenY": 215
+          }
         },
         {
           "toMapId": 3081,
           "x": 14,
-          "y": 24
+          "y": 24,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 494,
+            "screenY": 205
+          }
         },
         {
           "toMapId": 3081,
           "x": 15,
-          "y": 24
+          "y": 24,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 494,
+            "screenY": 205
+          }
         },
         {
           "toMapId": 3271,
           "x": 14,
-          "y": 24
+          "y": 24,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 328,
+            "screenY": 233
+          }
         },
         {
           "toMapId": 3271,
           "x": 15,
-          "y": 24
+          "y": 24,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 328,
+            "screenY": 233
+          }
         },
         {
           "toMapId": 6925,
           "x": 14,
-          "y": 24
+          "y": 24,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 404,
+            "screenY": 295
+          }
         },
         {
           "toMapId": 6925,
           "x": 15,
-          "y": 24
+          "y": 24,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 404,
+            "screenY": 295
+          }
         }
       ]
     },
@@ -1796,47 +2036,92 @@
         {
           "toMapId": 3012,
           "x": 21,
-          "y": 99
+          "y": 99,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 344,
+            "screenY": 250
+          }
         },
         {
           "toMapId": 3012,
           "x": 22,
-          "y": 99
+          "y": 99,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 344,
+            "screenY": 250
+          }
         },
         {
           "toMapId": 3012,
           "x": 23,
-          "y": 99
+          "y": 99,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 344,
+            "screenY": 250
+          }
         },
         {
           "toMapId": 3081,
           "x": 21,
-          "y": 99
+          "y": 99,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 494,
+            "screenY": 207
+          }
         },
         {
           "toMapId": 3081,
           "x": 22,
-          "y": 99
+          "y": 99,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 494,
+            "screenY": 207
+          }
         },
         {
           "toMapId": 3081,
           "x": 23,
-          "y": 99
+          "y": 99,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 494,
+            "screenY": 207
+          }
         },
         {
           "toMapId": 3271,
           "x": 21,
-          "y": 99
+          "y": 99,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 328,
+            "screenY": 233
+          }
         },
         {
           "toMapId": 3271,
           "x": 22,
-          "y": 99
+          "y": 99,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 328,
+            "screenY": 233
+          }
         },
         {
           "toMapId": 3271,
           "x": 23,
-          "y": 99
+          "y": 99,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 328,
+            "screenY": 233
+          }
         }
       ]
     },
@@ -2040,27 +2325,52 @@
         {
           "toMapId": 542,
           "x": 9,
-          "y": 19
+          "y": 19,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 54,
+            "screenY": 356
+          }
         },
         {
           "toMapId": 542,
           "x": 10,
-          "y": 19
+          "y": 19,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 54,
+            "screenY": 356
+          }
         },
         {
           "toMapId": 542,
           "x": 11,
-          "y": 19
+          "y": 19,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 54,
+            "screenY": 356
+          }
         },
         {
           "toMapId": 542,
           "x": 12,
-          "y": 19
+          "y": 19,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 54,
+            "screenY": 356
+          }
         },
         {
           "toMapId": 542,
           "x": 13,
-          "y": 19
+          "y": 19,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 54,
+            "screenY": 356
+          }
         },
         {
           "toMapId": 2046,
@@ -2080,152 +2390,302 @@
         {
           "toMapId": 3012,
           "x": 9,
-          "y": 19
+          "y": 19,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 344,
+            "screenY": 250
+          }
         },
         {
           "toMapId": 3012,
           "x": 10,
-          "y": 19
+          "y": 19,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 344,
+            "screenY": 250
+          }
         },
         {
           "toMapId": 3012,
           "x": 11,
-          "y": 19
+          "y": 19,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 344,
+            "screenY": 250
+          }
         },
         {
           "toMapId": 3012,
           "x": 12,
-          "y": 19
+          "y": 19,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 344,
+            "screenY": 250
+          }
         },
         {
           "toMapId": 3012,
           "x": 13,
-          "y": 19
+          "y": 19,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 344,
+            "screenY": 250
+          }
         },
         {
           "toMapId": 3020,
           "x": 9,
-          "y": 19
+          "y": 19,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 298,
+            "screenY": 188
+          }
         },
         {
           "toMapId": 3020,
           "x": 10,
-          "y": 19
+          "y": 19,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 298,
+            "screenY": 188
+          }
         },
         {
           "toMapId": 3020,
           "x": 11,
-          "y": 19
+          "y": 19,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 298,
+            "screenY": 188
+          }
         },
         {
           "toMapId": 3020,
           "x": 12,
-          "y": 19
+          "y": 19,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 298,
+            "screenY": 188
+          }
         },
         {
           "toMapId": 3020,
           "x": 13,
-          "y": 19
+          "y": 19,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 298,
+            "screenY": 188
+          }
         },
         {
           "toMapId": 3071,
           "x": 9,
-          "y": 19
+          "y": 19,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 364,
+            "screenY": 215
+          }
         },
         {
           "toMapId": 3071,
           "x": 10,
-          "y": 19
+          "y": 19,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 364,
+            "screenY": 215
+          }
         },
         {
           "toMapId": 3071,
           "x": 11,
-          "y": 19
+          "y": 19,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 364,
+            "screenY": 215
+          }
         },
         {
           "toMapId": 3071,
           "x": 12,
-          "y": 19
+          "y": 19,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 364,
+            "screenY": 215
+          }
         },
         {
           "toMapId": 3071,
           "x": 13,
-          "y": 19
+          "y": 19,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 364,
+            "screenY": 215
+          }
         },
         {
           "toMapId": 3081,
           "x": 9,
-          "y": 19
+          "y": 19,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 494,
+            "screenY": 205
+          }
         },
         {
           "toMapId": 3081,
           "x": 10,
-          "y": 19
+          "y": 19,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 494,
+            "screenY": 205
+          }
         },
         {
           "toMapId": 3081,
           "x": 11,
-          "y": 19
+          "y": 19,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 494,
+            "screenY": 205
+          }
         },
         {
           "toMapId": 3081,
           "x": 12,
-          "y": 19
+          "y": 19,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 494,
+            "screenY": 205
+          }
         },
         {
           "toMapId": 3081,
           "x": 13,
-          "y": 19
+          "y": 19,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 494,
+            "screenY": 205
+          }
         },
         {
           "toMapId": 3271,
           "x": 9,
-          "y": 19
+          "y": 19,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 328,
+            "screenY": 233
+          }
         },
         {
           "toMapId": 3271,
           "x": 10,
-          "y": 19
+          "y": 19,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 328,
+            "screenY": 233
+          }
         },
         {
           "toMapId": 3271,
           "x": 11,
-          "y": 19
+          "y": 19,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 328,
+            "screenY": 233
+          }
         },
         {
           "toMapId": 3271,
           "x": 12,
-          "y": 19
+          "y": 19,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 328,
+            "screenY": 233
+          }
         },
         {
           "toMapId": 3271,
           "x": 13,
-          "y": 19
+          "y": 19,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 328,
+            "screenY": 233
+          }
         },
         {
           "toMapId": 6925,
           "x": 9,
-          "y": 19
+          "y": 19,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 404,
+            "screenY": 295
+          }
         },
         {
           "toMapId": 6925,
           "x": 10,
-          "y": 19
+          "y": 19,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 404,
+            "screenY": 295
+          }
         },
         {
           "toMapId": 6925,
           "x": 11,
-          "y": 19
+          "y": 19,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 404,
+            "screenY": 295
+          }
         },
         {
           "toMapId": 6925,
           "x": 12,
-          "y": 19
+          "y": 19,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 404,
+            "screenY": 295
+          }
         },
         {
           "toMapId": 6925,
           "x": 13,
-          "y": 19
+          "y": 19,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 404,
+            "screenY": 295
+          }
         }
       ]
     },
@@ -2571,22 +3031,42 @@
         {
           "toMapId": 504,
           "x": 39,
-          "y": 6
+          "y": 6,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 112,
+            "screenY": 109
+          }
         },
         {
           "toMapId": 504,
           "x": 39,
-          "y": 7
+          "y": 7,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 112,
+            "screenY": 109
+          }
         },
         {
           "toMapId": 504,
           "x": 39,
-          "y": 8
+          "y": 8,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 112,
+            "screenY": 109
+          }
         },
         {
           "toMapId": 504,
           "x": 39,
-          "y": 9
+          "y": 9,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 112,
+            "screenY": 109
+          }
         },
         {
           "toMapId": 2088,
@@ -2611,22 +3091,42 @@
         {
           "toMapId": 3016,
           "x": 39,
-          "y": 6
+          "y": 6,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 71,
+            "screenY": 191
+          }
         },
         {
           "toMapId": 3016,
           "x": 39,
-          "y": 7
+          "y": 7,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 71,
+            "screenY": 191
+          }
         },
         {
           "toMapId": 3016,
           "x": 39,
-          "y": 8
+          "y": 8,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 71,
+            "screenY": 191
+          }
         },
         {
           "toMapId": 3016,
           "x": 39,
-          "y": 9
+          "y": 9,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 71,
+            "screenY": 191
+          }
         }
       ]
     },
@@ -2694,12 +3194,18 @@
         {
           "toMapId": 11021,
           "x": 19,
-          "y": 10
+          "y": 10,
+          "via": {
+            "kind": "prompt"
+          }
         },
         {
           "toMapId": 11021,
           "x": 19,
-          "y": 11
+          "y": 11,
+          "via": {
+            "kind": "prompt"
+          }
         }
       ]
     },
@@ -3140,27 +3646,52 @@
         {
           "toMapId": 449,
           "x": 15,
-          "y": 6
+          "y": 6,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 218,
+            "screenY": 99
+          }
         },
         {
           "toMapId": 449,
           "x": 15,
-          "y": 7
+          "y": 7,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 218,
+            "screenY": 99
+          }
         },
         {
           "toMapId": 449,
           "x": 15,
-          "y": 8
+          "y": 8,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 218,
+            "screenY": 99
+          }
         },
         {
           "toMapId": 449,
           "x": 15,
-          "y": 9
+          "y": 9,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 218,
+            "screenY": 99
+          }
         },
         {
           "toMapId": 449,
           "x": 15,
-          "y": 10
+          "y": 10,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 218,
+            "screenY": 99
+          }
         },
         {
           "toMapId": 500,
@@ -3195,77 +3726,152 @@
         {
           "toMapId": 3014,
           "x": 15,
-          "y": 6
+          "y": 6,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 306,
+            "screenY": 77
+          }
         },
         {
           "toMapId": 3014,
           "x": 15,
-          "y": 7
+          "y": 7,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 306,
+            "screenY": 77
+          }
         },
         {
           "toMapId": 3014,
           "x": 15,
-          "y": 8
+          "y": 8,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 306,
+            "screenY": 77
+          }
         },
         {
           "toMapId": 3014,
           "x": 15,
-          "y": 9
+          "y": 9,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 306,
+            "screenY": 77
+          }
         },
         {
           "toMapId": 3014,
           "x": 15,
-          "y": 10
+          "y": 10,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 306,
+            "screenY": 77
+          }
         },
         {
           "toMapId": 3052,
           "x": 15,
-          "y": 6
+          "y": 6,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 279,
+            "screenY": 139
+          }
         },
         {
           "toMapId": 3052,
           "x": 15,
-          "y": 7
+          "y": 7,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 279,
+            "screenY": 139
+          }
         },
         {
           "toMapId": 3052,
           "x": 15,
-          "y": 8
+          "y": 8,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 279,
+            "screenY": 139
+          }
         },
         {
           "toMapId": 3052,
           "x": 15,
-          "y": 9
+          "y": 9,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 279,
+            "screenY": 139
+          }
         },
         {
           "toMapId": 3052,
           "x": 15,
-          "y": 10
+          "y": 10,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 279,
+            "screenY": 139
+          }
         },
         {
           "toMapId": 3080,
           "x": 15,
-          "y": 6
+          "y": 6,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 260,
+            "screenY": 116
+          }
         },
         {
           "toMapId": 3080,
           "x": 15,
-          "y": 7
+          "y": 7,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 260,
+            "screenY": 116
+          }
         },
         {
           "toMapId": 3080,
           "x": 15,
-          "y": 8
+          "y": 8,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 260,
+            "screenY": 116
+          }
         },
         {
           "toMapId": 3080,
           "x": 15,
-          "y": 9
+          "y": 9,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 260,
+            "screenY": 116
+          }
         },
         {
           "toMapId": 3080,
           "x": 15,
-          "y": 10
+          "y": 10,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 260,
+            "screenY": 116
+          }
         }
       ]
     },
@@ -3276,17 +3882,32 @@
         {
           "toMapId": 502,
           "x": 15,
-          "y": 14
+          "y": 14,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 307,
+            "screenY": 97
+          }
         },
         {
           "toMapId": 502,
           "x": 15,
-          "y": 15
+          "y": 15,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 307,
+            "screenY": 97
+          }
         },
         {
           "toMapId": 502,
           "x": 15,
-          "y": 16
+          "y": 16,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 307,
+            "screenY": 97
+          }
         },
         {
           "toMapId": 504,
@@ -3315,6 +3936,11 @@
           "y": 15
         },
         {
+          "toMapId": 505,
+          "x": 16,
+          "y": 15
+        },
+        {
           "toMapId": 3048,
           "x": 23,
           "y": 11
@@ -3328,122 +3954,242 @@
         {
           "toMapId": 542,
           "x": 15,
-          "y": 7
+          "y": 7,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 54,
+            "screenY": 356
+          }
         },
         {
           "toMapId": 542,
           "x": 15,
-          "y": 8
+          "y": 8,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 54,
+            "screenY": 356
+          }
         },
         {
           "toMapId": 542,
           "x": 15,
-          "y": 9
+          "y": 9,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 54,
+            "screenY": 356
+          }
         },
         {
           "toMapId": 662,
           "x": 15,
-          "y": 7
+          "y": 7,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 135,
+            "screenY": 300
+          }
         },
         {
           "toMapId": 662,
           "x": 15,
-          "y": 8
+          "y": 8,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 135,
+            "screenY": 300
+          }
         },
         {
           "toMapId": 662,
           "x": 15,
-          "y": 9
+          "y": 9,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 135,
+            "screenY": 300
+          }
         },
         {
           "toMapId": 2052,
           "x": 15,
-          "y": 7
+          "y": 7,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 101,
+            "screenY": 274
+          }
         },
         {
           "toMapId": 2052,
           "x": 15,
-          "y": 8
+          "y": 8,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 101,
+            "screenY": 274
+          }
         },
         {
           "toMapId": 2052,
           "x": 15,
-          "y": 9
+          "y": 9,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 101,
+            "screenY": 274
+          }
         },
         {
           "toMapId": 3020,
           "x": 15,
-          "y": 7
+          "y": 7,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 298,
+            "screenY": 188
+          }
         },
         {
           "toMapId": 3020,
           "x": 15,
-          "y": 8
+          "y": 8,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 298,
+            "screenY": 188
+          }
         },
         {
           "toMapId": 3020,
           "x": 15,
-          "y": 9
+          "y": 9,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 298,
+            "screenY": 188
+          }
         },
         {
           "toMapId": 3071,
           "x": 15,
-          "y": 7
+          "y": 7,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 364,
+            "screenY": 215
+          }
         },
         {
           "toMapId": 3071,
           "x": 15,
-          "y": 8
+          "y": 8,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 364,
+            "screenY": 215
+          }
         },
         {
           "toMapId": 3071,
           "x": 15,
-          "y": 9
+          "y": 9,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 364,
+            "screenY": 215
+          }
         },
         {
           "toMapId": 3081,
           "x": 15,
-          "y": 7
+          "y": 7,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 494,
+            "screenY": 205
+          }
         },
         {
           "toMapId": 3081,
           "x": 15,
-          "y": 8
+          "y": 8,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 494,
+            "screenY": 205
+          }
         },
         {
           "toMapId": 3081,
           "x": 15,
-          "y": 9
+          "y": 9,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 494,
+            "screenY": 205
+          }
         },
         {
           "toMapId": 3271,
           "x": 15,
-          "y": 7
+          "y": 7,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 328,
+            "screenY": 233
+          }
         },
         {
           "toMapId": 3271,
           "x": 15,
-          "y": 8
+          "y": 8,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 328,
+            "screenY": 233
+          }
         },
         {
           "toMapId": 3271,
           "x": 15,
-          "y": 9
+          "y": 9,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 328,
+            "screenY": 233
+          }
         },
         {
           "toMapId": 6925,
           "x": 15,
-          "y": 7
+          "y": 7,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 404,
+            "screenY": 295
+          }
         },
         {
           "toMapId": 6925,
           "x": 15,
-          "y": 8
+          "y": 8,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 404,
+            "screenY": 295
+          }
         },
         {
           "toMapId": 6925,
           "x": 15,
-          "y": 9
+          "y": 9,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 404,
+            "screenY": 295
+          }
         }
       ]
     },
@@ -3454,17 +4200,32 @@
         {
           "toMapId": 449,
           "x": 15,
-          "y": 12
+          "y": 12,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 218,
+            "screenY": 99
+          }
         },
         {
           "toMapId": 449,
           "x": 15,
-          "y": 13
+          "y": 13,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 218,
+            "screenY": 99
+          }
         },
         {
           "toMapId": 449,
           "x": 15,
-          "y": 14
+          "y": 14,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 218,
+            "screenY": 99
+          }
         },
         {
           "toMapId": 502,
@@ -3484,47 +4245,92 @@
         {
           "toMapId": 3052,
           "x": 15,
-          "y": 12
+          "y": 12,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 279,
+            "screenY": 139
+          }
         },
         {
           "toMapId": 3052,
           "x": 15,
-          "y": 13
+          "y": 13,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 279,
+            "screenY": 139
+          }
         },
         {
           "toMapId": 3052,
           "x": 15,
-          "y": 14
+          "y": 14,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 279,
+            "screenY": 139
+          }
         },
         {
           "toMapId": 3079,
           "x": 15,
-          "y": 12
+          "y": 12,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 258,
+            "screenY": 87
+          }
         },
         {
           "toMapId": 3079,
           "x": 15,
-          "y": 13
+          "y": 13,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 258,
+            "screenY": 87
+          }
         },
         {
           "toMapId": 3079,
           "x": 15,
-          "y": 14
+          "y": 14,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 258,
+            "screenY": 87
+          }
         },
         {
           "toMapId": 3080,
           "x": 15,
-          "y": 12
+          "y": 12,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 260,
+            "screenY": 116
+          }
         },
         {
           "toMapId": 3080,
           "x": 15,
-          "y": 13
+          "y": 13,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 260,
+            "screenY": 116
+          }
         },
         {
           "toMapId": 3080,
           "x": 15,
-          "y": 14
+          "y": 14,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 260,
+            "screenY": 116
+          }
         }
       ]
     },
@@ -3550,32 +4356,62 @@
         {
           "toMapId": 504,
           "x": 16,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 112,
+            "screenY": 109
+          }
         },
         {
           "toMapId": 504,
           "x": 17,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 112,
+            "screenY": 109
+          }
         },
         {
           "toMapId": 504,
           "x": 18,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 112,
+            "screenY": 109
+          }
         },
         {
           "toMapId": 2120,
           "x": 16,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 56,
+            "screenY": 165
+          }
         },
         {
           "toMapId": 2120,
           "x": 17,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 56,
+            "screenY": 165
+          }
         },
         {
           "toMapId": 2120,
           "x": 18,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 56,
+            "screenY": 165
+          }
         }
       ]
     },
@@ -3586,77 +4422,152 @@
         {
           "toMapId": 3012,
           "x": 15,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 344,
+            "screenY": 250
+          }
         },
         {
           "toMapId": 3012,
           "x": 16,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 344,
+            "screenY": 250
+          }
         },
         {
           "toMapId": 3012,
           "x": 17,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 344,
+            "screenY": 250
+          }
         },
         {
           "toMapId": 3052,
           "x": 15,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 279,
+            "screenY": 139
+          }
         },
         {
           "toMapId": 3052,
           "x": 16,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 279,
+            "screenY": 139
+          }
         },
         {
           "toMapId": 3052,
           "x": 17,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 279,
+            "screenY": 139
+          }
         },
         {
           "toMapId": 3071,
           "x": 15,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 364,
+            "screenY": 215
+          }
         },
         {
           "toMapId": 3071,
           "x": 16,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 364,
+            "screenY": 215
+          }
         },
         {
           "toMapId": 3071,
           "x": 17,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 364,
+            "screenY": 215
+          }
         },
         {
           "toMapId": 3271,
           "x": 15,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 328,
+            "screenY": 233
+          }
         },
         {
           "toMapId": 3271,
           "x": 16,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 328,
+            "screenY": 233
+          }
         },
         {
           "toMapId": 3271,
           "x": 17,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 328,
+            "screenY": 233
+          }
         },
         {
           "toMapId": 6925,
           "x": 15,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 404,
+            "screenY": 295
+          }
         },
         {
           "toMapId": 6925,
           "x": 16,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 404,
+            "screenY": 295
+          }
         },
         {
           "toMapId": 6925,
           "x": 17,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 404,
+            "screenY": 295
+          }
         }
       ]
     },
@@ -3666,12 +4577,12 @@
       "exits": [
         {
           "toMapId": 3010,
-          "x": 1,
+          "x": 0,
           "y": 9
         },
         {
           "toMapId": 3049,
-          "x": 5,
+          "x": 4,
           "y": 6
         }
       ]
@@ -3694,82 +4605,162 @@
         {
           "toMapId": 449,
           "x": 24,
-          "y": 25
+          "y": 25,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 218,
+            "screenY": 99
+          }
         },
         {
           "toMapId": 449,
           "x": 25,
-          "y": 25
+          "y": 25,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 218,
+            "screenY": 99
+          }
         },
         {
           "toMapId": 449,
           "x": 26,
-          "y": 25
+          "y": 25,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 218,
+            "screenY": 99
+          }
         },
         {
           "toMapId": 449,
           "x": 27,
-          "y": 25
+          "y": 25,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 218,
+            "screenY": 99
+          }
         },
         {
           "toMapId": 3012,
           "x": 33,
-          "y": 25
+          "y": 25,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 344,
+            "screenY": 250
+          }
         },
         {
           "toMapId": 3012,
           "x": 34,
-          "y": 25
+          "y": 25,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 344,
+            "screenY": 250
+          }
         },
         {
           "toMapId": 3012,
           "x": 35,
-          "y": 25
+          "y": 25,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 344,
+            "screenY": 250
+          }
         },
         {
           "toMapId": 3012,
           "x": 36,
-          "y": 25
+          "y": 25,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 344,
+            "screenY": 250
+          }
         },
         {
           "toMapId": 3014,
           "x": 24,
-          "y": 25
+          "y": 25,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 306,
+            "screenY": 77
+          }
         },
         {
           "toMapId": 3014,
           "x": 25,
-          "y": 25
+          "y": 25,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 306,
+            "screenY": 77
+          }
         },
         {
           "toMapId": 3014,
           "x": 26,
-          "y": 25
+          "y": 25,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 306,
+            "screenY": 77
+          }
         },
         {
           "toMapId": 3014,
           "x": 27,
-          "y": 25
+          "y": 25,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 306,
+            "screenY": 77
+          }
         },
         {
           "toMapId": 3020,
           "x": 33,
-          "y": 25
+          "y": 25,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 298,
+            "screenY": 188
+          }
         },
         {
           "toMapId": 3020,
           "x": 34,
-          "y": 25
+          "y": 25,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 298,
+            "screenY": 188
+          }
         },
         {
           "toMapId": 3020,
           "x": 35,
-          "y": 25
+          "y": 25,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 298,
+            "screenY": 188
+          }
         },
         {
           "toMapId": 3020,
           "x": 36,
-          "y": 25
+          "y": 25,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 298,
+            "screenY": 188
+          }
         },
         {
           "toMapId": 3059,
@@ -3789,102 +4780,202 @@
         {
           "toMapId": 3071,
           "x": 24,
-          "y": 25
+          "y": 25,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 364,
+            "screenY": 215
+          }
         },
         {
           "toMapId": 3071,
           "x": 25,
-          "y": 25
+          "y": 25,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 364,
+            "screenY": 215
+          }
         },
         {
           "toMapId": 3071,
           "x": 26,
-          "y": 25
+          "y": 25,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 364,
+            "screenY": 215
+          }
         },
         {
           "toMapId": 3071,
           "x": 27,
-          "y": 25
+          "y": 25,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 364,
+            "screenY": 215
+          }
         },
         {
           "toMapId": 3079,
           "x": 24,
-          "y": 25
+          "y": 25,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 258,
+            "screenY": 87
+          }
         },
         {
           "toMapId": 3079,
           "x": 25,
-          "y": 25
+          "y": 25,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 258,
+            "screenY": 87
+          }
         },
         {
           "toMapId": 3079,
           "x": 26,
-          "y": 25
+          "y": 25,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 258,
+            "screenY": 87
+          }
         },
         {
           "toMapId": 3079,
           "x": 27,
-          "y": 25
+          "y": 25,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 258,
+            "screenY": 87
+          }
         },
         {
           "toMapId": 3080,
           "x": 24,
-          "y": 25
+          "y": 25,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 260,
+            "screenY": 116
+          }
         },
         {
           "toMapId": 3080,
           "x": 25,
-          "y": 25
+          "y": 25,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 260,
+            "screenY": 116
+          }
         },
         {
           "toMapId": 3080,
           "x": 26,
-          "y": 25
+          "y": 25,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 260,
+            "screenY": 116
+          }
         },
         {
           "toMapId": 3080,
           "x": 27,
-          "y": 25
+          "y": 25,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 260,
+            "screenY": 116
+          }
         },
         {
           "toMapId": 3271,
           "x": 33,
-          "y": 25
+          "y": 25,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 328,
+            "screenY": 233
+          }
         },
         {
           "toMapId": 3271,
           "x": 34,
-          "y": 25
+          "y": 25,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 328,
+            "screenY": 233
+          }
         },
         {
           "toMapId": 3271,
           "x": 35,
-          "y": 25
+          "y": 25,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 328,
+            "screenY": 233
+          }
         },
         {
           "toMapId": 3271,
           "x": 36,
-          "y": 25
+          "y": 25,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 328,
+            "screenY": 233
+          }
         },
         {
           "toMapId": 6925,
           "x": 33,
-          "y": 25
+          "y": 25,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 404,
+            "screenY": 295
+          }
         },
         {
           "toMapId": 6925,
           "x": 34,
-          "y": 25
+          "y": 25,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 404,
+            "screenY": 295
+          }
         },
         {
           "toMapId": 6925,
           "x": 35,
-          "y": 25
+          "y": 25,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 404,
+            "screenY": 295
+          }
         },
         {
           "toMapId": 6925,
           "x": 36,
-          "y": 25
+          "y": 25,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 404,
+            "screenY": 295
+          }
         }
       ]
     },
@@ -3988,17 +5079,32 @@
         {
           "toMapId": 3012,
           "x": 0,
-          "y": 6
+          "y": 6,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 344,
+            "screenY": 250
+          }
         },
         {
           "toMapId": 3012,
           "x": 0,
-          "y": 7
+          "y": 7,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 344,
+            "screenY": 250
+          }
         },
         {
           "toMapId": 3012,
           "x": 0,
-          "y": 8
+          "y": 8,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 344,
+            "screenY": 250
+          }
         },
         {
           "toMapId": 3072,
@@ -4174,72 +5280,142 @@
         {
           "toMapId": 449,
           "x": 0,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 218,
+            "screenY": 99
+          }
         },
         {
           "toMapId": 449,
           "x": 1,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 218,
+            "screenY": 99
+          }
         },
         {
           "toMapId": 449,
           "x": 2,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 218,
+            "screenY": 99
+          }
         },
         {
           "toMapId": 449,
           "x": 3,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 218,
+            "screenY": 99
+          }
         },
         {
           "toMapId": 449,
           "x": 4,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 218,
+            "screenY": 99
+          }
         },
         {
           "toMapId": 449,
           "x": 5,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 218,
+            "screenY": 99
+          }
         },
         {
           "toMapId": 449,
           "x": 6,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 218,
+            "screenY": 99
+          }
         },
         {
           "toMapId": 449,
           "x": 7,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 218,
+            "screenY": 99
+          }
         },
         {
           "toMapId": 449,
           "x": 8,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 218,
+            "screenY": 99
+          }
         },
         {
           "toMapId": 449,
           "x": 9,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 218,
+            "screenY": 99
+          }
         },
         {
           "toMapId": 449,
           "x": 10,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 218,
+            "screenY": 99
+          }
         },
         {
           "toMapId": 449,
           "x": 11,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 218,
+            "screenY": 99
+          }
         },
         {
           "toMapId": 449,
           "x": 12,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 218,
+            "screenY": 99
+          }
         },
         {
           "toMapId": 449,
           "x": 13,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 218,
+            "screenY": 99
+          }
         },
         {
           "toMapId": 3006,
@@ -4384,142 +5560,282 @@
         {
           "toMapId": 3014,
           "x": 0,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 306,
+            "screenY": 77
+          }
         },
         {
           "toMapId": 3014,
           "x": 1,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 306,
+            "screenY": 77
+          }
         },
         {
           "toMapId": 3014,
           "x": 2,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 306,
+            "screenY": 77
+          }
         },
         {
           "toMapId": 3014,
           "x": 3,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 306,
+            "screenY": 77
+          }
         },
         {
           "toMapId": 3014,
           "x": 4,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 306,
+            "screenY": 77
+          }
         },
         {
           "toMapId": 3014,
           "x": 5,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 306,
+            "screenY": 77
+          }
         },
         {
           "toMapId": 3014,
           "x": 6,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 306,
+            "screenY": 77
+          }
         },
         {
           "toMapId": 3014,
           "x": 7,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 306,
+            "screenY": 77
+          }
         },
         {
           "toMapId": 3014,
           "x": 8,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 306,
+            "screenY": 77
+          }
         },
         {
           "toMapId": 3014,
           "x": 9,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 306,
+            "screenY": 77
+          }
         },
         {
           "toMapId": 3014,
           "x": 10,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 306,
+            "screenY": 77
+          }
         },
         {
           "toMapId": 3014,
           "x": 11,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 306,
+            "screenY": 77
+          }
         },
         {
           "toMapId": 3014,
           "x": 12,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 306,
+            "screenY": 77
+          }
         },
         {
           "toMapId": 3014,
           "x": 13,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 306,
+            "screenY": 77
+          }
         },
         {
           "toMapId": 3052,
           "x": 0,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 279,
+            "screenY": 139
+          }
         },
         {
           "toMapId": 3052,
           "x": 1,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 279,
+            "screenY": 139
+          }
         },
         {
           "toMapId": 3052,
           "x": 2,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 279,
+            "screenY": 139
+          }
         },
         {
           "toMapId": 3052,
           "x": 3,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 279,
+            "screenY": 139
+          }
         },
         {
           "toMapId": 3052,
           "x": 4,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 279,
+            "screenY": 139
+          }
         },
         {
           "toMapId": 3052,
           "x": 5,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 279,
+            "screenY": 139
+          }
         },
         {
           "toMapId": 3052,
           "x": 6,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 279,
+            "screenY": 139
+          }
         },
         {
           "toMapId": 3052,
           "x": 7,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 279,
+            "screenY": 139
+          }
         },
         {
           "toMapId": 3052,
           "x": 8,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 279,
+            "screenY": 139
+          }
         },
         {
           "toMapId": 3052,
           "x": 9,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 279,
+            "screenY": 139
+          }
         },
         {
           "toMapId": 3052,
           "x": 10,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 279,
+            "screenY": 139
+          }
         },
         {
           "toMapId": 3052,
           "x": 11,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 279,
+            "screenY": 139
+          }
         },
         {
           "toMapId": 3052,
           "x": 12,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 279,
+            "screenY": 139
+          }
         },
         {
           "toMapId": 3052,
           "x": 13,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 279,
+            "screenY": 139
+          }
         }
       ]
     },
@@ -4600,72 +5916,142 @@
         {
           "toMapId": 3052,
           "x": 0,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 279,
+            "screenY": 139
+          }
         },
         {
           "toMapId": 3052,
           "x": 1,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 279,
+            "screenY": 139
+          }
         },
         {
           "toMapId": 3052,
           "x": 2,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 279,
+            "screenY": 139
+          }
         },
         {
           "toMapId": 3052,
           "x": 3,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 279,
+            "screenY": 139
+          }
         },
         {
           "toMapId": 3052,
           "x": 4,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 279,
+            "screenY": 139
+          }
         },
         {
           "toMapId": 3052,
           "x": 5,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 279,
+            "screenY": 139
+          }
         },
         {
           "toMapId": 3052,
           "x": 6,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 279,
+            "screenY": 139
+          }
         },
         {
           "toMapId": 3079,
           "x": 0,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 258,
+            "screenY": 87
+          }
         },
         {
           "toMapId": 3079,
           "x": 1,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 258,
+            "screenY": 87
+          }
         },
         {
           "toMapId": 3079,
           "x": 2,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 258,
+            "screenY": 87
+          }
         },
         {
           "toMapId": 3079,
           "x": 3,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 258,
+            "screenY": 87
+          }
         },
         {
           "toMapId": 3079,
           "x": 4,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 258,
+            "screenY": 87
+          }
         },
         {
           "toMapId": 3079,
           "x": 5,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 258,
+            "screenY": 87
+          }
         },
         {
           "toMapId": 3079,
           "x": 6,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 258,
+            "screenY": 87
+          }
         }
       ]
     },
@@ -4676,72 +6062,142 @@
         {
           "toMapId": 502,
           "x": 0,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 306,
+            "screenY": 77
+          }
         },
         {
           "toMapId": 502,
           "x": 1,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 306,
+            "screenY": 77
+          }
         },
         {
           "toMapId": 502,
           "x": 2,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 306,
+            "screenY": 77
+          }
         },
         {
           "toMapId": 502,
           "x": 3,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 306,
+            "screenY": 77
+          }
         },
         {
           "toMapId": 502,
           "x": 4,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 306,
+            "screenY": 77
+          }
         },
         {
           "toMapId": 502,
           "x": 5,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 306,
+            "screenY": 77
+          }
         },
         {
           "toMapId": 502,
           "x": 6,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 306,
+            "screenY": 77
+          }
         },
         {
           "toMapId": 502,
           "x": 7,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 306,
+            "screenY": 77
+          }
         },
         {
           "toMapId": 502,
           "x": 8,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 306,
+            "screenY": 77
+          }
         },
         {
           "toMapId": 502,
           "x": 9,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 306,
+            "screenY": 77
+          }
         },
         {
           "toMapId": 502,
           "x": 10,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 306,
+            "screenY": 77
+          }
         },
         {
           "toMapId": 502,
           "x": 11,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 306,
+            "screenY": 77
+          }
         },
         {
           "toMapId": 502,
           "x": 12,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 306,
+            "screenY": 77
+          }
         },
         {
           "toMapId": 502,
           "x": 13,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 306,
+            "screenY": 77
+          }
         },
         {
           "toMapId": 505,
@@ -4886,282 +6342,562 @@
         {
           "toMapId": 3012,
           "x": 0,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 344,
+            "screenY": 250
+          }
         },
         {
           "toMapId": 3012,
           "x": 1,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 344,
+            "screenY": 250
+          }
         },
         {
           "toMapId": 3012,
           "x": 2,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 344,
+            "screenY": 250
+          }
         },
         {
           "toMapId": 3012,
           "x": 3,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 344,
+            "screenY": 250
+          }
         },
         {
           "toMapId": 3012,
           "x": 4,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 344,
+            "screenY": 250
+          }
         },
         {
           "toMapId": 3012,
           "x": 5,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 344,
+            "screenY": 250
+          }
         },
         {
           "toMapId": 3012,
           "x": 6,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 344,
+            "screenY": 250
+          }
         },
         {
           "toMapId": 3012,
           "x": 7,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 344,
+            "screenY": 250
+          }
         },
         {
           "toMapId": 3012,
           "x": 8,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 344,
+            "screenY": 250
+          }
         },
         {
           "toMapId": 3012,
           "x": 9,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 344,
+            "screenY": 250
+          }
         },
         {
           "toMapId": 3012,
           "x": 10,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 344,
+            "screenY": 250
+          }
         },
         {
           "toMapId": 3012,
           "x": 11,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 344,
+            "screenY": 250
+          }
         },
         {
           "toMapId": 3012,
           "x": 12,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 344,
+            "screenY": 250
+          }
         },
         {
           "toMapId": 3012,
           "x": 13,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 344,
+            "screenY": 250
+          }
         },
         {
           "toMapId": 3271,
           "x": 0,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 323,
+            "screenY": 236
+          }
         },
         {
           "toMapId": 3271,
           "x": 1,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 323,
+            "screenY": 236
+          }
         },
         {
           "toMapId": 3271,
           "x": 2,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 323,
+            "screenY": 236
+          }
         },
         {
           "toMapId": 3271,
           "x": 3,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 323,
+            "screenY": 236
+          }
         },
         {
           "toMapId": 3271,
           "x": 4,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 323,
+            "screenY": 236
+          }
         },
         {
           "toMapId": 3271,
           "x": 5,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 323,
+            "screenY": 236
+          }
         },
         {
           "toMapId": 3271,
           "x": 6,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 323,
+            "screenY": 236
+          }
         },
         {
           "toMapId": 3271,
           "x": 7,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 323,
+            "screenY": 236
+          }
         },
         {
           "toMapId": 3271,
           "x": 8,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 323,
+            "screenY": 236
+          }
         },
         {
           "toMapId": 3271,
           "x": 9,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 323,
+            "screenY": 236
+          }
         },
         {
           "toMapId": 3271,
           "x": 10,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 323,
+            "screenY": 236
+          }
         },
         {
           "toMapId": 3271,
           "x": 11,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 323,
+            "screenY": 236
+          }
         },
         {
           "toMapId": 3271,
           "x": 12,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 323,
+            "screenY": 236
+          }
         },
         {
           "toMapId": 3271,
           "x": 13,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 323,
+            "screenY": 236
+          }
         },
         {
           "toMapId": 6228,
           "x": 0,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 550,
+            "screenY": 385
+          }
         },
         {
           "toMapId": 6228,
           "x": 1,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 550,
+            "screenY": 385
+          }
         },
         {
           "toMapId": 6228,
           "x": 2,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 550,
+            "screenY": 385
+          }
         },
         {
           "toMapId": 6228,
           "x": 3,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 550,
+            "screenY": 385
+          }
         },
         {
           "toMapId": 6228,
           "x": 4,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 550,
+            "screenY": 385
+          }
         },
         {
           "toMapId": 6228,
           "x": 5,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 550,
+            "screenY": 385
+          }
         },
         {
           "toMapId": 6228,
           "x": 6,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 550,
+            "screenY": 385
+          }
         },
         {
           "toMapId": 6228,
           "x": 7,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 550,
+            "screenY": 385
+          }
         },
         {
           "toMapId": 6228,
           "x": 8,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 550,
+            "screenY": 385
+          }
         },
         {
           "toMapId": 6228,
           "x": 9,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 550,
+            "screenY": 385
+          }
         },
         {
           "toMapId": 6228,
           "x": 10,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 550,
+            "screenY": 385
+          }
         },
         {
           "toMapId": 6228,
           "x": 11,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 550,
+            "screenY": 385
+          }
         },
         {
           "toMapId": 6228,
           "x": 12,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 550,
+            "screenY": 385
+          }
         },
         {
           "toMapId": 6228,
           "x": 13,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 550,
+            "screenY": 385
+          }
         },
         {
           "toMapId": 6925,
           "x": 0,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 404,
+            "screenY": 295
+          }
         },
         {
           "toMapId": 6925,
           "x": 1,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 404,
+            "screenY": 295
+          }
         },
         {
           "toMapId": 6925,
           "x": 2,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 404,
+            "screenY": 295
+          }
         },
         {
           "toMapId": 6925,
           "x": 3,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 404,
+            "screenY": 295
+          }
         },
         {
           "toMapId": 6925,
           "x": 4,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 404,
+            "screenY": 295
+          }
         },
         {
           "toMapId": 6925,
           "x": 5,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 404,
+            "screenY": 295
+          }
         },
         {
           "toMapId": 6925,
           "x": 6,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 404,
+            "screenY": 295
+          }
         },
         {
           "toMapId": 6925,
           "x": 7,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 404,
+            "screenY": 295
+          }
         },
         {
           "toMapId": 6925,
           "x": 8,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 404,
+            "screenY": 295
+          }
         },
         {
           "toMapId": 6925,
           "x": 9,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 404,
+            "screenY": 295
+          }
         },
         {
           "toMapId": 6925,
           "x": 10,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 404,
+            "screenY": 295
+          }
         },
         {
           "toMapId": 6925,
           "x": 11,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 404,
+            "screenY": 295
+          }
         },
         {
           "toMapId": 6925,
           "x": 12,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 404,
+            "screenY": 295
+          }
         },
         {
           "toMapId": 6925,
           "x": 13,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 404,
+            "screenY": 295
+          }
         }
       ]
     },
@@ -5197,62 +6933,122 @@
         {
           "toMapId": 3012,
           "x": 64,
-          "y": 59
+          "y": 59,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 344,
+            "screenY": 250
+          }
         },
         {
           "toMapId": 3012,
           "x": 64,
-          "y": 60
+          "y": 60,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 344,
+            "screenY": 250
+          }
         },
         {
           "toMapId": 3012,
           "x": 64,
-          "y": 61
+          "y": 61,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 344,
+            "screenY": 250
+          }
         },
         {
           "toMapId": 3020,
           "x": 64,
-          "y": 59
+          "y": 59,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 295,
+            "screenY": 188
+          }
         },
         {
           "toMapId": 3020,
           "x": 64,
-          "y": 60
+          "y": 60,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 295,
+            "screenY": 188
+          }
         },
         {
           "toMapId": 3020,
           "x": 64,
-          "y": 61
+          "y": 61,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 295,
+            "screenY": 188
+          }
         },
         {
           "toMapId": 3052,
           "x": 64,
-          "y": 59
+          "y": 59,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 279,
+            "screenY": 139
+          }
         },
         {
           "toMapId": 3052,
           "x": 64,
-          "y": 60
+          "y": 60,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 279,
+            "screenY": 139
+          }
         },
         {
           "toMapId": 3052,
           "x": 64,
-          "y": 61
+          "y": 61,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 279,
+            "screenY": 139
+          }
         },
         {
           "toMapId": 3071,
           "x": 64,
-          "y": 59
+          "y": 59,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 364,
+            "screenY": 215
+          }
         },
         {
           "toMapId": 3071,
           "x": 64,
-          "y": 60
+          "y": 60,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 364,
+            "screenY": 215
+          }
         },
         {
           "toMapId": 3071,
           "x": 64,
-          "y": 61
+          "y": 61,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 364,
+            "screenY": 215
+          }
         },
         {
           "toMapId": 3926,
@@ -5292,17 +7088,32 @@
         {
           "toMapId": 6925,
           "x": 64,
-          "y": 59
+          "y": 59,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 404,
+            "screenY": 295
+          }
         },
         {
           "toMapId": 6925,
           "x": 64,
-          "y": 60
+          "y": 60,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 404,
+            "screenY": 295
+          }
         },
         {
           "toMapId": 6925,
           "x": 64,
-          "y": 61
+          "y": 61,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 404,
+            "screenY": 295
+          }
         }
       ]
     },
@@ -6338,12 +8149,22 @@
         {
           "toMapId": 502,
           "x": 57,
-          "y": 174
+          "y": 174,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 306,
+            "screenY": 77
+          }
         },
         {
           "toMapId": 502,
           "x": 58,
-          "y": 174
+          "y": 174,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 306,
+            "screenY": 77
+          }
         },
         {
           "toMapId": 706,
@@ -6358,12 +8179,22 @@
         {
           "toMapId": 3081,
           "x": 57,
-          "y": 174
+          "y": 174,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 494,
+            "screenY": 205
+          }
         },
         {
           "toMapId": 3081,
           "x": 58,
-          "y": 174
+          "y": 174,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 494,
+            "screenY": 205
+          }
         },
         {
           "toMapId": 6520,
@@ -6505,7 +8336,12 @@
         {
           "toMapId": 6924,
           "x": 34,
-          "y": 34
+          "y": 34,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 10,
+            "screenY": 10
+          }
         }
       ]
     },
@@ -6564,77 +8400,152 @@
         {
           "toMapId": 3012,
           "x": 33,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 344,
+            "screenY": 250
+          }
         },
         {
           "toMapId": 3012,
           "x": 34,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 344,
+            "screenY": 250
+          }
         },
         {
           "toMapId": 3012,
           "x": 35,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 344,
+            "screenY": 250
+          }
         },
         {
           "toMapId": 3020,
           "x": 33,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 298,
+            "screenY": 188
+          }
         },
         {
           "toMapId": 3020,
           "x": 34,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 298,
+            "screenY": 188
+          }
         },
         {
           "toMapId": 3020,
           "x": 35,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 298,
+            "screenY": 188
+          }
         },
         {
           "toMapId": 3052,
           "x": 33,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 279,
+            "screenY": 139
+          }
         },
         {
           "toMapId": 3052,
           "x": 34,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 279,
+            "screenY": 139
+          }
         },
         {
           "toMapId": 3052,
           "x": 35,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 279,
+            "screenY": 139
+          }
         },
         {
           "toMapId": 3071,
           "x": 33,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 364,
+            "screenY": 215
+          }
         },
         {
           "toMapId": 3071,
           "x": 34,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 364,
+            "screenY": 215
+          }
         },
         {
           "toMapId": 3071,
           "x": 35,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 364,
+            "screenY": 215
+          }
         },
         {
           "toMapId": 3271,
           "x": 33,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 328,
+            "screenY": 233
+          }
         },
         {
           "toMapId": 3271,
           "x": 34,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 328,
+            "screenY": 233
+          }
         },
         {
           "toMapId": 3271,
           "x": 35,
-          "y": 0
+          "y": 0,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 328,
+            "screenY": 233
+          }
         },
         {
           "toMapId": 6926,
@@ -6665,7 +8576,10 @@
         {
           "toMapId": 10028,
           "x": 8,
-          "y": 10
+          "y": 10,
+          "via": {
+            "kind": "dialog"
+          }
         }
       ]
     },
@@ -6691,37 +8605,72 @@
         {
           "toMapId": 8300,
           "x": 15,
-          "y": 9
+          "y": 9,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 190,
+            "screenY": 267
+          }
         },
         {
           "toMapId": 8300,
           "x": 16,
-          "y": 9
+          "y": 9,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 190,
+            "screenY": 267
+          }
         },
         {
           "toMapId": 8300,
           "x": 17,
-          "y": 9
+          "y": 9,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 190,
+            "screenY": 267
+          }
         },
         {
           "toMapId": 10055,
           "x": 16,
-          "y": 34
+          "y": 34,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 494,
+            "screenY": 286
+          }
         },
         {
           "toMapId": 10055,
           "x": 17,
-          "y": 34
+          "y": 34,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 494,
+            "screenY": 286
+          }
         },
         {
           "toMapId": 10265,
           "x": 16,
-          "y": 34
+          "y": 34,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 274,
+            "screenY": 301
+          }
         },
         {
           "toMapId": 10265,
           "x": 17,
-          "y": 34
+          "y": 34,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 274,
+            "screenY": 301
+          }
         }
       ]
     },
@@ -10776,7 +12725,10 @@
         {
           "toMapId": 10999,
           "x": 28,
-          "y": 32
+          "y": 32,
+          "via": {
+            "kind": "dialog"
+          }
         }
       ]
     },
@@ -11518,7 +13470,10 @@
         {
           "toMapId": 1960,
           "x": 45,
-          "y": 24
+          "y": 24,
+          "via": {
+            "kind": "dialog"
+          }
         },
         {
           "toMapId": 10034,
@@ -11613,7 +13568,10 @@
         {
           "toMapId": 10999,
           "x": 45,
-          "y": 24
+          "y": 24,
+          "via": {
+            "kind": "dialog"
+          }
         }
       ]
     },
@@ -12481,7 +14439,10 @@
         {
           "toMapId": 10998,
           "x": 90,
-          "y": 44
+          "y": 44,
+          "via": {
+            "kind": "dialog"
+          }
         },
         {
           "toMapId": 11021,
@@ -12538,17 +14499,32 @@
         {
           "toMapId": 6997,
           "x": 5,
-          "y": 6
+          "y": 6,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 264,
+            "screenY": 386
+          }
         },
         {
           "toMapId": 8300,
           "x": 5,
-          "y": 6
+          "y": 6,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 190,
+            "screenY": 267
+          }
         },
         {
           "toMapId": 10055,
           "x": 5,
-          "y": 6
+          "y": 6,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 494,
+            "screenY": 286
+          }
         }
       ]
     },
@@ -12559,27 +14535,52 @@
         {
           "toMapId": 6997,
           "x": 5,
-          "y": 6
+          "y": 6,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 264,
+            "screenY": 386
+          }
         },
         {
           "toMapId": 8300,
           "x": 5,
-          "y": 6
+          "y": 6,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 190,
+            "screenY": 267
+          }
         },
         {
           "toMapId": 10000,
           "x": 5,
-          "y": 6
+          "y": 6,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 551,
+            "screenY": 382
+          }
         },
         {
           "toMapId": 10055,
           "x": 5,
-          "y": 6
+          "y": 6,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 494,
+            "screenY": 286
+          }
         },
         {
           "toMapId": 10265,
           "x": 5,
-          "y": 6
+          "y": 6,
+          "via": {
+            "kind": "fieldMap",
+            "screenX": 274,
+            "screenY": 301
+          }
         }
       ]
     },

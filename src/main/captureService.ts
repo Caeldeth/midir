@@ -14,6 +14,7 @@ import {
 } from './model/character'
 import { reducePosition, type Position } from './model/position'
 import { reduceDialog, type DialogState } from './model/dialog'
+import { reduceFieldMap, type FieldMapState } from './model/fieldMap'
 import { mergeCharacter, withCharacter, type CharacterStore } from './store/characterStore'
 
 /**
@@ -90,6 +91,12 @@ export interface CaptureService {
    * reads it to choose an option and wait for the next step.
    */
   dialogFor(connectionId: string): DialogState | null
+  /**
+   * The world map on screen on `connectionId` now, or null while there is
+   * none. A live fact, never saved. The walker reads it to click the point of
+   * a cross-town hop and wait for the map change.
+   */
+  fieldMapFor(connectionId: string): FieldMapState | null
 }
 
 export function createCaptureService(options: CaptureServiceOptions): CaptureService {
@@ -115,6 +122,8 @@ export function createCaptureService(options: CaptureServiceOptions): CaptureSer
    * conversation, not a record.
    */
   const dialogs = new Map<string, DialogState>()
+  /** The world map on screen for each connection. A live fact, like the dialog. */
+  const fieldMaps = new Map<string, FieldMapState>()
   /** Records changed but not yet written, by character name. */
   const unsaved = new Map<string, CharacterRecord>()
   /**
@@ -291,6 +300,15 @@ export function createCaptureService(options: CaptureServiceOptions): CaptureSer
     if (dialogAfter === null) dialogs.delete(id)
     else dialogs.set(id, dialogAfter)
 
+    const fieldMapBefore = fieldMaps.get(id) ?? null
+    const fieldMapAfter = reduceFieldMap(fieldMapBefore, {
+      packet: tracked.event.packet,
+      timestampMs: tracked.timestampMs,
+      sawLoss
+    })
+    if (fieldMapAfter === null) fieldMaps.delete(id)
+    else fieldMaps.set(id, fieldMapAfter)
+
     const before = sessions.get(id) ?? newSession(tracked.connection.openedAtMs)
     const after = reduce(before, {
       packet: tracked.event.packet,
@@ -329,6 +347,7 @@ export function createCaptureService(options: CaptureServiceOptions): CaptureSer
       sessions.clear()
       positions.clear()
       dialogs.clear()
+      fieldMaps.clear()
       lossy.clear()
       tracker.clear()
 
@@ -357,6 +376,7 @@ export function createCaptureService(options: CaptureServiceOptions): CaptureSer
           liveCharacters.delete(connection.id)
           positions.delete(connection.id)
           dialogs.delete(connection.id)
+          fieldMaps.delete(connection.id)
           connectionCount = tracker.activeConnections().length
           publishStatus()
         },
@@ -404,6 +424,7 @@ export function createCaptureService(options: CaptureServiceOptions): CaptureSer
       sessions.clear()
       positions.clear()
       dialogs.clear()
+      fieldMaps.clear()
       await flush()
       publishStatus()
     },
@@ -418,6 +439,9 @@ export function createCaptureService(options: CaptureServiceOptions): CaptureSer
     },
     dialogFor(connectionId: string): DialogState | null {
       return dialogs.get(connectionId) ?? null
+    },
+    fieldMapFor(connectionId: string): FieldMapState | null {
+      return fieldMaps.get(connectionId) ?? null
     }
   }
 }
