@@ -17,8 +17,8 @@ click then closed the dialog, and a click at the exchange's Cancel from a guesse
 missed. Then Sabrael pressed Escape by hand and the exchange cancelled at once. The posted Escape
 was key-down and key-up alone, with no scan code; a real press also delivers `WM_CHAR` 0x1B, and a
 pane that reads characters (as the dialog's text field does) sees only that. `pressKey` now posts
-Escape with its scan code and its character, and the exchange goes back to Escape. Whether that is
-enough is the next run's fact.
+Escape with its scan code and its character, and the exchange goes back to Escape; the run of
+11:45Z cancelled on it.
 
 **The first live try (on the pre-WP34 build, as the log showed) named the two popups that matter.**
 The popups Sabrael can make on demand are another character's doing: an exchange window (an item
