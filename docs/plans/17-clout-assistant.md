@@ -46,7 +46,9 @@ Built in two PRs off `main`, both provable with no game.
    (`laborer/view.ts`). The errand's `npcTile` and the position off the wire give the point; the
    click aims a little above the tile at the body. Three clicks, each waited on for a dialog; then,
    or when the NPC's tile is not known, the player opens the conversation (`FIRST_DIALOG_WAIT_MS`,
-   30 s). The pane watcher logs the view centre each hand click on a known NPC implies.
+   30 s). The pane watcher logs the view centre each hand click on a known NPC implies. The NPC
+   tiles are the world repo's `Old*.xml`, except the officials (measured) and Riona (not in the
+   xml; her errand still waits for the player's click).
 2. **Selecting a row is a click, and nothing else.** The first live run posted the row's number key
    and the client sent nothing. The client's own layouts (`lnpcd.txt`, `lnpcd2.txt` in `setoa.dat`)
    give the row pitch (18 px) and the row's width (193 to 579 on screen); the hand run of the same

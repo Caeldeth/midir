@@ -40,6 +40,12 @@ import type { DialogStep, Errand, ErrandParam } from '../../shared/types'
  * the world xml both put her there. The two town halls are the same room: the
  * spot is 2,11 and the official is on 1,12 (Sabrael, 2026-09-21, correcting
  * the earlier 1,11 for Rucesion).
+ *
+ * The NPC tiles are from the world repo's `Old*.xml` (`<Npc Name X Y>`),
+ * except the two officials: the xml puts Eduardo on 1,9, and a click on 1,12
+ * opened his dialog in the live run of 2026-09-21, so the measured tile
+ * stands and Arilan takes the same. Riona is not in the xml's Mileth Inn, so
+ * her errand waits for the player to open the conversation.
  */
 /**
  * The civic errand: support one citizen, by name.
@@ -186,6 +192,7 @@ export const BUILTIN_ERRANDS: Errand[] = [
     name: 'Clout — Maria (Rucesion Inn)',
     destination: 'Rucesion Inn',
     standTile: { x: 5, y: 6 },
+    npcTile: { x: 3, y: 3 },
     npcName: 'Maria',
     ...cloutSteps(RUCESION)
   },
@@ -193,6 +200,7 @@ export const BUILTIN_ERRANDS: Errand[] = [
     name: 'Clout — Angelo (Rucesion Bank)',
     destination: 'Rucesion Bank',
     standTile: { x: 5, y: 8 },
+    npcTile: { x: 7, y: 3 },
     npcName: 'Angelo',
     ...cloutSteps(RUCESION)
   },
@@ -208,6 +216,7 @@ export const BUILTIN_ERRANDS: Errand[] = [
     name: 'Clout — Aingeal (Mileth Tavern)',
     destination: 'Mileth Tavern',
     standTile: { x: 9, y: 5 },
+    npcTile: { x: 6, y: 5 },
     npcName: 'Aingeal',
     ...cloutSteps(MILETH)
   },
@@ -232,7 +241,10 @@ export const BUILTIN_ERRANDS: Errand[] = [
     standTile: { x: 5, y: 8 },
     npcTile: { x: 3, y: 4 }
   }),
-  ...bankErrands('Cassidy', 'Mileth Bank', 'Mileth Bank', { standTile: { x: 6, y: 6 } }),
+  ...bankErrands('Cassidy', 'Mileth Bank', 'Mileth Bank', {
+    standTile: { x: 6, y: 6 },
+    npcTile: { x: 3, y: 5 }
+  }),
   // The four storages are the same 12 x 12 room, with the NPC on (3,4), so
   // Rucesion's stand tile carries over to the other three.
   ...bankErrands('Jilt', 'Piet Bank', 'Piet Bank', {

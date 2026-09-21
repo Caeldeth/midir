@@ -97,6 +97,13 @@ describe('built-in errands', () => {
     expect(text).not.toContain('Pandsala')
   })
 
+  it('knows the NPC tile of every errand but Riona, so the Laborer can open the conversation', () => {
+    for (const errand of builtinErrands()) {
+      if (errand.npcName === 'Riona') expect(errand.npcTile).toBeUndefined()
+      else expect(errand.npcTile).toBeDefined()
+    }
+  })
+
   it('finds an errand by name', () => {
     const first = builtinErrands()[0]!
     expect(findErrand(first.name)).toBe(first)
