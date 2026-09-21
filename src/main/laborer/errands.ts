@@ -25,14 +25,13 @@ import type { Errand } from '../../shared/types'
  *
  * ## Destinations the world graph does not reach yet
  *
- * `destination` is a node name the route graph resolves. Rucesion Inn, Rucesion
- * Bank, Rucesion Town Hall, Mileth Inn, Mileth Tavern, and Mileth Town Hall are
- * nodes (the last two from `scripts/worldmap-overrides.json`); the two Mileth
- * additions still lack the door tile on the Mileth side, so they resolve but
- * do not route until it is captured. Piet Bank, Abel Bank, and Undine Bank
- * are not nodes yet (WP33). The towns themselves are reachable: the walker
- * crosses the world map. The name is written here as the building it should
- * resolve to, so the errand works the moment its node routes.
+ * `destination` is a node name the route graph resolves. All six Mileth and
+ * Rucesion buildings are nodes and route (Mileth Tavern, Mileth Town Hall, and
+ * Mileth Commons on the way to it come from `scripts/worldmap-overrides.json`).
+ * Piet Bank, Abel Bank, and Undine Bank are not nodes yet (WP33). The towns
+ * themselves are reachable: the walker crosses the world map. The name is
+ * written here as the building it should resolve to, so the errand works the
+ * moment its node routes.
  */
 export const BUILTIN_ERRANDS: Errand[] = [
   // --- Clout: one errand for each NPC ------------------------------------

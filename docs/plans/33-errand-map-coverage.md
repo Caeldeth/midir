@@ -7,9 +7,10 @@
 imported `WorldMap.dat` graph does not have all of them. This WP starts when a shipped errand needs a
 node the graph lacks.
 
-**The cross-town hop is built and proven live (PR1). PR2 adds the interiors Sabrael captured, an
-arrival tile the user can enter, and the `nodes` section of the overrides file.** What is left: the
-Mileth-side door tiles for the Town Hall and the Tavern, and the three other-town banks.
+**The cross-town hop is built and proven live (PR1). PR2 adds every Mileth and Rucesion building
+Sabrael captured, Rucesion's and Mileth's warps as full strips, an arrival tile the user can enter,
+and the `nodes` section of the overrides file. All six Mileth and Rucesion errands route.** What is
+left: the three other-town banks, and the game's map names beside the `.dat`'s.
 
 ## Goal
 
@@ -141,18 +142,24 @@ Three walks: Rucesion Inn to Abel Outskirts, Inn to Rucesion Town Hall, and Town
 
 1. **A walk to a tile, watched (hand to Sabrael).** `Rucesion Bank @ 5,8` from the Inn: the walk
    should end on the counter tile with no hand.
-2. **The Mileth-side doors.** Sabrael's capture of 2026-09-21 gave the seven Mileth and Rucesion
-   interiors their arrival tile, the spot to stand on, and their exit tiles, and Rucesion's own
-   warps as full strips (PR2 put them in `scripts/worldmap-overrides.json`, the interiors under
-   `nodes`, and the stand tiles on the errands). An interior is an ordinary map with its own id, so
-   Mileth Town Hall (3026) and Mileth Tavern (134) are nodes now, with their exits back to Mileth.
-   What they still lack is the tile on Mileth (500) that enters each, so `planRoute` to them
-   returns null until it is captured: one walk in, recorded, gives it (the replay learner in
-   WP29's shape reads it straight off the `0x15`).
-3. **The three other-town banks.** Piet Bank, Abel Bank, and Undine Bank: map id, arrival, stand
-   tile, exits, and the town-side door, the same way.
+2. **The three other-town banks.** Piet Bank, Abel Bank, and Undine Bank: map id, arrival, stand
+   tile, exit tiles, and the town-side door, the shape of Sabrael's Mileth and Rucesion lists.
+3. **The game's names beside the `.dat`'s.** The graph calls 3014 "Abel Outskirts" and the game
+   calls it Abel Port Way; 500 is "Mileth Altar" and Mileth Village; 3006 is "MilethEnt". Midir
+   decodes every map name off the wire (`0x15`), so a name table learned from play, with both names
+   resolving on the Walker tab, is the fix. The `.dat` names stay, because the errands and the
+   pins name them.
 
-Done in PR2: **an arrival tile the user can enter.** `Place @ x,y` on the Walker tab walks to the
+Done in PR2, from Sabrael's captures of 2026-09-21: **the Mileth and Rucesion interiors.** An
+interior is an ordinary map, so each is a node with its exits, under `nodes` in
+`scripts/worldmap-overrides.json` with its arrival tile and the observation. Mileth Town Hall
+(3026), Mileth Tavern (134), and Mileth Commons (3025, on the way to the Town Hall) were not in the
+`.dat` at all; the town-side doors (Tavern 69,53–54; Commons from Village Way 12–15,0; Town Hall
+from Commons 4,6) and the warp strips of Rucesion and Mileth came from the same lists. The stand
+tile in front of each NPC went on the errands as `standTile`. All six Mileth and Rucesion errands
+route.
+
+Also done in PR2: **an arrival tile the user can enter.** `Place @ x,y` on the Walker tab walks to the
 place and then onto the tile; `parseDestination` in `shared/` splits it, so a pinned destination
 carries its tile as text. `WalkRequest.arrive` is `'on'` for a spot to stand on and `'beside'` for
 an NPC's own tile (the Laborer's `npcTile`); an errand's `standTile` uses `'on'`. A click on the

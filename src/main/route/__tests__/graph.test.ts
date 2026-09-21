@@ -145,6 +145,26 @@ describe('the imported world graph', () => {
     expect(plan.legs[0].warps.every((w) => w.via === undefined)).toBe(true)
   })
 
+  it('reaches every Mileth and Rucesion errand building', () => {
+    // Sabrael's captures of 2026-09-21, through scripts/worldmap-overrides.json.
+    expect(worldGraph.planRoute(136, 3026)!.legs.map((l) => l.toMapId)).toEqual([
+      500, 3006, 3025, 3026
+    ])
+    expect(worldGraph.planRoute(136, 134)!.legs.map((l) => l.toMapId)).toEqual([500, 134])
+    for (const name of [
+      'Rucesion Inn',
+      'Rucesion Bank',
+      'Rucesion Town Hall',
+      'Mileth Inn',
+      'Mileth Tavern',
+      'Mileth Town Hall'
+    ]) {
+      const id = worldGraph.resolveDestination(name)
+      expect(id, name).not.toBeNull()
+      expect(worldGraph.planRoute(498, id!), name).not.toBeNull()
+    }
+  })
+
   it('reaches Piet and Undine, the other bank towns, across the world map', () => {
     expect(worldGraph.planRoute(505, 3020)).not.toBeNull()
     expect(worldGraph.planRoute(505, 504)).not.toBeNull()
