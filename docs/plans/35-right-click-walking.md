@@ -1,7 +1,7 @@
 # WP35 — right-click walking
 
 **Size:** M. **Depends on:** WP15 (the walker), WP13 (the action layer), WP33 (the click gesture).
-Read `00-overview.md` first. **PLANNED.**
+Read `00-overview.md` first. **PLANNED.** **Card:** `HTOO-468`.
 
 **Trigger:** Sabrael's observation in the WP33 live check of 2026-09-21: the arrow-key walk is
 choppy. One held key per tile, with a turn-then-move press before each change of direction and a
