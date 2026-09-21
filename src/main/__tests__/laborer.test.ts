@@ -728,7 +728,7 @@ describe('opening the conversation', () => {
     const { laborer, fake } = make({ errand, feed, position: standing })
     const outcome = await laborer.run(request)
     expect(outcome).toEqual({ kind: 'done' })
-    expect(fake.clicks[0]).toEqual({ x: 255, y: 145 })
+    expect(fake.clicks[0]).toEqual({ x: 256, y: 187 })
     expect(fake.clicks[0]).toEqual(npcClick)
     expect(fake.clicks.slice(1)).toEqual([rowClick(6, 1), rowClick(2, 1), rowClick(2, 2)])
   })

@@ -40,8 +40,9 @@ Built in two PRs off `main`, both provable with no game.
 **The gestures, as the live check of 2026-09-21 settled them:**
 
 1. **Opening the first dialog is a click on the NPC** (`openConversation`), where the client draws
-   it: the character is the centre of the world window (the `MAP` region of `_nbk_s.txt`, so
-   311, 157), and a tile (dx, dy) away is drawn at (dx − dy) × 28, (dx + dy) × 13.5 from there
+   it: the character's tile is drawn at (312, 199), measured from Sabrael's hand click on Eduardo
+   (the middle of the world window across, and 42 px below the `MAP` region's middle down), and a
+   tile (dx, dy) away is drawn at (dx − dy) × 28, (dx + dy) × 13.5 from there
    (`laborer/view.ts`). The errand's `npcTile` and the position off the wire give the point; the
    click aims a little above the tile at the body. Three clicks, each waited on for a dialog; then,
    or when the NPC's tile is not known, the player opens the conversation (`FIRST_DIALOG_WAIT_MS`,

@@ -26,12 +26,15 @@ export const TILE_WIDTH = 56
 export const TILE_HEIGHT = 27
 
 /**
- * Where the player's own tile is drawn: the centre of the world window, which
- * is the `MAP` region of the client's main layout (`_nbk_s.txt` in
- * `setoa.dat`: 3 3 619 311), not of the whole client. Sabrael: the character
- * is always the centre of the world window. A measured click refines it.
+ * Where the player's own tile is drawn. Measured: Sabrael's hand click on
+ * Eduardo (on 1,12, from 2,11) at game (256, 187) opened the dialog, which
+ * puts the player's tile at (312, 199) (2026-09-21). That is the middle of
+ * the world window across, the `MAP` region of the main layout (`_nbk_s.txt`
+ * in `setoa.dat`: 3 3 619 311), and 42 px below its middle down; the
+ * screenshot of the same moment agrees. The pane watcher logs the centre
+ * every hand click on a known NPC implies, so a drift shows up in the log.
  */
-export const VIEW_CENTRE = { x: 311, y: 157 }
+export const VIEW_CENTRE = { x: 312, y: 199 }
 
 /** How far above the tile's centre a creature's body is clicked. */
 export const BODY_LIFT = 12
