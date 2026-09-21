@@ -187,6 +187,8 @@ interface Options {
   live?: boolean
   /** Where the character stands, for the NPC click. Absent: no position known. */
   position?: Position
+  /** The errand's map id, as the graph would resolve it. */
+  destinationMapId?: number
 }
 
 function make(opts: Options): {
@@ -214,6 +216,7 @@ function make(opts: Options): {
       return opts.feed.list[opts.feed.index] ?? null
     },
     positionFor: (id: string): Position | null => (id === CID ? (opts.position ?? null) : null),
+    resolveDestination: () => opts.destinationMapId ?? null,
     noticeFor: (id: string): NoticeState | null =>
       id === CID ? (opts.feed.noticeAt?.[opts.feed.index] ?? null) : null,
     log: noop,
@@ -759,5 +762,75 @@ describe('opening the conversation', () => {
     const outcome = await laborer.run(request)
     expect(outcome).toEqual({ kind: 'stopped', reason: 'timeout' })
     expect(fake.clicks).toEqual([npcClick, npcClick, npcClick])
+  })
+})
+
+describe('a walk that fell short', () => {
+  // Eduardo's errand and his recorded menu; the town hall is map 3049.
+  const errand = builtinErrands().find((e) => e.npcName === 'Eduardo')!
+  const request = { connectionId: CID, errand: errand.name, params: { citizen: 'Pandsala' } }
+  const blocked: WalkOutcome = { kind: 'stopped', reason: 'blocked' }
+
+  it('goes on when blocked on the right map within reach of the NPC', async () => {
+    // Someone stands on the spot (2,11); the character stopped on (3,10).
+    const near: Position = {
+      mapId: 3049,
+      x: 3,
+      y: 10,
+      facing: 0,
+      asOfMs: 500,
+      confidence: 'confirmed'
+    }
+    const feed = { list: serverDialogs(0, 8), index: 0 }
+    const { laborer, fake } = make({
+      errand,
+      feed,
+      walkOutcome: blocked,
+      position: near,
+      destinationMapId: 3049
+    })
+    const outcome = await laborer.run(request)
+    expect(outcome).toEqual({ kind: 'done' })
+    expect(fake.clicks.length).toBeGreaterThan(0)
+  })
+
+  it('stops when blocked on another map, or far from the NPC', async () => {
+    const elsewhere: Position = {
+      mapId: 3048,
+      x: 3,
+      y: 10,
+      facing: 0,
+      asOfMs: 500,
+      confidence: 'confirmed'
+    }
+    const feed = { list: serverDialogs(0, 8), index: 0 }
+    const away = make({
+      errand,
+      feed,
+      walkOutcome: blocked,
+      position: elsewhere,
+      destinationMapId: 3049
+    })
+    expect(await away.laborer.run(request)).toEqual({ kind: 'stopped', reason: 'walker' })
+    const far = make({
+      errand,
+      feed: { list: serverDialogs(0, 8), index: 0 },
+      walkOutcome: blocked,
+      position: { ...elsewhere, mapId: 3049, x: 11, y: 2 },
+      destinationMapId: 3049
+    })
+    expect(await far.laborer.run(request)).toEqual({ kind: 'stopped', reason: 'walker' })
+  })
+
+  it('stops on any other walk failure', async () => {
+    const feed = { list: serverDialogs(0, 8), index: 0 }
+    const { laborer } = make({
+      errand,
+      feed,
+      walkOutcome: { kind: 'stopped', reason: 'noRoute' },
+      position: { mapId: 3049, x: 3, y: 10, facing: 0, asOfMs: 500, confidence: 'confirmed' },
+      destinationMapId: 3049
+    })
+    expect(await laborer.run(request)).toEqual({ kind: 'stopped', reason: 'walker' })
   })
 })

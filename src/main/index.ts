@@ -293,6 +293,7 @@ const laborer = createLaborer({
   dialogFor: (connectionId) => captureService.dialogFor(connectionId),
   noticeFor: (connectionId) => captureService.noticeFor(connectionId),
   positionFor: (connectionId) => captureService.positionFor(connectionId),
+  resolveDestination: (destination) => worldGraph.resolveDestination(destination),
   log,
   onState: (state) => pushToRenderer(LABORER_STATE_CHANNEL, state)
 })

@@ -46,7 +46,11 @@ Built in two PRs off `main`, both provable with no game.
    (`laborer/view.ts`). The errand's `npcTile` and the position off the wire give the point; the
    click aims a little above the tile at the body. Three clicks, each waited on for a dialog; then,
    or when the NPC's tile is not known, the player opens the conversation (`FIRST_DIALOG_WAIT_MS`,
-   30 s). The pane watcher logs the view centre each hand click on a known NPC implies. The NPC
+   30 s). A spot to stand on is a preference: when the walker cannot reach it (someone stands
+   there, or the map cache calls it a wall) it settles for a tile beside it, and when the walk
+   still falls short on the right map within six tiles of the NPC, the errand goes on from where
+   the character is (Gabrael at Mileth Town Hall, 2026-09-21). The pane watcher logs the view
+   centre each hand click on a known NPC implies. The NPC
    tiles are the world repo's `Old*.xml`, except the officials (measured) and Riona (not in the
    xml; her errand still waits for the player's click).
 2. **Selecting a row is a click, and nothing else.** The first live run posted the row's number key

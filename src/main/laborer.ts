@@ -63,6 +63,8 @@ export interface LaborerOptions {
   dialogFor: (connectionId: string) => DialogState | null
   /** The character's position. From the capture service. For the NPC click. */
   positionFor?: (connectionId: string) => Position | null
+  /** A destination's map id, from the route graph. To know the walk fell short on the right map. */
+  resolveDestination?: (destination: string | number) => number | null
   /**
    * The newest server notice for a connection. From the capture service. A
    * notice and a dialog close in place of the next dialog is a refusal.
@@ -118,6 +120,14 @@ const FIRST_DIALOG_WAIT_MS = 30000
  */
 const OPEN_WAIT_MS = 3000
 const OPEN_TRIES = 3
+
+/**
+ * How near the NPC, in tiles either way, a walk that fell short may end and
+ * the errand still go on. The NPC is on screen and clickable from there; the
+ * spot to stand on is a preference, not a need. Sabrael: someone standing on
+ * the spot must not stop the vote.
+ */
+const NEAR_ENOUGH_TILES = 6
 
 /**
  * How long to wait for the server's word after the last step, in milliseconds.
@@ -250,6 +260,23 @@ export function createLaborer(options: LaborerOptions): Laborer {
   const { actionLayer, walker, liveConnections, dialogFor, log, onState } = options
   const noticeFor = options.noticeFor ?? ((): null => null)
   const positionFor = options.positionFor ?? ((): null => null)
+  const resolveDestination = options.resolveDestination ?? ((): null => null)
+
+  /**
+   * Whether a walk that did not arrive still ended in reach of the NPC: on
+   * the errand's map, within `NEAR_ENOUGH_TILES` of the NPC's tile.
+   */
+  function inReach(connectionId: string, errand: Errand): boolean {
+    if (errand.npcTile === undefined) return false
+    const position = positionFor(connectionId)
+    if (position === null || position.confidence === 'unknown') return false
+    const mapId = resolveDestination(errand.destination)
+    if (mapId === null || position.mapId !== mapId) return false
+    return (
+      Math.abs(position.x - errand.npcTile.x) <= NEAR_ENOUGH_TILES &&
+      Math.abs(position.y - errand.npcTile.y) <= NEAR_ENOUGH_TILES
+    )
+  }
   const sleep = options.sleep ?? defaultSleep
   const errandList = options.errands ?? builtinErrands()
 
@@ -438,7 +465,19 @@ export function createLaborer(options: LaborerOptions): Laborer {
     })
     if (!runState.running)
       return finish(runState, { kind: 'stopped', reason: runState.stopReason ?? 'user' })
-    if (walk.kind !== 'arrived') return finish(runState, { kind: 'stopped', reason: 'walker' })
+    if (walk.kind !== 'arrived') {
+      // A spot taken by someone else is not the end of the errand: from
+      // anywhere near, the NPC is on screen and the click reaches it.
+      if (walk.kind === 'stopped' && walk.reason === 'blocked' && inReach(connectionId, errand)) {
+        const at = positionFor(connectionId)!
+        log.info(
+          'laborer',
+          `The walk stopped short at (${at.x}, ${at.y}), in reach of ${errand.npcName}; going on.`
+        )
+      } else {
+        return finish(runState, { kind: 'stopped', reason: 'walker' })
+      }
+    }
 
     const armed = actionLayer.arm(connectionId, (reason) => {
       runState.stopReason = reason.includes('window closed') ? 'lostCharacter' : 'user'

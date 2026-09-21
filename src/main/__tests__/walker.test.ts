@@ -602,6 +602,34 @@ describe('walker tile goal', () => {
     expect(world.position).toMatchObject({ x: 2, y: 2 })
   })
 
+  it('settles for a tile beside a spot it cannot reach', async () => {
+    // The spot (2,2) is a wall in the cache, as a taken tile reads; the walk
+    // ends next to it instead, so the NPC click can still be made.
+    const world = roomWorld({ x: 0, y: 0 }, ['.....', '.....', '..#..', '.....', '.....'])
+    const { walker } = harness(world, roomGraph)
+    const outcome = await walker.go({
+      connectionId: CID,
+      destination: 1,
+      tile: { x: 2, y: 2 },
+      arrive: 'on'
+    })
+    expect(outcome).toEqual({ kind: 'arrived' })
+    const distance = Math.abs(world.position.x - 2) + Math.abs(world.position.y - 2)
+    expect(distance).toBe(1)
+  })
+
+  it('still stops when neither the spot nor a tile beside it can be reached', async () => {
+    const world = roomWorld({ x: 0, y: 0 }, ['.....', '.###.', '.###.', '.###.', '.....'])
+    const { walker } = harness(world, roomGraph)
+    const outcome = await walker.go({
+      connectionId: CID,
+      destination: 1,
+      tile: { x: 2, y: 2 },
+      arrive: 'on'
+    })
+    expect(outcome).toEqual({ kind: 'stopped', reason: 'blocked' })
+  })
+
   it('arrives with no steps when already on the tile it was asked to stand on', async () => {
     const world = roomWorld({ x: 2, y: 2 })
     const { walker } = harness(world, roomGraph)

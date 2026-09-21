@@ -789,18 +789,21 @@ export function createWalker(options: WalkerOptions): Walker {
     let facing = -1
     const blocked = new Set<string>()
 
-    // Where the walk ends: the tile itself, or one of its four neighbours.
-    const goals =
-      arrive === 'on'
-        ? [destTile]
-        : [
-            { x: destTile.x, y: destTile.y - 1 },
-            { x: destTile.x + 1, y: destTile.y },
-            { x: destTile.x, y: destTile.y + 1 },
-            { x: destTile.x - 1, y: destTile.y }
-          ]
+    // Where the walk ends: the tile itself, or one of its four neighbours. A
+    // spot to stand on that cannot be reached (someone stands there, or the
+    // map cache calls it a wall) is settled for by a tile beside it: the
+    // Laborer's NPC click works from there too. The live run of 2026-09-21 at
+    // Mileth Town Hall stopped a tile short of a taken spot for want of this.
+    const beside = [
+      { x: destTile.x, y: destTile.y - 1 },
+      { x: destTile.x + 1, y: destTile.y },
+      { x: destTile.x, y: destTile.y + 1 },
+      { x: destTile.x - 1, y: destTile.y }
+    ]
+    let settling = false
+    const goals = arrive === 'on' ? [destTile] : beside
     const isAdjacent = (x: number, y: number): boolean =>
-      arrive === 'on'
+      arrive === 'on' && !settling
         ? x === destTile.x && y === destTile.y
         : Math.abs(x - destTile.x) + Math.abs(y - destTile.y) === 1
 
@@ -834,16 +837,42 @@ export function createWalker(options: WalkerOptions): Walker {
       if (rawGrid === null) return { kind: 'stopped', reason: 'blocked' }
       const grid = gridWithBlocks(rawGrid, position.mapId, blocked)
 
-      // A* to the nearest reachable tile beside the NPC.
-      let best: PathStep[] | null = null
-      for (const goal of goals) {
-        const path = findPath(grid, { x: position.x, y: position.y }, goal)
-        if (path !== null && path.length > 0 && (best === null || path.length < best.length)) {
-          best = path
+      // A* to the nearest reachable goal.
+      const nearest = (candidates: { x: number; y: number }[]): PathStep[] | null => {
+        let best: PathStep[] | null = null
+        for (const goal of candidates) {
+          const path = findPath(grid, { x: position.x, y: position.y }, goal)
+          if (path !== null && path.length > 0 && (best === null || path.length < best.length)) {
+            best = path
+          }
+        }
+        return best
+      }
+      let best = nearest(settling ? beside : goals)
+      if (best === null && arrive === 'on' && !settling) {
+        settling = true
+        // Already beside it: that is the settled arrival.
+        if (isAdjacent(position.x, position.y)) {
+          log.info(
+            'walker',
+            `No route onto (${destTile.x}, ${destTile.y}); settling for the tile beside it the character is on.`
+          )
+          publish(run)
+          return { kind: 'arrived' }
+        }
+        best = nearest(beside)
+        if (best !== null) {
+          log.info(
+            'walker',
+            `No route onto (${destTile.x}, ${destTile.y}); settling for a tile beside it.`
+          )
         }
       }
       if (best === null) {
-        log.warn('walker', `No route to a tile beside (${destTile.x}, ${destTile.y}); blocked.`)
+        log.warn(
+          'walker',
+          `No route to (${destTile.x}, ${destTile.y}) or a tile beside it; blocked.`
+        )
         return { kind: 'stopped', reason: 'blocked' }
       }
 
