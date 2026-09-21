@@ -9,6 +9,13 @@ Close click if it is still up on the next stall; a dialog that asks something st
 the reason `dialog`, and the credential pane stops it with `protected` before any key. The rule and
 the two gestures live in `dialogScreen.ts`, shared with the Laborer's close step.
 
+**The first live try found a second popup.** The one popup Sabrael can make on demand is an
+exchange window — another character drags an item onto the walking one — and that is `SExchange
+0x42`, not a dialog, so the first build saw nothing and stopped `blocked`. Now `0x42` is decoded
+(`decode/exchange.ts`), a reducer keeps the window's state (`model/exchange.ts`), and the walker
+cancels an open exchange with Escape, then gives one more Escape to the one-button alert the client
+shows after the close, which never touches the wire.
+
 **Trigger:** surfaced by WP17. A server dialog popup — a clout notice, a level-up, an item prompt —
 stops the character moving until the player dismisses it. To the walker this looks like a stall, and
 after a few stalls the walker stops with `blocked`. This WP starts when a driving assistant meets a
@@ -21,10 +28,17 @@ stop for a dialog the player would have clicked away.
 
 ## Why Midir can do this
 
-The popup is a packet Midir already decodes. WP11 and WP17 PR1 read `SPursuitMessage 0x30` and
+The popup is a packet Midir decodes. WP11 and WP17 PR1 read `SPursuitMessage 0x30` and
 `SScreenMenu 0x2F`, and the dialog seam (`model/dialog.ts`, `captureService.dialogFor`) already keeps
-the one on screen. So a walker that stalls can ask "is a dialog up?" and clear it, rather than
-treating it as a wall.
+the one on screen. The exchange window is `SExchange 0x42`, one packet for open, offer, cancel and
+accept, and `model/exchange.ts` keeps it the same way. So a walker that stalls can ask "is a popup
+up?" and clear it, rather than treating it as a wall.
+
+The exchange has one thing the dialog does not. When the server closes it (a cancel from either
+side, or the second accept), the client puts up a one-button alert with the closing message, and
+that alert is local: nothing on the wire says it is up, and nothing says when it went. The reducer
+holds an `alert` state from the close, and the walker gives it one Escape, keyed to that close, so a
+retried step is not posted into it and no second Escape follows.
 
 ## The one way to get this wrong
 
@@ -53,6 +67,11 @@ same "close" the player would; answering makes a choice the player did not. And 
    any key; a menu or a text field stops it with `dialog`, and the log names the dialog. The Laborer
    reads no dialog until its walk has ended, so a notice it clears mid-walk is never one an errand
    expected.
+5. **An exchange is cancelled, never accepted.** Escape sends the player's own cancel, which loses
+   nothing: every offer goes back. An accept would give something away, so no gesture of the
+   walker's reaches the accept button, and an exchange the player set up with items in it is
+   cancelled like any other — the walker was not running for a reason if the player was trading.
+   One Escape per window; a window the client keeps open is left to the stall count.
 
 ## Non-goals
 
@@ -71,15 +90,24 @@ same "close" the player would; answering makes a choice the player did not. And 
    with no Escape and no click; the only key posted was the step whose miss revealed the pane.
 4. Nothing sends a packet. **Holds by construction**: the walker's only calls are `pressKey` and
    `click`.
+5. An exchange window mid-walk is cancelled and the walk continues. **Unit test passes**: one
+   Escape for the window, one for its alert, arrived; a window the client keeps open gets one
+   Escape and then `blocked`. The decoder and the reducer have their own tests, including the
+   accept that closes only on the second side.
 
 ## Live check (hand to Sabrael)
 
 The unit tests prove the logic against a scripted feed. The one fact they cannot prove is which
 gesture the client honours on a real popup:
 
-1. Start a walk, and make a notice pop up mid-walk (a clout verdict from a second character, or any
-   server notice that opens a `0x30` text dialog).
-2. Read the walker log: "A notice is on screen (…); pressing Escape." then either "The notice
-   closed; retrying the step." (Escape works, done) or "clicking Close at game (589, 461)" on the
-   next stall.
-3. If the click closes it and Escape did not, swap the order in `checkPopup` and note it here.
+1. Start a walk, and have a second character drag an item onto the walking one. Read the walker
+   log: "An exchange with X is on screen; pressing Escape to cancel it." then "The exchange closed;
+   retrying the step." then, on the next stall, "The exchange's closing alert (…) may be on screen;
+   pressing Escape." and the walk goes on. If the walk stops `blocked` after those lines, the alert
+   did not take Escape, and its button needs a measured click: the pane watcher logs a hand click on
+   it.
+2. Start a walk, and make a notice pop up mid-walk (a `0x30` text dialog). Read the log: "A notice
+   is on screen (…); pressing Escape." then either "The notice closed; retrying the step." (Escape
+   works, done) or "clicking Close at game (589, 461)" on the next stall.
+3. If the click closes the notice and Escape did not, swap the order in `checkDialog` and note it
+   here.
