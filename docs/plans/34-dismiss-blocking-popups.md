@@ -1,9 +1,9 @@
 # WP34 — dismiss the dialog popups that block movement
 
 **Size:** S. **Depends on:** WP11 and WP17 PR1 (the dialog decode), WP15 (the walker), WP14 (the
-position). Read `00-overview.md` first. **IN PROGRESS.** **Card:** `HTOO-83`.
+position). Read `00-overview.md` first. **COMPLETE — 2026-09-21.** **Card:** `HTOO-83`.
 
-**Built 2026-09-21; both popups proven live.** The walker reads what is on screen before a missed
+**Built and proven live on 2026-09-21, in `midir` #19.** The walker reads what is on screen before a missed
 step counts as a stall (`checkPopup` in `walker.ts`). A dialog gets a click on its Close button and
 is never answered; one that survives the click stops the walk with the reason `dialog`, and the
 credential pane stops it with `protected` before any click. An exchange is two popups: the window,
@@ -137,7 +137,12 @@ client does with a posted key, and that is now the log's:
 1. **Dialog, done (11:29Z)**: the prayer invite closed on the Close click.
 2. **Exchange window, done (11:45Z)**: "pressing Escape to cancel it" → "The exchange closed;
    retrying the step."
-3. **Exchange confirm, next run**: after "The exchange closed", the first stall should read "The
-   exchange's closing alert ("Exchange cancelled.") is on screen; pressing Escape." and the walk go
-   on. If the stalls run to `blocked` instead, the key did not reach it, and the walker clicks its
-   button at (403, 167), Sabrael's hand click of 11:46Z.
+3. **Exchange confirm, done (11:50Z)**: "The exchange closed; retrying the step." → "The
+   exchange's closing alert ("Exchange cancelled.") is on screen; pressing Escape." → the walk went
+   on. Its button at (403, 167), Sabrael's hand click of 11:46Z, stays in the comment as the click
+   to fall back on.
+
+Four posted forms were tried across the night, and the log named each miss: a bare Escape (down and
+up, no scan code) did nothing at either pane; a click at the Cancel button with the exchange pane
+assumed centred missed; the Close click closed the dialog; Escape with its scan code and `WM_CHAR`
+cancelled the exchange and its confirm.
