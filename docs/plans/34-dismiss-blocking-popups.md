@@ -3,13 +3,13 @@
 **Size:** S. **Depends on:** WP11 and WP17 PR1 (the dialog decode), WP15 (the walker), WP14 (the
 position). Read `00-overview.md` first. **IN PROGRESS.** **Card:** `HTOO-83`.
 
-**Built 2026-09-21; the dialog side is proven live, the exchange's Escape is the next run.** The
-walker reads what is on screen before a missed step counts as a stall (`checkPopup` in
-`walker.ts`). A dialog gets a click on its Close button and is never answered; one that survives
-the click stops the walk with the reason `dialog`, and the credential pane stops it with
-`protected` before any click. An exchange window gets Escape, its own cancel, and is never
-accepted. The rule and the gestures live in `dialogScreen.ts`, shared with the Laborer's close
-step.
+**Built 2026-09-21; both popups proven live.** The walker reads what is on screen before a missed
+step counts as a stall (`checkPopup` in `walker.ts`). A dialog gets a click on its Close button and
+is never answered; one that survives the click stops the walk with the reason `dialog`, and the
+credential pane stops it with `protected` before any click. An exchange is two popups: the window,
+which gets Escape (its own cancel, never OK), and the "Exchange cancelled." confirm the client
+shows once the window is gone, which gets an Escape of its own. The rule and the gestures live in
+`dialogScreen.ts`, shared with the Laborer's close step.
 
 **A posted key is not a pressed key until it carries everything a press does.** The second live
 run posted Escape at the prayer invite and at the exchange window, and both stayed up; the Close
@@ -55,10 +55,13 @@ measured, not guessed: the pane watcher logs a hand click while the exchange is 
 with the client's `0x4A` cancel (decoded for this), the way the dialog rows were measured.
 
 And when the server closes the window (a cancel from either side, or the second accept), the client
-puts up a one-button alert with the closing message, and that alert is local: nothing on the wire
-says it is up, and nothing says when it went. The reducer holds an `alert` state from the close so
-the watcher can log the hand click that clears it; the walker does not click it yet, because its
-button is not measured, and a walk it holds up stops as `blocked` with that click in the log.
+puts up a one-button confirm with the closing message ("Exchange cancelled."), and that confirm is
+local: nothing on the wire says it is up, and nothing says when it went. It holds the character
+still like the window (the run of 11:45Z: three stalls on it after "The exchange closed"). The
+reducer holds an `alert` state from the close, and the walker gives it one Escape, keyed to that
+close, on the first stall after — Escape dismisses it by hand (Sabrael) — with no wait, because
+nothing on the wire can confirm it went. Its button is at game (403, 167), from Sabrael's hand
+click logged by the pane watcher, should the key ever fail.
 
 ## The one way to get this wrong
 
@@ -118,26 +121,23 @@ server reads it as no answer; choosing makes a choice the player did not. And th
 4. Nothing sends a packet. **Holds by construction**: the walker's only calls are `pressKey` and
    `click`.
 5. An exchange window mid-walk is cancelled and the walk continues. **Unit test passes**: one
-   Escape, no click, arrived; a window still open after it stops as `dialog`. The decoders (`0x42`,
-   `0x4A`), the reducer (the accept that closes only on the second side; the client's cancel
-   carried onto the alert), and the action layer (Escape posted as down with scan code, character,
-   up) have their own tests. **Live: not yet** — two posted forms have failed (a bare key, a click
-   at a guessed point); the full key press is the next run.
+   Escape for the window and one for its confirm, no click, arrived; a window still open after its
+   Escape stops as `dialog`. The decoders (`0x42`, `0x4A`), the reducer (the accept that closes
+   only on the second side; the client's cancel carried onto the alert), and the action layer
+   (Escape posted as down with scan code, character, up) have their own tests. **Live 2026-09-21
+   11:45Z**: "pressing Escape to cancel it" → "The exchange closed; retrying the step." on the
+   third posted form (a bare key and a click at a guessed point had failed); the confirm's Escape
+   is from Sabrael's hand and the next run.
 
 ## Live check (hand to Sabrael)
 
-The unit tests prove the logic against a scripted feed. What they cannot prove is what the client
-does with a posted Escape, and where the exchange's buttons are on screen:
+The unit tests prove the logic against a scripted feed. What they could not prove was what the
+client does with a posted key, and that is now the log's:
 
-1. Start a walk, and have a second character drag an item onto the walking one. The walker log
-   reads "An exchange with X is on screen; pressing Escape to cancel it." then either "The exchange
-   closed; retrying the step." (done) or "still open after 1500 ms" and a stop as `dialog`. In the
-   second case, cancel the exchange **by clicking its Cancel button** (not Escape): the pane
-   watcher logs "Hand click released at game (x, y) on the exchange with X." and "The client sent
-   the exchange's cancel, N ms after the hand click at game (x, y)." — that (x, y) is the button,
-   and the walker gains a click on it.
-2. After the cancel, the client's alert ("Exchange was cancelled.") is up. If it holds the character
-   still, the walk stops as `blocked` with stalls after "The exchange closed". Clear it by hand: the
-   watcher logs "Hand click released at game (x, y) with the exchange's closing alert (…) up." —
-   that point is the alert's button, and the walker gains a click on it.
-3. The dialog side is done: the prayer invite of 11:29Z closed on the Close click.
+1. **Dialog, done (11:29Z)**: the prayer invite closed on the Close click.
+2. **Exchange window, done (11:45Z)**: "pressing Escape to cancel it" → "The exchange closed;
+   retrying the step."
+3. **Exchange confirm, next run**: after "The exchange closed", the first stall should read "The
+   exchange's closing alert ("Exchange cancelled.") is on screen; pressing Escape." and the walk go
+   on. If the stalls run to `blocked` instead, the key did not reach it, and the walker clicks its
+   button at (403, 167), Sabrael's hand click of 11:46Z.
