@@ -18,9 +18,8 @@ import type { DialogStep, Errand, ErrandParam } from '../../shared/types'
  *    form, the NPC's own tile, which the walker finishes beside. Without either
  *    the walker reaches the map but not the NPC.
  *  - `steps` — the pursuit id and the row text for each dialog step. Every
- *    id is from a recording, never a guess. The Rucesion clout errands have
- *    theirs (`cloutSteps`) and the labor errands theirs (`laborSteps`); the
- *    Mileth clout errands are still a capture away. With no steps, the
+ *    id is from a recording, never a guess: the clout errands' from
+ *    `cloutSteps`, the labor errands' from `laborSteps`. With no steps, the
  *    Laborer walks to the NPC and stops.
  *
  * A placeholder is safe: the matcher refuses any dialog whose pursuit and row
@@ -48,8 +47,10 @@ import type { DialogStep, Errand, ErrandParam } from '../../shared/types'
  * 2026-09-21 (Eduardo, with the player's answers and the already-supporting
  * branch). Only the NPC's main menu differs, and the row that starts the
  * conversation is "Rucesion Civics" on all three, with the same row pursuit.
- * Sabrael expects Mileth's to be the same conversation under "Mileth Civics"
- * with its own ids; those ids wait on a capture.
+ * Mileth is the same conversation under "Mileth Civics" with its own two ids,
+ * from Gabrael at Riona the same night (the menu row and the civic pursuit's
+ * first dialog; the rows past that are Sabrael's word that the labels are the
+ * same, and a wrong one is a safe stop that names what it saw).
  *
  * The pursuit is one id for the whole conversation, so each step also names
  * the prose it expects. The citizen is a parameter, never a name in this file.
@@ -61,45 +62,43 @@ import type { DialogStep, Errand, ErrandParam } from '../../shared/types'
  * When it is another, the errand withdraws and starts again from the menu,
  * which the player opens once more.
  */
-const CIVIC_PURSUIT = 588
 const CITIZEN: ErrandParam = { name: 'citizen', label: 'Citizen to support' }
 
-function cloutSteps(
-  town: 'Rucesion',
+/** A town's civic ids: the "<Town> Civics" menu row, and the civic pursuit. */
+interface CivicIds {
+  town: 'Rucesion' | 'Mileth'
   civicsRow: number
-): Pick<Errand, 'params' | 'steps' | 'branches'> {
+  pursuit: number
+}
+
+/** "Rucesion Civics" on Maria, Angelo, and Eduardo, and their civic pursuit. */
+const RUCESION: CivicIds = { town: 'Rucesion', civicsRow: 1612, pursuit: 588 }
+
+/** "Mileth Civics" on Riona, and the civic pursuit behind it. */
+const MILETH: CivicIds = { town: 'Mileth', civicsRow: 1603, pursuit: 579 }
+
+function cloutSteps(ids: CivicIds): Pick<Errand, 'params' | 'steps' | 'branches'> {
+  const { town, civicsRow, pursuit } = ids
   const branches: DialogStep[] = [
     {
-      pursuit: CIVIC_PURSUIT,
+      pursuit,
       when: '{citizen} is in Temuair now',
       choose: 'I continue to support the Aisling',
       then: 'done'
     },
-    {
-      pursuit: CIVIC_PURSUIT,
-      when: 'is in Temuair now',
-      choose: 'Withdraw support',
-      then: 'restart'
-    }
+    { pursuit, when: 'is in Temuair now', choose: 'Withdraw support', then: 'restart' }
   ]
   return {
     params: [CITIZEN],
     steps: [
       { pursuit: civicsRow, choose: `${town} Civics` },
-      { pursuit: CIVIC_PURSUIT, when: 'What is your civil action?', choose: 'Support a Citizen' },
-      {
-        pursuit: CIVIC_PURSUIT,
-        when: 'Are you sure you wish to support one now?',
-        choose: 'I am sure'
-      },
-      { pursuit: CIVIC_PURSUIT, when: 'Whom shall you support', answer: '{citizen}' }
+      { pursuit, when: 'What is your civil action?', choose: 'Support a Citizen' },
+      { pursuit, when: 'Are you sure you wish to support one now?', choose: 'I am sure' },
+      { pursuit, when: 'Whom shall you support', answer: '{citizen}' }
     ],
     branches
   }
 }
-
-/** The "Rucesion Civics" row's pursuit on Maria, Angelo, and Eduardo. */
-const RUCESION_CIVICS_ROW = 1612
 
 /**
  * The labor errand: work one Temuairan day for another Aisling, by name.
@@ -146,45 +145,42 @@ export const BUILTIN_ERRANDS: Errand[] = [
     destination: 'Rucesion Inn',
     standTile: { x: 5, y: 6 },
     npcName: 'Maria',
-    ...cloutSteps('Rucesion', RUCESION_CIVICS_ROW)
+    ...cloutSteps(RUCESION)
   },
   {
     name: 'Clout — Angelo (Rucesion Bank)',
     destination: 'Rucesion Bank',
     standTile: { x: 5, y: 8 },
     npcName: 'Angelo',
-    ...cloutSteps('Rucesion', RUCESION_CIVICS_ROW)
+    ...cloutSteps(RUCESION)
   },
   {
     name: 'Clout — Eduardo (Rucesion Town Hall)',
     destination: 'Rucesion Town Hall',
     standTile: { x: 1, y: 11 },
     npcName: 'Eduardo',
-    ...cloutSteps('Rucesion', RUCESION_CIVICS_ROW)
+    ...cloutSteps(RUCESION)
   },
-  // The Mileth three: expected to be the same conversation under "Mileth
-  // Civics", with their own ids. A run against one of them stops on the main
-  // menu and names the row ids; the steps follow from that capture.
   {
     name: 'Clout — Aingeal (Mileth Tavern)',
     destination: 'Mileth Tavern',
     standTile: { x: 9, y: 5 },
     npcName: 'Aingeal',
-    steps: []
+    ...cloutSteps(MILETH)
   },
   {
     name: 'Clout — Riona (Mileth Inn)',
     destination: 'Mileth Inn',
     standTile: { x: 6, y: 4 },
     npcName: 'Riona',
-    steps: []
+    ...cloutSteps(MILETH)
   },
   {
     name: 'Clout — Arilan (Mileth Town Hall)',
     destination: 'Mileth Town Hall',
     standTile: { x: 2, y: 11 },
     npcName: 'Arilan',
-    steps: []
+    ...cloutSteps(MILETH)
   },
 
   // --- Labor: one errand for each bank NPC -------------------------------

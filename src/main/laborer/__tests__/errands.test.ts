@@ -16,18 +16,34 @@ describe('built-in errands', () => {
     }
   })
 
-  it('gives the three Rucesion clout errands the recorded conversation', () => {
-    for (const npc of ['Maria', 'Angelo', 'Eduardo']) {
+  it('gives the six clout errands the recorded conversation, with each town its ids', () => {
+    const towns = {
+      Maria: ['Rucesion', 1612, 588],
+      Angelo: ['Rucesion', 1612, 588],
+      Eduardo: ['Rucesion', 1612, 588],
+      Aingeal: ['Mileth', 1603, 579],
+      Riona: ['Mileth', 1603, 579],
+      Arilan: ['Mileth', 1603, 579]
+    } as const
+    for (const [npc, [town, row, pursuit]] of Object.entries(towns)) {
       const errand = builtinErrands().find((e) => e.npcName === npc)!
       expect(errand.params).toEqual([{ name: 'citizen', label: 'Citizen to support' }])
       expect(errand.steps.map((s) => s.choose ?? s.answer)).toEqual([
-        'Rucesion Civics',
+        `${town} Civics`,
         'Support a Citizen',
         'I am sure',
         '{citizen}'
       ])
-      expect(errand.branches?.map((b) => b.then)).toEqual(['done', 'restart'])
+      expect(errand.steps.map((s) => s.pursuit)).toEqual([row, pursuit, pursuit, pursuit])
+      expect(errand.branches?.map((b) => [b.pursuit, b.then])).toEqual([
+        [pursuit, 'done'],
+        [pursuit, 'restart']
+      ])
     }
+  })
+
+  it('gives every errand steps', () => {
+    for (const errand of builtinErrands()) expect(errand.steps.length).toBeGreaterThan(0)
   })
 
   it('gives the five labor errands the recorded conversation', () => {
