@@ -37,7 +37,9 @@ import type { DialogStep, Errand, ErrandParam } from '../../shared/types'
  * source).
  *
  * Cassidy is in Mileth Bank (map 135), not Rucesion's: the July capture and
- * the world xml both put her there.
+ * the world xml both put her there. The two town halls are the same room: the
+ * spot is 2,11 and the official is on 1,12 (Sabrael, 2026-09-21, correcting
+ * the earlier 1,11 for Rucesion).
  */
 /**
  * The civic errand: support one citizen, by name.
@@ -166,7 +168,8 @@ export const BUILTIN_ERRANDS: Errand[] = [
   {
     name: 'Clout — Eduardo (Rucesion Town Hall)',
     destination: 'Rucesion Town Hall',
-    standTile: { x: 1, y: 11 },
+    standTile: { x: 2, y: 11 },
+    npcTile: { x: 1, y: 12 },
     npcName: 'Eduardo',
     ...cloutSteps(RUCESION)
   },
@@ -188,6 +191,7 @@ export const BUILTIN_ERRANDS: Errand[] = [
     name: 'Clout — Arilan (Mileth Town Hall)',
     destination: 'Mileth Town Hall',
     standTile: { x: 2, y: 11 },
+    npcTile: { x: 1, y: 12 },
     npcName: 'Arilan',
     ...cloutSteps(MILETH)
   },
