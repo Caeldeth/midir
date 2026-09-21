@@ -44,8 +44,8 @@ describe('useLaborerStore', () => {
 
   it('does nothing with no window or no errand', () => {
     window.api.laborer.run = vi.fn(async () => ({ kind: 'done' as const }))
-    useLaborerStore.getState().run('', 'Clout')
-    useLaborerStore.getState().run('A', '')
+    useLaborerStore.getState().run('', 'Clout', {})
+    useLaborerStore.getState().run('A', '', {})
     expect(window.api.laborer.run).not.toHaveBeenCalled()
   })
 
@@ -55,7 +55,7 @@ describe('useLaborerStore', () => {
       reason: 'unmatchedDialog' as const,
       saw: 'pursuit 0x99'
     }))
-    useLaborerStore.getState().run('A', 'Clout')
+    useLaborerStore.getState().run('A', 'Clout', {})
     await vi.waitFor(() =>
       expect(useLaborerStore.getState().lastOutcome).toEqual({
         kind: 'stopped',
@@ -69,12 +69,27 @@ describe('useLaborerStore', () => {
     window.api.laborer.run = vi.fn(async () => {
       throw new Error('No character is logged in on the selected window.')
     })
-    useLaborerStore.getState().run('A', 'Clout')
+    useLaborerStore.getState().run('A', 'Clout', {})
     await vi.waitFor(() =>
       expect(useLaborerStore.getState().error).toBe(
         'No character is logged in on the selected window.'
       )
     )
+  })
+
+  it('passes the param values with the run, and clears them on a new errand', () => {
+    window.api.laborer.run = vi.fn(async () => ({ kind: 'done' as const }))
+    useLaborerStore.getState().setErrand('Clout')
+    useLaborerStore.getState().setParam('citizen', 'Pandsala')
+    expect(useLaborerStore.getState().params).toEqual({ citizen: 'Pandsala' })
+    useLaborerStore.getState().run('A', 'Clout', useLaborerStore.getState().params)
+    expect(window.api.laborer.run).toHaveBeenCalledWith({
+      connectionId: 'A',
+      errand: 'Clout',
+      params: { citizen: 'Pandsala' }
+    })
+    useLaborerStore.getState().setErrand('Labor')
+    expect(useLaborerStore.getState().params).toEqual({})
   })
 
   it('adds and removes a running laborer on a pushed state', () => {
@@ -109,6 +124,12 @@ describe('useLaborerStore', () => {
 
   it('reports an outcome as a line', () => {
     expect(errandOutcomeMessage({ kind: 'done' })).toBe('The errand finished.')
+    expect(errandOutcomeMessage({ kind: 'done', saw: 'You give labor to X' })).toBe(
+      'The errand finished. (You give labor to X)'
+    )
+    expect(errandOutcomeMessage({ kind: 'stopped', reason: 'serverNotice', saw: '(( x ))' })).toBe(
+      'The server refused the step with a notice. ((( x )))'
+    )
     expect(errandOutcomeMessage({ kind: 'stopped', reason: 'protected' })).toContain('login')
     expect(
       errandOutcomeMessage({ kind: 'stopped', reason: 'unmatchedDialog', saw: 'pursuit 0x99' })

@@ -175,14 +175,56 @@ export function walkStopMessage(reason: WalkStopReason): string {
   }
 }
 
-/** One step of an errand: the dialog to expect, and the answer to give. */
+/**
+ * One step of an errand: the dialog to expect, and the answer to give.
+ *
+ * A step is one of three shapes. A choice step names the row to `choose`; a
+ * text step names the `answer` to type; a `close` step closes a dialog that
+ * offers nothing to choose, such as a notice. `when` narrows a step to the dialog whose
+ * prose contains it, for a pursuit the server uses for many dialogs in turn
+ * (the civic pursuit shows "What is your civil action?", "Are you sure…", and
+ * "Whom shall you support…" under one id). `answer` and `when` may hold a
+ * `{name}` placeholder for one of the errand's `params`; the Laborer fills it
+ * from what the user typed before the run.
+ */
 export interface DialogStep {
   /** The pursuit the server must be showing for this step to apply. */
   pursuit: number
+  /** Prose the dialog must show for this step to apply. Any dialog when absent. */
+  when?: string
   /** Matched against the row text, case-insensitively. */
-  choose: string
+  choose?: string
   /** For a text step: what to type. Never a credential. */
   answer?: string
+  /** For a close step: close the dialog, the way the player's Close does. */
+  close?: true
+  /**
+   * What follows this step. `done` ends the errand; `restart` waits for the
+   * conversation to open again and works the steps from the first. Absent, the
+   * next step follows. Meaningful on a branch; the last step is done anyway.
+   */
+  then?: 'done' | 'restart'
+}
+
+/** A value the user gives an errand before it runs, such as a citizen's name. */
+export interface ErrandParam {
+  /** The placeholder name, as `{name}` in a step. */
+  name: string
+  /** The label the user reads beside the field. */
+  label: string
+}
+
+/** The placeholder pattern a step may carry: `{name}`. */
+const PARAM_PATTERN = /\{([a-zA-Z][a-zA-Z0-9]*)\}/g
+
+/** The parameter names a template refers to. */
+export function paramsIn(template: string): string[] {
+  return [...template.matchAll(PARAM_PATTERN)].map((match) => match[1]!)
+}
+
+/** Fill every `{name}` in a template from `values`. A missing name is left as is. */
+export function fillTemplate(template: string, values: Record<string, string>): string {
+  return template.replace(PARAM_PATTERN, (whole, name: string) => values[name] ?? whole)
 }
 
 /** A named, explicit errand: walk to an NPC and work its dialog. */
@@ -204,8 +246,16 @@ export interface Errand {
   standTile?: { x: number; y: number }
   /** The NPC name, matched against the dialog the server sends. */
   npcName: string
+  /** The values the user gives before the run, filled into the steps. */
+  params?: ErrandParam[]
   /** The steps, in order. Each expects a dialog and answers it. */
   steps: DialogStep[]
+  /**
+   * Dialogs the server may show in place of the next step, tried in order when
+   * the next step does not match. Each names `when`, so a branch is as exact as
+   * a step. A branch's `then` says what follows it.
+   */
+  branches?: DialogStep[]
 }
 
 /** Why the Laborer stopped before the errand was done. */
@@ -222,10 +272,16 @@ export type ErrandStopReason =
   | 'walker'
   /** A credential pane appeared. The Laborer never works one. */
   | 'protected'
+  /** The server answered a step with a notice and no dialog: a refusal. */
+  | 'serverNotice'
 
 /** How an errand ended. */
 export type ErrandOutcome =
-  | { kind: 'done' }
+  | {
+      kind: 'done'
+      /** The server's word after the last step, when it gave one as a notice. */
+      saw?: string
+    }
   | {
       kind: 'stopped'
       reason: ErrandStopReason
@@ -238,6 +294,8 @@ export interface ErrandRequest {
   connectionId: string
   /** The name of a built-in errand. */
   errand: string
+  /** A value for each of the errand's `params`, by name. */
+  params?: Record<string, string>
 }
 
 /** What one Laborer is doing now. Pushed on every change. */
@@ -269,6 +327,8 @@ export function errandStopMessage(reason: ErrandStopReason): string {
       return 'The Laborer could not walk to the NPC.'
     case 'protected':
       return 'The Laborer saw a login or password dialog and stopped.'
+    case 'serverNotice':
+      return 'The server refused the step with a notice.'
   }
 }
 

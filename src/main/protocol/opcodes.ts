@@ -73,6 +73,8 @@ export const ServerOpcode = {
   TransferServer: 0x03,
   UserPosition: 0x04,
   UserAppearance: 0x05,
+  /** The server's general text: chat, the system notice, a prompt. See decode/message.ts. */
+  SystemMessage: 0x0a,
   /** The player's own confirmed step. See decode/movement.ts. */
   Move: 0x0b,
   Status: 0x08,

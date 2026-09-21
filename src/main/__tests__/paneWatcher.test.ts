@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { PointerState } from 'da-pcap'
 import { createPaneWatcher } from '../paneWatcher'
+import type { DialogAnswer, DialogState } from '../model/dialog'
 import type { FieldMapState } from '../model/fieldMap'
 import type { FieldMap } from '../protocol/decode/fieldMap'
 import type { Logger } from '../log'
@@ -20,6 +21,8 @@ const PANE: FieldMap = {
 function harness() {
   let clock = 1000
   let pane: FieldMapState | null = null
+  let dialog: DialogState | null = null
+  let answer: DialogAnswer | null = null
   let pointer: PointerState | null = {
     x: 0,
     y: 0,
@@ -41,12 +44,51 @@ function harness() {
     resolveTarget: (id) => (id === CID ? { connectionId: CID, windowHandle: 7 } : null),
     liveConnections: () => [{ connectionId: CID, name: 'Test' }],
     fieldMapFor: (id) => (id === CID ? pane : null),
+    dialogFor: (id) => (id === CID ? dialog : null),
+    answerFor: (id) => (id === CID ? answer : null),
     log,
     now: () => clock
   })
   return {
     watcher,
     lines,
+    openDialog: () => {
+      dialog = {
+        packet: {
+          kind: 'npcMenu',
+          sourceId: 6703,
+          npcName: 'Eduardo',
+          menuType: 0,
+          text: 'Hello.  What can I do for you?',
+          isTextInput: false,
+          options: [
+            { text: 'Rucesion Civics', pursuit: 1612 },
+            { text: 'Rucesion Law', pursuit: 1615 }
+          ]
+        },
+        asOfMs: clock
+      }
+    },
+    closeDialog: () => {
+      dialog = null
+    },
+    /** The client answers the dialog on screen, and the server's reply replaces it. */
+    answerDialog: (pursuit: number, afterMs = 400) => {
+      clock += afterMs
+      answer = {
+        packet: {
+          kind: 'merchantResponse',
+          objectType: 1,
+          objectId: 6703,
+          pursuit,
+          tail: new Uint8Array()
+        },
+        asOfMs: clock,
+        dialog: dialog!.packet
+      }
+      // The reply comes in the same batch as the answer.
+      dialog = null
+    },
     open: () => {
       pane = { packet: PANE, asOfMs: clock }
     },
@@ -157,5 +199,54 @@ describe('the pane watcher', () => {
     // One click, one close pairing, and nothing for the fresh pane.
     expect(h.lines).toHaveLength(2)
     expect(h.lines[1]).toMatch(/^The world map closed \d+ ms after the hand click/)
+  })
+})
+
+describe('the pane watcher on an NPC dialog', () => {
+  it('logs a hand click on the dialog and pairs the row the client sent', () => {
+    const h = harness()
+    h.openDialog()
+    h.watcher.tick()
+    h.handClick(300, 140)
+    expect(h.lines.at(-1)).toBe(
+      'Hand click released at game (300, 140) on the dialog from Eduardo (2 rows).'
+    )
+    h.answerDialog(1612)
+    h.watcher.tick()
+    expect(h.lines.at(-1)).toBe(
+      'The client answered the dialog with row 1 "Rucesion Civics" (1612), 400 ms after the hand click at game (300, 140).'
+    )
+  })
+
+  it('reports an answer with no hand click before it', () => {
+    const h = harness()
+    h.openDialog()
+    h.watcher.tick()
+    h.answerDialog(1615)
+    h.watcher.tick()
+    expect(h.lines.at(-1)).toBe(
+      'The client answered the dialog with row 2 "Rucesion Law" (1615) with no hand click before it.'
+    )
+  })
+
+  it('pairs an answer captured a moment before the release was seen', () => {
+    const h = harness()
+    h.openDialog()
+    h.watcher.tick()
+    h.handClick(300, 140)
+    h.answerDialog(1612, -30)
+    h.watcher.tick()
+    expect(h.lines.at(-1)).toBe(
+      'The client answered the dialog with row 1 "Rucesion Civics" (1612), -30 ms after the hand click at game (300, 140).'
+    )
+  })
+
+  it('ignores a click once the dialog is closed', () => {
+    const h = harness()
+    h.openDialog()
+    h.watcher.tick()
+    h.closeDialog()
+    h.handClick(300, 140)
+    expect(h.lines).toEqual([])
   })
 })

@@ -201,6 +201,22 @@ describe('the assist handlers', () => {
     expect(ctx.laborer.run).toHaveBeenCalledWith({ connectionId: 'A', errand: 'Clout' })
   })
 
+  it('passes the errand params through, and rejects a value that is not text', async () => {
+    const ctx = fakeContext()
+    await runErrand(ctx, { connectionId: 'A', errand: 'Clout', params: { citizen: 'Pandsala' } })
+    expect(ctx.laborer.run).toHaveBeenCalledWith({
+      connectionId: 'A',
+      errand: 'Clout',
+      params: { citizen: 'Pandsala' }
+    })
+    await expect(
+      runErrand(ctx, { connectionId: 'A', errand: 'Clout', params: { citizen: 7 } })
+    ).rejects.toThrow()
+    await expect(
+      runErrand(ctx, { connectionId: 'A', errand: 'Clout', params: { citizen: 'x'.repeat(65) } })
+    ).rejects.toThrow()
+  })
+
   it('rejects an errand request with no connection', async () => {
     const ctx = fakeContext()
     await expect(runErrand(ctx, { connectionId: '', errand: 'Clout' })).rejects.toThrow()

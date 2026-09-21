@@ -13,7 +13,8 @@ import {
   type CharacterSession
 } from './model/character'
 import { reducePosition, type Position } from './model/position'
-import { reduceDialog, type DialogState } from './model/dialog'
+import { reduceAnswer, reduceDialog, type DialogAnswer, type DialogState } from './model/dialog'
+import { reduceNotice, type NoticeState } from './model/notice'
 import { reduceFieldMap, type FieldMapState } from './model/fieldMap'
 import { mergeCharacter, withCharacter, type CharacterStore } from './store/characterStore'
 
@@ -92,6 +93,19 @@ export interface CaptureService {
    */
   dialogFor(connectionId: string): DialogState | null
   /**
+   * The client's newest answer to a dialog on `connectionId`, with the dialog
+   * it answered, or null. A live fact, never saved. The pane watcher pairs it
+   * with the hand click before it.
+   */
+  answerFor(connectionId: string): DialogAnswer | null
+  /**
+   * The newest server notice on `connectionId`, or null while there is none.
+   * A live fact, never saved. The Laborer reads it beside the dialog: a notice
+   * and a close in place of the next dialog is a refusal, and the notice says
+   * why.
+   */
+  noticeFor(connectionId: string): NoticeState | null
+  /**
    * The world map on screen on `connectionId` now, or null while there is
    * none. A live fact, never saved. The walker reads it to click the point of
    * a cross-town hop and wait for the map change.
@@ -122,6 +136,10 @@ export function createCaptureService(options: CaptureServiceOptions): CaptureSer
    * conversation, not a record.
    */
   const dialogs = new Map<string, DialogState>()
+  /** The client's newest dialog answer for each connection. A live fact, like the dialog. */
+  const answers = new Map<string, DialogAnswer>()
+  /** The newest server notice for each connection. A live fact, like the dialog. */
+  const notices = new Map<string, NoticeState>()
   /** The world map on screen for each connection. A live fact, like the dialog. */
   const fieldMaps = new Map<string, FieldMapState>()
   /** Records changed but not yet written, by character name. */
@@ -292,13 +310,21 @@ export function createCaptureService(options: CaptureServiceOptions): CaptureSer
     else positions.set(id, positionAfter)
 
     const dialogBefore = dialogs.get(id) ?? null
-    const dialogAfter = reduceDialog(dialogBefore, {
+    const dialogInput = { packet: tracked.event.packet, timestampMs: tracked.timestampMs, sawLoss }
+    const answerAfter = reduceAnswer(answers.get(id) ?? null, dialogBefore, dialogInput)
+    if (answerAfter === null) answers.delete(id)
+    else answers.set(id, answerAfter)
+    const dialogAfter = reduceDialog(dialogBefore, dialogInput)
+    if (dialogAfter === null) dialogs.delete(id)
+    else dialogs.set(id, dialogAfter)
+
+    const noticeAfter = reduceNotice(notices.get(id) ?? null, {
       packet: tracked.event.packet,
       timestampMs: tracked.timestampMs,
       sawLoss
     })
-    if (dialogAfter === null) dialogs.delete(id)
-    else dialogs.set(id, dialogAfter)
+    if (noticeAfter === null) notices.delete(id)
+    else notices.set(id, noticeAfter)
 
     const fieldMapBefore = fieldMaps.get(id) ?? null
     const fieldMapAfter = reduceFieldMap(fieldMapBefore, {
@@ -347,6 +373,8 @@ export function createCaptureService(options: CaptureServiceOptions): CaptureSer
       sessions.clear()
       positions.clear()
       dialogs.clear()
+      answers.clear()
+      notices.clear()
       fieldMaps.clear()
       lossy.clear()
       tracker.clear()
@@ -376,6 +404,8 @@ export function createCaptureService(options: CaptureServiceOptions): CaptureSer
           liveCharacters.delete(connection.id)
           positions.delete(connection.id)
           dialogs.delete(connection.id)
+          answers.delete(connection.id)
+          notices.delete(connection.id)
           fieldMaps.delete(connection.id)
           connectionCount = tracker.activeConnections().length
           publishStatus()
@@ -424,6 +454,8 @@ export function createCaptureService(options: CaptureServiceOptions): CaptureSer
       sessions.clear()
       positions.clear()
       dialogs.clear()
+      answers.clear()
+      notices.clear()
       fieldMaps.clear()
       await flush()
       publishStatus()
@@ -439,6 +471,12 @@ export function createCaptureService(options: CaptureServiceOptions): CaptureSer
     },
     dialogFor(connectionId: string): DialogState | null {
       return dialogs.get(connectionId) ?? null
+    },
+    answerFor(connectionId: string): DialogAnswer | null {
+      return answers.get(connectionId) ?? null
+    },
+    noticeFor(connectionId: string): NoticeState | null {
+      return notices.get(connectionId) ?? null
     },
     fieldMapFor(connectionId: string): FieldMapState | null {
       return fieldMaps.get(connectionId) ?? null

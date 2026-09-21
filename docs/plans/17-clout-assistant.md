@@ -10,7 +10,7 @@ steps walks to the map and stops rather than acting, so the current state fails 
 **Name:** the feature is the **Laborer**. Earlier docs call it the "Clout Assistant". The full copy
 rename is part of WP19's terminology work.
 
-## As built (two PRs)
+## As built (three PRs)
 
 Built in two PRs off `main`, both provable with no game.
 
@@ -37,21 +37,96 @@ Built in two PRs off `main`, both provable with no game.
   a lost character, or the global stop. Nothing sends a packet.
 - The IPC, the preload, and a **Laborer tab** beside Walker and Speaker follow the Speaker shape.
 
-**Three gestures wait on the live check** (the GUI check proves them, the way the walker's arrow keys
-were proven):
+**The gestures, as the live check of 2026-09-21 settled them:**
 
-1. **Opening the first dialog.** The driver does not click the NPC in v1; it waits for the first
-   dialog and works it. The player opens the conversation, or a trigger gesture is added once the
-   live check finds it.
-2. **Selecting a menu row** posts the option's number key (`chooseRow`, `OPTION_DIGIT_BASE`).
-3. **Answering a text field** uses `typeLine`.
+1. **Opening the first dialog is a click on the NPC** (`openConversation`), where the client draws
+   it: the character's tile is drawn at (312, 199), measured from Sabrael's hand click on Eduardo
+   (the middle of the world window across, and 42 px below the `MAP` region's middle down), and a
+   tile (dx, dy) away is drawn at (dx − dy) × 28, (dx + dy) × 13.5 from there
+   (`laborer/view.ts`). The errand's `npcTile` and the position off the wire give the point; the
+   click aims a little above the tile at the body. Three clicks, each waited on for a dialog; then,
+   or when the NPC's tile is not known, the player opens the conversation (`FIRST_DIALOG_WAIT_MS`,
+   30 s). A spot to stand on is a preference: when the walker cannot reach it (someone stands
+   there, or the map cache calls it a wall) it settles for a tile beside it, and when the walk
+   still falls short on the right map within six tiles of the NPC, the errand goes on from where
+   the character is (Gabrael at Mileth Town Hall, 2026-09-21). The pane watcher logs the view
+   centre each hand click on a known NPC implies. The NPC
+   tiles are the world repo's `Old*.xml`, except the officials (measured) and Riona (not in the
+   xml; Sabrael's 3,3).
+2. **Selecting a row is a click, and nothing else.** The first live run posted the row's number key
+   and the client sent nothing. The client's own layouts (`lnpcd.txt`, `lnpcd2.txt` in `setoa.dat`)
+   give the row pitch (18 px) and the row's width (193 to 579 on screen); the hand run of the same
+   night (forty clicks over 2-, 3-, 6-, and 12-row panes, paired by the pane watcher with the row the
+   client sent) showed the pane grows upward: the last row's centre stays at y 335 and each row above
+   is one pitch higher (`rowY`). Every measured click is within half a row of that.
+3. **Answering a text field** uses `typeText`: characters into the field, which has focus when the
+   dialog opens, then Enter. Not `typeLine`, whose opening Enter is for chat and would submit the
+   field empty.
+4. **Closing a notice dialog** (a `close` step) clicks the layout's `CloseBtn` (589, 461).
 
-**The built-in errands name the real NPCs, and two values still wait on a capture.** The roster is 11
-errands, one for each NPC: six clout (Maria, Angelo, Eduardo, Aingeal, Riona, Arilan) and five labor
-(Antonio, Cassidy, Jilt, Lamont, Argus). Each entry names the NPC and the building it is in. Two
-values per entry come from a recorded session or the live check, not a guess: the `npcTile` (so the
-walker finishes beside the NPC), and the `steps` (the pursuit id and the row text). The matcher
-refuses any mismatch, so an errand with no steps walks to the map and stops rather than acting.
+**The built-in errands name the real NPCs.** The roster is 11 errands, one for each NPC: six clout
+(Maria, Angelo, Eduardo, Aingeal, Riona, Arilan) and five labor (Antonio, Cassidy, Jilt, Lamont,
+Argus). Each entry names the NPC, the building it is in, and the tile to stand on (WP33). The
+`steps` (the pursuit id and the row text) come from a recorded session, not a guess. The matcher
+refuses any mismatch, so an errand with no steps walks to the NPC and stops rather than acting, and
+its stop line names every pursuit id the dialog carried, so that run is itself the capture.
+
+**PR3 — the clout conversation, from the recordings.**
+
+- The three Rucesion clout errands have their steps. The conversation is the same on Maria, Angelo,
+  and Eduardo, from four recordings (July and August 2026, and Sabrael's run of 2026-09-21 with the
+  player's answers): the menu row "Rucesion Civics" (1612), then under the civic pursuit (588)
+  "Support a Citizen", "I am sure", and the citizen's name into a text field.
+- **An errand can take a parameter.** The citizen is `{citizen}`, asked for on the Laborer tab and
+  filled into the step at run time (`Errand.params`, `ErrandRequest.params`, `fillStep`). No name is
+  in the errand data, and the run refuses to start without a value.
+- **A step can name the prose it expects (`when`).** The civic pursuit is one id for a whole
+  conversation, so the pursuit alone does not say which dialog is up. A step with `when` matches
+  only a dialog that says it; the matcher's order stays credential pane, pursuit and prose, row.
+- **An errand can branch.** A second "Support a Citizen" inside the four-day window shows
+  "<name> is in Temuair now. You can attempt to withdraw your support from the Aisling." in place of
+  the confirmation. `Errand.branches` are tried when the next step does not match, and a branch's
+  `then` says what follows: the wanted citizen is already supported, so `done`; another is, so
+  "Withdraw support" and `restart` from the menu, which the player opens again. A second restart
+  stops the run.
+- The wait for the first dialog is its own, longer constant (`FIRST_DIALOG_WAIT_MS`): the player
+  opens the conversation, and a player is slower than a server.
+- The recorded exchange is a fixture (`laborer/__tests__/fixtures/clout-exchange-2026-09-21.json`),
+  and the driver replays it whole and posts the keys the player pressed: acceptance criterion 1.
+- **The five labor errands have their steps**, from Sabrael's capture of the same night (Evenue at
+  Antonio): the menu row "Labor" (1335), then under the labor pursuit (311) "I want to work" and the
+  Aisling's name into a text field, as `{aisling}`. An Aisling holds six days of labor, which come
+  back over time. The ids are from recordings; a pursuit is a server-wide script id (588 on three
+  civic NPCs, 0x56 on three banks), so Antonio's serve every bank NPC, and a wrong one is a safe
+  stop that names the right one.
+- **Five labor-fix errands**, one per bank NPC: "Labor", then "((labor fix))", then a notice dialog
+  the errand closes and reports: "This will reset your labor to one hour. You can only do this
+  once." the first time, "You have already reset your labor." when it is too soon (both captured).
+- **`SSystemMessage 0x0A` is decoded** (`decode/message.ts`, WP32 decision 1 brought forward), and
+  the newest notice is a live fact beside the dialog (`model/notice.ts`, `captureService.noticeFor`).
+  The server's verdict on a step is often a notice, not a dialog: "(( Register first: … ))" for an
+  unregistered character's Labor or civic action, "<name> doesn't need any jobs done" for a full
+  Aisling. **A notice on its own is not a refusal**: the same packet carries "(( 4 Temauiran days =
+  12 Terran hours ))" beside the confirmation, "You stop supporting …" beside the close after a
+  withdrawal, and world chat. So the Laborer reads a notice only when a step of its own gets no
+  dialog within the wait, and then stops with `serverNotice` and the first notice's text; and after
+  the last step it waits `OUTCOME_WAIT_MS` for the server's word and reports it on `done`.
+
+- **The Mileth clout errands have their ids** from Gabrael at Riona the same night: the menu row
+  "Mileth Civics" (1603) and the civic pursuit (579), the same conversation as Rucesion's under
+  its own two ids. The rows past the first dialog were then proven by the Laborer's own run at
+  Arilan, hands off, through to the name.
+- **The clout verdicts**, all captured: "You give political support to <name> for these Temuairan
+  four days" (done); "<name> is not near" (the citizen is not logged in; nothing given); and a
+  no-choice dialog one step earlier for a citizen of another town, "You must give up your current
+  citizenship first…", on which the run stops and quotes it.
+
+**Every errand has steps.** The labor verdicts the run reports on `done`, all captured: "You work
+for <name> for 1 day" (a whole day given), "You work for <name>, although the Aisling didn't need
+much done" (less than a day; the Aisling is full now), and "<name> doesn't need any jobs done. The
+Aisling hasn't done anything" (nothing given). "You were distracted" with a close is the server's
+exploit prevention, not a refusal (Sabrael): it means try again, so the run goes back to the first
+step and opens the conversation again, twice at most.
 
 **Two follow-ups this surfaced.** `WP33` (complete, 2026-09-21) made every errand destination
 route: the walker crosses the world map, every building is a node, and each errand carries the tile
@@ -98,8 +173,11 @@ keystroke into an unknown state.
    nothing else in this WP is safe without it. It has a page in both protocol sources; read both.
 2. **A run is a script of expectations, not a script of keys.** Each step is "expect this dialog,
    answer with this option"; the driver matches, acts, and waits. Steps are data, so a new errand is
-   a new list rather than new code.
+   a new list rather than new code. A branch is a step the server may show in place of the next
+   one, with what follows it; the next step is always tried first (PR3).
 3. **Every step is matched on pursuit id plus row text.** Position is a tiebreak, never the key.
+   Where one pursuit id serves a whole conversation, the step also names the prose it expects
+   (`when`), so the id and the words both have to agree (PR3).
 4. **An unmatched dialog is a full stop, not a skip.** It says what it saw, in the log, so the next
    run can add the case. Silent recovery is how automations hand items to strangers.
 5. **The dialog wrapper is read, never written — for now.** WP11 unwraps `0x39`/`0x3A` to read them.
@@ -107,7 +185,8 @@ keystroke into an unknown state.
 6. **Walking is WP15's problem.** This WP asks for a destination and waits for `arrived`. If the
    walker is not there yet, this WP is not either.
 7. **The errand is named and explicit.** "Give N to X" is a script the user can read before running
-   it. No hidden steps, no inferred goals.
+   it. No hidden steps, no inferred goals. A value the user has to give, such as the citizen to
+   support, is a declared parameter with a field on the tab, never a constant in the errand (PR3).
 8. **It stops on anything unexpected**: an unmatched dialog, a lost character, a map change it did
    not ask for, a timeout, or the global stop.
 9. **The Laborer drives one selected window** (WP13 decisions 9 and 10). It runs on the window the
@@ -188,6 +267,7 @@ export type ErrandOutcome =
 ## Acceptance criteria
 
 1. A recorded clout exchange replays through the matcher and selects the same options a player did.
+   (PR3: the driver replays the 2026-09-21 exchange whole and posts the player's keys.)
 2. A dialog whose rows moved is still matched, because the match is on text and pursuit.
 3. A dialog that matches nothing stops the run and logs what it saw, including the pursuit id.
 4. A step with no reply within the timeout stops the run.

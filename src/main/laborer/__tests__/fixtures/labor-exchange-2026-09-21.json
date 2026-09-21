@@ -1,0 +1,179 @@
+[
+  {
+    "at": 1789980528968.183,
+    "server": {
+      "kind": "npcMenu",
+      "sourceId": 7982,
+      "npcName": "Antonio",
+      "menuType": 0,
+      "text": "Hello.  What can I do for you?",
+      "isTextInput": false,
+      "options": [
+        {
+          "text": "Forget Skill",
+          "pursuit": 12
+        },
+        {
+          "text": "Buy",
+          "pursuit": 64
+        },
+        {
+          "text": "Sell",
+          "pursuit": 65
+        },
+        {
+          "text": "Deposit Money",
+          "pursuit": 66
+        },
+        {
+          "text": "Deposit Item",
+          "pursuit": 67
+        },
+        {
+          "text": "Withdraw Item",
+          "pursuit": 69
+        },
+        {
+          "text": "Higgle",
+          "pursuit": 1405
+        },
+        {
+          "text": "Hairstyle",
+          "pursuit": 1362
+        },
+        {
+          "text": "Labor",
+          "pursuit": 1335
+        },
+        {
+          "text": "Folk Lore",
+          "pursuit": 1067
+        },
+        {
+          "text": "Gold Bar",
+          "pursuit": 3468
+        },
+        {
+          "text": "Item Shop Trade-In",
+          "pursuit": 2604
+        }
+      ]
+    }
+  },
+  {
+    "at": 1789980537969.202,
+    "client": {
+      "kind": "merchantResponse",
+      "objectType": 1,
+      "objectId": 7982,
+      "pursuit": 1335
+    }
+  },
+  {
+    "at": 1789980538484.447,
+    "server": {
+      "kind": "pursuitMessage",
+      "dialogType": 2,
+      "dialogKind": "options",
+      "objectType": 1,
+      "sourceId": 7982,
+      "npcName": "Antonio",
+      "pursuit": 311,
+      "step": 16,
+      "hasPrevious": false,
+      "hasNext": true,
+      "isProtected": false,
+      "text": "You want to work for another Aisling? You might want to ask for money or a favor in return.\n  If you work for one Temuairan day, the Aisling you work for can have one more Temuairan day for crafting or something else.",
+      "options": [
+        {
+          "text": "I don't want to work"
+        },
+        {
+          "text": "I want to work"
+        },
+        {
+          "text": "((labor fix))"
+        }
+      ]
+    }
+  },
+  {
+    "at": 1789980541473.775,
+    "client": {
+      "kind": "pursuitResponse",
+      "objectType": 1,
+      "objectId": 7982,
+      "pursuit": 311,
+      "step": 17,
+      "choice": 2
+    }
+  },
+  {
+    "at": 1789980541982.38,
+    "server": {
+      "kind": "pursuitMessage",
+      "dialogType": 4,
+      "dialogKind": "textInput",
+      "objectType": 1,
+      "sourceId": 7982,
+      "npcName": "Antonio",
+      "pursuit": 311,
+      "step": 24,
+      "hasPrevious": false,
+      "hasNext": true,
+      "isProtected": false,
+      "text": "Who shall you work for?"
+    }
+  },
+  {
+    "at": 1789980544962.474,
+    "client": {
+      "kind": "pursuitResponse",
+      "objectType": 1,
+      "objectId": 7982,
+      "pursuit": 311,
+      "step": 25,
+      "text": "Pandsala"
+    }
+  },
+  {
+    "at": 1789980545481.809,
+    "server": {
+      "kind": "pursuitMessage",
+      "dialogType": 10,
+      "dialogKind": "close",
+      "objectType": 0,
+      "sourceId": 0,
+      "npcName": "",
+      "pursuit": 0,
+      "step": 0,
+      "hasPrevious": false,
+      "hasNext": false,
+      "isProtected": false
+    }
+  },
+  {
+    "at": 1789980545481.809,
+    "server": {
+      "kind": "systemMessage",
+      "messageType": 3,
+      "text": "Pandsala doesn't need any jobs done. The Aisling hasn't done anything"
+    }
+  },
+  {
+    "at": 1789980545481.809,
+    "server": {
+      "kind": "pursuitMessage",
+      "dialogType": 10,
+      "dialogKind": "close",
+      "objectType": 0,
+      "sourceId": 0,
+      "npcName": "",
+      "pursuit": 0,
+      "step": 0,
+      "hasPrevious": false,
+      "hasNext": false,
+      "isProtected": false
+    }
+  }
+]

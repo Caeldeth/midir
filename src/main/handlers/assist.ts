@@ -117,7 +117,10 @@ export function laborerErrands(ctx: AssistHandlerContext): Errand[] {
 
 const errandRequestSchema = z.object({
   connectionId: z.string().min(1, 'Pick a window to drive first.'),
-  errand: z.string().min(1, 'Pick an errand first.')
+  errand: z.string().min(1, 'Pick an errand first.'),
+  // The values for the errand's params, by name. The Laborer checks that every
+  // param has one; here the shape is all that matters.
+  params: z.record(z.string().min(1), z.string().max(64)).optional()
 })
 
 export async function runErrand(

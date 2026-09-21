@@ -173,13 +173,15 @@ describe('createProtocolSession', () => {
       frame([ServerOpcode.VersionCheck, 0x00, ...u32(0), 0x00, newKey.length, ...newKey])
     )
 
-    // 0x0A is a startup-key server opcode. Midir has no decoder for it, so it
-    // must report notModelled — which proves decryption itself succeeded.
-    const message = [0x0a, 0x03, ...[...'hi!'].map((c) => c.charCodeAt(0))]
+    // 0x0A is a startup-key server opcode: a system message. Decoding it to
+    // its text proves decryption with the installed key succeeded.
+    const message = [0x0a, 0x03, 0x00, 0x03, ...[...'hi!'].map((c) => c.charCodeAt(0))]
     const events = session.push(S2C, frame(startupBody(message, 0, newKey)))
-    const [event] = unreadable(events)
-    expect(event!.reason).toBe('notModelled')
-    expect([...event!.body!]).toEqual(message)
+    const [event] = events
+    expect(event!.type).toBe('packet')
+    if (event!.type === 'packet') {
+      expect(event!.packet).toEqual({ kind: 'systemMessage', messageType: 3, text: 'hi!' })
+    }
   })
 
   it('cannot read a session packet before the character name is known', () => {

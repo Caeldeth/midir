@@ -92,8 +92,14 @@ export interface ActionLayer {
   disarm(connectionId: string): void
   /** Post one key to a target. Refuses, never throws. */
   pressKey(target: ActionTarget, key: number): Promise<ActionRefusal | null>
-  /** Type a whole line into a target, then send it. Refuses, never throws. */
+  /** Type a whole chat line into a target, then send it. Refuses, never throws. */
   typeLine(target: ActionTarget, text: string): Promise<ActionRefusal | null>
+  /**
+   * Type text into the control that has focus, then press Enter. For a
+   * dialog's text field, which has focus when the dialog opens; `typeLine`
+   * is for chat, and its opening Enter would submit the field empty.
+   */
+  typeText(target: ActionTarget, text: string): Promise<ActionRefusal | null>
   /**
    * Click the left button at a position in the game's own 640 x 480
    * coordinates, scaled to the window as it is. Refuses, never throws. The
@@ -470,6 +476,27 @@ export function createActionLayer(options: ActionLayerOptions): ActionLayer {
     return null
   }
 
+  async function typeText(target: ActionTarget, text: string): Promise<ActionRefusal | null> {
+    const refusal = guard(target) ?? rateGate()
+    if (refusal !== null) return refusal
+    const session = armed.get(target.connectionId)
+    const aborted = (): boolean => stopped || armed.get(target.connectionId) !== session
+    const handle = target.windowHandle
+    // No opening Enter: the field already has focus, and Enter is its submit.
+    for (const character of text) {
+      if (aborted()) return 'stopped'
+      windows.postMessageToWindow(handle, WM_CHAR, character.codePointAt(0) ?? 0, 1)
+      await wait(nextGap())
+    }
+    if (aborted()) return 'stopped'
+    postKey(handle, VK_RETURN)
+    log.info(
+      'assist',
+      `Typed ${text.length} character(s) into the focused control of window ${handle}.`
+    )
+    return null
+  }
+
   function ensureWatch(): void {
     if (watch !== undefined) return
     watch = setInterval(tick, WATCH_INTERVAL_MS)
@@ -594,6 +621,7 @@ export function createActionLayer(options: ActionLayerOptions): ActionLayer {
     disarm,
     pressKey,
     typeLine,
+    typeText,
     click,
     get stopped(): boolean {
       return stopped

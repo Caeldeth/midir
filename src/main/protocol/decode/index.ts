@@ -25,6 +25,7 @@ import {
 } from './handshake'
 import { decodeScreenMenu, type BankContents, type NpcMenu } from './dialog'
 import { decodeFieldMap, decodeFieldMapClick, type FieldMap, type FieldMapClick } from './fieldMap'
+import { decodeSystemMessage, type SystemMessage } from './message'
 import { decodePursuitMessage, type PursuitMessage } from './pursuit'
 import {
   decodeMapInfo,
@@ -59,6 +60,7 @@ export * from './character'
 export * from './client'
 export * from './dialog'
 export * from './fieldMap'
+export * from './message'
 export * from './handshake'
 export * from './items'
 export * from './merchant'
@@ -89,6 +91,7 @@ export type DecodedPacket =
   | PursuitMessage
   | FieldMap
   | FieldMapClick
+  | SystemMessage
   | ClientExit
   | MerchantResponse
   | PursuitResponse
@@ -116,7 +119,8 @@ const DECODERS = new Map<number, Decoder>([
   [ServerOpcode.SelfLook, decodeSelfLook],
   [ServerOpcode.ScreenMenu, decodeScreenMenu],
   [ServerOpcode.PursuitMessage, decodePursuitMessage],
-  [ServerOpcode.FieldMap, decodeFieldMap]
+  [ServerOpcode.FieldMap, decodeFieldMap],
+  [ServerOpcode.SystemMessage, decodeSystemMessage]
 ])
 
 const CLIENT_DECODERS = new Map<number, Decoder>([

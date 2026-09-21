@@ -53,6 +53,8 @@ function context(
     liveCharacterEntries: () => [],
     positionFor: () => null,
     dialogFor: () => null,
+    noticeFor: () => null,
+    answerFor: () => null,
     fieldMapFor: () => null
   }
   return {

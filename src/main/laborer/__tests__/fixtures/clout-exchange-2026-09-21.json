@@ -1,0 +1,458 @@
+[
+  {
+    "at": 1789979652265.988,
+    "server": {
+      "kind": "npcMenu",
+      "sourceId": 6703,
+      "npcName": "Eduardo",
+      "menuType": 0,
+      "text": "Hello.  What can I do for you?",
+      "isTextInput": false,
+      "options": [
+        {
+          "text": "Rucesion Civics",
+          "pursuit": 1612
+        },
+        {
+          "text": "Rucesion Politics Attacks",
+          "pursuit": 1613
+        },
+        {
+          "text": "Rucesion Politics Execution",
+          "pursuit": 1614
+        },
+        {
+          "text": "Rucesion Law",
+          "pursuit": 1615
+        },
+        {
+          "text": "Seek Rucesion Office",
+          "pursuit": 1611
+        },
+        {
+          "text": "On Politics",
+          "pursuit": 1598
+        }
+      ]
+    }
+  },
+  {
+    "at": 1789979653317.322,
+    "client": {
+      "kind": "merchantResponse",
+      "objectType": 1,
+      "objectId": 6703,
+      "pursuit": 1612
+    }
+  },
+  {
+    "at": 1789979653765.591,
+    "server": {
+      "kind": "pursuitMessage",
+      "dialogType": 2,
+      "dialogKind": "options",
+      "objectType": 1,
+      "sourceId": 6703,
+      "npcName": "Eduardo",
+      "pursuit": 588,
+      "step": 66,
+      "hasPrevious": false,
+      "hasNext": true,
+      "isProtected": false,
+      "text": "What is your civil action?",
+      "options": [
+        {
+          "text": "Support a Citizen"
+        },
+        {
+          "text": "Renounce Citizenship"
+        }
+      ]
+    }
+  },
+  {
+    "at": 1789979654755.2,
+    "client": {
+      "kind": "pursuitResponse",
+      "objectType": 1,
+      "objectId": 6703,
+      "pursuit": 588,
+      "step": 67,
+      "choice": 1
+    }
+  },
+  {
+    "at": 1789979655269.439,
+    "server": {
+      "kind": "pursuitMessage",
+      "dialogType": 2,
+      "dialogKind": "options",
+      "objectType": 1,
+      "sourceId": 6703,
+      "npcName": "Eduardo",
+      "pursuit": 588,
+      "step": 264,
+      "hasPrevious": false,
+      "hasNext": true,
+      "isProtected": false,
+      "text": "You may only support one citizen within these four Temuairan days. Are you sure you wish to support one now?",
+      "options": [
+        {
+          "text": "I am not sure"
+        },
+        {
+          "text": "I am sure"
+        }
+      ]
+    }
+  },
+  {
+    "at": 1789979655970.031,
+    "client": {
+      "kind": "pursuitResponse",
+      "objectType": 1,
+      "objectId": 6703,
+      "pursuit": 588,
+      "step": 265,
+      "choice": 2
+    }
+  },
+  {
+    "at": 1789979656276.054,
+    "server": {
+      "kind": "pursuitMessage",
+      "dialogType": 4,
+      "dialogKind": "textInput",
+      "objectType": 1,
+      "sourceId": 6703,
+      "npcName": "Eduardo",
+      "pursuit": 588,
+      "step": 270,
+      "hasPrevious": false,
+      "hasNext": true,
+      "isProtected": false,
+      "text": "Whom shall you support these four Temuairan days?"
+    }
+  },
+  {
+    "at": 1789979658600.464,
+    "client": {
+      "kind": "pursuitResponse",
+      "objectType": 1,
+      "objectId": 6703,
+      "pursuit": 588,
+      "step": 271,
+      "text": "Pandsala"
+    }
+  },
+  {
+    "at": 1789979661273.23,
+    "server": {
+      "kind": "npcMenu",
+      "sourceId": 6703,
+      "npcName": "Eduardo",
+      "menuType": 0,
+      "text": "Hello.  What can I do for you?",
+      "isTextInput": false,
+      "options": [
+        {
+          "text": "Rucesion Civics",
+          "pursuit": 1612
+        },
+        {
+          "text": "Rucesion Politics Attacks",
+          "pursuit": 1613
+        },
+        {
+          "text": "Rucesion Politics Execution",
+          "pursuit": 1614
+        },
+        {
+          "text": "Rucesion Law",
+          "pursuit": 1615
+        },
+        {
+          "text": "Seek Rucesion Office",
+          "pursuit": 1611
+        },
+        {
+          "text": "On Politics",
+          "pursuit": 1598
+        }
+      ]
+    }
+  },
+  {
+    "at": 1789979662554.804,
+    "client": {
+      "kind": "merchantResponse",
+      "objectType": 1,
+      "objectId": 6703,
+      "pursuit": 1612
+    }
+  },
+  {
+    "at": 1789979664775.412,
+    "server": {
+      "kind": "npcMenu",
+      "sourceId": 6703,
+      "npcName": "Eduardo",
+      "menuType": 0,
+      "text": "Hello.  What can I do for you?",
+      "isTextInput": false,
+      "options": [
+        {
+          "text": "Rucesion Civics",
+          "pursuit": 1612
+        },
+        {
+          "text": "Rucesion Politics Attacks",
+          "pursuit": 1613
+        },
+        {
+          "text": "Rucesion Politics Execution",
+          "pursuit": 1614
+        },
+        {
+          "text": "Rucesion Law",
+          "pursuit": 1615
+        },
+        {
+          "text": "Seek Rucesion Office",
+          "pursuit": 1611
+        },
+        {
+          "text": "On Politics",
+          "pursuit": 1598
+        }
+      ]
+    }
+  },
+  {
+    "at": 1789979665835.11,
+    "client": {
+      "kind": "merchantResponse",
+      "objectType": 1,
+      "objectId": 6703,
+      "pursuit": 1612
+    }
+  },
+  {
+    "at": 1789979666280.076,
+    "server": {
+      "kind": "pursuitMessage",
+      "dialogType": 2,
+      "dialogKind": "options",
+      "objectType": 1,
+      "sourceId": 6703,
+      "npcName": "Eduardo",
+      "pursuit": 588,
+      "step": 66,
+      "hasPrevious": false,
+      "hasNext": true,
+      "isProtected": false,
+      "text": "What is your civil action?",
+      "options": [
+        {
+          "text": "Support a Citizen"
+        },
+        {
+          "text": "Renounce Citizenship"
+        }
+      ]
+    }
+  },
+  {
+    "at": 1789979667328.913,
+    "client": {
+      "kind": "pursuitResponse",
+      "objectType": 1,
+      "objectId": 6703,
+      "pursuit": 588,
+      "step": 67,
+      "choice": 1
+    }
+  },
+  {
+    "at": 1789979667777.849,
+    "server": {
+      "kind": "pursuitMessage",
+      "dialogType": 2,
+      "dialogKind": "options",
+      "objectType": 1,
+      "sourceId": 6703,
+      "npcName": "Eduardo",
+      "pursuit": 588,
+      "step": 227,
+      "hasPrevious": false,
+      "hasNext": true,
+      "isProtected": false,
+      "text": "Pandsala is in Temuair now. You can attempt to withdraw your support from the Aisling.",
+      "options": [
+        {
+          "text": "I continue to support the Aisling"
+        },
+        {
+          "text": "Withdraw support"
+        }
+      ]
+    }
+  },
+  {
+    "at": 1789979671138.17,
+    "client": {
+      "kind": "pursuitResponse",
+      "objectType": 1,
+      "objectId": 6703,
+      "pursuit": 588,
+      "step": 228,
+      "choice": 2
+    }
+  },
+  {
+    "at": 1789979673284.508,
+    "server": {
+      "kind": "npcMenu",
+      "sourceId": 6703,
+      "npcName": "Eduardo",
+      "menuType": 0,
+      "text": "Hello.  What can I do for you?",
+      "isTextInput": false,
+      "options": [
+        {
+          "text": "Rucesion Civics",
+          "pursuit": 1612
+        },
+        {
+          "text": "Rucesion Politics Attacks",
+          "pursuit": 1613
+        },
+        {
+          "text": "Rucesion Politics Execution",
+          "pursuit": 1614
+        },
+        {
+          "text": "Rucesion Law",
+          "pursuit": 1615
+        },
+        {
+          "text": "Seek Rucesion Office",
+          "pursuit": 1611
+        },
+        {
+          "text": "On Politics",
+          "pursuit": 1598
+        }
+      ]
+    }
+  },
+  {
+    "at": 1789979674627.602,
+    "client": {
+      "kind": "merchantResponse",
+      "objectType": 1,
+      "objectId": 6703,
+      "pursuit": 1612
+    }
+  },
+  {
+    "at": 1789979674783.809,
+    "server": {
+      "kind": "pursuitMessage",
+      "dialogType": 2,
+      "dialogKind": "options",
+      "objectType": 1,
+      "sourceId": 6703,
+      "npcName": "Eduardo",
+      "pursuit": 588,
+      "step": 66,
+      "hasPrevious": false,
+      "hasNext": true,
+      "isProtected": false,
+      "text": "What is your civil action?",
+      "options": [
+        {
+          "text": "Support a Citizen"
+        },
+        {
+          "text": "Renounce Citizenship"
+        }
+      ]
+    }
+  },
+  {
+    "at": 1789979675967.881,
+    "client": {
+      "kind": "pursuitResponse",
+      "objectType": 1,
+      "objectId": 6703,
+      "pursuit": 588,
+      "step": 67,
+      "choice": 1
+    }
+  },
+  {
+    "at": 1789979676285.608,
+    "server": {
+      "kind": "pursuitMessage",
+      "dialogType": 2,
+      "dialogKind": "options",
+      "objectType": 1,
+      "sourceId": 6703,
+      "npcName": "Eduardo",
+      "pursuit": 588,
+      "step": 264,
+      "hasPrevious": false,
+      "hasNext": true,
+      "isProtected": false,
+      "text": "You may only support one citizen within these four Temuairan days. Are you sure you wish to support one now?",
+      "options": [
+        {
+          "text": "I am not sure"
+        },
+        {
+          "text": "I am sure"
+        }
+      ]
+    }
+  },
+  {
+    "at": 1789979676937.786,
+    "client": {
+      "kind": "pursuitResponse",
+      "objectType": 1,
+      "objectId": 6703,
+      "pursuit": 588,
+      "step": 265,
+      "choice": 2
+    }
+  },
+  {
+    "at": 1789979677286.848,
+    "server": {
+      "kind": "pursuitMessage",
+      "dialogType": 4,
+      "dialogKind": "textInput",
+      "objectType": 1,
+      "sourceId": 6703,
+      "npcName": "Eduardo",
+      "pursuit": 588,
+      "step": 270,
+      "hasPrevious": false,
+      "hasNext": true,
+      "isProtected": false,
+      "text": "Whom shall you support these four Temuairan days?"
+    }
+  },
+  {
+    "at": 1789979679581.555,
+    "client": {
+      "kind": "pursuitResponse",
+      "objectType": 1,
+      "objectId": 6703,
+      "pursuit": 588,
+      "step": 271,
+      "text": "Pandsala"
+    }
+  }
+]

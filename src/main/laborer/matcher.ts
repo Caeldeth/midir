@@ -1,4 +1,4 @@
-import type { DialogStep } from '../../shared/types'
+import { fillTemplate, type DialogStep } from '../../shared/types'
 import type { NpcMenu } from '../protocol/decode/dialog'
 import type { PursuitMessage } from '../protocol/decode/pursuit'
 
@@ -47,6 +47,8 @@ export type MatchResult =
   | { kind: 'choose'; index: number; option: string }
   /** Type this text into the entry field. */
   | { kind: 'answerText'; text: string }
+  /** Close the dialog, the way the player's Close does. */
+  | { kind: 'close' }
   /** A credential pane. Stop before any key. */
   | { kind: 'protected' }
   /** Nothing in this dialog matched the step. Stop rather than guess. */
@@ -110,14 +112,32 @@ function findRow(options: DialogViewOption[], choose: string): number {
 }
 
 /**
+ * Fill a step's placeholders from the run's parameter values.
+ *
+ * `answer` and `when` may name a `{param}`. The values come from the user
+ * before the run, so the step data stays free of any name.
+ */
+export function fillStep(step: DialogStep, values: Record<string, string>): DialogStep {
+  const filled: DialogStep = { ...step }
+  if (step.answer !== undefined) filled.answer = fillTemplate(step.answer, values)
+  if (step.when !== undefined) filled.when = fillTemplate(step.when, values)
+  return filled
+}
+
+/**
  * Decide what one step does with the dialog on screen.
  *
  * The order is a safety order: refuse a credential pane first, then guard on the
- * pursuit id, then match the row text. A step never acts on a dialog whose
- * pursuit is not the one it expects.
+ * pursuit id and the prose the step expects, then match the row text. A step
+ * never acts on a dialog whose pursuit is not the one it expects, and a step
+ * with `when` never acts on a dialog that does not say it.
  */
 export function matchStep(step: DialogStep, view: DialogView): MatchResult {
   if (view.isProtected) return { kind: 'protected' }
+
+  if (step.when !== undefined && !normalise(view.text ?? '').includes(normalise(step.when))) {
+    return { kind: 'noMatch' }
+  }
 
   if (view.isTextInput) {
     if (view.pursuit !== step.pursuit) return { kind: 'noMatch' }
@@ -125,6 +145,13 @@ export function matchStep(step: DialogStep, view: DialogView): MatchResult {
     return { kind: 'answerText', text: step.answer }
   }
 
+  // A close makes no choice, so it needs only the pursuit and the prose.
+  if (step.close === true) {
+    if (view.pursuit !== step.pursuit) return { kind: 'noMatch' }
+    return { kind: 'close' }
+  }
+
+  if (step.choose === undefined) return { kind: 'noMatch' }
   const index = findRow(view.options, step.choose)
   if (index < 0) return { kind: 'noMatch' }
 

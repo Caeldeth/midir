@@ -2,20 +2,26 @@ import type { PointerState } from 'da-pcap'
 import type { ActionTarget } from '../shared/actionLayer'
 import { GAME_HEIGHT, GAME_WIDTH, type LiveConnection } from './actionLayer'
 import type { Logger } from './log'
+import type { DialogAnswer, DialogState } from './model/dialog'
 import type { FieldMapState } from './model/fieldMap'
+import type { Position } from './model/position'
+import { centreFromClick, type Tile } from './laborer/view'
 
 /**
- * The pane watcher: while a world map is open, write down where the user
- * clicks by hand, and pair each click with the point the client then sends.
+ * The pane watcher: while a world map or an NPC dialog is open, write down
+ * where the user clicks by hand, and pair each click with what the client
+ * then sends.
  *
  * The wire says which point a click selected (CFieldMapClick 0x3F carries the
- * map id) but not where on the screen the click was. When the walker's own
- * click misses a point and the user takes over, the pair "released at (x, y);
- * the client sent map N" is what tells the next attempt where the point
- * really is. So this reads the real pointer and the real button through the
- * operating system (never the client's memory) and logs each release inside
- * the game window while a pane is open. A posted click moves nothing there,
- * so the walker's own clicks never show up here.
+ * map id; CMerchant 0x39 and CPursuit 0x3A carry the row) but not where on
+ * the screen the click was. When the walker's own click misses a point and
+ * the user takes over, or when the Laborer needs to learn where a dialog's
+ * rows are, the pair "released at (x, y); the client sent N" is what tells
+ * the next attempt where the target really is. So this reads the real pointer
+ * and the real button through the operating system (never the client's
+ * memory) and logs each release inside the game window while a pane is open.
+ * A posted click moves nothing there, so Midir's own clicks never show up
+ * here.
  *
  * It is a diagnostic. It drives nothing and changes no state but its own.
  */
@@ -32,6 +38,14 @@ export interface PaneWatcherOptions {
   liveConnections: () => LiveConnection[]
   /** The world map on screen, from the capture service. */
   fieldMapFor: (connectionId: string) => FieldMapState | null
+  /** The NPC dialog on screen, from the capture service. Absent in older tests. */
+  dialogFor?: (connectionId: string) => DialogState | null
+  /** The client's newest dialog answer, from the capture service. Absent in older tests. */
+  answerFor?: (connectionId: string) => DialogAnswer | null
+  /** The character's position, from the capture service. Absent in older tests. */
+  positionFor?: (connectionId: string) => Position | null
+  /** The NPC tiles the errands know, to turn a hand click on an NPC into the view centre. */
+  knownNpcs?: () => { npcName: string; mapId: number; tile: Tile }[]
   log: Logger
   /** The clock. Injected by tests. */
   now?: () => number
@@ -55,19 +69,154 @@ interface Watched {
   lastAnsweredAt?: number
 }
 
+/** The same, for the NPC dialog on a connection. */
+interface WatchedDialog {
+  leftDown: boolean
+  lastClick?: { gameX: number; gameY: number; atMs: number }
+  /** Capture time of the last 0x39 or 0x3A written to the log. */
+  lastAnsweredAt?: number
+  /** The last hand click on the world with no dialog up, and where the character stood. */
+  worldClick?: { gameX: number; gameY: number; atMs: number; own: Tile; mapId: number }
+  /** Capture time of the dialog last seen, to notice a new one. */
+  lastDialogAt?: number
+}
+
+/** How long after a hand click on the world a dialog that opens is credited to it. */
+const OPEN_WINDOW_MS = 2500
+
+/** Name the row a client answer chose, from the dialog it answered. */
+function describeAnswer(answered: DialogAnswer): string {
+  const answer = answered.packet
+  const shown = answered.dialog
+  if (answer.kind === 'merchantResponse') {
+    if (shown.kind === 'npcMenu') {
+      const index = shown.options.findIndex((o) => o.pursuit === answer.pursuit)
+      if (index >= 0) return `row ${index + 1} "${shown.options[index]!.text}" (${answer.pursuit})`
+    }
+    return `pursuit ${answer.pursuit}`
+  }
+  if (answer.choice !== undefined) {
+    const text =
+      shown.kind === 'pursuitMessage' ? shown.options?.[answer.choice - 1]?.text : undefined
+    return `choice ${answer.choice}${text !== undefined ? ` "${text}"` : ''}`
+  }
+  if (answer.text !== undefined) return `text "${answer.text}"`
+  return `step ${answer.step}`
+}
+
 /** How often to look while a pane is open, in milliseconds. A click lasts longer than this. */
 const DEFAULT_INTERVAL_MS = 30
 
 export function createPaneWatcher(options: PaneWatcherOptions): PaneWatcher {
   const { pointerIn, resolveTarget, liveConnections, fieldMapFor, log } = options
+  const dialogFor = options.dialogFor ?? ((): null => null)
+  const answerFor = options.answerFor ?? ((): null => null)
+  const positionFor = options.positionFor ?? ((): null => null)
+  const knownNpcs = options.knownNpcs ?? ((): [] => [])
   const now = options.now ?? Date.now
   const watched = new Map<string, Watched>()
+  const watchedDialogs = new Map<string, WatchedDialog>()
   let timer: NodeJS.Timeout | undefined
+
+  /**
+   * The dialog side. A hand release on the game window while a dialog is up
+   * is logged in game coordinates, and the client's answer that follows is
+   * paired with it: that pair is where the row is. The answer is read from
+   * its own fact, because the dialog it answered is usually gone by the next
+   * look here: the server's reply follows within tens of milliseconds and the
+   * capture delivers both in one batch.
+   */
+  function tickDialog(connectionId: string): void {
+    const state = watchedDialogs.get(connectionId) ?? { leftDown: false }
+    watchedDialogs.set(connectionId, state)
+
+    const answer = answerFor(connectionId)
+    if (answer !== null && answer.asOfMs !== state.lastAnsweredAt) {
+      state.lastAnsweredAt = answer.asOfMs
+      const hand = state.lastClick
+      const what = describeAnswer(answer)
+      // The client acts on the press, so its answer can be captured a few
+      // milliseconds before the release is seen here; the window runs both ways.
+      if (hand !== undefined && Math.abs(answer.asOfMs - hand.atMs) <= PAIR_WINDOW_MS) {
+        log.info(
+          'pane',
+          `The client answered the dialog with ${what}, ${answer.asOfMs - hand.atMs} ms after the hand click at game (${hand.gameX}, ${hand.gameY}).`
+        )
+        state.lastClick = undefined
+      } else {
+        log.info(
+          'pane',
+          `The client answered the dialog with ${what} with no hand click before it.`
+        )
+      }
+    }
+
+    const dialog = dialogFor(connectionId)
+
+    // A dialog that opened just after a hand click on the world: that click
+    // was on the NPC, and with the NPC's tile known it measures the view
+    // centre the Laborer's own NPC click needs.
+    if (dialog !== null && dialog.asOfMs !== state.lastDialogAt) {
+      state.lastDialogAt = dialog.asOfMs
+      const hand = state.worldClick
+      if (hand !== undefined && Math.abs(dialog.asOfMs - hand.atMs) <= OPEN_WINDOW_MS) {
+        state.worldClick = undefined
+        const shown = dialog.packet
+        const npc = knownNpcs().find((n) => n.npcName === shown.npcName && n.mapId === hand.mapId)
+        const centre =
+          npc !== undefined
+            ? centreFromClick({ x: hand.gameX, y: hand.gameY }, hand.own, npc.tile)
+            : undefined
+        log.info(
+          'pane',
+          `The dialog from ${shown.npcName || 'an NPC'} opened ${dialog.asOfMs - hand.atMs} ms after the hand click at game (${hand.gameX}, ${hand.gameY}) with the character at (${hand.own.x}, ${hand.own.y}) on map ${hand.mapId}${npc !== undefined ? `; the NPC stands on (${npc.tile.x}, ${npc.tile.y}), so the view centre is (${centre!.x}, ${centre!.y})` : ''}.`
+        )
+      }
+    }
+
+    const target = resolveTarget(connectionId)
+    if (target === null) return
+    const pointer = pointerIn(target.windowHandle)
+    if (pointer === null) return
+
+    if (dialog === null) {
+      // No dialog up: a release on the world is remembered, in case a dialog
+      // follows it.
+      if (state.leftDown && !pointer.leftDown && pointer.inside) {
+        const position = positionFor(connectionId)
+        if (position !== null) {
+          state.worldClick = {
+            gameX: Math.round((pointer.x * GAME_WIDTH) / Math.max(1, pointer.width)),
+            gameY: Math.round((pointer.y * GAME_HEIGHT) / Math.max(1, pointer.height)),
+            atMs: now(),
+            own: { x: position.x, y: position.y },
+            mapId: position.mapId
+          }
+        }
+      }
+      state.leftDown = pointer.leftDown
+      return
+    }
+
+    if (state.leftDown && !pointer.leftDown && pointer.inside) {
+      const gameX = Math.round((pointer.x * GAME_WIDTH) / Math.max(1, pointer.width))
+      const gameY = Math.round((pointer.y * GAME_HEIGHT) / Math.max(1, pointer.height))
+      state.lastClick = { gameX, gameY, atMs: now() }
+      const shown = dialog.packet
+      const rows = shown.kind === 'npcMenu' ? shown.options.length : (shown.options?.length ?? 0)
+      log.info(
+        'pane',
+        `Hand click released at game (${gameX}, ${gameY}) on the dialog from ${shown.npcName || 'an NPC'} (${rows} rows).`
+      )
+    }
+    state.leftDown = pointer.leftDown
+  }
 
   function tick(): void {
     const live = new Set<string>()
     for (const { connectionId } of liveConnections()) {
       live.add(connectionId)
+      tickDialog(connectionId)
       const pane = fieldMapFor(connectionId)
       if (pane === null) {
         // The pane closed. When a hand click came just before, the map change
@@ -135,6 +284,7 @@ export function createPaneWatcher(options: PaneWatcherOptions): PaneWatcher {
       state.leftDown = pointer.leftDown
     }
     for (const id of [...watched.keys()]) if (!live.has(id)) watched.delete(id)
+    for (const id of [...watchedDialogs.keys()]) if (!live.has(id)) watchedDialogs.delete(id)
   }
 
   return {

@@ -283,6 +283,20 @@ describe('the action layer', () => {
     expect(await layer.pressKey(target, VK_RETURN)).toBeNull()
   })
 
+  it('types into the focused control with no opening Enter, then presses Enter', async () => {
+    const windows = fakeWindows([CLIENT_A])
+    const { layer } = build(windows, () => [{ connectionId: idOf(CLIENT_A.local), name: 'Alice' }])
+    const target = layer.resolveTarget(idOf(CLIENT_A.local))!
+    expect(await layer.typeText(target, 'Pandsala')).toBeNull()
+    const chars = windows.posted.filter((p) => p.message === 0x0102)
+    expect(chars.map((p) => String.fromCodePoint(p.wParam)).join('')).toBe('Pandsala')
+    // The very first post is a character, not an Enter: a dialog's field has
+    // focus already, and an Enter would submit it empty.
+    expect(windows.posted[0]!.message).toBe(0x0102)
+    const last = windows.posted.slice(-2)
+    expect(last.every((p) => p.wParam === VK_RETURN && p.message !== 0x0102)).toBe(true)
+  })
+
   it('opens the input with Enter, types WM_CHAR per character, then sends with Enter', async () => {
     const windows = fakeWindows([CLIENT_A])
     const { layer } = build(windows, () => [{ connectionId: idOf(CLIENT_A.local), name: 'Alice' }])
