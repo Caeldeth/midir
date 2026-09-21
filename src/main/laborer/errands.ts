@@ -49,8 +49,9 @@ import type { DialogStep, Errand, ErrandParam } from '../../shared/types'
  * conversation is "Rucesion Civics" on all three, with the same row pursuit.
  * Mileth is the same conversation under "Mileth Civics" with its own two ids,
  * from Gabrael at Riona the same night (the menu row and the civic pursuit's
- * first dialog; the rows past that are Sabrael's word that the labels are the
- * same, and a wrong one is a safe stop that names what it saw).
+ * first dialog; Gabrael is unregistered, so that dialog offered only "Renounce
+ * Citizenship", and the rows past it are Sabrael's word that the labels are
+ * the same; a wrong one is a safe stop that names what it saw).
  *
  * The pursuit is one id for the whole conversation, so each step also names
  * the prose it expects. The citizen is a parameter, never a name in this file.
@@ -107,11 +108,19 @@ function cloutSteps(ids: CivicIds): Pick<Errand, 'params' | 'steps' | 'branches'
  * "Labor", then under the labor pursuit "You want to work for another
  * Aisling? …" with the rows "I don't want to work", "I want to work", and
  * "((labor fix))", then "Who shall you work for?" as a text field. The
- * server's verdict is a notice, not a dialog: "<name> doesn't need any jobs
- * done. The Aisling hasn't done anything" when the Aisling is full, so the
- * run reports the first notice after the last step as its outcome. An Aisling
- * holds six days of labor, which come back over time (Sabrael: about every
- * twelve hours).
+ * server's verdict is a notice, not a dialog, so the run reports the first
+ * notice after the last step as its outcome. Three verdicts are known; the
+ * first is captured, the other two are Sabrael's word:
+ *
+ *   "<name> doesn't need any jobs done. The Aisling hasn't done anything"
+ *       the Aisling is full; nothing was given
+ *   "You work for <name> for 1 day."
+ *       a whole day was given
+ *   "You work for <name>, but they didn't need many jobs done."
+ *       the Aisling had room for less than a day; it is full now
+ *
+ * An Aisling holds six days of labor, which come back over time (Sabrael:
+ * about every twelve hours).
  *
  * "((labor fix))" gives a laborer its own days back, free, once in a while.
  * What follows that row was not chosen with Midir recording, so it is not an

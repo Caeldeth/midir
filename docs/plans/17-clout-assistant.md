@@ -94,12 +94,15 @@ its stop line names every pursuit id the dialog carried, so that run is itself t
 
 - **The Mileth clout errands have their ids** from Gabrael at Riona the same night: the menu row
   "Mileth Civics" (1603) and the civic pursuit (579), the same conversation as Rucesion's under
-  its own two ids. Gabrael's menu offered only "Renounce Citizenship", so the rows past the first
-  dialog are Sabrael's word that the labels match; a wrong one is a safe stop that names what it
-  saw.
+  its own two ids. Gabrael is unregistered, so that dialog offered only "Renounce Citizenship", and
+  the rows past it are Sabrael's word that the labels match; a wrong one is a safe stop that names
+  what it saw.
 
-**Every errand has steps.** What no capture reached yet: the labor errands' success notice, and the
-clout rows past the first dialog on a Mileth NPC.
+**Every errand has steps.** The labor verdicts the run reports on `done`, from Sabrael: "You work
+for <name> for 1 day." (a whole day given), "You work for <name>, but they didn't need many jobs
+done." (less than a day; the Aisling is full now), and the captured "<name> doesn't need any jobs
+done" (nothing given). What no capture reached yet: the clout rows past the first dialog on a Mileth
+NPC, which a registered character's run will show.
 
 **Two follow-ups this surfaced.** `WP33` (complete, 2026-09-21) made every errand destination
 route: the walker crosses the world map, every building is a node, and each errand carries the tile

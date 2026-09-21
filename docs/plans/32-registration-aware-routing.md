@@ -36,7 +36,9 @@ Two positive signals, from opposite ends:
 3. **The refusal (unregistered).** An unregistered character that asks a bank NPC for Labor, or a
    civic NPC for a civic action, gets the notice "(( Register first: www.darkages.com -> Click
    'Register' ))" and a dialog close (Sabrael's capture of 2026-09-21). Its **presence** means
-   unregistered, and it arrives in the middle of play, not only at login.
+   unregistered, and it arrives in the middle of play, not only at login. The civic menu shows the
+   same thing one step earlier: an unregistered character's "What is your civil action?" offers
+   only "Renounce Citizenship", with no "Support a Citizen" (Gabrael at Riona, the same night).
 
 The rule: an unregistered legend mark or the refusal makes the character unregistered; else a seen
 expiration message makes it registered; else registered by default.
