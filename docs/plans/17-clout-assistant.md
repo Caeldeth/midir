@@ -10,7 +10,7 @@ steps walks to the map and stops rather than acting, so the current state fails 
 **Name:** the feature is the **Laborer**. Earlier docs call it the "Clout Assistant". The full copy
 rename is part of WP19's terminology work.
 
-## As built (two PRs)
+## As built (three PRs)
 
 Built in two PRs off `main`, both provable with no game.
 
@@ -46,12 +46,41 @@ were proven):
 2. **Selecting a menu row** posts the option's number key (`chooseRow`, `OPTION_DIGIT_BASE`).
 3. **Answering a text field** uses `typeLine`.
 
-**The built-in errands name the real NPCs, and two values still wait on a capture.** The roster is 11
-errands, one for each NPC: six clout (Maria, Angelo, Eduardo, Aingeal, Riona, Arilan) and five labor
-(Antonio, Cassidy, Jilt, Lamont, Argus). Each entry names the NPC and the building it is in. Two
-values per entry come from a recorded session or the live check, not a guess: the `npcTile` (so the
-walker finishes beside the NPC), and the `steps` (the pursuit id and the row text). The matcher
-refuses any mismatch, so an errand with no steps walks to the map and stops rather than acting.
+**The built-in errands name the real NPCs.** The roster is 11 errands, one for each NPC: six clout
+(Maria, Angelo, Eduardo, Aingeal, Riona, Arilan) and five labor (Antonio, Cassidy, Jilt, Lamont,
+Argus). Each entry names the NPC, the building it is in, and the tile to stand on (WP33). The
+`steps` (the pursuit id and the row text) come from a recorded session, not a guess. The matcher
+refuses any mismatch, so an errand with no steps walks to the NPC and stops rather than acting, and
+its stop line names every pursuit id the dialog carried, so that run is itself the capture.
+
+**PR3 — the clout conversation, from the recordings.**
+
+- The three Rucesion clout errands have their steps. The conversation is the same on Maria, Angelo,
+  and Eduardo, from four recordings (July and August 2026, and Sabrael's run of 2026-09-21 with the
+  player's answers): the menu row "Rucesion Civics" (1612), then under the civic pursuit (588)
+  "Support a Citizen", "I am sure", and the citizen's name into a text field.
+- **An errand can take a parameter.** The citizen is `{citizen}`, asked for on the Laborer tab and
+  filled into the step at run time (`Errand.params`, `ErrandRequest.params`, `fillStep`). No name is
+  in the errand data, and the run refuses to start without a value.
+- **A step can name the prose it expects (`when`).** The civic pursuit is one id for a whole
+  conversation, so the pursuit alone does not say which dialog is up. A step with `when` matches
+  only a dialog that says it; the matcher's order stays credential pane, pursuit and prose, row.
+- **An errand can branch.** A second "Support a Citizen" inside the four-day window shows
+  "<name> is in Temuair now. You can attempt to withdraw your support from the Aisling." in place of
+  the confirmation. `Errand.branches` are tried when the next step does not match, and a branch's
+  `then` says what follows: the wanted citizen is already supported, so `done`; another is, so
+  "Withdraw support" and `restart` from the menu, which the player opens again. A second restart
+  stops the run.
+- The wait for the first dialog is its own, longer constant (`FIRST_DIALOG_WAIT_MS`): the player
+  opens the conversation, and a player is slower than a server.
+- The recorded exchange is a fixture (`laborer/__tests__/fixtures/clout-exchange-2026-09-21.json`),
+  and the driver replays it whole and posts the keys the player pressed: acceptance criterion 1.
+
+**What still waits on a capture.** The three Mileth clout errands, which Sabrael expects to be the
+same conversation under "Mileth Civics" with their own ids; and the five labor errands, whose menu
+row is "Labor" (1335 on Antonio and Cassidy) and whose dialog behind it was never chosen with Midir
+recording. One run of each with Midir recording, or one run of the errand as it stands, gives the
+ids.
 
 **Two follow-ups this surfaced.** `WP33` (complete, 2026-09-21) made every errand destination
 route: the walker crosses the world map, every building is a node, and each errand carries the tile
@@ -98,8 +127,11 @@ keystroke into an unknown state.
    nothing else in this WP is safe without it. It has a page in both protocol sources; read both.
 2. **A run is a script of expectations, not a script of keys.** Each step is "expect this dialog,
    answer with this option"; the driver matches, acts, and waits. Steps are data, so a new errand is
-   a new list rather than new code.
+   a new list rather than new code. A branch is a step the server may show in place of the next
+   one, with what follows it; the next step is always tried first (PR3).
 3. **Every step is matched on pursuit id plus row text.** Position is a tiebreak, never the key.
+   Where one pursuit id serves a whole conversation, the step also names the prose it expects
+   (`when`), so the id and the words both have to agree (PR3).
 4. **An unmatched dialog is a full stop, not a skip.** It says what it saw, in the log, so the next
    run can add the case. Silent recovery is how automations hand items to strangers.
 5. **The dialog wrapper is read, never written — for now.** WP11 unwraps `0x39`/`0x3A` to read them.
@@ -107,7 +139,8 @@ keystroke into an unknown state.
 6. **Walking is WP15's problem.** This WP asks for a destination and waits for `arrived`. If the
    walker is not there yet, this WP is not either.
 7. **The errand is named and explicit.** "Give N to X" is a script the user can read before running
-   it. No hidden steps, no inferred goals.
+   it. No hidden steps, no inferred goals. A value the user has to give, such as the citizen to
+   support, is a declared parameter with a field on the tab, never a constant in the errand (PR3).
 8. **It stops on anything unexpected**: an unmatched dialog, a lost character, a map change it did
    not ask for, a timeout, or the global stop.
 9. **The Laborer drives one selected window** (WP13 decisions 9 and 10). It runs on the window the
@@ -188,6 +221,7 @@ export type ErrandOutcome =
 ## Acceptance criteria
 
 1. A recorded clout exchange replays through the matcher and selects the same options a player did.
+   (PR3: the driver replays the 2026-09-21 exchange whole and posts the player's keys.)
 2. A dialog whose rows moved is still matched, because the match is on text and pursuit.
 3. A dialog that matches nothing stops the run and logs what it saw, including the pursuit id.
 4. A step with no reply within the timeout stops the run.

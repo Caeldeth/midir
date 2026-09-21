@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { DialogStep } from '../../../shared/types'
 import type { NpcMenu } from '../../protocol/decode/dialog'
 import type { PursuitMessage } from '../../protocol/decode/pursuit'
-import { matchStep, menuToView, pursuitToView, type DialogView } from '../matcher'
+import { fillStep, matchStep, menuToView, pursuitToView, type DialogView } from '../matcher'
 
 /**
  * The matcher is the one part of the Laborer that decides what an option is, so
@@ -101,6 +101,89 @@ describe('matchStep against SPursuitMessage 0x30', () => {
       pursuit({ dialogType: 4, dialogKind: 'textInput', options: undefined })
     )
     expect(matchStep(GIVE_CLOUT, view)).toEqual({ kind: 'noMatch' })
+  })
+
+  it('does not choose a row when the step has nothing to choose', () => {
+    const view = pursuitToView(pursuit({ options: [{ text: 'Give clout' }] }))
+    expect(matchStep({ pursuit: 0x0064, answer: 'x' }, view)).toEqual({ kind: 'noMatch' })
+  })
+})
+
+describe('matchStep with `when`', () => {
+  // One pursuit, two dialogs in turn: the step must say which it means.
+  const confirm = pursuitToView(
+    pursuit({
+      pursuit: 588,
+      text: 'You may only support one citizen within these four Temuairan days. Are you sure you wish to support one now?',
+      options: [{ text: 'I am not sure' }, { text: 'I am sure' }]
+    })
+  )
+  const already = pursuitToView(
+    pursuit({
+      pursuit: 588,
+      text: 'Pandsala is in Temuair now. You can attempt to withdraw your support from the Aisling.',
+      options: [{ text: 'I continue to support the Aisling' }, { text: 'Withdraw support' }]
+    })
+  )
+
+  it('matches only the dialog whose prose contains the `when` text', () => {
+    const step: DialogStep = { pursuit: 588, when: 'are you sure', choose: 'I am sure' }
+    expect(matchStep(step, confirm)).toEqual({ kind: 'choose', index: 2, option: 'I am sure' })
+    expect(matchStep(step, already)).toEqual({ kind: 'noMatch' })
+  })
+
+  it('guards a text-entry dialog with `when` too', () => {
+    const view = pursuitToView(
+      pursuit({
+        pursuit: 588,
+        dialogType: 4,
+        dialogKind: 'textInput',
+        options: undefined,
+        text: 'Whom shall you support these four Temuairan days?'
+      })
+    )
+    expect(matchStep({ pursuit: 588, when: 'Whom shall you support', answer: 'X' }, view)).toEqual({
+      kind: 'answerText',
+      text: 'X'
+    })
+    expect(matchStep({ pursuit: 588, when: 'civil action', answer: 'X' }, view)).toEqual({
+      kind: 'noMatch'
+    })
+  })
+
+  it('treats a `when` on a dialog with no prose as unmet', () => {
+    const view = pursuitToView(pursuit({ pursuit: 588, options: [{ text: 'I am sure' }] }))
+    expect(matchStep({ pursuit: 588, when: 'sure', choose: 'I am sure' }, view)).toEqual({
+      kind: 'noMatch'
+    })
+  })
+})
+
+describe('fillStep', () => {
+  it('fills a placeholder in `answer` and `when`, and leaves the rest alone', () => {
+    const step: DialogStep = {
+      pursuit: 588,
+      when: '{citizen} is in Temuair now',
+      choose: 'I continue to support the Aisling',
+      answer: '{citizen}',
+      then: 'done'
+    }
+    expect(fillStep(step, { citizen: 'Pandsala' })).toEqual({
+      pursuit: 588,
+      when: 'Pandsala is in Temuair now',
+      choose: 'I continue to support the Aisling',
+      answer: 'Pandsala',
+      then: 'done'
+    })
+    // The errand data is not changed.
+    expect(step.answer).toBe('{citizen}')
+  })
+
+  it('leaves a placeholder with no value as it is, so the matcher refuses it', () => {
+    expect(fillStep({ pursuit: 1, answer: '{citizen}' }, {})).toEqual({
+      pursuit: 1,
+      answer: '{citizen}'
+    })
   })
 })
 

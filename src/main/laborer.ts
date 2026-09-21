@@ -1,4 +1,11 @@
-import type { ActionRefusal, ActionTarget, ErrandOutcome, LaborerState } from '../shared/types'
+import type {
+  ActionRefusal,
+  ActionTarget,
+  DialogStep,
+  ErrandOutcome,
+  ErrandRequest,
+  LaborerState
+} from '../shared/types'
 import type { Errand } from '../shared/types'
 import { errandStopMessage } from '../shared/types'
 import type { ActionLayer, LiveConnection } from './actionLayer'
@@ -6,7 +13,14 @@ import type { DialogState } from './model/dialog'
 import type { Logger } from './log'
 import type { Walker } from './walker'
 import { builtinErrands } from './laborer/errands'
-import { matchStep, menuToView, pursuitToView, type DialogView } from './laborer/matcher'
+import {
+  fillStep,
+  matchStep,
+  menuToView,
+  pursuitToView,
+  type DialogView,
+  type MatchResult
+} from './laborer/matcher'
 
 /**
  * The Laborer: walk to an NPC and work its dialog, the errand that is pure
@@ -59,7 +73,7 @@ export interface Laborer {
   /** Every built-in errand, for the picker. */
   errands(): Errand[]
   /** Run one built-in errand by name. Resolves with how the errand ended. */
-  run(request: { connectionId: string; errand: string }): Promise<ErrandOutcome>
+  run(request: ErrandRequest): Promise<ErrandOutcome>
   /** Stop the Laborer on one connection. */
   stop(connectionId: string): void
   /** Every Laborer running now. */
@@ -72,10 +86,29 @@ export interface Laborer {
  * How long to wait for the next dialog packet, in milliseconds.
  *
  * The server answers a dialog step fast: WP9 measured bank replies at 119 to
- * 253 ms. The first dialog waits on the player opening the conversation, so the
- * window is generous. A step that gets no reply in this window stops the run.
+ * 253 ms, and the clout capture of 2026-09-21 shows each civic dialog within
+ * 500 ms of the answer. The window is generous. A step that gets no reply in
+ * this window stops the run.
  */
 const DIALOG_WAIT_MS = 6000
+
+/**
+ * How long to wait for the conversation to open, in milliseconds.
+ *
+ * The Laborer does not click the NPC (WP17, gesture 1). It waits for the player
+ * to open the conversation after the walk arrives, and again after a branch
+ * that closed the dialog and asked for a restart. A player is slower than a
+ * server, so this wait is the long one.
+ */
+const FIRST_DIALOG_WAIT_MS = 30000
+
+/**
+ * How many times a `restart` branch may send the run back to the first step.
+ *
+ * One restart is the errand that withdrew support from one citizen and then
+ * supports another. A second restart is a loop, and the run stops instead.
+ */
+const MAX_RESTARTS = 1
 
 /** How often to poll the dialog feed while waiting, in milliseconds. */
 const POLL_MS = 40
@@ -122,11 +155,30 @@ function toView(dialog: DialogState): DialogView {
     : menuToView(dialog.packet)
 }
 
-/** Describe a dialog for the log and the user, so the next run can add the case. */
+/**
+ * Describe a dialog for the log and the user, so the next run can add the case.
+ *
+ * Every id is in it: the view's pursuit, or each row's own for a menu. An
+ * errand whose steps are not captured yet stops on its first dialog with this
+ * line, and the line is the capture.
+ */
 function describeDialog(view: DialogView): string {
-  const rows = view.options.map((option) => `"${option.text}"`).join(', ')
-  const pursuit = view.pursuit !== undefined ? `0x${view.pursuit.toString(16)}` : 'per row'
-  return `pursuit ${pursuit} from ${view.npcName || 'an NPC'}, options: [${rows}]`
+  const rows = view.options
+    .map((option) =>
+      option.pursuit !== undefined ? `"${option.text}" (${option.pursuit})` : `"${option.text}"`
+    )
+    .join(', ')
+  const pursuit = view.pursuit !== undefined ? String(view.pursuit) : 'per row'
+  const text = view.text !== undefined && view.text !== '' ? ` saying "${view.text.trim()}"` : ''
+  const kind = view.isTextInput ? 'a text field' : `options: [${rows}]`
+  return `pursuit ${pursuit} from ${view.npcName || 'an NPC'}${text}, ${kind}`
+}
+
+/** The labels of the errand's params the request gives no value for. */
+function missingParams(errand: Errand, values: Record<string, string>): string[] {
+  return (errand.params ?? [])
+    .filter((param) => (values[param.name] ?? '').trim() === '')
+    .map((param) => param.label)
 }
 
 export function createLaborer(options: LaborerOptions): Laborer {
@@ -200,13 +252,20 @@ export function createLaborer(options: LaborerOptions): Laborer {
     return actionLayer.pressKey(target, OPTION_DIGIT_BASE + index)
   }
 
-  async function run(request: { connectionId: string; errand: string }): Promise<ErrandOutcome> {
+  async function run(request: ErrandRequest): Promise<ErrandOutcome> {
     const { connectionId } = request
     const errand = errandList.find((candidate) => candidate.name === request.errand)
     if (errand === undefined) throw new Error(`There is no errand named "${request.errand}".`)
     if (!hasLiveCharacter(connectionId)) {
       throw new Error('No character is logged in on the selected window.')
     }
+    const values = request.params ?? {}
+    const missing = missingParams(errand, values)
+    if (missing.length > 0) throw new Error(`The errand needs a value for: ${missing.join(', ')}.`)
+    // The steps and the branches with the user's values in place of the
+    // placeholders. The errand data itself never changes.
+    const steps = errand.steps.map((step) => fillStep(step, values))
+    const branches = (errand.branches ?? []).map((step) => fillStep(step, values))
     // Restart cleanly if one is already running on this connection.
     if (runs.has(connectionId)) stop(connectionId)
 
@@ -249,8 +308,9 @@ export function createLaborer(options: LaborerOptions): Laborer {
     // before the errand is never answered. The first step matches the dialog the
     // player has open, so the very first wait accepts the current one.
     let lastAsOf = 0
+    let restarts = 0
 
-    for (let index = 0; index < errand.steps.length; index++) {
+    for (let index = 0; index < steps.length; index++) {
       if (!runState.running)
         return finish(runState, { kind: 'stopped', reason: runState.stopReason ?? 'user' })
       if (actionLayer.stopped) return finish(runState, { kind: 'stopped', reason: 'user' })
@@ -258,9 +318,21 @@ export function createLaborer(options: LaborerOptions): Laborer {
         return finish(runState, { kind: 'stopped', reason: 'lostCharacter' })
       }
       runState.step = index
-      publish(runState, `the dialog for step ${index + 1}`)
+      // The first dialog is the player's to open. The rest are the server's
+      // answers to the Laborer's own keys.
+      const opening = index === 0
+      publish(
+        runState,
+        opening
+          ? `the conversation with ${errand.npcName} to open`
+          : `the dialog for step ${index + 1}`
+      )
 
-      const dialog = await waitForDialog(runState, lastAsOf, DIALOG_WAIT_MS)
+      const dialog = await waitForDialog(
+        runState,
+        lastAsOf,
+        opening ? FIRST_DIALOG_WAIT_MS : DIALOG_WAIT_MS
+      )
       if (dialog === null) {
         if (!runState.running || actionLayer.stopped) {
           return finish(runState, { kind: 'stopped', reason: runState.stopReason ?? 'user' })
@@ -269,8 +341,20 @@ export function createLaborer(options: LaborerOptions): Laborer {
       }
       lastAsOf = dialog.asOfMs
 
+      // The next step first. When it does not match, a branch may: a dialog the
+      // server shows in place of the step, which says what follows it.
       const view = toView(dialog)
-      const result = matchStep(errand.steps[index]!, view)
+      let acted: DialogStep = steps[index]!
+      let result: MatchResult = matchStep(acted, view)
+      if (result.kind === 'noMatch') {
+        for (const branch of branches) {
+          const attempt = matchStep(branch, view)
+          if (attempt.kind === 'noMatch') continue
+          acted = branch
+          result = attempt
+          break
+        }
+      }
 
       if (result.kind === 'protected') {
         log.warn('laborer', 'A login or password dialog appeared. Stopping before any key.')
@@ -296,6 +380,19 @@ export function createLaborer(options: LaborerOptions): Laborer {
       if (refusal !== null) {
         if (refusal === 'stopped') return finish(runState, { kind: 'stopped', reason: 'user' })
         return finish(runState, { kind: 'stopped', reason: 'lostCharacter' })
+      }
+
+      if (acted.then === 'done') break
+      if (acted.then === 'restart') {
+        if (restarts >= MAX_RESTARTS) {
+          const saw = describeDialog(view)
+          log.warn('laborer', `The errand asked to restart again after: ${saw}. Stopping.`)
+          return finish(runState, { kind: 'stopped', reason: 'unmatchedDialog', saw })
+        }
+        restarts += 1
+        log.info('laborer', `Restarting the errand from the first step after "${acted.when}".`)
+        // The loop's own increment lands on the first step.
+        index = -1
       }
     }
 

@@ -45,6 +45,8 @@ function Laborer(): React.JSX.Element {
   const selected = useLaborerStore((s) => s.selected)
   const setSelected = useLaborerStore((s) => s.setSelected)
   const errand = useLaborerStore((s) => s.errand)
+  const params = useLaborerStore((s) => s.params)
+  const setParam = useLaborerStore((s) => s.setParam)
   const setErrand = useLaborerStore((s) => s.setErrand)
   const refresh = useLaborerStore((s) => s.refresh)
   const refreshWindows = useLaborerStore((s) => s.refreshWindows)
@@ -73,14 +75,18 @@ function Laborer(): React.JSX.Element {
   const isRunning = activeRun?.running === true
 
   // An errand name that is no longer offered collapses to empty.
-  const errandValue = errands.some((e) => e.name === errand) ? errand : ''
+  const chosen = errands.find((e) => e.name === errand)
+  const errandValue = chosen !== undefined ? errand : ''
+  // The values the chosen errand asks for, one field each. Every one is needed.
+  const errandParams = chosen?.params ?? []
+  const paramsFilled = errandParams.every((p) => (params[p.name] ?? '').trim() !== '')
 
   const windowLabel = (w: (typeof windows)[number]): string =>
     w.characterName !== undefined ? w.characterName : w.title || 'A game window'
 
   const onRun = (): void => {
-    if (selectedValue === '' || errandValue === '') return
-    run(selectedValue, errandValue)
+    if (selectedValue === '' || errandValue === '' || !paramsFilled) return
+    run(selectedValue, errandValue, params)
   }
 
   return (
@@ -166,6 +172,20 @@ function Laborer(): React.JSX.Element {
           ))}
         </TextField>
 
+        {errandParams.map((p) => (
+          <TextField
+            key={p.name}
+            fullWidth
+            size="small"
+            label={p.label}
+            value={params[p.name] ?? ''}
+            onChange={(event) => setParam(p.name, event.target.value)}
+            disabled={isRunning}
+            slotProps={{ htmlInput: { maxLength: 64, 'data-testid': `laborer-param-${p.name}` } }}
+            sx={{ mb: 2 }}
+          />
+        ))}
+
         <Stack direction="row" sx={{ gap: 1.5, alignItems: 'center', flexWrap: 'wrap', mb: 2 }}>
           {isRunning ? (
             <Button
@@ -179,7 +199,7 @@ function Laborer(): React.JSX.Element {
           ) : (
             <Button
               variant="contained"
-              disabled={selectedValue === '' || errandValue === ''}
+              disabled={selectedValue === '' || errandValue === '' || !paramsFilled}
               onClick={onRun}
               data-testid="laborer-run"
             >

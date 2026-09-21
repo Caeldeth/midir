@@ -22,6 +22,8 @@ interface LaborerStoreState {
   selected: string
   /** The name of the errand the user chose. */
   errand: string
+  /** The values the user typed for the chosen errand's params, by name. */
+  params: Record<string, string>
   /** True while a stop is in force. */
   stopped: boolean
   stopReason?: string
@@ -33,9 +35,10 @@ interface LaborerStoreState {
   error: string | null
   setSelected: (connectionId: string) => void
   setErrand: (errand: string) => void
+  setParam: (name: string, value: string) => void
   refreshWindows: () => Promise<void>
   refresh: () => Promise<void>
-  run: (connectionId: string, errand: string) => void
+  run: (connectionId: string, errand: string, params: Record<string, string>) => void
   stop: (connectionId: string) => Promise<void>
   stopAll: () => Promise<void>
   clearStop: () => Promise<void>
@@ -63,13 +66,17 @@ export const useLaborerStore = create<LaborerStoreState>((set, get) => ({
   errands: [],
   selected: '',
   errand: '',
+  params: {},
   stopped: false,
   running: {},
   busy: false,
   error: null,
 
   setSelected: (connectionId) => set({ selected: connectionId }),
-  setErrand: (errand) => set({ errand }),
+  // A new errand starts with empty values; a citizen's name for one errand is
+  // not an answer for another.
+  setErrand: (errand) => set({ errand, params: {} }),
+  setParam: (name, value) => set({ params: { ...get().params, [name]: value } }),
 
   refreshWindows: async () => {
     set({ windows: await window.api.assist.windows() })
@@ -87,13 +94,13 @@ export const useLaborerStore = create<LaborerStoreState>((set, get) => ({
     set({ windows, stopped: assist.stopped, stopReason: assist.reason, running, errands })
   },
 
-  run: (connectionId, errand) => {
+  run: (connectionId, errand, params) => {
     if (connectionId === '' || errand === '') return
     set({ error: null, lastOutcome: undefined })
     // The errand resolves when it ends, which may be minutes. Do not await it:
     // the running state arrives on a push, and the outcome is kept for the line.
     window.api.laborer
-      .run({ connectionId, errand })
+      .run({ connectionId, errand, params })
       .then((outcome) => set({ lastOutcome: outcome }))
       .catch((error) => set({ error: messageOf(error) }))
   },

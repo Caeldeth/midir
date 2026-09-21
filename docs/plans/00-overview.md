@@ -139,7 +139,7 @@ the assistants, after the charter change:
 WP13 (the action layer: window, keys, the stop)   COMPLETE — complete/13-action-layer.md
  ├── WP16 (Speaker)   COMPLETE — complete/16-speaker.md — the smallest user of WP13, and its proof
  └── WP15 (Walker)   COMPLETE — complete/15-walker.md
-      └── WP17 (Laborer)   IN PROGRESS — both PRs merged; the rest needs a live game
+      └── WP17 (Laborer)   IN PROGRESS — three PRs merged; the clout steps are in, the live check is next
            ├── WP33 (world-map coverage for errand nodes)   COMPLETE — complete/33-errand-map-coverage.md — every errand routes
            ├── WP34 (dismiss blocking popups)   PLANNED — a notice reads as a stall today
            └── WP35 (right-click walking)   PLANNED — the client's own pathfinder for a smoother walk

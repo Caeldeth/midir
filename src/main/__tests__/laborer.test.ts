@@ -3,7 +3,10 @@ import { createLaborer, type Sleeper } from '../laborer'
 import type { ActionLayer, LiveConnection } from '../actionLayer'
 import type { ActionRefusal, ActionTarget, Errand, WalkOutcome } from '../../shared/types'
 import type { DialogState } from '../model/dialog'
+import type { NpcMenu } from '../protocol/decode/dialog'
 import type { PursuitMessage } from '../protocol/decode/pursuit'
+import { builtinErrands } from '../laborer/errands'
+import cloutExchange from '../laborer/__tests__/fixtures/clout-exchange-2026-09-21.json'
 import type { Walker } from '../walker'
 import type { Logger } from '../log'
 
@@ -236,14 +239,15 @@ describe('createLaborer', () => {
   })
 
   it('stops on an unmatched dialog and reports what it saw', async () => {
-    const feed = feedOf([pursuit({ pursuit: 0x0999, options: [{ text: 'Nothing here' }] })])
+    const feed = feedOf([pursuit({ pursuit: 999, options: [{ text: 'Nothing here' }] })])
     const { laborer, fake } = make({ errand: twoStepErrand(), feed })
     const outcome = await laborer.run({ connectionId: CID, errand: 'Test errand' })
 
     expect(outcome.kind).toBe('stopped')
     if (outcome.kind === 'stopped') {
       expect(outcome.reason).toBe('unmatchedDialog')
-      expect(outcome.saw).toContain('0x999')
+      // The id is decimal, as the errand data and the capture tools write it.
+      expect(outcome.saw).toBe('pursuit 999 from Donnan, options: ["Nothing here"]')
     }
     expect(fake.keys).toEqual([]) // nothing posted
   })
@@ -314,5 +318,146 @@ describe('createLaborer', () => {
     await expect(laborer.run({ connectionId: CID, errand: 'No such' })).rejects.toThrow(
       /no errand/i
     )
+  })
+
+  it('names every pursuit id in the stop line, so a run is a capture', async () => {
+    const feed = feedOf([
+      menu({
+        npcName: 'Aingeal',
+        options: [
+          { text: 'Buy', pursuit: 64 },
+          { text: 'Mileth Civics', pursuit: 1700 }
+        ]
+      }) as unknown as PursuitMessage
+    ])
+    const { laborer } = make({ errand: twoStepErrand(), feed })
+    const outcome = await laborer.run({ connectionId: CID, errand: 'Test errand' })
+    expect(outcome).toEqual({
+      kind: 'stopped',
+      reason: 'unmatchedDialog',
+      saw: 'pursuit per row from Aingeal saying "Hello.  What can I do for you?", options: ["Buy" (64), "Mileth Civics" (1700)]'
+    })
+  })
+})
+
+function menu(overrides: Partial<NpcMenu> = {}): NpcMenu {
+  return {
+    kind: 'npcMenu',
+    sourceId: 6703,
+    npcName: 'Eduardo',
+    menuType: 0,
+    text: 'Hello.  What can I do for you?',
+    isTextInput: false,
+    options: [],
+    ...overrides
+  }
+}
+
+/** The dialogs the recorded civic conversation shows, from the fixture. */
+type Exchange = Array<{ at: number; server?: unknown; client?: unknown }>
+
+/** The server dialogs of one conversation in the fixture, from `from` to `to`. */
+function serverDialogs(from: number, to: number): DialogState[] {
+  return (cloutExchange as Exchange)
+    .slice(from, to)
+    .filter((entry) => entry.server !== undefined)
+    .map((entry) => ({ packet: entry.server as PursuitMessage | NpcMenu, asOfMs: entry.at }))
+}
+
+/**
+ * The keys the player pressed in the fixture, in the Laborer's terms: a menu
+ * row chosen by its pursuit is the digit of that row, a pursuit choice is its
+ * digit, and typed text is the text.
+ */
+function playerAnswers(from: number, to: number): { keys: number[]; typed: string[] } {
+  const keys: number[] = []
+  const typed: string[] = []
+  let lastMenu: NpcMenu | undefined
+  for (const entry of (cloutExchange as Exchange).slice(from, to)) {
+    const server = entry.server as { kind: string } | undefined
+    if (server?.kind === 'npcMenu') lastMenu = server as NpcMenu
+    const client = entry.client as
+      | { kind: 'merchantResponse'; pursuit: number }
+      | { kind: 'pursuitResponse'; choice?: number; text?: string }
+      | undefined
+    if (client === undefined) continue
+    if (client.kind === 'merchantResponse') {
+      const row = lastMenu!.options.findIndex((o) => o.pursuit === client.pursuit)
+      keys.push(0x31 + row)
+    } else if (client.choice !== undefined) {
+      keys.push(0x30 + client.choice)
+    } else if (client.text !== undefined) {
+      typed.push(client.text)
+    }
+  }
+  return { keys, typed }
+}
+
+describe('the recorded clout conversation (Eduardo, 2026-09-21)', () => {
+  const errand = builtinErrands().find((e) => e.npcName === 'Eduardo')!
+  const request = { connectionId: CID, errand: errand.name, params: { citizen: 'Pandsala' } }
+
+  // The fixture's entries: 0 to 7 is the first support; 8 and 9 a menu the
+  // player opened and closed; 10 to 15 the already-supporting branch and the
+  // withdrawal; 16 to 23 the support again after the player reopened the menu.
+  it('supports a citizen with the same keys the player pressed', async () => {
+    const feed = { list: serverDialogs(0, 8), index: 0 }
+    const { laborer, fake } = make({ errand, feed })
+    const outcome = await laborer.run(request)
+    expect(outcome).toEqual({ kind: 'done' })
+    const player = playerAnswers(0, 8)
+    expect(fake.keys).toEqual(player.keys)
+    expect(fake.typed).toEqual(player.typed)
+    expect(fake.keys).toEqual([0x31, 0x31, 0x32])
+    expect(fake.typed).toEqual(['Pandsala'])
+  })
+
+  it('withdraws support from another citizen, restarts, and supports the wanted one', async () => {
+    const feed = { list: serverDialogs(10, 24), index: 0 }
+    const { laborer, fake, states } = make({ errand, feed })
+    const outcome = await laborer.run({ ...request, params: { citizen: 'Sabrael' } })
+    expect(outcome).toEqual({ kind: 'done' })
+    // Civics, Support, Withdraw; then Civics, Support, I am sure, and the name.
+    const player = playerAnswers(10, 24)
+    expect(fake.keys).toEqual(player.keys)
+    expect(fake.keys).toEqual([0x31, 0x31, 0x32, 0x31, 0x31, 0x32])
+    expect(fake.typed).toEqual(['Sabrael'])
+    // After the withdrawal it waited for the player to open the menu again.
+    expect(states.filter((s) => s.running).length).toBeGreaterThan(0)
+  })
+
+  it('is done at once when the wanted citizen is already supported', async () => {
+    const feed = { list: serverDialogs(10, 15), index: 0 }
+    const { laborer, fake } = make({ errand, feed })
+    const outcome = await laborer.run(request)
+    expect(outcome).toEqual({ kind: 'done' })
+    // Civics, Support, then "I continue to support the Aisling" (row 1).
+    expect(fake.keys).toEqual([0x31, 0x31, 0x31])
+    expect(fake.typed).toEqual([])
+  })
+
+  it('refuses to run without the citizen', async () => {
+    const feed = { list: serverDialogs(0, 8), index: 0 }
+    const { laborer, fake } = make({ errand, feed })
+    await expect(laborer.run({ connectionId: CID, errand: errand.name })).rejects.toThrow(
+      /Citizen to support/
+    )
+    await expect(
+      laborer.run({ connectionId: CID, errand: errand.name, params: { citizen: '  ' } })
+    ).rejects.toThrow(/Citizen to support/)
+    expect(fake.keys).toEqual([])
+  })
+
+  it('stops rather than restart twice', async () => {
+    // Two withdrawals in a row: the server keeps saying another is supported.
+    const branch = serverDialogs(10, 15)
+    // The repeat is later than the first, as a real repeat would be.
+    const again = branch.map((d) => ({ ...d, asOfMs: d.asOfMs + 60_000 }))
+    const feed = { list: [...branch, ...again], index: 0 }
+    const { laborer, fake } = make({ errand, feed })
+    const outcome = await laborer.run({ ...request, params: { citizen: 'Sabrael' } })
+    expect(outcome.kind).toBe('stopped')
+    if (outcome.kind === 'stopped') expect(outcome.reason).toBe('unmatchedDialog')
+    expect(fake.keys).toEqual([0x31, 0x31, 0x32, 0x31, 0x31, 0x32])
   })
 })
