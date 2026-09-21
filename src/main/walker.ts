@@ -402,17 +402,29 @@ export function createWalker(options: WalkerOptions): Walker {
    * An exchange window mid-walk: another player dragged an item onto the
    * character. Escape is the window's own cancel: it sends the player's
    * cancel and loses nothing, and the server's cancel then closes the window
-   * on the wire. OK is never touched. The client puts up a one-button alert
-   * with the closing message, which never touches the wire and whose button
-   * is not yet measured, so the alert is left to the stall count and the
-   * pane watcher logs the hand click that clears it.
+   * on the wire (live, 2026-09-21 11:45Z). OK is never touched. The client
+   * then puts up a one-button alert with the closing message, which never
+   * touches the wire and holds the character still until it is dismissed;
+   * Escape dismisses it too (Sabrael), so the alert gets one Escape of its
+   * own, keyed to the close it followed, with no wait, because nothing on the
+   * wire says when it went. Its button is at game (403, 167) by hand click,
+   * should the key ever fail.
    */
   async function checkExchange(
     run: Run,
     target: ActionTarget,
     exchange: ExchangeState
   ): Promise<PopupCheck> {
-    if (exchange.kind !== 'open') return { kind: 'none' }
+    if (exchange.kind === 'alert') {
+      if (!firstSight(run, `alert:${exchange.asOfMs}`)) return { kind: 'none' }
+      log.info(
+        'walker',
+        `The exchange's closing alert ("${exchange.message}") is on screen; pressing Escape.`
+      )
+      const refused = afterGesture(run, await actionLayer.pressKey(target, VK_ESCAPE))
+      if (refused !== null) return refused
+      return { kind: 'dismissed' }
+    }
     if (!firstSight(run, `exchange:${exchange.asOfMs}`)) {
       log.warn(
         'walker',

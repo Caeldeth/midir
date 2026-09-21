@@ -92,8 +92,12 @@ class World {
   pendingHop: { mapId: number; x: number; y: number } | null = null
   /** The dialog on screen. A dialog up holds the character still, as in the game. */
   dialog: DialogState | null = null
-  /** The exchange window, or the alert it left. An open window holds the character still. */
+  /**
+   * The exchange window, or the alert it left. An open window holds the
+   * character still, and so does the alert until it is dismissed.
+   */
   exchange: ExchangeState | null = null
+  alertBlocks = false
   /** Whether a pane honours the posted gesture. Off models a click that misses or a key unread. */
   buttonsWork = true
   /** Every key the walker posted that was not an arrow. */
@@ -123,6 +127,7 @@ class World {
     // A popup holds the character still until it is cleared.
     if (this.dialog !== null) return
     if (this.exchange?.kind === 'open') return
+    if (this.exchange?.kind === 'alert' && this.alertBlocks) return
     if (this.dropPresses > 0) {
       this.dropPresses--
       return
@@ -288,12 +293,14 @@ function harness(world: World, graphNodes: RouteNode[]): Harness {
       if (direction >= 0) world.press(direction)
       else world.otherKeys.push(_key)
       // Escape is the exchange window's own cancel: the client sends it, and
-      // the server's cancel closes the window into its alert.
-      if (_key === 0x1b && world.buttonsWork && world.exchange?.kind === 'open') {
-        world.exchange = {
-          kind: 'alert',
-          message: 'Exchange was cancelled.',
-          asOfMs: ++world.clock
+      // the server's cancel closes the window into its alert, which holds the
+      // character until its own Escape.
+      if (_key === 0x1b && world.buttonsWork) {
+        if (world.exchange?.kind === 'open') {
+          world.exchange = { kind: 'alert', message: 'Exchange cancelled.', asOfMs: ++world.clock }
+          world.alertBlocks = true
+        } else if (world.exchange?.kind === 'alert') {
+          world.alertBlocks = false
         }
       }
       return null
@@ -822,10 +829,11 @@ describe('walker and a popup mid-walk (WP34)', () => {
     expect(world.presses).toBe(pressesAtPopup + 1)
   })
 
-  it('cancels an exchange window with Escape, and walks on', async () => {
+  it('cancels an exchange window with Escape, clears its alert the same way, and walks on', async () => {
     // The popup Sabrael can make on demand: another player drags an item
     // onto the character. SExchange 0x42, not a dialog. Escape is its own
-    // cancel; OK is never touched.
+    // cancel, and the "Exchange cancelled." alert takes Escape too; OK is
+    // never touched.
     const world = lineWorld()
     let moves = 0
     world.afterMove = (w): void => {
@@ -837,10 +845,12 @@ describe('walker and a popup mid-walk (WP34)', () => {
     const { walker } = harness(world, lineGraph())
     const outcome = await walker.go({ connectionId: CID, destination: 'Cave' })
     expect(outcome).toEqual({ kind: 'arrived' })
-    expect(world.otherKeys).toEqual([0x1b])
+    // One Escape for the window, one for the alert it left.
+    expect(world.otherKeys).toEqual([0x1b, 0x1b])
     expect(world.clicks).toEqual([])
     expect(world.closeClicks).toBe(0)
     expect(world.exchange?.kind).toBe('alert')
+    expect(world.alertBlocks).toBe(false)
   })
 
   it('posts one Escape at an exchange the client keeps open, then stops with dialog', async () => {
