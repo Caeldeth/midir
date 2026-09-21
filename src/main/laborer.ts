@@ -362,7 +362,13 @@ export function createLaborer(options: LaborerOptions): Laborer {
       const dialog = dialogFor(run.connectionId)
       if (dialog !== null && dialog.asOfMs > afterMs) return null
       const position = positionFor(run.connectionId)
-      if (position === null) return null
+      if (position === null) {
+        log.warn(
+          'laborer',
+          `No position for the character; waiting for the player to open the conversation with ${errand.npcName}.`
+        )
+        return null
+      }
       const point = creaturePoint({ x: position.x, y: position.y }, errand.npcTile)
       log.info(
         'laborer',
