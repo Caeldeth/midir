@@ -39,9 +39,13 @@ Built in two PRs off `main`, both provable with no game.
 
 **The gestures, as the live check of 2026-09-21 settled them:**
 
-1. **Opening the first dialog.** The driver does not click the NPC in v1; it waits for the first
-   dialog and works it (`FIRST_DIALOG_WAIT_MS`, 30 s). The player opens the conversation. The
-   trigger gesture needs the NPC's screen position, which is WP35's projection.
+1. **Opening the first dialog is a click on the NPC** (`openConversation`), where the client draws
+   it: the character is the centre of the world window (the `MAP` region of `_nbk_s.txt`, so
+   311, 157), and a tile (dx, dy) away is drawn at (dx − dy) × 28, (dx + dy) × 13.5 from there
+   (`laborer/view.ts`). The errand's `npcTile` and the position off the wire give the point; the
+   click aims a little above the tile at the body. Three clicks, each waited on for a dialog; then,
+   or when the NPC's tile is not known, the player opens the conversation (`FIRST_DIALOG_WAIT_MS`,
+   30 s). The pane watcher logs the view centre each hand click on a known NPC implies.
 2. **Selecting a row is a click, and nothing else.** The first live run posted the row's number key
    and the client sent nothing. The client's own layouts (`lnpcd.txt`, `lnpcd2.txt` in `setoa.dat`)
    give the row pitch (18 px) and the row's width (193 to 579 on screen); the hand run of the same

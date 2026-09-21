@@ -4,6 +4,8 @@ import { GAME_HEIGHT, GAME_WIDTH, type LiveConnection } from './actionLayer'
 import type { Logger } from './log'
 import type { DialogAnswer, DialogState } from './model/dialog'
 import type { FieldMapState } from './model/fieldMap'
+import type { Position } from './model/position'
+import { centreFromClick, type Tile } from './laborer/view'
 
 /**
  * The pane watcher: while a world map or an NPC dialog is open, write down
@@ -40,6 +42,10 @@ export interface PaneWatcherOptions {
   dialogFor?: (connectionId: string) => DialogState | null
   /** The client's newest dialog answer, from the capture service. Absent in older tests. */
   answerFor?: (connectionId: string) => DialogAnswer | null
+  /** The character's position, from the capture service. Absent in older tests. */
+  positionFor?: (connectionId: string) => Position | null
+  /** The NPC tiles the errands know, to turn a hand click on an NPC into the view centre. */
+  knownNpcs?: () => { npcName: string; mapId: number; tile: Tile }[]
   log: Logger
   /** The clock. Injected by tests. */
   now?: () => number
@@ -69,7 +75,14 @@ interface WatchedDialog {
   lastClick?: { gameX: number; gameY: number; atMs: number }
   /** Capture time of the last 0x39 or 0x3A written to the log. */
   lastAnsweredAt?: number
+  /** The last hand click on the world with no dialog up, and where the character stood. */
+  worldClick?: { gameX: number; gameY: number; atMs: number; own: Tile; mapId: number }
+  /** Capture time of the dialog last seen, to notice a new one. */
+  lastDialogAt?: number
 }
+
+/** How long after a hand click on the world a dialog that opens is credited to it. */
+const OPEN_WINDOW_MS = 2500
 
 /** Name the row a client answer chose, from the dialog it answered. */
 function describeAnswer(answered: DialogAnswer): string {
@@ -98,6 +111,8 @@ export function createPaneWatcher(options: PaneWatcherOptions): PaneWatcher {
   const { pointerIn, resolveTarget, liveConnections, fieldMapFor, log } = options
   const dialogFor = options.dialogFor ?? ((): null => null)
   const answerFor = options.answerFor ?? ((): null => null)
+  const positionFor = options.positionFor ?? ((): null => null)
+  const knownNpcs = options.knownNpcs ?? ((): [] => [])
   const now = options.now ?? Date.now
   const watched = new Map<string, Watched>()
   const watchedDialogs = new Map<string, WatchedDialog>()
@@ -137,15 +152,52 @@ export function createPaneWatcher(options: PaneWatcherOptions): PaneWatcher {
     }
 
     const dialog = dialogFor(connectionId)
-    if (dialog === null) {
-      state.leftDown = false
-      return
+
+    // A dialog that opened just after a hand click on the world: that click
+    // was on the NPC, and with the NPC's tile known it measures the view
+    // centre the Laborer's own NPC click needs.
+    if (dialog !== null && dialog.asOfMs !== state.lastDialogAt) {
+      state.lastDialogAt = dialog.asOfMs
+      const hand = state.worldClick
+      if (hand !== undefined && Math.abs(dialog.asOfMs - hand.atMs) <= OPEN_WINDOW_MS) {
+        state.worldClick = undefined
+        const shown = dialog.packet
+        const npc = knownNpcs().find((n) => n.npcName === shown.npcName && n.mapId === hand.mapId)
+        const centre =
+          npc !== undefined
+            ? centreFromClick({ x: hand.gameX, y: hand.gameY }, hand.own, npc.tile)
+            : undefined
+        log.info(
+          'pane',
+          `The dialog from ${shown.npcName || 'an NPC'} opened ${dialog.asOfMs - hand.atMs} ms after the hand click at game (${hand.gameX}, ${hand.gameY}) with the character at (${hand.own.x}, ${hand.own.y}) on map ${hand.mapId}${npc !== undefined ? `; the NPC stands on (${npc.tile.x}, ${npc.tile.y}), so the view centre is (${centre!.x}, ${centre!.y})` : ''}.`
+        )
+      }
     }
 
     const target = resolveTarget(connectionId)
     if (target === null) return
     const pointer = pointerIn(target.windowHandle)
     if (pointer === null) return
+
+    if (dialog === null) {
+      // No dialog up: a release on the world is remembered, in case a dialog
+      // follows it.
+      if (state.leftDown && !pointer.leftDown && pointer.inside) {
+        const position = positionFor(connectionId)
+        if (position !== null) {
+          state.worldClick = {
+            gameX: Math.round((pointer.x * GAME_WIDTH) / Math.max(1, pointer.width)),
+            gameY: Math.round((pointer.y * GAME_HEIGHT) / Math.max(1, pointer.height)),
+            atMs: now(),
+            own: { x: position.x, y: position.y },
+            mapId: position.mapId
+          }
+        }
+      }
+      state.leftDown = pointer.leftDown
+      return
+    }
+
     if (state.leftDown && !pointer.leftDown && pointer.inside) {
       const gameX = Math.round((pointer.x * GAME_WIDTH) / Math.max(1, pointer.width))
       const gameY = Math.round((pointer.y * GAME_HEIGHT) / Math.max(1, pointer.height))

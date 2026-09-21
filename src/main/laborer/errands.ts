@@ -228,10 +228,13 @@ export const BUILTIN_ERRANDS: Errand[] = [
   },
 
   // --- Labor and labor fix: two errands for each bank NPC ----------------
-  ...bankErrands('Antonio', 'Rucesion Bank', 'Rucesion Bank', { standTile: { x: 5, y: 8 } }),
+  ...bankErrands('Antonio', 'Rucesion Bank', 'Rucesion Bank', {
+    standTile: { x: 5, y: 8 },
+    npcTile: { x: 3, y: 4 }
+  }),
   ...bankErrands('Cassidy', 'Mileth Bank', 'Mileth Bank', { standTile: { x: 6, y: 6 } }),
-  // The three other-town storages are the same 12 x 12 room as Rucesion's,
-  // with the NPC on the same tile (3,4), so Rucesion's stand tile carries over.
+  // The four storages are the same 12 x 12 room, with the NPC on (3,4), so
+  // Rucesion's stand tile carries over to the other three.
   ...bankErrands('Jilt', 'Piet Bank', 'Piet Bank', {
     standTile: { x: 5, y: 8 },
     npcTile: { x: 3, y: 4 }

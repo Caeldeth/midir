@@ -10,6 +10,8 @@ import type { Errand } from '../shared/types'
 import { errandStopMessage } from '../shared/types'
 import type { ActionLayer, LiveConnection } from './actionLayer'
 import type { DialogState } from './model/dialog'
+import type { Position } from './model/position'
+import { creaturePoint, VIEW_CENTRE } from './laborer/view'
 import type { NoticeState } from './model/notice'
 import type { Logger } from './log'
 import type { Walker } from './walker'
@@ -59,6 +61,8 @@ export interface LaborerOptions {
   liveConnections: () => LiveConnection[]
   /** The NPC dialog on screen for a connection. From the capture service. */
   dialogFor: (connectionId: string) => DialogState | null
+  /** The character's position. From the capture service. For the NPC click. */
+  positionFor?: (connectionId: string) => Position | null
   /**
    * The newest server notice for a connection. From the capture service. A
    * notice and a dialog close in place of the next dialog is a refusal.
@@ -101,12 +105,19 @@ const DIALOG_WAIT_MS = 6000
 /**
  * How long to wait for the conversation to open, in milliseconds.
  *
- * The Laborer does not click the NPC (WP17, gesture 1). It waits for the player
- * to open the conversation after the walk arrives, and again after a branch
- * that closed the dialog and asked for a restart. A player is slower than a
- * server, so this wait is the long one.
+ * The Laborer clicks the NPC when it knows the NPC's tile (`openConversation`),
+ * and waits for the player to when it does not, or when its own clicks got no
+ * dialog. A player is slower than a server, so this wait is the long one.
  */
 const FIRST_DIALOG_WAIT_MS = 30000
+
+/**
+ * The NPC click: how long to wait for the dialog after one, and how many
+ * clicks to try. A click that misses the sprite is a click on the ground,
+ * which the client answers with nothing.
+ */
+const OPEN_WAIT_MS = 3000
+const OPEN_TRIES = 3
 
 /**
  * How long to wait for the server's word after the last step, in milliseconds.
@@ -238,6 +249,7 @@ function missingParams(errand: Errand, values: Record<string, string>): string[]
 export function createLaborer(options: LaborerOptions): Laborer {
   const { actionLayer, walker, liveConnections, dialogFor, log, onState } = options
   const noticeFor = options.noticeFor ?? ((): null => null)
+  const positionFor = options.positionFor ?? ((): null => null)
   const sleep = options.sleep ?? defaultSleep
   const errandList = options.errands ?? builtinErrands()
 
@@ -325,6 +337,50 @@ export function createLaborer(options: LaborerOptions): Laborer {
     }
   }
 
+  /**
+   * Open the conversation by clicking the NPC, when its tile is known.
+   *
+   * The click aims at the NPC's sprite as the client draws it from where the
+   * character stands (`laborer/view.ts`). Up to `OPEN_TRIES` clicks, each
+   * waited on for `OPEN_WAIT_MS`; the caller then waits for the player. A
+   * dialog already up when this starts is taken as it is.
+   */
+  async function openConversation(
+    run: Run,
+    target: ActionTarget,
+    errand: Errand,
+    afterMs: number
+  ): Promise<ActionRefusal | null> {
+    if (errand.npcTile === undefined) {
+      log.info(
+        'laborer',
+        `The tile of ${errand.npcName} is not known; waiting for the player to open the conversation.`
+      )
+      return null
+    }
+    for (let attempt = 1; attempt <= OPEN_TRIES; attempt++) {
+      const dialog = dialogFor(run.connectionId)
+      if (dialog !== null && dialog.asOfMs > afterMs) return null
+      const position = positionFor(run.connectionId)
+      if (position === null) return null
+      const point = creaturePoint({ x: position.x, y: position.y }, errand.npcTile)
+      log.info(
+        'laborer',
+        `Clicking ${errand.npcName} on (${errand.npcTile.x}, ${errand.npcTile.y}) at game (${point.x}, ${point.y}) from (${position.x}, ${position.y}), view centre (${VIEW_CENTRE.x}, ${VIEW_CENTRE.y}), try ${attempt} of ${OPEN_TRIES}.`
+      )
+      const refusal = await actionLayer.click(target, point.x, point.y)
+      if (refusal !== null) return refusal
+      const waited = await waitForDialog(run, afterMs, OPEN_WAIT_MS, false)
+      if (waited.kind === 'dialog') return null
+      if (waited.kind === 'stopped') return 'stopped'
+    }
+    log.warn(
+      'laborer',
+      `No dialog after ${OPEN_TRIES} clicks on ${errand.npcName}; waiting for the player to open the conversation.`
+    )
+    return null
+  }
+
   /** Click the one-based row `index` of a dialog that shows `rows` rows. */
   async function chooseRow(
     target: ActionTarget,
@@ -407,15 +463,20 @@ export function createLaborer(options: LaborerOptions): Laborer {
         return finish(runState, { kind: 'stopped', reason: 'lostCharacter' })
       }
       runState.step = index
-      // The first dialog is the player's to open. The rest are the server's
-      // answers to the Laborer's own keys.
+      // The first dialog is opened by a click on the NPC, or by the player
+      // when the NPC's tile is not known. The rest are the server's answers
+      // to the Laborer's own clicks.
       const opening = index === 0
-      publish(
-        runState,
-        opening
-          ? `the conversation with ${errand.npcName} to open`
-          : `the dialog for step ${index + 1}`
-      )
+      if (opening) {
+        publish(runState, `the conversation with ${errand.npcName} to open`)
+        const refusal = await openConversation(runState, target, errand, lastAsOf)
+        if (refusal === 'stopped' || !runState.running) {
+          return finish(runState, { kind: 'stopped', reason: runState.stopReason ?? 'user' })
+        }
+        if (refusal !== null) return finish(runState, { kind: 'stopped', reason: 'lostCharacter' })
+      } else {
+        publish(runState, `the dialog for step ${index + 1}`)
+      }
 
       const waited = await waitForDialog(
         runState,

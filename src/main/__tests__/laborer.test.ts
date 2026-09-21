@@ -3,6 +3,8 @@ import { createLaborer, rowY, type Sleeper } from '../laborer'
 import type { ActionLayer, LiveConnection } from '../actionLayer'
 import type { ActionRefusal, ActionTarget, Errand, WalkOutcome } from '../../shared/types'
 import type { DialogState } from '../model/dialog'
+import type { Position } from '../model/position'
+import { creaturePoint } from '../laborer/view'
 import type { NoticeState } from '../model/notice'
 import type { NpcMenu } from '../protocol/decode/dialog'
 import type { PursuitMessage } from '../protocol/decode/pursuit'
@@ -183,6 +185,8 @@ interface Options {
   feed: Feed
   walkOutcome?: WalkOutcome
   live?: boolean
+  /** Where the character stands, for the NPC click. Absent: no position known. */
+  position?: Position
 }
 
 function make(opts: Options): {
@@ -209,6 +213,7 @@ function make(opts: Options): {
       if (appears !== undefined && clock.now() < appears) return null
       return opts.feed.list[opts.feed.index] ?? null
     },
+    positionFor: (id: string): Position | null => (id === CID ? (opts.position ?? null) : null),
     noticeFor: (id: string): NoticeState | null =>
       id === CID ? (opts.feed.noticeAt?.[opts.feed.index] ?? null) : null,
     log: noop,
@@ -700,5 +705,59 @@ describe('the labor fix (Antonio, 2026-09-21)', () => {
     const outcome = await laborer.run({ connectionId: CID, errand: errand.name })
     expect(fake.clicks.at(-1)).toEqual(CLOSE_CLICK)
     expect(outcome).toEqual({ kind: 'done', saw: 'You have already reset your labor.' })
+  })
+})
+
+describe('opening the conversation', () => {
+  const errand = builtinErrands().find((e) => e.npcName === 'Eduardo')!
+  const request = { connectionId: CID, errand: errand.name, params: { citizen: 'Pandsala' } }
+  const standing: Position = {
+    mapId: 3049,
+    x: 2,
+    y: 11,
+    facing: 0,
+    asOfMs: 500,
+    confidence: 'confirmed'
+  }
+  const npcClick = creaturePoint({ x: 2, y: 11 }, errand.npcTile!)
+
+  it('clicks the NPC where the client draws it, then works the dialog that opens', async () => {
+    // Nothing is up at first; the click on Eduardo brings the menu.
+    const dialogs = serverDialogs(0, 8)
+    const feed: Feed = { list: [dialogs[0]!, ...dialogs], index: 0, appearAt: { 0: Infinity } }
+    const { laborer, fake } = make({ errand, feed, position: standing })
+    const outcome = await laborer.run(request)
+    expect(outcome).toEqual({ kind: 'done' })
+    expect(fake.clicks[0]).toEqual({ x: 255, y: 145 })
+    expect(fake.clicks[0]).toEqual(npcClick)
+    expect(fake.clicks.slice(1)).toEqual([rowClick(6, 1), rowClick(2, 1), rowClick(2, 2)])
+  })
+
+  it('takes a dialog that is already up without clicking the NPC', async () => {
+    const feed = { list: serverDialogs(0, 8), index: 0 }
+    const { laborer, fake } = make({ errand, feed, position: standing })
+    await laborer.run(request)
+    expect(fake.clicks[0]).toEqual(rowClick(6, 1))
+  })
+
+  it('waits for the player when the NPC tile is not known', async () => {
+    const maria = builtinErrands().find((e) => e.npcName === 'Maria')!
+    const feed = { list: serverDialogs(0, 8), index: 0 }
+    const { laborer, fake } = make({ errand: maria, feed, position: standing })
+    await laborer.run({ ...request, errand: maria.name })
+    expect(fake.clicks[0]).toEqual(rowClick(6, 1))
+  })
+
+  it('gives up after three clicks that open nothing, and waits for the player', async () => {
+    const menu = serverDialogs(0, 1)[0]!
+    const feed: Feed = {
+      list: [menu, menu, menu, menu],
+      index: 0,
+      appearAt: { 0: Infinity, 1: Infinity, 2: Infinity, 3: Infinity }
+    }
+    const { laborer, fake } = make({ errand, feed, position: standing })
+    const outcome = await laborer.run(request)
+    expect(outcome).toEqual({ kind: 'stopped', reason: 'timeout' })
+    expect(fake.clicks).toEqual([npcClick, npcClick, npcClick])
   })
 })
