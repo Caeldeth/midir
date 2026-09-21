@@ -1,11 +1,16 @@
 # WP17 — the Laborer (clout/labor assistant)
 
 **Size:** L. **Depends on:** WP15 (to arrive), WP13 (to act), WP11 (to read the dialog). Read
-`00-overview.md` first. **IN PROGRESS.** **Card:** `HTOO-67`.
+`00-overview.md` first. **COMPLETE — 2026-09-21.** **Card:** `HTOO-67`.
 
-**Both PRs are merged on `main`.** What is left needs a live game, and only that: the `npcTile` and
-`steps` values for all 11 errands, and the three gestures the GUI check proves. An errand with no
-steps walks to the map and stops rather than acting, so the current state fails safely.
+**Shipped in three PRs (midir #12, #14, #18), and proven live on 2026-09-21.** The Laborer walks
+to the NPC, clicks it, works the dialog by what each row says, types the name, and reports the
+server's word. Sixteen errands: six clout (one per civic NPC in Rucesion and Mileth), five labor and
+five labor fix (one per bank NPC), every step from a recording and every NPC tile known. The live
+runs the same night: Eduardo (clout, hands off from Run to "You give political support to Arachne
+…"), Arilan (clout, Mileth, from a tile beside a taken spot), Maria (stopped correctly on "You must
+give up your current citizenship first"), and, by hand with the pane watcher measuring, the labor
+and labor-fix conversations at Antonio. The one unexpected menu it met, it stopped on and named.
 
 **Name:** the feature is the **Laborer**. Earlier docs call it the "Clout Assistant". The full copy
 rename is part of WP19's terminology work.
@@ -219,9 +224,9 @@ a coin toss. Do not build the packet path speculatively.
 
 ## Current state when you start
 
-- [decode/merchant.ts](../../src/main/protocol/decode/merchant.ts) — `0x39` and `0x3A` decoded,
+- [decode/merchant.ts](../../../src/main/protocol/decode/merchant.ts) — `0x39` and `0x3A` decoded,
   wrapper off, `0x3A`'s typed text included (WP11 decision 4, made for exactly this feature).
-- [decode/dialog.ts](../../src/main/protocol/decode/dialog.ts) — `decodeBankContents` reads
+- [decode/dialog.ts](../../../src/main/protocol/decode/dialog.ts) — `decodeBankContents` reads
   `SScreenMenu 0x2F` menu type 4; the general menu is not modelled, and this WP needs it.
 - **`SPursuitMessage 0x30` has no decoder.** The document repo's `server/0x30-pursuit.md` and
   `darkages-741-re`'s `048-0x30-pursuit-message.md` both describe it, including the type-9 protected
@@ -284,4 +289,15 @@ export type ErrandOutcome =
 3. The driver against WP13's fake action layer and a scripted packet feed — the whole run with no
    game.
 4. GUI (hand to Sabrael, and the only check that proves it): one real errand, watched end to end,
-   then a deliberate unmatched dialog to confirm it stops rather than guesses.
+   then a deliberate unmatched dialog to confirm it stops rather than guesses. **Done 2026-09-21**:
+   Eduardo's clout errand ran from Run to the server's verdict with no hand on the keys; an
+   unexpected second menu, met by accident the same night, stopped the run with every row and id
+   named.
+
+## Left for later
+
+- **A popup in the walk** (WP34): a notice dialog that stops the character mid-walk still reads as
+  a stall.
+- **Right-click walking** (WP35): the walk is still one key per tile.
+- **The other verdicts' wording**: the run reports whatever the server says, so a new one costs
+  nothing; the doc lists the ones seen.

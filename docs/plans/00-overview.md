@@ -139,7 +139,7 @@ the assistants, after the charter change:
 WP13 (the action layer: window, keys, the stop)   COMPLETE — complete/13-action-layer.md
  ├── WP16 (Speaker)   COMPLETE — complete/16-speaker.md — the smallest user of WP13, and its proof
  └── WP15 (Walker)   COMPLETE — complete/15-walker.md
-      └── WP17 (Laborer)   IN PROGRESS — three PRs merged; the clout steps are in, the live check is next
+      └── WP17 (Laborer)   COMPLETE — complete/17-clout-assistant.md — sixteen errands, proven live
            ├── WP33 (world-map coverage for errand nodes)   COMPLETE — complete/33-errand-map-coverage.md — every errand routes
            ├── WP34 (dismiss blocking popups)   PLANNED — a notice reads as a stall today
            └── WP35 (right-click walking)   PLANNED — the client's own pathfinder for a smoother walk
@@ -196,15 +196,15 @@ built: item icons come off the game's own `legend.dat`, drawn through a privileg
 | WP14 | M    | Position and map, off the wire | —       | COMPLETE — `complete/14-position-and-map.md` |
 | WP15 | L    | Walker                         | —       | COMPLETE — `complete/15-walker.md`           |
 | WP16 | S    | Speaker                        | —       | COMPLETE — `complete/16-speaker.md`          |
-| WP17 | L    | Laborer (was Clout Assistant)  | HTOO-67 | IN PROGRESS — `17-clout-assistant.md`        |
+| WP17 | L    | Laborer (was Clout Assistant)  | HTOO-67 | COMPLETE — `complete/17-clout-assistant.md`  |
 | WP18 | M    | The packet-send spike          | HTOO-68 | PLANNED — `18-packet-send-spike.md`          |
 
-Build order: **WP13, WP16, WP14, and WP15 are done** — the action layer, the Speaker that proves it,
-the position off the wire, and the Walker that steers by it. **WP17 (Laborer) is in progress**: both
-its PRs are merged, and what is left needs a live game — the `npcTile` and `steps` values for all 11
-errands, and three gestures the GUI check proves. **WP18** gates any forged packet WP17 turns out to
-want. WP15 also surfaced WP29–WP32 (learn transitions, map viewer, dynamic doors, registration-aware
-routing), and WP17 surfaced WP33 and WP34.
+Build order: **WP13, WP16, WP14, WP15, and WP17 are done** — the action layer, the Speaker that
+proves it, the position off the wire, the Walker that steers by it, and the Laborer that walks to an
+NPC and works its dialog, proven live on 2026-09-21 with no packet sent. **WP18** gates any forged
+packet a later feature turns out to want; WP17 needed none. WP15 also surfaced WP29–WP32 (learn
+transitions, map viewer, dynamic doors, registration-aware routing), and WP17 surfaced WP33 (done)
+and WP34.
 
 ### Triggered follow-ons
 
