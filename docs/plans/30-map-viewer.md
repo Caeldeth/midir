@@ -1,7 +1,7 @@
 # WP30 — the map viewer and route inspector
 
 **Size:** M. **Depends on:** WP15 (the grid and the graph), WP14 (the live position), and WP7 (the
-dalib-ts render path). Read `00-overview.md` first. **PLANNED.**
+dalib-ts render path). Read `00-overview.md` first. **PLANNED.** **Card:** `HTOO-79`.
 **Trigger to start:** a walker stop the log cannot explain, or a want to see and curate the route
 graph on the map it belongs to.
 

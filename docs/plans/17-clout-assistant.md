@@ -1,7 +1,11 @@
 # WP17 — the Laborer (clout/labor assistant)
 
 **Size:** L. **Depends on:** WP15 (to arrive), WP13 (to act), WP11 (to read the dialog). Read
-`00-overview.md` first. **PLANNED.**
+`00-overview.md` first. **IN PROGRESS.** **Card:** `HTOO-67`.
+
+**Both PRs are merged on `main`.** What is left needs a live game, and only that: the `npcTile` and
+`steps` values for all 11 errands, and the three gestures the GUI check proves. An errand with no
+steps walks to the map and stops rather than acting, so the current state fails safely.
 
 **Name:** the feature is the **Laborer**. Earlier docs call it the "Clout Assistant". The full copy
 rename is part of WP19's terminology work.

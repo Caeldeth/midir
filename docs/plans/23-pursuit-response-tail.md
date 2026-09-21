@@ -1,6 +1,6 @@
 # WP23 — the `0x39` response tail decode
 
-**Size:** S. **Depends on:** WP11. Feeds WP17. Read `00-overview.md` first. **PLANNED.**
+**Size:** S. **Depends on:** WP11. Feeds WP17. Read `00-overview.md` first. **PLANNED.** **Card:** `HTOO-72`.
 **Trigger to start:** a feature that needs the answer's argument, such as reading the quantity a
 player typed. In practice, the Laborer (WP17).
 

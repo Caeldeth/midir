@@ -1,6 +1,6 @@
 # WP31 — dynamic door collision
 
-**Size:** S. **Depends on:** WP15 (the grid and the walker). Read `00-overview.md` first. **PLANNED.**
+**Size:** S. **Depends on:** WP15 (the grid and the walker). Read `00-overview.md` first. **PLANNED.** **Card:** `HTOO-80`.
 **Trigger to start:** a route the walker needs runs only through a door, or WP17 (Laborer) wants it.
 
 ## Goal

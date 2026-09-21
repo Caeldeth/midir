@@ -1,6 +1,6 @@
 # WP27 — cut the first release
 
-**Size:** M. **Depends on:** the quality gate, and WP28. Read `00-overview.md` first. **PLANNED.**
+**Size:** M. **Depends on:** the quality gate, and WP28. Read `00-overview.md` first. **PLANNED.** **Card:** `HTOO-76`.
 **Trigger to start:** handing Midir to somebody who is not Sabrael.
 
 ## Goal

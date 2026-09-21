@@ -1,7 +1,7 @@
 # WP34 — dismiss the dialog popups that block movement
 
 **Size:** S. **Depends on:** WP11 and WP17 PR1 (the dialog decode), WP15 (the walker), WP14 (the
-position). Read `00-overview.md` first. **PLANNED.**
+position). Read `00-overview.md` first. **PLANNED.** **Card:** `HTOO-83`.
 
 **Trigger:** surfaced by WP17. A server dialog popup — a clout notice, a level-up, an item prompt —
 stops the character moving until the player dismisses it. To the walker this looks like a stall, and

@@ -1,7 +1,7 @@
 # WP24 — the walker route graph from ceridwen
 
 **Size:** M. **Depends on:** WP15, and ceridwen built out. Read `00-overview.md` first. **PLANNED —
-blocked: ceridwen is not built yet.**
+blocked: ceridwen is not built yet.** **Card:** `HTOO-73`.
 **Trigger to start:** ceridwen built out, or the hand-made `WorldMap.dat` going stale, or WP17
 wanting NPC coordinates the `.dat` cannot give.
 
