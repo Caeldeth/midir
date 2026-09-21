@@ -101,6 +101,8 @@ export const ClientOpcode = {
   Version: 0x00,
   /** The player's own step, drawn before the server confirms it. */
   Walk: 0x06,
+  /** The player's own turn in place, drawn before the server confirms it. */
+  Turn: 0x11,
   /** Creates an account. Carries a password and an email. See scrub.ts. */
   NewUser: 0x02,
   /** Signs in. Carries a password. See scrub.ts. */

@@ -74,6 +74,11 @@ export function reducePosition(state: Position | null, input: PositionInput): Po
       return confirmTile(base, packet.x, packet.y, timestampMs)
     case 'userMove':
       return applyServerMove(base, packet.direction, packet.fromX, packet.fromY, timestampMs)
+    case 'turn':
+      // A turn in place: the tile is unchanged, the facing is the client's
+      // own word. Nothing to say while the position is unknown.
+      if (base === null || base.confidence === 'unknown') return base
+      return { ...base, facing: packet.direction, asOfMs: timestampMs }
     case 'walk':
       return predictStep(base, packet.direction, timestampMs)
     default:

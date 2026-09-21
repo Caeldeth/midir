@@ -25,6 +25,7 @@ const userMove = (direction: number, fromX: number, fromY: number): DecodedPacke
   fromY
 })
 const walk = (direction: number): DecodedPacket => ({ kind: 'walk', direction, step: 1 })
+const turn = (direction: number): DecodedPacket => ({ kind: 'turn', direction })
 /** A packet the position reducer does not model, such as an SStatus. */
 const other: DecodedPacket = { kind: 'removeInventory', slot: 3 }
 
@@ -107,6 +108,16 @@ describe('reducePosition', () => {
     const start = atConfirmedTile(100, 5, 8)
     const corrected = feed(start, userMove(4, 12, 20))
     expect(corrected).toMatchObject({ x: 12, y: 20, confidence: 'confirmed' })
+  })
+
+  it('turns in place on the client turn, keeping the tile and the confidence', () => {
+    const at = atConfirmedTile(100, 5, 8)
+    const turned = feed(at, turn(3), { timestampMs: at.asOfMs + 10 })
+    expect(turned).toMatchObject({ x: 5, y: 8, facing: 3, confidence: 'confirmed' })
+    expect(turned!.asOfMs).toBe(at.asOfMs + 10)
+    // A turn says nothing while the tile is unknown.
+    const lost = feed(at, other, { sawLoss: true })
+    expect(feed(lost, turn(1))).toBe(lost)
   })
 
   it('changes the map name when the character changes map', () => {

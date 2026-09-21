@@ -133,6 +133,11 @@ export interface WalkerOptions {
   log: Logger
   /** Called whenever a walker changes, so main can push it. */
   onState?: (state: WalkerState) => void
+  /**
+   * Named spots on maps, offered beside the map names in the destination
+   * picker as `Place @ x,y`: an errand's stand tile, for example.
+   */
+  spots?: () => { destination: string | number; tile: { x: number; y: number } }[]
   /** The clock. Injected by tests. */
   now?: () => number
   /** Sleep for a number of milliseconds. Injected by tests. */
@@ -615,8 +620,11 @@ export function createWalker(options: WalkerOptions): Walker {
       // sends CWalk, so a `predicted` move to the aimed tile is a landed step —
       // the walker does not wait for the slower server word (WP14). A resolved
       // outcome is a move to the aimed tile, a warp, an unasked-for map change,
-      // or a jump of more than one tile.
-      const timeout = isWarpStep ? WARP_CONFIRM_MS : STEP_CONFIRM_MS
+      // a jump of more than one tile, or — for a press in a new direction — the
+      // turn itself, which the client sends as CChangeDirection the moment it
+      // turns. A turn never changes the map, so a warp step that is a turn
+      // waits only the step time.
+      const timeout = isWarpStep && !isTurn ? WARP_CONFIRM_MS : STEP_CONFIRM_MS
       const after = await waitFor(
         run.connectionId,
         (p) =>
@@ -624,20 +632,39 @@ export function createWalker(options: WalkerOptions): Walker {
           p.asOfMs > beforeAt &&
           (p.mapId !== before.mapId ||
             (p.x === step.x && p.y === step.y) ||
-            Math.abs(p.x - before.x) + Math.abs(p.y - before.y) > 1),
+            Math.abs(p.x - before.x) + Math.abs(p.y - before.y) > 1 ||
+            (isTurn && p.facing === step.direction && p.x === before.x && p.y === before.y)),
         timeout
       )
+
+      // The wire said the press was a turn. The next press in this direction steps.
+      if (
+        after !== null &&
+        after.mapId === before.mapId &&
+        after.x === before.x &&
+        after.y === before.y
+      ) {
+        facing = step.direction
+        run.lastPosition = after
+        log.info(
+          'walker',
+          `Turned to face ${DIRECTION_NAME[step.direction]} at (${before.x}, ${before.y}); will step next.`
+        )
+        continue
+      }
 
       if (after === null) {
         // The tile did not change. A press in a new direction only turned the
         // character, which is not a stall: the next press in this direction
-        // steps. A press in the way it already faces that does not move is a
-        // real stall — a wall, a door, a creature, a freeze (WP15 decision 3).
+        // steps. The wire usually says so at once (above); this is the case
+        // where it did not. A press in the way it already faces that does not
+        // move is a real stall — a wall, a door, a creature, a freeze (WP15
+        // decision 3).
         if (isTurn) {
           facing = step.direction
           log.info(
             'walker',
-            `Turned to face ${DIRECTION_NAME[step.direction]} at (${before.x}, ${before.y}); will step next.`
+            `Turned to face ${DIRECTION_NAME[step.direction]} at (${before.x}, ${before.y}) with no word from the wire; will step next.`
           )
           continue
         }
@@ -670,9 +697,11 @@ export function createWalker(options: WalkerOptions): Walker {
           // The step was aimed short of the graph's warp tile and fired
           // anyway: the real warp is where the step landed. Say so, so the
           // graph can be corrected.
+          // Under lag two presses can land as one, so the aimed tile may be
+          // one short of where the character stood when the warp fired.
           log.warn(
             'walker',
-            `Warp to map ${after.mapId} fired at (${step.x}, ${step.y}); the graph names (${best.warp.x}, ${best.warp.y}).`
+            `Warp to map ${after.mapId} fired on the step aimed at (${step.x}, ${step.y}); the graph names (${best.warp.x}, ${best.warp.y}).`
           )
         }
         publish(run)
@@ -840,9 +869,22 @@ export function createWalker(options: WalkerOptions): Walker {
           p.asOfMs > beforeAt &&
           (p.mapId !== before.mapId ||
             (p.x === step.x && p.y === step.y) ||
-            Math.abs(p.x - before.x) + Math.abs(p.y - before.y) > 1),
+            Math.abs(p.x - before.x) + Math.abs(p.y - before.y) > 1 ||
+            (isTurn && p.facing === step.direction && p.x === before.x && p.y === before.y)),
         STEP_CONFIRM_MS
       )
+
+      // The wire said the press was a turn.
+      if (
+        after !== null &&
+        after.mapId === before.mapId &&
+        after.x === before.x &&
+        after.y === before.y
+      ) {
+        facing = step.direction
+        run.lastPosition = after
+        continue
+      }
 
       if (after === null) {
         // A press in a new direction only turns the character, which is not a
@@ -1026,7 +1068,21 @@ export function createWalker(options: WalkerOptions): Walker {
 
   return {
     destinations(): WalkerDestination[] {
-      return graph.destinations()
+      const named = graph.destinations()
+      // A spot is a map name with a tile, in the form the destination box
+      // parses. It is offered once, even when several errands share it.
+      const seen = new Set<string>()
+      const spots: WalkerDestination[] = []
+      for (const spot of options.spots?.() ?? []) {
+        const mapId = graph.resolveDestination(spot.destination)
+        if (mapId === null) continue
+        const place = named.find((d) => d.mapId === mapId)?.name ?? String(spot.destination)
+        const name = `${place} @ ${spot.tile.x},${spot.tile.y}`
+        if (seen.has(name)) continue
+        seen.add(name)
+        spots.push({ mapId, name })
+      }
+      return [...named, ...spots].sort((a, b) => a.name.localeCompare(b.name))
     },
     go,
     stop,

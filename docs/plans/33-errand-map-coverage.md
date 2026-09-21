@@ -128,6 +128,15 @@ Three walks: Rucesion Inn to Abel Outskirts, Inn to Rucesion Town Hall, and Town
   the client's own Tab map — call it impassable, and the game opens the door on the step. The
   walker now lets A* enter the leg's warp tiles whatever the cache says: a warp tile is entered by
   definition, and the graph vouches for it. Doors elsewhere on a path are WP31's.
+- **A turn cost a blind wait, and at a door it cost eight seconds.** At Undine's storage door the
+  walker pressed North once; the character faced East from its last step, so the press only turned
+  it, and because the aimed tile was the warp tile the walker waited the whole warp timeout before
+  calling it a turn. The same blind wait sat under every change of direction, which is most of the
+  choppiness Sabrael saw. The client sends `CChangeDirection 0x11` the moment it turns, so it is
+  decoded now, the position reducer takes the facing from it, and the walker confirms a turn off the
+  wire at once. A warp step that is a turn waits only the step time.
+- **The errands' stand tiles are in the destination picker** as `Undine Bank @ 5,8`, so a walk to a
+  counter is one pick, not a tile to remember.
 - **A hand click is now written down.** The wire says which point a click selected but not where
   on the screen it was, so `main/paneWatcher.ts` reads the real pointer and button through the
   operating system (`da-pcap pointerIn`: `GetCursorPos`, `ScreenToClient`, `GetAsyncKeyState`;

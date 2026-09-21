@@ -5,7 +5,8 @@ import {
   decodeUserMove,
   decodeUserPosition,
   decodeWalk,
-  isWalkDirection
+  isWalkDirection,
+  decodeTurn
 } from '../decode/movement'
 import {
   decodeClientPacket,
@@ -137,6 +138,17 @@ describe('decodeWalk 0x06', () => {
 
   it('reads the rising step counter', () => {
     expect(decodeWalk(bytes(0x06, 0x00, 0x0a, 0x00, 0x06)).step).toBe(10)
+  })
+})
+
+describe('decodeTurn 0x11', () => {
+  it('reads the one direction byte', () => {
+    expect(decodeTurn(bytes(0x11, 0x03))).toEqual({ kind: 'turn', direction: 3 })
+  })
+
+  it('is registered for the client turn opcode', () => {
+    expect(hasClientDecoder(ClientOpcode.Turn)).toBe(true)
+    expect(decodeClientPacket(bytes(0x11, 0x00))).toEqual({ kind: 'turn', direction: 0 })
   })
 })
 

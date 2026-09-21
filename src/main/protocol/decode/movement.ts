@@ -142,6 +142,27 @@ export interface Walk {
  * one tile ahead of the server. The reducer marks that a predicted move and
  * snaps back when SMove or SUserPosition arrives.
  */
+/**
+ * CChangeDirection 0x11: the player turned in place, without moving.
+ *
+ * A press in a direction the character does not face turns it and sends this;
+ * a press in the direction it faces steps and sends CWalk 0x06 instead. The
+ * client turns the local character first and then sends, so this is the
+ * wire's word that a key was a turn, the moment it happened. Both protocol
+ * sources give the body as the one direction byte.
+ */
+export interface Turn {
+  kind: 'turn'
+  /** 0 North, 1 East, 2 South, 3 West. */
+  direction: number
+}
+
+/** Decode CChangeDirection 0x11. */
+export function decodeTurn(body: Uint8Array): Turn {
+  const reader = new PacketReader(body, 1)
+  return { kind: 'turn', direction: reader.u8() }
+}
+
 export function decodeWalk(body: Uint8Array): Walk {
   const reader = new PacketReader(body, 1)
   return { kind: 'walk', direction: reader.u8(), step: reader.u8() }

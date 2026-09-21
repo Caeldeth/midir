@@ -406,6 +406,28 @@ describe('walker', () => {
     expect(world.position.mapId).toBe(2)
   })
 
+  it('takes a turn from the wire at once, without waiting out the step time', async () => {
+    // The fake world turns on a press in a new direction and reports the new
+    // facing, as the client's CChangeDirection does. Each turn used to cost the
+    // whole step timeout; now it costs one poll.
+    const maps = new Map<number, FakeMap>([[1, fakeMap(['...', '...', '...'])]])
+    const world = new World(maps, { mapId: 1, x: 0, y: 0 })
+    world.turnThenMove = true
+    const { walker } = harness(world, [{ mapId: 1, name: 'Room', exits: [] }])
+    const start = world.clock
+    const outcome = await walker.go({
+      connectionId: CID,
+      destination: 1,
+      tile: { x: 2, y: 2 },
+      arrive: 'on'
+    })
+    expect(outcome).toEqual({ kind: 'arrived' })
+    expect(world.position).toMatchObject({ x: 2, y: 2 })
+    // Two turns (East, then South) and four steps: well under one step timeout
+    // per turn, which is what a blind wait would have cost.
+    expect(world.clock - start).toBeLessThan(1200)
+  })
+
   it('routes around a tile the cache calls open but the server blocks', async () => {
     // A 3x3 open map with a creature at (1,1) the grid cannot see. The straight
     // path North is blocked there; the walker learns it and goes around.
@@ -618,6 +640,31 @@ describe('walker tile goal', () => {
     const { walker } = harness(world, roomGraph)
     const outcome = await walker.go({ connectionId: CID, destination: 1, tile: { x: 4, y: 4 } })
     expect(outcome).toEqual({ kind: 'stopped', reason: 'lostPosition' })
+  })
+})
+
+describe('the destination picker', () => {
+  it('offers a spot as "Place @ x,y" beside the map names, once', () => {
+    const world = lineWorld()
+    const walker = createWalker({
+      actionLayer: { stopped: false } as unknown as ActionLayer,
+      liveConnections: () => [],
+      positionFor: () => world.position,
+      maps: { gridFor: async () => null },
+      graph: createRouteGraph(lineGraph()),
+      log: noop,
+      spots: () => [
+        { destination: 'Cave', tile: { x: 1, y: 0 } },
+        { destination: 3, tile: { x: 1, y: 0 } },
+        { destination: 'Nowhere', tile: { x: 0, y: 0 } }
+      ]
+    })
+    expect(walker.destinations().map((d) => d.name)).toEqual([
+      'Cave',
+      'Cave @ 1,0',
+      'Field',
+      'Town'
+    ])
   })
 })
 
