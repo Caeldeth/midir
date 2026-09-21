@@ -117,7 +117,7 @@ its stop line names every pursuit id the dialog carried, so that run is itself t
   its own two ids. The rows past the first dialog were then proven by the Laborer's own run at
   Arilan, hands off, through to the name.
 - **The clout verdicts**, all captured: "You give political support to <name> for these Temuairan
-  four days" (done); "<name> is not near" (the citizen has to be near; nothing given); and a
+  four days" (done); "<name> is not near" (the citizen is not logged in; nothing given); and a
   no-choice dialog one step earlier for a citizen of another town, "You must give up your current
   citizenship first…", on which the run stops and quotes it.
 

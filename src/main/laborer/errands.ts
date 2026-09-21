@@ -61,7 +61,7 @@ import type { DialogStep, Errand, ErrandParam } from '../../shared/types'
  *
  * The verdicts after the name, all captured: "You give political support to
  * <name> for these Temuairan four days" (done), "<name> is not near" (the
- * citizen has to be near; nothing given), and, one step earlier for a
+ * citizen is not logged in; nothing given), and, one step earlier for a
  * citizen of another town, a no-choice dialog "You must give up your current
  * citizenship first…", on which the run stops.
  *
