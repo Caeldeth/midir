@@ -114,17 +114,19 @@ its stop line names every pursuit id the dialog carried, so that run is itself t
 
 - **The Mileth clout errands have their ids** from Gabrael at Riona the same night: the menu row
   "Mileth Civics" (1603) and the civic pursuit (579), the same conversation as Rucesion's under
-  its own two ids. Gabrael is unregistered, so that dialog offered only "Renounce Citizenship", and
-  the rows past it are Sabrael's word that the labels match; a wrong one is a safe stop that names
-  what it saw.
+  its own two ids. The rows past the first dialog were then proven by the Laborer's own run at
+  Arilan, hands off, through to the name.
+- **The clout verdicts**, all captured: "You give political support to <name> for these Temuairan
+  four days" (done); "<name> is not near" (the citizen has to be near; nothing given); and a
+  no-choice dialog one step earlier for a citizen of another town, "You must give up your current
+  citizenship first…", on which the run stops and quotes it.
 
 **Every errand has steps.** The labor verdicts the run reports on `done`, all captured: "You work
 for <name> for 1 day" (a whole day given), "You work for <name>, although the Aisling didn't need
 much done" (less than a day; the Aisling is full now), and "<name> doesn't need any jobs done. The
 Aisling hasn't done anything" (nothing given). "You were distracted" with a close is the server's
 exploit prevention, not a refusal (Sabrael): it means try again, so the run goes back to the first
-step and waits for the player to open the conversation again, twice at most. What no capture reached yet:
-the clout rows past the first dialog on a Mileth NPC, which a registered character's run will show.
+step and opens the conversation again, twice at most.
 
 **Two follow-ups this surfaced.** `WP33` (complete, 2026-09-21) made every errand destination
 route: the walker crosses the world map, every building is a node, and each errand carries the tile

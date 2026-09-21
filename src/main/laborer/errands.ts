@@ -55,11 +55,15 @@ import type { DialogStep, Errand, ErrandParam } from '../../shared/types'
  * 2026-09-21 (Eduardo, with the player's answers and the already-supporting
  * branch). Only the NPC's main menu differs, and the row that starts the
  * conversation is "Rucesion Civics" on all three, with the same row pursuit.
- * Mileth is the same conversation under "Mileth Civics" with its own two ids,
- * from Gabrael at Riona the same night (the menu row and the civic pursuit's
- * first dialog; Gabrael is unregistered, so that dialog offered only "Renounce
- * Citizenship", and the rows past it are Sabrael's word that the labels are
- * the same; a wrong one is a safe stop that names what it saw).
+ * Mileth is the same conversation under "Mileth Civics" with its own two ids:
+ * the ids from Gabrael at Riona, and every row from the Laborer's own run at
+ * Arilan the same night, which went through to the name.
+ *
+ * The verdicts after the name, all captured: "You give political support to
+ * <name> for these Temuairan four days" (done), "<name> is not near" (the
+ * citizen has to be near; nothing given), and, one step earlier for a
+ * citizen of another town, a no-choice dialog "You must give up your current
+ * citizenship first…", on which the run stops.
  *
  * The pursuit is one id for the whole conversation, so each step also names
  * the prose it expects. The citizen is a parameter, never a name in this file.
