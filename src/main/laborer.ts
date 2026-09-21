@@ -9,7 +9,7 @@ import type {
 import type { Errand } from '../shared/types'
 import { errandStopMessage } from '../shared/types'
 import type { ActionLayer, LiveConnection } from './actionLayer'
-import type { DialogAnswer, DialogState } from './model/dialog'
+import type { DialogState } from './model/dialog'
 import type { NoticeState } from './model/notice'
 import type { Logger } from './log'
 import type { Walker } from './walker'
@@ -64,11 +64,6 @@ export interface LaborerOptions {
    * notice and a dialog close in place of the next dialog is a refusal.
    */
   noticeFor?: (connectionId: string) => NoticeState | null
-  /**
-   * The client's newest answer to a dialog. From the capture service. The
-   * proof that a posted click on a row landed.
-   */
-  answerFor?: (connectionId: string) => DialogAnswer | null
   log: Logger
   /** Called whenever a Laborer changes, so main can push it. */
   onState?: (state: LaborerState) => void
@@ -161,20 +156,14 @@ const POLL_MS = 40
  * this gesture, and the run stops rather than click off the pane.
  *
  * The x is inside the band every hand click fell in (491 to 587), not the
- * centre a centred pane would give (386): the first posted click at 386 was
- * not answered, and where the pane sits across the region is not measured.
+ * centre a centred pane would give (386): a posted click at 386 was not
+ * answered, and where the pane sits across the region is not measured. A
+ * single click at 540 was answered on every row of the live run that closed
+ * WP17; a double click was tried as a fallback that night and never needed.
  */
 const ROW_PITCH = 18
 const LAST_ROW_Y = 335
 const ROW_X = 540
-
-/**
- * How long to wait for the client's answer to a posted row click, in
- * milliseconds, before the click is tried as a double click. The client acts
- * on the press, and its 0x39 or 0x3A is on the wire within a few
- * milliseconds; the capture delivers in batches, so the wait is longer.
- */
-const ROW_ACK_MS = 800
 
 /** The screen y of a one-based row in a dialog of `rows` rows. */
 export function rowY(rows: number, row: number): number {
@@ -249,7 +238,6 @@ function missingParams(errand: Errand, values: Record<string, string>): string[]
 export function createLaborer(options: LaborerOptions): Laborer {
   const { actionLayer, walker, liveConnections, dialogFor, log, onState } = options
   const noticeFor = options.noticeFor ?? ((): null => null)
-  const answerFor = options.answerFor ?? ((): null => null)
   const sleep = options.sleep ?? defaultSleep
   const errandList = options.errands ?? builtinErrands()
 
@@ -337,15 +325,8 @@ export function createLaborer(options: LaborerOptions): Laborer {
     }
   }
 
-  /**
-   * Click the one-based row `index` of a dialog that shows `rows` rows.
-   *
-   * A click, then a double click when the wire shows no answer to it. The
-   * client's answer is the only proof a posted click landed; which gesture the
-   * row takes is a live fact the log records, so the loser can be removed.
-   */
+  /** Click the one-based row `index` of a dialog that shows `rows` rows. */
   async function chooseRow(
-    run: Run,
     target: ActionTarget,
     index: number,
     rows: number
@@ -354,37 +335,8 @@ export function createLaborer(options: LaborerOptions): Laborer {
     const y = rowY(rows, index)
     // The first row of a very tall pane would be above the menu region.
     if (y < ROW_PITCH / 2) return 'blocked'
-    const before = answerFor(run.connectionId)?.asOfMs
     log.info('laborer', `Clicking row ${index} of ${rows} at game (${ROW_X}, ${y}).`)
-    const refusal = await actionLayer.click(target, ROW_X, y)
-    if (refusal !== null) return refusal
-    if (await answered(run, before, ROW_ACK_MS)) return null
-    log.info('laborer', `No answer to the click on row ${index}; double-clicking it.`)
-    const again = await actionLayer.doubleClick(target, ROW_X, y)
-    if (again !== null) return again
-    if (await answered(run, before, ROW_ACK_MS)) {
-      log.info('laborer', `The double click on row ${index} was answered.`)
-    }
-    return null
-  }
-
-  /** Wait up to `timeoutMs` for a client answer newer than `afterMs`. */
-  async function answered(
-    run: Run,
-    afterMs: number | undefined,
-    timeoutMs: number
-  ): Promise<boolean> {
-    const deadline = (options.now ?? Date.now)() + timeoutMs
-    for (;;) {
-      const answer = answerFor(run.connectionId)
-      if (answer !== null && answer.asOfMs !== afterMs) return true
-      if (!run.running || actionLayer.stopped) return false
-      if ((options.now ?? Date.now)() >= deadline) return false
-      const sleeper = sleep(POLL_MS)
-      run.cancelWait = sleeper.cancel
-      await sleeper.promise
-      run.cancelWait = undefined
-    }
+    return actionLayer.click(target, ROW_X, y)
   }
 
   async function run(request: ErrandRequest): Promise<ErrandOutcome> {
@@ -524,7 +476,7 @@ export function createLaborer(options: LaborerOptions): Laborer {
 
       let refusal: ActionRefusal | null
       if (result.kind === 'choose') {
-        refusal = await chooseRow(runState, target, result.index, view.options.length)
+        refusal = await chooseRow(target, result.index, view.options.length)
       } else if (result.kind === 'close') {
         // The verdict of a close step is the dialog it closed.
         closedText = view.text?.trim()

@@ -283,16 +283,6 @@ describe('the action layer', () => {
     expect(await layer.pressKey(target, VK_RETURN)).toBeNull()
   })
 
-  it('double-clicks with the WM_LBUTTONDBLCLK sequence at the scaled point', async () => {
-    const windows = fakeWindows([CLIENT_A])
-    const { layer } = build(windows, () => [{ connectionId: idOf(CLIENT_A.local), name: 'Alice' }])
-    const target = layer.resolveTarget(idOf(CLIENT_A.local))!
-    expect(await layer.doubleClick(target, 540, 245)).toBeNull()
-    const messages = windows.posted.map((p) => p.message)
-    // Move, down, up, then the double-click press and its release.
-    expect(messages).toEqual([0x0200, 0x0201, 0x0202, 0x0203, 0x0202])
-  })
-
   it('types into the focused control with no opening Enter, then presses Enter', async () => {
     const windows = fakeWindows([CLIENT_A])
     const { layer } = build(windows, () => [{ connectionId: idOf(CLIENT_A.local), name: 'Alice' }])

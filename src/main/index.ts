@@ -292,7 +292,6 @@ const laborer = createLaborer({
   liveConnections: () => captureService.liveCharacterEntries(),
   dialogFor: (connectionId) => captureService.dialogFor(connectionId),
   noticeFor: (connectionId) => captureService.noticeFor(connectionId),
-  answerFor: (connectionId) => captureService.answerFor(connectionId),
   log,
   onState: (state) => pushToRenderer(LABORER_STATE_CHANNEL, state)
 })
