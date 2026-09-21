@@ -9,6 +9,7 @@ import type {
 import type { Errand } from '../shared/types'
 import { errandStopMessage } from '../shared/types'
 import type { ActionLayer, LiveConnection } from './actionLayer'
+import { CLOSE_BUTTON } from './dialogScreen'
 import type { DialogState } from './model/dialog'
 import type { Position } from './model/position'
 import { creaturePoint, VIEW_CENTRE } from './laborer/view'
@@ -191,12 +192,9 @@ export function rowY(rows: number, row: number): number {
   return LAST_ROW_Y - ROW_PITCH * (rows - row)
 }
 
-/**
- * The dialog's Close button: `CloseBtn` in `lnpcd.txt`, 559 to 620 by 450 to
- * 472. Sabrael's own close landed at (600, 461) in the hand run.
- */
-const CLOSE_X = 589
-const CLOSE_Y = 461
+/** The dialog's Close button. Shared with the walker; see `dialogScreen.ts`. */
+const CLOSE_X = CLOSE_BUTTON.x
+const CLOSE_Y = CLOSE_BUTTON.y
 
 interface Run {
   connectionId: string

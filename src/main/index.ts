@@ -272,6 +272,8 @@ const walker = createWalker({
   liveConnections: () => captureService.liveCharacterEntries(),
   positionFor: (connectionId) => captureService.positionFor(connectionId),
   fieldMapFor: (connectionId) => captureService.fieldMapFor(connectionId),
+  // A popup mid-walk is cleared, not counted as a stall (WP34).
+  dialogFor: (connectionId) => captureService.dialogFor(connectionId),
   // The errands' stand tiles, offered as `Place @ x,y` beside the map names.
   spots: () =>
     builtinErrands()

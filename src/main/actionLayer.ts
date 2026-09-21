@@ -137,6 +137,7 @@ const WM_LBUTTONUP = 0x0202
 /** The wParam of a left-button message while the left button is down. */
 const MK_LBUTTON = 0x0001
 export const VK_RETURN = 0x0d
+export const VK_ESCAPE = 0x1b
 export const VK_SPACE = 0x20
 // lParam for a key message: repeat count 1 for key-down, the transition and
 // previous-state bits set for key-up. Only the low 32 bits are read by a window

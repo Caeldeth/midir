@@ -124,6 +124,10 @@ export type WalkStopReason =
   | 'blocked'
   /** No route to the destination exists in the graph. */
   | 'noRoute'
+  /** A dialog that asks something is on screen, and the walker never answers one. */
+  | 'dialog'
+  /** A login or password dialog is on screen. The walker posts nothing to it. */
+  | 'protected'
 
 /** How a walk ended. */
 export type WalkOutcome = { kind: 'arrived' } | { kind: 'stopped'; reason: WalkStopReason }
@@ -172,6 +176,10 @@ export function walkStopMessage(reason: WalkStopReason): string {
       return 'The walker could not get through.'
     case 'noRoute':
       return 'There is no route to that place.'
+    case 'dialog':
+      return 'A dialog that needs an answer is on screen. Answer or close it, then try again.'
+    case 'protected':
+      return 'A login or password dialog is on screen. The walker does not touch it.'
   }
 }
 
