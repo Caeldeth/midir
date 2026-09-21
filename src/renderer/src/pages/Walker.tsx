@@ -170,8 +170,8 @@ function Walker(): React.JSX.Element {
                 {...params}
                 size="small"
                 label="Destination"
-                placeholder="A place name, or a map id"
-                helperText="Pick a known place, or type a map name or number."
+                placeholder="A place name or map id, then @ x,y to stand on a tile"
+                helperText="Pick a known place, or type a map name or number. Add @ x,y to walk to a tile on it."
               />
             )}
           />

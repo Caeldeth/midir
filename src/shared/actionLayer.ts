@@ -77,11 +77,39 @@ export interface WalkRequest {
   /** A node name or a map id from the world graph. */
   destination: string | number
   /**
-   * A tile on the destination map to finish beside, for example an NPC's tile.
-   * The walker reaches the map first, then steps to a tile next to this one. The
-   * world graph has no NPC coordinates yet (WP24), so an errand names the tile.
+   * A tile on the destination map to finish at. The walker reaches the map
+   * first, then steps to this tile (`arrive: 'on'`) or to a tile next to it
+   * (`arrive: 'beside'`, the default, for an NPC's own tile, which is occupied).
    */
   tile?: { x: number; y: number }
+  /** Whether to end on `tile` or beside it. Beside when absent. */
+  arrive?: 'on' | 'beside'
+}
+
+/** A destination as typed on the Walker tab, split into its parts. */
+export interface ParsedDestination {
+  /** The place: a node name or a map id, as text. */
+  destination: string
+  /** The tile to stand on, when the text named one. */
+  tile?: { x: number; y: number }
+}
+
+/**
+ * Split a typed destination into the place and an optional tile.
+ *
+ * The tile follows an `@`: `Rucesion Bank @ 5,8` or `422 @ 5 8`. A tile is two
+ * non-negative integers, separated by a comma or whitespace. Text with no `@`,
+ * or with something after it that is not a tile, is all place; the walker then
+ * reports the place unknown rather than guessing a tile.
+ */
+export function parseDestination(text: string): ParsedDestination {
+  const at = text.indexOf('@')
+  if (at < 0) return { destination: text.trim() }
+  const destination = text.slice(0, at).trim()
+  const rest = text.slice(at + 1).trim()
+  const match = /^(\d{1,3})\s*[,\s]\s*(\d{1,3})$/.exec(rest)
+  if (match === null) return { destination: text.trim() }
+  return { destination, tile: { x: Number(match[1]), y: Number(match[2]) } }
 }
 
 /** Why the walker stopped short of the destination. */
@@ -164,10 +192,16 @@ export interface Errand {
   /** The NPC's map, as a node name or a map id from the world graph. */
   destination: string | number
   /**
-   * The NPC's tile on that map. The walker stops adjacent to it, because the
-   * world graph has no NPC coordinates yet (WP24).
+   * The NPC's own tile on that map. The walker stops adjacent to it. Use this
+   * when the NPC's tile is what is known.
    */
   npcTile?: { x: number; y: number }
+  /**
+   * The tile to stand on to talk to the NPC, in front of a counter or a desk.
+   * The walker stops on it. Use this when the spot is what is known; it wins
+   * over `npcTile` when both are set.
+   */
+  standTile?: { x: number; y: number }
   /** The NPC name, matched against the dialog the server sends. */
   npcName: string
   /** The steps, in order. Each expects a dialog and answers it. */

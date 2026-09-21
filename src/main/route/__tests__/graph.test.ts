@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { createRouteGraph, worldGraph, type RouteNode } from '../graph'
+import { builtinErrands } from '../../laborer/errands'
 
 /**
  * A small, hand-made graph:
@@ -143,6 +144,39 @@ describe('the imported world graph', () => {
     expect(hop.warps[0].via).toEqual({ kind: 'fieldMap', screenX: 306, screenY: 77 })
     // The plain legs carry no hop.
     expect(plan.legs[0].warps.every((w) => w.via === undefined)).toBe(true)
+  })
+
+  it('reaches every Mileth and Rucesion errand building', () => {
+    // Sabrael's captures of 2026-09-21, through scripts/worldmap-overrides.json.
+    expect(worldGraph.planRoute(136, 3026)!.legs.map((l) => l.toMapId)).toEqual([
+      500, 3006, 3025, 3026
+    ])
+    expect(worldGraph.planRoute(136, 134)!.legs.map((l) => l.toMapId)).toEqual([500, 134])
+    for (const name of [
+      'Rucesion Inn',
+      'Rucesion Bank',
+      'Rucesion Town Hall',
+      'Mileth Inn',
+      'Mileth Tavern',
+      'Mileth Town Hall'
+    ]) {
+      const id = worldGraph.resolveDestination(name)
+      expect(id, name).not.toBeNull()
+      expect(worldGraph.planRoute(498, id!), name).not.toBeNull()
+    }
+  })
+
+  it("resolves and routes every built-in errand's destination", () => {
+    // WP33 acceptance criterion 1. Piet, Abel, and Undine banks come from the
+    // Hybrasyl world xml; the rest from Sabrael's captures.
+    for (const errand of builtinErrands()) {
+      const id = worldGraph.resolveDestination(errand.destination)
+      expect(id, errand.name).not.toBeNull()
+      expect(worldGraph.planRoute(498, id!), errand.name).not.toBeNull()
+    }
+    expect(worldGraph.planRoute(498, 148)!.legs.map((l) => l.toMapId)).toEqual([
+      505, 3012, 3020, 501, 148
+    ])
   })
 
   it('reaches Piet and Undine, the other bank towns, across the world map', () => {

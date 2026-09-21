@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { MAX_CHAT_CHARS, MIN_HYPHEN_FRAGMENT, wrapChatLine } from '../actionLayer'
+import { MAX_CHAT_CHARS, MIN_HYPHEN_FRAGMENT, parseDestination, wrapChatLine } from '../actionLayer'
 
 /** True when a hyphen sits next to a space, which must never happen. */
 function hasSpacedHyphen(piece: string): boolean {
@@ -68,5 +68,23 @@ describe('wrapChatLine', () => {
     // Recover the text by dropping the hyphen markers.
     const joined = pieces.map((p) => (p.endsWith('-') ? p.slice(0, -1) : p)).join('')
     expect(joined).toBe(text)
+  })
+})
+
+describe('parseDestination', () => {
+  it('splits a place and a tile at the @', () => {
+    expect(parseDestination('Rucesion Bank @ 5,8')).toEqual({
+      destination: 'Rucesion Bank',
+      tile: { x: 5, y: 8 }
+    })
+    expect(parseDestination('422 @5 8')).toEqual({ destination: '422', tile: { x: 5, y: 8 } })
+  })
+
+  it('is all place when there is no @ or no tile after it', () => {
+    expect(parseDestination('  Mileth Inn ')).toEqual({ destination: 'Mileth Inn' })
+    expect(parseDestination('Mileth Inn @ counter')).toEqual({
+      destination: 'Mileth Inn @ counter'
+    })
+    expect(parseDestination('Mileth Inn @ 5')).toEqual({ destination: 'Mileth Inn @ 5' })
   })
 })

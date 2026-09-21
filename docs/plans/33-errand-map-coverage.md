@@ -7,9 +7,11 @@
 imported `WorldMap.dat` graph does not have all of them. This WP starts when a shipped errand needs a
 node the graph lacks.
 
-**The cross-town hop is built (PR1), and the first live check has been read back off the wire.**
-What is left: a second live check of the corrected click, and a capture of the five building
-interiors.
+**The cross-town hop is built and proven live (PR1). PR2 adds every Mileth and Rucesion building
+Sabrael captured, Rucesion's and Mileth's warps as full strips, an arrival tile the user can enter,
+and the `nodes` section of the overrides file; the three other-town banks come from the Hybrasyl
+world xml. Every built-in errand's destination resolves and routes, and a test says so.** What is
+left: a wire sighting of the three other-town banks, and the game's map names beside the `.dat`'s.
 
 ## Goal
 
@@ -120,6 +122,21 @@ Three walks: Rucesion Inn to Abel Outskirts, Inn to Rucesion Town Hall, and Town
   both kinds of window. The awareness is read and logged, not acted on. The earlier session's
   Piet and Pravat clicks worked because the window was 640 x 480 then. The button hold was a red
   herring; the atomic click stays because it is DA Walker's gesture and costs nothing.
+- **A doorway reads as a wall in the map cache.** The Piet walk (from the world xml's data) arrived
+  on Piet Village and stopped: `No route to a warp on map 501 from (1, 8); blocked`. The storage
+  door at 50,13 and 51,13 carries the closed door's collision in its static tile, so the cache — and
+  the client's own Tab map — call it impassable, and the game opens the door on the step. The
+  walker now lets A* enter the leg's warp tiles whatever the cache says: a warp tile is entered by
+  definition, and the graph vouches for it. Doors elsewhere on a path are WP31's.
+- **A turn cost a blind wait, and at a door it cost eight seconds.** At Undine's storage door the
+  walker pressed North once; the character faced East from its last step, so the press only turned
+  it, and because the aimed tile was the warp tile the walker waited the whole warp timeout before
+  calling it a turn. The same blind wait sat under every change of direction, which is most of the
+  choppiness Sabrael saw. The client sends `CChangeDirection 0x11` the moment it turns, so it is
+  decoded now, the position reducer takes the facing from it, and the walker confirms a turn off the
+  wire at once. A warp step that is a turn waits only the step time.
+- **The errands' stand tiles are in the destination picker** as `Undine Bank @ 5,8`, so a walk to a
+  counter is one pick, not a tile to remember.
 - **A hand click is now written down.** The wire says which point a click selected but not where
   on the screen it was, so `main/paneWatcher.ts` reads the real pointer and button through the
   operating system (`da-pcap pointerIn`: `GetCursorPos`, `ScreenToClient`, `GetAsyncKeyState`;
@@ -139,24 +156,38 @@ Three walks: Rucesion Inn to Abel Outskirts, Inn to Rucesion Town Hall, and Town
 
 ## What is left
 
-1. **The second live check (hand to Sabrael).** Rucesion Inn to Abel Outskirts again. The log now
-   says, for each click, whether the client answered and how long it took; and Town Hall to Inn
-   should need no hand.
-2. **The five building nodes.** Mileth Tavern, Mileth Town Hall, Piet Bank, Abel Bank, and Undine
-   Bank are not in `WorldMap.dat` at all. An interior is an ordinary map with its own id (Rucesion
-   Inn is node 498, with a warp back to 505), so each needs exactly two facts: its map id, and the
-   town-side warp tile that enters it, plus the tile that leaves it. One capture of walking in and
-   out gives both (WP29 would learn it from the wire). The place to put them is a `nodes` section
-   of `scripts/worldmap-overrides.json`, so a node the `.dat` lacks is added at import with its
-   observation, the same way a wrong tile is corrected. The errand entries in
-   `src/main/laborer/errands.ts` already name them, so each errand works the moment its node
-   resolves.
-3. **An arrival tile the user can enter.** A destination is a map today. A walk should be able to
-   name a tile on it too — a bank counter, a spot to stand — typed on the Walker tab beside the
-   destination and kept with a pinned destination. `WalkRequest.tile` already exists for the
-   Laborer, but it finishes _beside_ the tile (an NPC's own tile is occupied); a user's tile is one
-   to stand on, so the request gains `arrive: 'on' | 'beside'` and `approachTile` honours it. The
-   input is coordinates for now; a click on the map is WP30's, when the map viewer exists.
+1. **A walk to a tile, watched (hand to Sabrael).** `Rucesion Bank @ 5,8` from the Inn: the walk
+   should end on the counter tile with no hand.
+2. **A wire sighting of the three other-town banks.** Piet, Abel, and Undine banks and Piet
+   Village came from the Hybrasyl world xml (`world/xml/maps/.ignore/Old*.xml`). Sabrael's word is
+   that the `Old*` set is spot-on for retail, and it agrees with the `.dat` on every warp both
+   describe. One walk into each with Midir recording confirms the door and the arrival on the wire;
+   it is a confirmation, not a doubt. The same set carries warps and NPC tiles for the whole retail
+   world, which makes it the better source for the graph than the `.dat` — that is WP24's job, and
+   its doc now names the set.
+3. **The game's names beside the `.dat`'s.** The graph calls 3014 "Abel Outskirts" and the game
+   calls it Abel Port Way; 500 is "Mileth Altar" and Mileth Village; 3006 is "MilethEnt". Midir
+   decodes every map name off the wire (`0x15`), so a name table learned from play, with both names
+   resolving on the Walker tab, is the fix. The `.dat` names stay, because the errands and the
+   pins name them.
+
+Done in PR2, from Sabrael's captures of 2026-09-21: **the Mileth and Rucesion interiors.** An
+interior is an ordinary map, so each is a node with its exits, under `nodes` in
+`scripts/worldmap-overrides.json` with its arrival tile and the observation. Mileth Town Hall
+(3026), Mileth Tavern (134), and Mileth Commons (3025, on the way to the Town Hall) were not in the
+`.dat` at all; the town-side doors (Tavern 69,53–54; Commons from Village Way 12–15,0; Town Hall
+from Commons 4,6) and the warp strips of Rucesion and Mileth came from the same lists. The stand
+tile in front of each NPC went on the errands as `standTile`. Piet Village (501) and the Piet, Abel,
+and Undine storages (148, 167, 432) came from the Hybrasyl world xml, with the same 12 x 12 room and
+the NPC on the same tile as Rucesion's, so Rucesion's stand tile carries over. Cassidy turned out to
+be in Mileth Bank, not Rucesion's; her errand now says so. Every built-in errand's destination
+resolves and routes.
+
+Also done in PR2: **an arrival tile the user can enter.** `Place @ x,y` on the Walker tab walks to the
+place and then onto the tile; `parseDestination` in `shared/` splits it, so a pinned destination
+carries its tile as text. `WalkRequest.arrive` is `'on'` for a spot to stand on and `'beside'` for
+an NPC's own tile (the Laborer's `npcTile`); an errand's `standTile` uses `'on'`. A click on the
+map to pick a tile is WP30's, when the map viewer exists.
 
 ## Non-goals
 
@@ -170,7 +201,7 @@ Three walks: Rucesion Inn to Abel Outskirts, Inn to Rucesion Town Hall, and Town
 
 ## Acceptance criteria
 
-1. Every built-in errand's `destination` resolves to a route.
+1. Every built-in errand's `destination` resolves to a route. **(Met in PR2, by a test.)**
 2. A same-town errand (Mileth Tavern) and a cross-town errand (Abel Bank) each arrive at the building
    in a replay or a live check, the cross-town one crossing the world map.
 3. The importer still reports its coverage, and no existing node is lost. **(Met in PR1.)**

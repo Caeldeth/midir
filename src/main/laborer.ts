@@ -217,10 +217,16 @@ export function createLaborer(options: LaborerOptions): Laborer {
 
     // Walk to the NPC first. The walker arms and disarms the connection itself,
     // so the Laborer arms again for the dialog phase after it arrives.
+    // The spot to stand on wins over the NPC's own tile, which the walker
+    // can only finish beside.
     const walk = await walker.go({
       connectionId,
       destination: errand.destination,
-      ...(errand.npcTile !== undefined ? { tile: errand.npcTile } : {})
+      ...(errand.standTile !== undefined
+        ? { tile: errand.standTile, arrive: 'on' as const }
+        : errand.npcTile !== undefined
+          ? { tile: errand.npcTile, arrive: 'beside' as const }
+          : {})
     })
     if (!runState.running)
       return finish(runState, { kind: 'stopped', reason: runState.stopReason ?? 'user' })

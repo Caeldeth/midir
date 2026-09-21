@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import type { AssistWindow, WalkerDestination, WalkerState, WalkOutcome } from '@shared/types'
-import { walkStopMessage } from '@shared/types'
+import { parseDestination, walkStopMessage } from '@shared/types'
 
 /**
  * The Walker, mirrored from the main process.
@@ -90,8 +90,14 @@ export const useWalkerStore = create<WalkerStoreState>((set, get) => ({
     set({ error: null, lastOutcome: undefined })
     // The walk resolves when it ends, which may be minutes. Do not await it: the
     // running state arrives on a push, and the outcome is kept for the status.
+    // `Place @ x,y` names a tile to stand on once the place is reached.
+    const parsed = parseDestination(destination)
     window.api.walker
-      .go({ connectionId, destination })
+      .go({
+        connectionId,
+        destination: parsed.destination,
+        ...(parsed.tile !== undefined ? { tile: parsed.tile, arrive: 'on' as const } : {})
+      })
       .then((outcome) => set({ lastOutcome: outcome }))
       .catch((error) => set({ error: messageOf(error) }))
   },

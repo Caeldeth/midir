@@ -134,12 +134,15 @@ class World {
       [-1, 0]
     ][direction]!
     const map = this.maps.get(this.position.mapId)!
+    // A warp tile is enterable even when the rows draw it as a wall: a
+    // doorway's static tile carries the closed door's collision, and the game
+    // opens the door as the character steps in.
     const blocks = (x: number, y: number): boolean =>
       y < 0 ||
       x < 0 ||
       y >= map.height ||
       x >= map.width ||
-      map.rows[y][x] === '#' ||
+      (map.rows[y][x] === '#' && !map.warps.has(`${x},${y}`)) ||
       this.dynamicBlock.has(`${x},${y}`)
 
     if (blocks(this.position.x + delta[0], this.position.y + delta[1])) return
@@ -403,6 +406,28 @@ describe('walker', () => {
     expect(world.position.mapId).toBe(2)
   })
 
+  it('takes a turn from the wire at once, without waiting out the step time', async () => {
+    // The fake world turns on a press in a new direction and reports the new
+    // facing, as the client's CChangeDirection does. Each turn used to cost the
+    // whole step timeout; now it costs one poll.
+    const maps = new Map<number, FakeMap>([[1, fakeMap(['...', '...', '...'])]])
+    const world = new World(maps, { mapId: 1, x: 0, y: 0 })
+    world.turnThenMove = true
+    const { walker } = harness(world, [{ mapId: 1, name: 'Room', exits: [] }])
+    const start = world.clock
+    const outcome = await walker.go({
+      connectionId: CID,
+      destination: 1,
+      tile: { x: 2, y: 2 },
+      arrive: 'on'
+    })
+    expect(outcome).toEqual({ kind: 'arrived' })
+    expect(world.position).toMatchObject({ x: 2, y: 2 })
+    // Two turns (East, then South) and four steps: well under one step timeout
+    // per turn, which is what a blind wait would have cost.
+    expect(world.clock - start).toBeLessThan(1200)
+  })
+
   it('routes around a tile the cache calls open but the server blocks', async () => {
     // A 3x3 open map with a creature at (1,1) the grid cannot see. The straight
     // path North is blocked there; the walker learns it and goes around.
@@ -563,6 +588,33 @@ describe('walker tile goal', () => {
     expect(world.presses).toBeGreaterThan(0)
   })
 
+  it('steps onto the tile itself when asked to arrive on it', async () => {
+    // A spot to stand on, in front of a counter: the walk ends on the tile.
+    const world = roomWorld({ x: 0, y: 0 })
+    const { walker } = harness(world, roomGraph)
+    const outcome = await walker.go({
+      connectionId: CID,
+      destination: 1,
+      tile: { x: 2, y: 2 },
+      arrive: 'on'
+    })
+    expect(outcome).toEqual({ kind: 'arrived' })
+    expect(world.position).toMatchObject({ x: 2, y: 2 })
+  })
+
+  it('arrives with no steps when already on the tile it was asked to stand on', async () => {
+    const world = roomWorld({ x: 2, y: 2 })
+    const { walker } = harness(world, roomGraph)
+    const outcome = await walker.go({
+      connectionId: CID,
+      destination: 1,
+      tile: { x: 2, y: 2 },
+      arrive: 'on'
+    })
+    expect(outcome).toEqual({ kind: 'arrived' })
+    expect(world.presses).toBe(0)
+  })
+
   it('arrives with no steps when already beside the NPC', async () => {
     const world = roomWorld({ x: 2, y: 1 }) // one tile north of (2,2)
     const { walker } = harness(world, roomGraph)
@@ -588,6 +640,64 @@ describe('walker tile goal', () => {
     const { walker } = harness(world, roomGraph)
     const outcome = await walker.go({ connectionId: CID, destination: 1, tile: { x: 4, y: 4 } })
     expect(outcome).toEqual({ kind: 'stopped', reason: 'lostPosition' })
+  })
+})
+
+describe('the destination picker', () => {
+  it('offers a spot as "Place @ x,y" beside the map names, once', () => {
+    const world = lineWorld()
+    const walker = createWalker({
+      actionLayer: { stopped: false } as unknown as ActionLayer,
+      liveConnections: () => [],
+      positionFor: () => world.position,
+      maps: { gridFor: async () => null },
+      graph: createRouteGraph(lineGraph()),
+      log: noop,
+      spots: () => [
+        { destination: 'Cave', tile: { x: 1, y: 0 } },
+        { destination: 3, tile: { x: 1, y: 0 } },
+        { destination: 'Nowhere', tile: { x: 0, y: 0 } }
+      ]
+    })
+    expect(walker.destinations().map((d) => d.name)).toEqual([
+      'Cave',
+      'Cave @ 1,0',
+      'Field',
+      'Town'
+    ])
+  })
+})
+
+describe('a warp tile the map cache calls a wall', () => {
+  it('routes into it anyway, because the graph says a warp is there', async () => {
+    // Piet Storage's door: the doorway static carries the closed door's
+    // collision, so the cache says wall, and the game opens it on the step.
+    const maps = new Map<number, FakeMap>([
+      [1, fakeMap(['....#'], new Map([['4,0', { toMap: 2, ax: 0, ay: 0 }]]))],
+      [2, fakeMap(['.....'])]
+    ])
+    const world = new World(maps, { mapId: 1, x: 0, y: 0 })
+    const { walker } = harness(world, [
+      { mapId: 1, name: 'Town', exits: [{ toMapId: 2, x: 4, y: 0 }] },
+      { mapId: 2, name: 'Storage', exits: [] }
+    ])
+    const outcome = await walker.go({ connectionId: CID, destination: 'Storage' })
+    expect(outcome).toEqual({ kind: 'arrived' })
+    expect(world.position.mapId).toBe(2)
+  })
+
+  it('still refuses a wall that is not a warp', async () => {
+    const maps = new Map<number, FakeMap>([
+      [1, fakeMap(['..#..'], new Map([['4,0', { toMap: 2, ax: 0, ay: 0 }]]))],
+      [2, fakeMap(['.....'])]
+    ])
+    const world = new World(maps, { mapId: 1, x: 0, y: 0 })
+    const { walker } = harness(world, [
+      { mapId: 1, name: 'Town', exits: [{ toMapId: 2, x: 4, y: 0 }] },
+      { mapId: 2, name: 'Storage', exits: [] }
+    ])
+    const outcome = await walker.go({ connectionId: CID, destination: 'Storage' })
+    expect(outcome).toEqual({ kind: 'stopped', reason: 'blocked' })
   })
 })
 

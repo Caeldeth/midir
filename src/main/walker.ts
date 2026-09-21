@@ -133,6 +133,11 @@ export interface WalkerOptions {
   log: Logger
   /** Called whenever a walker changes, so main can push it. */
   onState?: (state: WalkerState) => void
+  /**
+   * Named spots on maps, offered beside the map names in the destination
+   * picker as `Place @ x,y`: an errand's stand tile, for example.
+   */
+  spots?: () => { destination: string | number; tile: { x: number; y: number } }[]
   /** The clock. Injected by tests. */
   now?: () => number
   /** Sleep for a number of milliseconds. Injected by tests. */
@@ -171,22 +176,38 @@ function tileKey(mapId: number, x: number, y: number): string {
 
 /**
  * Wrap a map grid so it also refuses a move into a tile the walker learned is
- * impassable this run.
+ * impassable this run, and allows a move into a tile the graph vouches for.
  *
  * The disk map cache does not see a creature standing in a doorway, or a tile
  * the server blocks though the cache calls it open. When a step stalls at one
- * tile, the walker adds that tile here and re-plans around it.
+ * tile, the walker adds that tile to `blocked` and re-plans around it.
+ *
+ * The cache is wrong the other way too. A doorway's static tile carries the
+ * closed door's collision, so the cache (and the client's own Tab map) calls
+ * the tile impassable, and the game opens the door as the character steps in.
+ * A warp tile is entered by definition — the graph says a warp is there — so
+ * a move into one of `allowed` is permitted whatever the cache says. The
+ * live check of 2026-09-21 found Piet Storage's door (50,13) this way.
  */
-function gridWithBlocks(grid: MapGrid, mapId: number, blocked: Set<string>): MapGrid {
+function gridWithBlocks(
+  grid: MapGrid,
+  mapId: number,
+  blocked: Set<string>,
+  allowed: Set<string> = new Set()
+): MapGrid {
   return {
     width: grid.width,
     height: grid.height,
     inBounds: grid.inBounds,
     canMove: (x, y, direction) => {
-      if (!grid.canMove(x, y, direction)) return false
       const delta = DIRECTION_DELTA[direction]
       if (delta === undefined) return false
-      return !blocked.has(tileKey(mapId, x + delta[0], y + delta[1]))
+      const nx = x + delta[0]
+      const ny = y + delta[1]
+      const into = tileKey(mapId, nx, ny)
+      if (blocked.has(into)) return false
+      if (allowed.has(into)) return grid.inBounds(nx, ny)
+      return grid.canMove(x, y, direction)
     }
   }
 }
@@ -489,8 +510,10 @@ export function createWalker(options: WalkerOptions): Walker {
 
       const rawGrid = await maps.gridFor(position.mapId, position.mapWidth, position.mapHeight)
       if (rawGrid === null) return { kind: 'stopped', reason: 'blocked' }
-      // Route around the tiles this run has learned it cannot get through.
-      const grid = gridWithBlocks(rawGrid, position.mapId, blocked)
+      // Route around the tiles this run has learned it cannot get through, and
+      // into the leg's warp tiles whatever the cache says of them.
+      const warpTiles = new Set(leg.warps.map((w) => tileKey(position.mapId, w.x, w.y)))
+      const grid = gridWithBlocks(rawGrid, position.mapId, blocked, warpTiles)
 
       // Pick the nearest warp tile the character can actually path to. A warp
       // tile this run learned does not fire is skipped here too: standing on it
@@ -597,8 +620,11 @@ export function createWalker(options: WalkerOptions): Walker {
       // sends CWalk, so a `predicted` move to the aimed tile is a landed step —
       // the walker does not wait for the slower server word (WP14). A resolved
       // outcome is a move to the aimed tile, a warp, an unasked-for map change,
-      // or a jump of more than one tile.
-      const timeout = isWarpStep ? WARP_CONFIRM_MS : STEP_CONFIRM_MS
+      // a jump of more than one tile, or — for a press in a new direction — the
+      // turn itself, which the client sends as CChangeDirection the moment it
+      // turns. A turn never changes the map, so a warp step that is a turn
+      // waits only the step time.
+      const timeout = isWarpStep && !isTurn ? WARP_CONFIRM_MS : STEP_CONFIRM_MS
       const after = await waitFor(
         run.connectionId,
         (p) =>
@@ -606,20 +632,39 @@ export function createWalker(options: WalkerOptions): Walker {
           p.asOfMs > beforeAt &&
           (p.mapId !== before.mapId ||
             (p.x === step.x && p.y === step.y) ||
-            Math.abs(p.x - before.x) + Math.abs(p.y - before.y) > 1),
+            Math.abs(p.x - before.x) + Math.abs(p.y - before.y) > 1 ||
+            (isTurn && p.facing === step.direction && p.x === before.x && p.y === before.y)),
         timeout
       )
+
+      // The wire said the press was a turn. The next press in this direction steps.
+      if (
+        after !== null &&
+        after.mapId === before.mapId &&
+        after.x === before.x &&
+        after.y === before.y
+      ) {
+        facing = step.direction
+        run.lastPosition = after
+        log.info(
+          'walker',
+          `Turned to face ${DIRECTION_NAME[step.direction]} at (${before.x}, ${before.y}); will step next.`
+        )
+        continue
+      }
 
       if (after === null) {
         // The tile did not change. A press in a new direction only turned the
         // character, which is not a stall: the next press in this direction
-        // steps. A press in the way it already faces that does not move is a
-        // real stall — a wall, a door, a creature, a freeze (WP15 decision 3).
+        // steps. The wire usually says so at once (above); this is the case
+        // where it did not. A press in the way it already faces that does not
+        // move is a real stall — a wall, a door, a creature, a freeze (WP15
+        // decision 3).
         if (isTurn) {
           facing = step.direction
           log.info(
             'walker',
-            `Turned to face ${DIRECTION_NAME[step.direction]} at (${before.x}, ${before.y}); will step next.`
+            `Turned to face ${DIRECTION_NAME[step.direction]} at (${before.x}, ${before.y}) with no word from the wire; will step next.`
           )
           continue
         }
@@ -652,9 +697,11 @@ export function createWalker(options: WalkerOptions): Walker {
           // The step was aimed short of the graph's warp tile and fired
           // anyway: the real warp is where the step landed. Say so, so the
           // graph can be corrected.
+          // Under lag two presses can land as one, so the aimed tile may be
+          // one short of where the character stood when the warp fired.
           log.warn(
             'walker',
-            `Warp to map ${after.mapId} fired at (${step.x}, ${step.y}); the graph names (${best.warp.x}, ${best.warp.y}).`
+            `Warp to map ${after.mapId} fired on the step aimed at (${step.x}, ${step.y}); the graph names (${best.warp.x}, ${best.warp.y}).`
           )
         }
         publish(run)
@@ -718,36 +765,44 @@ export function createWalker(options: WalkerOptions): Walker {
   }
 
   /**
-   * Walk the last stretch to a tile beside `destTile` on the current map.
+   * Walk the last stretch to `destTile` on the current map, or to a tile
+   * beside it.
    *
    * The map walk stops on the destination map at whatever tile the route
-   * reached. An errand needs the character beside the NPC, so this steps to a
-   * tile next to `destTile`. It follows the same step-and-confirm rule as the
-   * map walk: one key, one confirmation, re-plan when a step does not land, and
-   * stop when something else moves the character. It is simpler than the map
-   * walk because there is no warp to take.
+   * reached. An errand needs the character at the NPC, and a user may name a
+   * spot to stand on, so this steps the rest of the way. `arrive` says which:
+   * `on` ends on the tile itself (a spot in front of a counter); `beside` ends
+   * next to it (an NPC's own tile, which is occupied). It follows the same
+   * step-and-confirm rule as the map walk: one key, one confirmation, re-plan
+   * when a step does not land, and stop when something else moves the
+   * character. It is simpler than the map walk because there is no warp.
    */
   async function approachTile(
     run: Run,
     target: ActionTarget,
     destMapId: number,
-    destTile: { x: number; y: number }
+    destTile: { x: number; y: number },
+    arrive: 'on' | 'beside'
   ): Promise<WalkOutcome> {
     let stalls = 0
     let stallKey = ''
     let facing = -1
     const blocked = new Set<string>()
 
-    // The tiles beside the NPC. The NPC's own tile is occupied, so the walker
-    // finishes on one of its four neighbours.
-    const goals = [
-      { x: destTile.x, y: destTile.y - 1 },
-      { x: destTile.x + 1, y: destTile.y },
-      { x: destTile.x, y: destTile.y + 1 },
-      { x: destTile.x - 1, y: destTile.y }
-    ]
+    // Where the walk ends: the tile itself, or one of its four neighbours.
+    const goals =
+      arrive === 'on'
+        ? [destTile]
+        : [
+            { x: destTile.x, y: destTile.y - 1 },
+            { x: destTile.x + 1, y: destTile.y },
+            { x: destTile.x, y: destTile.y + 1 },
+            { x: destTile.x - 1, y: destTile.y }
+          ]
     const isAdjacent = (x: number, y: number): boolean =>
-      Math.abs(x - destTile.x) + Math.abs(y - destTile.y) === 1
+      arrive === 'on'
+        ? x === destTile.x && y === destTile.y
+        : Math.abs(x - destTile.x) + Math.abs(y - destTile.y) === 1
 
     for (;;) {
       if (!run.running) return { kind: 'stopped', reason: run.stopReason ?? 'user' }
@@ -765,7 +820,7 @@ export function createWalker(options: WalkerOptions): Walker {
       // Something else moved the character off the destination map.
       if (position.mapId !== destMapId) return { kind: 'stopped', reason: 'lostPosition' }
 
-      // Beside the NPC: done.
+      // At the goal: done.
       if (isAdjacent(position.x, position.y)) {
         publish(run)
         return { kind: 'arrived' }
@@ -814,9 +869,22 @@ export function createWalker(options: WalkerOptions): Walker {
           p.asOfMs > beforeAt &&
           (p.mapId !== before.mapId ||
             (p.x === step.x && p.y === step.y) ||
-            Math.abs(p.x - before.x) + Math.abs(p.y - before.y) > 1),
+            Math.abs(p.x - before.x) + Math.abs(p.y - before.y) > 1 ||
+            (isTurn && p.facing === step.direction && p.x === before.x && p.y === before.y)),
         STEP_CONFIRM_MS
       )
+
+      // The wire said the press was a turn.
+      if (
+        after !== null &&
+        after.mapId === before.mapId &&
+        after.x === before.x &&
+        after.y === before.y
+      ) {
+        facing = step.direction
+        run.lastPosition = after
+        continue
+      }
 
       if (after === null) {
         // A press in a new direction only turns the character, which is not a
@@ -975,7 +1043,13 @@ export function createWalker(options: WalkerOptions): Walker {
       outcome = await runLoop(run, destMapId, armed)
       // Once on the destination map, step the last stretch to the NPC's tile.
       if (outcome.kind === 'arrived' && request.tile !== undefined) {
-        outcome = await approachTile(run, armed, destMapId, request.tile)
+        outcome = await approachTile(
+          run,
+          armed,
+          destMapId,
+          request.tile,
+          request.arrive ?? 'beside'
+        )
       }
     } catch (error) {
       log.warn('walker', `Walker on ${connectionId} threw: ${String(error)}.`)
@@ -994,7 +1068,21 @@ export function createWalker(options: WalkerOptions): Walker {
 
   return {
     destinations(): WalkerDestination[] {
-      return graph.destinations()
+      const named = graph.destinations()
+      // A spot is a map name with a tile, in the form the destination box
+      // parses. It is offered once, even when several errands share it.
+      const seen = new Set<string>()
+      const spots: WalkerDestination[] = []
+      for (const spot of options.spots?.() ?? []) {
+        const mapId = graph.resolveDestination(spot.destination)
+        if (mapId === null) continue
+        const place = named.find((d) => d.mapId === mapId)?.name ?? String(spot.destination)
+        const name = `${place} @ ${spot.tile.x},${spot.tile.y}`
+        if (seen.has(name)) continue
+        seen.add(name)
+        spots.push({ mapId, name })
+      }
+      return [...named, ...spots].sort((a, b) => a.name.localeCompare(b.name))
     },
     go,
     stop,

@@ -28,10 +28,12 @@ import { decodeFieldMap, decodeFieldMapClick, type FieldMap, type FieldMapClick 
 import { decodePursuitMessage, type PursuitMessage } from './pursuit'
 import {
   decodeMapInfo,
+  decodeTurn,
   decodeUserMove,
   decodeUserPosition,
   decodeWalk,
   type MapInfo,
+  type Turn,
   type UserMove,
   type UserPosition,
   type Walk
@@ -74,6 +76,7 @@ export type DecodedPacket =
   | UserMove
   | MapInfo
   | Walk
+  | Turn
   | Status
   | AddInventory
   | RemoveInventory
@@ -121,6 +124,7 @@ const CLIENT_DECODERS = new Map<number, Decoder>([
   [ClientOpcode.ClientJoin, decodeClientTransfer],
   [ClientOpcode.ClientExit, decodeClientExit],
   [ClientOpcode.Walk, decodeWalk],
+  [ClientOpcode.Turn, decodeTurn],
   [ClientOpcode.MerchantResponse, decodeMerchantResponse],
   [ClientOpcode.PursuitResponse, decodePursuitResponse],
   [ClientOpcode.FieldMapClick, decodeFieldMapClick]

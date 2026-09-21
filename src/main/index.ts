@@ -8,6 +8,7 @@ import { createActionLayer, type HotkeyRegistrar, type WindowApi } from './actio
 import { createSpeaker } from './speaker'
 import { createWalker } from './walker'
 import { createLaborer } from './laborer'
+import { builtinErrands } from './laborer/errands'
 import { createPaneWatcher } from './paneWatcher'
 import { createMapSource } from './route/mapSource'
 import { worldGraph } from './route/graph'
@@ -271,6 +272,11 @@ const walker = createWalker({
   liveConnections: () => captureService.liveCharacterEntries(),
   positionFor: (connectionId) => captureService.positionFor(connectionId),
   fieldMapFor: (connectionId) => captureService.fieldMapFor(connectionId),
+  // The errands' stand tiles, offered as `Place @ x,y` beside the map names.
+  spots: () =>
+    builtinErrands()
+      .filter((e) => e.standTile !== undefined)
+      .map((e) => ({ destination: e.destination, tile: e.standTile! })),
   maps: mapSource,
   graph: worldGraph,
   log,

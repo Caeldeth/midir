@@ -119,16 +119,40 @@ function hopOf(gesture) {
 }
 
 /**
- * Apply the wire-proven corrections to the parsed nodes, in place.
+ * Apply the proven corrections and additions to the parsed nodes, in place.
  *
- * An override names one exit (from one map to another) and the warp tiles
- * that are true for it. Those tiles replace the .dat's for that exit; the
- * exit's hop, if it had one, is kept. An override for a map or an exit the
+ * An `exits` override names one exit (from one map to another) and the warp
+ * tiles that are true for it. Those tiles replace the .dat's for that exit;
+ * the exit's hop, if it had one, is kept. An override for a map or an exit the
  * .dat does not have is reported, not invented.
+ *
+ * A `nodes` override adds a map the .dat lacks, with its name and its exits,
+ * or adds exits to a map the .dat has. A name is set only where the .dat gave
+ * none. A node that arrives with no exits is a fact on record (its arrival
+ * tile), not a change to the graph.
  */
 export function applyOverrides(nodes, overrides) {
   const applied = []
   const unmatched = []
+  for (const addition of overrides.nodes ?? []) {
+    let node = nodes.find((n) => n.mapId === addition.mapId)
+    if (node === undefined) {
+      node = { mapId: addition.mapId, name: addition.name ?? '', exits: [] }
+      nodes.push(node)
+      nodes.sort((a, b) => a.mapId - b.mapId)
+      applied.push(`node ${addition.mapId}`)
+    } else if (node.name === '' && addition.name) {
+      node.name = addition.name
+    }
+    for (const exit of addition.exits ?? []) {
+      for (const [x, y] of exit.tiles) {
+        if (node.exits.some((e) => e.toMapId === exit.toMapId && e.x === x && e.y === y)) continue
+        node.exits.push({ toMapId: exit.toMapId, x, y })
+        applied.push(`${addition.mapId} -> ${exit.toMapId} at ${x},${y}`)
+      }
+    }
+    node.exits.sort((a, b) => a.toMapId - b.toMapId || a.x - b.x || a.y - b.y)
+  }
   for (const override of overrides.exits ?? []) {
     const node = nodes.find((n) => n.mapId === override.fromMapId)
     const existing = node?.exits.filter((e) => e.toMapId === override.toMapId) ?? []
@@ -223,9 +247,10 @@ export function parseWorldMap(text) {
 async function main() {
   const source = process.argv[2] ?? DEFAULT_SOURCE
   const text = await readFile(source, 'latin1')
-  const { nodes, skipped, blockCount, namedCount } = parseWorldMap(text)
+  const { nodes, skipped, blockCount } = parseWorldMap(text)
   const overrides = JSON.parse(await readFile(OVERRIDES, 'utf8'))
   const { applied, unmatched } = applyOverrides(nodes, overrides)
+  const namedCount = nodes.filter((n) => n.name !== '').length
 
   const edgeCount = nodes.reduce((sum, n) => sum + n.exits.length, 0)
   const hopCounts = { fieldMap: 0, prompt: 0, dialog: 0 }

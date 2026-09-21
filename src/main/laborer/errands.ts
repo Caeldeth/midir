@@ -8,60 +8,74 @@ import type { Errand } from '../../shared/types'
  * here, not new logic. Each NPC is its own errand, so the player picks one and
  * runs it.
  *
- * ## Two values in each entry still need a live capture
+ * ## What each entry knows, and what still needs a live capture
  *
- * The `destination` and the `npcName` are known. Two things are not, and they
- * are filled from a recorded session of the errand, or from the GUI check, not
- * guessed:
+ * The `destination` and the `npcName` are known. The tile to stand on is known
+ * for the six Mileth and Rucesion errands (Sabrael's capture of 2026-09-21):
  *
- *  - `npcTile` — the exact tile the NPC stands on, so the walker finishes beside
- *    it. Without it the walker reaches the map but not the NPC.
- *  - `steps` — the pursuit id and the row text for each dialog step. With no
- *    steps, the Laborer walks to the map and stops.
+ *  - `standTile` — the spot to stand on to talk to the NPC, in front of the
+ *    counter or the desk; the walker finishes on it. `npcTile` is the other
+ *    form, the NPC's own tile, which the walker finishes beside. Without either
+ *    the walker reaches the map but not the NPC.
+ *  - `steps` — the pursuit id and the row text for each dialog step. Still a
+ *    capture away. With no steps, the Laborer walks to the NPC and stops.
  *
  * A placeholder is safe: the matcher refuses any dialog whose pursuit and row
  * text do not match, so a wrong value stops the run rather than acting on it.
  *
- * ## Five destinations are not in the world graph yet
+ * ## Destinations the world graph does not reach yet
  *
- * `destination` is a node name the route graph resolves. The graph has Rucesion
- * Inn, Rucesion Bank, Rucesion Town Hall, and Mileth Inn. It does **not** yet
- * have Mileth Tavern, Mileth Town Hall, Piet Bank, Abel Bank, or Undine Bank, so
- * an errand to one of those stops with `noRoute` until the graph gains the node
- * (WP33). The towns themselves are reachable: the walker crosses the world map.
- * The name is written here as the building it should resolve to, so the errand
- * works the moment the node exists.
+ * `destination` is a node name the route graph resolves. Every errand building
+ * is a node and routes: the Mileth and Rucesion ones from Sabrael's captures,
+ * and Piet, Abel, and Undine banks from the Hybrasyl world xml (`Old*.xml`,
+ * which Sabrael says is spot-on for retail, and which agrees with the .dat
+ * wherever both speak; `scripts/worldmap-overrides.json` carries each with its
+ * source).
+ *
+ * Cassidy is in Mileth Bank (map 135), not Rucesion's: the July capture and
+ * the world xml both put her there.
  */
 export const BUILTIN_ERRANDS: Errand[] = [
   // --- Clout: one errand for each NPC ------------------------------------
   {
     name: 'Clout — Maria (Rucesion Inn)',
     destination: 'Rucesion Inn',
+    standTile: { x: 5, y: 6 },
     npcName: 'Maria',
     steps: []
   },
   {
     name: 'Clout — Angelo (Rucesion Bank)',
     destination: 'Rucesion Bank',
+    standTile: { x: 5, y: 8 },
     npcName: 'Angelo',
     steps: []
   },
   {
     name: 'Clout — Eduardo (Rucesion Town Hall)',
     destination: 'Rucesion Town Hall',
+    standTile: { x: 1, y: 11 },
     npcName: 'Eduardo',
     steps: []
   },
   {
     name: 'Clout — Aingeal (Mileth Tavern)',
     destination: 'Mileth Tavern',
+    standTile: { x: 9, y: 5 },
     npcName: 'Aingeal',
     steps: []
   },
-  { name: 'Clout — Riona (Mileth Inn)', destination: 'Mileth Inn', npcName: 'Riona', steps: [] },
+  {
+    name: 'Clout — Riona (Mileth Inn)',
+    destination: 'Mileth Inn',
+    standTile: { x: 6, y: 4 },
+    npcName: 'Riona',
+    steps: []
+  },
   {
     name: 'Clout — Arilan (Mileth Town Hall)',
     destination: 'Mileth Town Hall',
+    standTile: { x: 2, y: 11 },
     npcName: 'Arilan',
     steps: []
   },
@@ -70,18 +84,43 @@ export const BUILTIN_ERRANDS: Errand[] = [
   {
     name: 'Labor — Antonio (Rucesion Bank)',
     destination: 'Rucesion Bank',
+    standTile: { x: 5, y: 8 },
     npcName: 'Antonio',
     steps: []
   },
   {
-    name: 'Labor — Cassidy (Rucesion Bank)',
-    destination: 'Rucesion Bank',
+    name: 'Labor — Cassidy (Mileth Bank)',
+    destination: 'Mileth Bank',
+    standTile: { x: 6, y: 6 },
     npcName: 'Cassidy',
     steps: []
   },
-  { name: 'Labor — Jilt (Piet Bank)', destination: 'Piet Bank', npcName: 'Jilt', steps: [] },
-  { name: 'Labor — Lamont (Abel Bank)', destination: 'Abel Bank', npcName: 'Lamont', steps: [] },
-  { name: 'Labor — Argus (Undine Bank)', destination: 'Undine Bank', npcName: 'Argus', steps: [] }
+  // The three other-town storages are the same 12 x 12 room as Rucesion's,
+  // with the NPC on the same tile (3,4), so Rucesion's stand tile carries over.
+  {
+    name: 'Labor — Jilt (Piet Bank)',
+    destination: 'Piet Bank',
+    standTile: { x: 5, y: 8 },
+    npcTile: { x: 3, y: 4 },
+    npcName: 'Jilt',
+    steps: []
+  },
+  {
+    name: 'Labor — Lamont (Abel Bank)',
+    destination: 'Abel Bank',
+    standTile: { x: 5, y: 8 },
+    npcTile: { x: 3, y: 4 },
+    npcName: 'Lamont',
+    steps: []
+  },
+  {
+    name: 'Labor — Argus (Undine Bank)',
+    destination: 'Undine Bank',
+    standTile: { x: 5, y: 8 },
+    npcTile: { x: 3, y: 4 },
+    npcName: 'Argus',
+    steps: []
+  }
 ]
 
 /** Every built-in errand, in order. */

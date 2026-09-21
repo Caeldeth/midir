@@ -113,3 +113,56 @@ describe('applyOverrides', () => {
     expect(unmatched).toEqual(['505 -> 9999', '1 -> 2'])
   })
 })
+
+describe('applyOverrides nodes', () => {
+  it('adds a map the .dat lacks, and exits to a map it has', () => {
+    const { nodes } = parseWorldMap(SNIPPET)
+    const { applied } = applyOverrides(nodes, {
+      nodes: [
+        {
+          mapId: 3026,
+          name: 'Mileth Town Hall',
+          exits: [
+            {
+              toMapId: 500,
+              tiles: [
+                [6, 15],
+                [7, 15]
+              ]
+            }
+          ]
+        },
+        {
+          mapId: 505,
+          exits: [
+            { toMapId: 3026, tiles: [[10, 10]] },
+            { toMapId: 421, tiles: [[37, 28]] }
+          ]
+        }
+      ]
+    })
+    const hall = nodes.find((n) => n.mapId === 3026)
+    expect(hall).toEqual({
+      mapId: 3026,
+      name: 'Mileth Town Hall',
+      exits: [
+        { toMapId: 500, x: 6, y: 15 },
+        { toMapId: 500, x: 7, y: 15 }
+      ]
+    })
+    const rucesion = nodes.find((n) => n.mapId === 505)
+    expect(rucesion.exits.filter((e) => e.toMapId === 3026)).toEqual([
+      { toMapId: 3026, x: 10, y: 10 }
+    ])
+    // An exit the .dat already has is not added twice.
+    expect(rucesion.exits.filter((e) => e.toMapId === 421)).toHaveLength(1)
+    expect(applied).toEqual([
+      'node 3026',
+      '3026 -> 500 at 6,15',
+      '3026 -> 500 at 7,15',
+      '505 -> 3026 at 10,10'
+    ])
+    // Nodes stay sorted by map id.
+    expect(nodes.map((n) => n.mapId)).toEqual([378, 502, 505, 2900, 3026, 10055])
+  })
+})

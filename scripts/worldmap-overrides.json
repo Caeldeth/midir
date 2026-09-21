@@ -1,11 +1,15 @@
 {
-  "note": "Corrections to DA Walker's WorldMap.dat, learned from the wire. import-worldmap.mjs applies each entry after the parse: it replaces the warp tiles of one exit (fromMapId to toMapId) with `tiles`. The .dat itself stays as DA Walker shipped it. Each entry names the observation that justifies it.",
+  "note": "Corrections and additions to DA Walker's WorldMap.dat, learned from the wire or from Sabrael's captures. import-worldmap.mjs applies them after the parse. `exits` replaces the warp tiles of one exit (fromMapId to toMapId) with `tiles`. `nodes` adds a map the .dat lacks, with its name and its exits, or adds exits to a map the .dat has. The .dat itself stays as DA Walker shipped it. Each entry names the observation that justifies it. `arrival` on a node is where the character lands on entering it, kept as a fact; the walker reads the position off the wire and does not use it.",
   "exits": [
     {
       "fromMapId": 3048,
       "toMapId": 3010,
-      "tiles": [[0, 9]],
-      "seen": "2026-09-21 live check: standing on the .dat's (1,9) did not fire; the warp fired on the step onto (0,9)."
+      "tiles": [
+        [0, 8],
+        [0, 9],
+        [0, 10]
+      ],
+      "seen": "2026-09-21 live check: standing on the .dat's (1,9) did not fire; the warp fired on the step onto (0,9). Sabrael's capture: the strip is 0,8 0,9 0,10."
     },
     {
       "fromMapId": 3048,
@@ -18,9 +22,329 @@
       "toMapId": 505,
       "tiles": [
         [14, 15],
+        [15, 15],
         [16, 15]
       ],
-      "seen": "2026-09-21 live check: the warp fired on the step from (16,14) onto (16,15). The .dat's (14,15) is kept; the strip is wider than one tile."
+      "seen": "2026-09-21 live check: the warp fired on the step from (16,14) onto (16,15). Sabrael's capture: the strip is 14,15 15,15 16,15."
+    },
+    {
+      "fromMapId": 3049,
+      "toMapId": 3048,
+      "tiles": [
+        [6, 15],
+        [7, 15]
+      ],
+      "seen": "2026-09-21 Sabrael: the Town Hall leaves at 6,15 and 7,15; the .dat had only 7,15."
+    },
+    {
+      "fromMapId": 505,
+      "toMapId": 498,
+      "tiles": [
+        [41, 41],
+        [41, 42],
+        [41, 43]
+      ],
+      "seen": "2026-09-21 Sabrael: Rucesion Village to Rucesion Inn at 41,41 41,42 41,43; the .dat had 41,41."
+    },
+    {
+      "fromMapId": 505,
+      "toMapId": 3010,
+      "tiles": [
+        [28, 0],
+        [29, 0],
+        [30, 0]
+      ],
+      "seen": "2026-09-21 Sabrael: Rucesion Village to Rucesion Village Way at 28,0 29,0 30,0; the .dat had 29,0."
+    },
+    {
+      "fromMapId": 3010,
+      "toMapId": 3048,
+      "tiles": [
+        [23, 9],
+        [23, 10],
+        [23, 11]
+      ],
+      "seen": "2026-09-21 Sabrael: Rucesion Village Way to Rucesion Commons at 23,9 23,10 23,11; the .dat had 23,11 (the live check warped from 22,11 onto it)."
+    },
+    {
+      "fromMapId": 505,
+      "toMapId": 422,
+      "tiles": [[42, 11]],
+      "seen": "2026-09-21 Sabrael: Rucesion Village to Rucesion Bank at 42,11, as the .dat has. Recorded as confirmed."
+    },
+    {
+      "fromMapId": 3006,
+      "toMapId": 500,
+      "tiles": [
+        [0, 4],
+        [0, 5],
+        [0, 6],
+        [0, 7],
+        [0, 8]
+      ],
+      "seen": "2026-09-21 Sabrael: Mileth Village Way back to Mileth Village at 0,4 to 0,8; the .dat also had 0,9."
+    }
+  ],
+  "nodes": [
+    {
+      "mapId": 3026,
+      "name": "Mileth Town Hall",
+      "arrival": {
+        "x": 6,
+        "y": 14,
+        "note": "or 7,14"
+      },
+      "exits": [
+        {
+          "toMapId": 500,
+          "tiles": [
+            [6, 15],
+            [7, 15]
+          ]
+        }
+      ],
+      "seen": "2026-09-21 Sabrael: lod3026; arrive on 6,14 (might be 7,14); exits 6,15 and 7,15. The Mileth-side door tile is not captured yet, so Mileth (500) has no exit to it."
+    },
+    {
+      "mapId": 134,
+      "name": "Mileth Tavern",
+      "arrival": {
+        "x": 13,
+        "y": 4,
+        "note": "or 13,5"
+      },
+      "exits": [
+        {
+          "toMapId": 500,
+          "tiles": [
+            [14, 5],
+            [14, 4]
+          ]
+        }
+      ],
+      "seen": "2026-09-21 Sabrael: lod134; arrive on 13,4 (might be 13,5); exits 14,5 and 14,4. The Mileth-side door tile is not captured yet, so Mileth (500) has no exit to it."
+    },
+    {
+      "mapId": 135,
+      "name": "Mileth Bank",
+      "arrival": {
+        "x": 5,
+        "y": 10,
+        "note": "or 6,10"
+      },
+      "exits": [],
+      "seen": "2026-09-21 Sabrael: arrive on 5,10 (might be 6,10); exits 5,11 and 6,11, which the .dat has (plus 7,11). Recorded for the arrival only."
+    },
+    {
+      "mapId": 136,
+      "name": "Mileth Inn",
+      "arrival": {
+        "x": 6,
+        "y": 10
+      },
+      "exits": [],
+      "seen": "2026-09-21 Sabrael: arrive on 6,10; exits 5,11 6,11 11,2 11,3, which the .dat has. Recorded for the arrival only."
+    },
+    {
+      "mapId": 498,
+      "name": "Rucesion Inn",
+      "arrival": {
+        "x": 6,
+        "y": 10
+      },
+      "exits": [],
+      "seen": "2026-09-21 Sabrael: arrive on 6,10; exits 4,11 to 7,11, which the .dat has. Recorded for the arrival only."
+    },
+    {
+      "mapId": 422,
+      "name": "Rucesion Bank",
+      "arrival": {
+        "x": 5,
+        "y": 10
+      },
+      "exits": [],
+      "seen": "2026-09-21 Sabrael: the game calls it Rucesion Storage; arrive on 5,10; exits 5,14 and 6,14, which the .dat has. Recorded for the arrival only."
+    },
+    {
+      "mapId": 3049,
+      "name": "Rucesion Town Hall",
+      "arrival": {
+        "x": 6,
+        "y": 14,
+        "note": "or 7,14"
+      },
+      "exits": [],
+      "seen": "2026-09-21 Sabrael: arrive on 6,14 or 7,14; exits 6,15 and 7,15 (see the exit correction). Recorded for the arrival only."
+    },
+    {
+      "mapId": 500,
+      "exits": [
+        {
+          "toMapId": 134,
+          "tiles": [
+            [69, 53],
+            [69, 54]
+          ]
+        }
+      ],
+      "seen": "2026-09-21 Sabrael: Mileth Village enters the Tavern at 69,53 and 69,54. Also confirmed as the .dat has them: to Mileth Village Way 99,26 to 99,31; to Mileth Storage 54,69 55,69; to Mileth Inn 27,43 28,43 32,38 32,37."
+    },
+    {
+      "mapId": 3025,
+      "name": "Mileth Commons",
+      "exits": [
+        {
+          "toMapId": 3026,
+          "tiles": [[4, 6]]
+        },
+        {
+          "toMapId": 3006,
+          "tiles": [
+            [12, 15],
+            [13, 15],
+            [14, 15],
+            [15, 15]
+          ]
+        }
+      ],
+      "seen": "2026-09-21 Sabrael: lod3025; enters the Town Hall at 4,6; back to Mileth Village Way at 12,15 to 15,15. Not in the .dat at all."
+    },
+    {
+      "mapId": 3006,
+      "exits": [
+        {
+          "toMapId": 3025,
+          "tiles": [
+            [12, 0],
+            [13, 0],
+            [14, 0],
+            [15, 0]
+          ]
+        }
+      ],
+      "seen": "2026-09-21 Sabrael: Mileth Village Way enters Mileth Commons at 12,0 to 15,0."
+    },
+    {
+      "mapId": 501,
+      "name": "Piet Village",
+      "arrival": {
+        "x": 1,
+        "y": 9,
+        "note": "1,8 to 1,11 by the way's tile"
+      },
+      "exits": [
+        {
+          "toMapId": 3020,
+          "tiles": [
+            [0, 8],
+            [0, 9],
+            [0, 10],
+            [0, 11]
+          ]
+        },
+        {
+          "toMapId": 148,
+          "tiles": [
+            [50, 13],
+            [51, 13]
+          ]
+        }
+      ],
+      "seen": "2026-09-21 Hybrasyl world xml (world/xml/maps/.ignore/Old*.xml), spot-on for retail per Sabrael, and in agreement with the .dat wherever both speak; a wire sighting is still to come. Not in the .dat at all: the .dat's Piet (3020) is the Village Way, with no way into the town."
+    },
+    {
+      "mapId": 3020,
+      "exits": [
+        {
+          "toMapId": 501,
+          "tiles": [
+            [23, 8],
+            [23, 9],
+            [23, 10],
+            [23, 11],
+            [23, 12],
+            [23, 13]
+          ]
+        }
+      ],
+      "seen": "2026-09-21 Hybrasyl world xml (world/xml/maps/.ignore/Old*.xml), spot-on for retail per Sabrael, and in agreement with the .dat wherever both speak; a wire sighting is still to come."
+    },
+    {
+      "mapId": 148,
+      "name": "Piet Bank",
+      "arrival": {
+        "x": 5,
+        "y": 10,
+        "note": "or 6,10; the game calls it Piet Storage"
+      },
+      "exits": [
+        {
+          "toMapId": 501,
+          "tiles": [
+            [5, 11],
+            [6, 11]
+          ]
+        }
+      ],
+      "seen": "2026-09-21 Hybrasyl world xml (world/xml/maps/.ignore/Old*.xml), spot-on for retail per Sabrael, and in agreement with the .dat wherever both speak; a wire sighting is still to come. Jilt stands at 3,4, as Antonio does in Rucesion Storage."
+    },
+    {
+      "mapId": 167,
+      "name": "Abel Bank",
+      "arrival": {
+        "x": 6,
+        "y": 10,
+        "note": "the game calls it Abel Storage"
+      },
+      "exits": [
+        {
+          "toMapId": 502,
+          "tiles": [
+            [5, 11],
+            [6, 11]
+          ]
+        }
+      ],
+      "seen": "2026-09-21 Hybrasyl world xml (world/xml/maps/.ignore/Old*.xml), spot-on for retail per Sabrael, and in agreement with the .dat wherever both speak; a wire sighting is still to come. Lamont stands at 3,4."
+    },
+    {
+      "mapId": 502,
+      "exits": [
+        {
+          "toMapId": 167,
+          "tiles": [[14, 8]]
+        }
+      ],
+      "seen": "2026-09-21 Hybrasyl world xml (world/xml/maps/.ignore/Old*.xml), spot-on for retail per Sabrael, and in agreement with the .dat wherever both speak; a wire sighting is still to come. Abel Port enters its Storage at 14,8; the way back lands on 14,9."
+    },
+    {
+      "mapId": 432,
+      "name": "Undine Bank",
+      "arrival": {
+        "x": 5,
+        "y": 10,
+        "note": "the game calls it Undine Storage"
+      },
+      "exits": [
+        {
+          "toMapId": 504,
+          "tiles": [
+            [5, 11],
+            [6, 11]
+          ]
+        }
+      ],
+      "seen": "2026-09-21 Hybrasyl world xml (world/xml/maps/.ignore/Old*.xml), spot-on for retail per Sabrael, and in agreement with the .dat wherever both speak; a wire sighting is still to come. Argus stands at 3,4."
+    },
+    {
+      "mapId": 504,
+      "exits": [
+        {
+          "toMapId": 432,
+          "tiles": [[86, 16]]
+        }
+      ],
+      "seen": "2026-09-21 Hybrasyl world xml (world/xml/maps/.ignore/Old*.xml), spot-on for retail per Sabrael, and in agreement with the .dat wherever both speak; a wire sighting is still to come. Undine Village enters its Storage at 86,16; the way back lands on 86,17."
     }
   ]
 }
