@@ -19,7 +19,15 @@ export const USERDATA_SUBPATH = ['Erisco', 'Midir']
 // pointing it at a temp dir keeps every run hermetic and off the real profile.
 // Pass `seedSettings` to pre-write settings.json; pass an existing `localAppData`
 // to reuse one dir across two launches (persistence-across-relaunch tests).
-export async function launchApp({ seedSettings, localAppData: reuseDir } = {}) {
+// Pass `replay` (a recording path) to make the app play that recording in
+// place of an adapter (`MIDIR_REPLAY`, WP21); with `autoStartCapture` seeded
+// the views fill on their own. Pass `env` for anything else.
+export async function launchApp({
+  seedSettings,
+  localAppData: reuseDir,
+  replay,
+  env: extraEnv = {}
+} = {}) {
   const localAppData = reuseDir ?? mkdtempSync(join(tmpdir(), 'hyb-e2e-'))
   if (seedSettings) {
     const dir = join(localAppData, ...USERDATA_SUBPATH)
@@ -30,7 +38,8 @@ export async function launchApp({ seedSettings, localAppData: reuseDir } = {}) {
   // Electron-hosted terminals set it), the launched electron binary runs as
   // plain Node (no `app`, no windows) and the main process throws at
   // app.setPath. We want a real Electron app here.
-  const env = { ...process.env, LOCALAPPDATA: localAppData, NODE_ENV: 'test' }
+  const env = { ...process.env, LOCALAPPDATA: localAppData, NODE_ENV: 'test', ...extraEnv }
+  if (replay) env.MIDIR_REPLAY = replay
   delete env.ELECTRON_RUN_AS_NODE
   const electronApp = await electron.launch({ args: [mainEntry], cwd: repoRoot, env })
   return { electronApp, localAppData }

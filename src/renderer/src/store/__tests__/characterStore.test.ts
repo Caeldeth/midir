@@ -1,6 +1,6 @@
 import { emptyCharacter, type CharacterRecord } from '@shared/character'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { findCharacter, useCharacterStore } from '../characterStore'
+import { findCharacter, mergeListed, useCharacterStore } from '../characterStore'
 
 const sabrael = { ...emptyCharacter('Sabrael', 1000), lastSeenMs: 5000 }
 const fintan = { ...emptyCharacter('Fintan', 1000), lastSeenMs: 1000 }
@@ -18,6 +18,25 @@ describe('useCharacterStore', () => {
       'Fintan'
     ])
     expect(useCharacterStore.getState().loading).toBe(false)
+  })
+
+  it('keeps a record a push delivered that the file has not caught up with (WP21)', async () => {
+    // The file is a second behind a live change. A page that mounts inside
+    // that second must not replace the pushed record with the file's old one.
+    const pushed = { ...fintan, lastSeenMs: 9000, stats: { ...fintan.stats, level: 50 } }
+    useCharacterStore.setState({ characters: [pushed] })
+    window.api.characters.list = vi.fn(async () => [sabrael, fintan])
+    await useCharacterStore.getState().refresh()
+    const { characters } = useCharacterStore.getState()
+    expect(characters.map((c) => c.name)).toEqual(['Fintan', 'Sabrael'])
+    expect(characters[0]?.stats.level).toBe(50)
+  })
+
+  it('the file wins over a stale live copy, and a forgotten character stays gone', () => {
+    const stale = { ...sabrael, lastSeenMs: 100 }
+    expect(mergeListed([sabrael], [stale]).map((c) => c.lastSeenMs)).toEqual([5000])
+    // A record only the store holds is kept: the file may simply be behind.
+    expect(mergeListed([], [fintan]).map((c) => c.name)).toEqual(['Fintan'])
   })
 
   it('replaces a character in place when main pushes a change', () => {

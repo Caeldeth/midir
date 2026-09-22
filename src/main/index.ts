@@ -10,10 +10,12 @@ import {
   session,
   shell
 } from 'electron'
-import { copyFileSync, existsSync, mkdirSync } from 'fs'
+import { copyFileSync, existsSync, mkdirSync, readFileSync } from 'fs'
 import { join } from 'path'
 import type { CaptureAvailability } from '../shared/types'
 import { createPcapSource, loadPcapApi, type PcapApi } from './capture/pcapSource'
+import { parseRecording } from './capture/recording'
+import { createReplaySource } from './capture/replaySource'
 import { createActionLayer, type HotkeyRegistrar, type WindowApi } from './actionLayer'
 import { createSpeaker } from './speaker'
 import { createWalker } from './walker'
@@ -276,11 +278,31 @@ async function startRecordingIfWanted(startedAtMs: number): Promise<Recorder | n
   }
 }
 
+/**
+ * `MIDIR_REPLAY=<path to a .ndjson recording>` replaces the adapter with that
+ * recording for the whole launch (WP21). Start capture as usual, on any
+ * device name, and the recording plays through the same service the live
+ * source feeds, so every view fills without Npcap, an adapter, or a game.
+ * It is the e2e suite's source, and a way to look at an old session again.
+ * The file is read once here so a missing one fails at launch, in the log,
+ * and not at the first start.
+ */
+const replayPath = process.env['MIDIR_REPLAY']
+const replayLines =
+  replayPath === undefined ? null : parseRecording(readFileSync(replayPath, 'utf8'))
+if (replayPath !== undefined) {
+  log.info(
+    'capture',
+    `Replaying ${replayPath} in place of an adapter (${replayLines?.length} lines).`
+  )
+}
+
 const captureService = createCaptureService({
   store: characterStore,
   boardStore,
   onBoards: () => pushToRenderer(BOARDS_CHANGED_CHANNEL, undefined),
   createSource: (device) => {
+    if (replayLines !== null) return createReplaySource(replayLines)
     if (pcap === null) throw new Error(pcapLoadError ?? 'Packet capture is unavailable.')
     return createPcapSource({ device, api: pcap })
   },

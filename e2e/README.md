@@ -18,9 +18,11 @@ Local-only for now. CI would need a virtual display (headed/xvfb), so this isn't
 ## What's here
 
 - **`helpers.js`** — the reusable harness:
-  - `launchApp({ seedSettings?, localAppData? })` — launches the built app, strips
-    `ELECTRON_RUN_AS_NODE`, and redirects `%LOCALAPPDATA%` to a temp dir so runs are hermetic.
-    Reuse `localAppData` across two launches to test persistence.
+  - `launchApp({ seedSettings?, localAppData?, replay?, env? })` — launches the built app,
+    strips `ELECTRON_RUN_AS_NODE`, and redirects `%LOCALAPPDATA%` to a temp dir so runs are
+    hermetic. Reuse `localAppData` across two launches to test persistence. `replay` is a
+    recording path: the app plays it in place of an adapter (`MIDIR_REPLAY`), and with
+    `autoStartCapture` seeded the views fill on their own.
   - `getMainWindow(app, { bridge? })` — skips the splash and returns the real main window. It
     finds it by the `window.api` bridge (absent on the splash, which has no preload). Midir has
     no `window.electron` toolkit bridge since WP28.
@@ -33,6 +35,14 @@ Local-only for now. CI would need a virtual display (headed/xvfb), so this isn't
   error boundary (HTOO-393). A new view needs one line here; its marker is `page-<view>`.
 - **`ipc-guard.spec.js`** — the main window reaches a privileged channel, and a rogue window
   with the same preload at the same URL is refused (`windowSecurity.ts`, R-006).
+- **`replay-surface.spec.js`** — the views after a session, from a recording (WP21): the
+  character list and sheet, the bank card with its "as of", the item index and its search,
+  the Diagnostics log and recordings cards. No Npcap, no adapter, no game.
+- **`fixtures/session.ndjson`** — that recording. Synthesised, not captured: this repository is
+  public and a real recording carries names and other players' chat.
+  `src/main/__tests__/e2eFixture.test.ts` builds it from plaintext packets and compares, so a
+  cipher or packet change fails there; `WRITE_E2E_FIXTURE=1 npx vitest run e2eFixture`
+  rewrites it.
 
 ## Adding specs
 

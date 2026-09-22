@@ -1,0 +1,11 @@
+{"kind":"header","version":1,"startedAtMs":1784812424000}
+{"kind":"open","id":"login","localAddress":"192.168.1.20","localPort":51000,"remoteAddress":"203.0.113.8","remotePort":2611,"openedAtMs":1784812424000}
+{"kind":"chunk","connectionId":"login","direction":"serverToClient","timestampMs":1784812424500,"gap":false,"data":"qgAeAwlxAMsKNBYDCVVya+VuSXSjSQZGaW50YW4AABI0"}
+{"kind":"close","id":"login","timestampMs":1784812424600}
+{"kind":"open","id":"world","localAddress":"192.168.1.20","localPort":51001,"remoteAddress":"203.0.113.9","remotePort":2612,"openedAtMs":1784812425000}
+{"kind":"chunk","connectionId":"world","direction":"serverToClient","timestampMs":1784812425100,"gap":false,"data":"qgBPCAGnzp2YqsKaz8ChM2JgPqc9SP7QzJ+aIM19zshnMWBlPUxnMjOfhwmYGcyYwmtmMTakNTJigzWZz7MpGpOZzMphN2ZiMzd/NMSSwXRAZQ=="}
+{"kind":"chunk","connectionId":"world","direction":"serverToClient","timestampMs":1784812425200,"gap":false,"data":"qgAfDwJkM0NnPmMERxbdpO/xyM+bj8mazJ2Yyc6az3RAZQ=="}
+{"kind":"chunk","connectionId":"world","direction":"serverToClient","timestampMs":1784812425300,"gap":false,"data":"qgAgDwObT82bw4/8or5HchIQTDNnMjWYzp+ay8yYzct0QGU="}
+{"kind":"chunk","connectionId":"world","direction":"serverToClient","timestampMs":1784812425400,"gap":false,"data":"qgAgNwRnsWFkOGESUlP+7vD8643/qLhnMWBkwDNnM6R0QGU="}
+{"kind":"chunk","connectionId":"world","direction":"serverToClient","timestampMs":1784812484000,"gap":false,"data":"qgCXLwWcz5+a1KOYjfNmMSFcNTJhclvtoPDypc2thK8XVkIORRESWFfu7OT3vO7yrr8CEQQARFwUW0D+qbzuobvz7qUGFRQTVUEKWUXvpuKw78jKycziZ2VgMTZmPnP4pe6/jbvosM9BsAxjMjVhNyPUre75oa/664kBRAxCcVEMQTK/TdKdzMufyMU4VgQLHHgDW0uR5nRAZQ=="}
+{"kind":"close","id":"world","timestampMs":1784812544000}
