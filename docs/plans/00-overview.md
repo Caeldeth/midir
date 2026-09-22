@@ -143,6 +143,7 @@ WP13 (the action layer: window, keys, the stop)   COMPLETE — complete/13-actio
            ├── WP33 (world-map coverage for errand nodes)   COMPLETE — complete/33-errand-map-coverage.md — every errand routes
            ├── WP34 (dismiss blocking popups)   COMPLETE — complete/34-dismiss-blocking-popups.md — three popups, proven live
            └── WP35 (right-click walking)   COMPLETE — complete/35-right-click-walking.md — one right-click per stretch, proven live
+      └── WP36 (the board archive)   PLANNED — 36-board-archive.md — boards and mail off the wire, and a poll that reads them all
 WP14 (position and map, off the wire)   COMPLETE — complete/14-position-and-map.md — what WP15 steers by
 WP18 (the packet-send spike)   PLANNED — gates every forged packet; WP17 is the only caller waiting
 
@@ -230,6 +231,7 @@ trigger is in each doc's header.
 | WP33 | S    | Map coverage for errand nodes   | HTOO-82  | COMPLETE — `complete/33-errand-map-coverage.md`            |
 | WP34 | S    | Dismiss blocking popups         | HTOO-83  | COMPLETE — `complete/34-dismiss-blocking-popups.md`        |
 | WP35 | M    | Right-click walking             | HTOO-468 | COMPLETE 2026-09-21 — `complete/35-right-click-walking.md` |
+| WP36 | L    | The board archive               | HTOO-395 | PLANNED — `36-board-archive.md`                            |
 
 `00a-backlog.md` now holds only what is not a WP: the non-goals, the debts owed to another repo, and
 the one conditional rule.
