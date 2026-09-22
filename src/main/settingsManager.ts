@@ -61,6 +61,10 @@ function withDefaults(data: Partial<MidirSettings>): MidirSettings {
     walkerPinnedDestinations: Array.isArray(data.walkerPinnedDestinations)
       ? data.walkerPinnedDestinations.filter((d): d is string => typeof d === 'string')
       : DEFAULT_SETTINGS.walkerPinnedDestinations,
+    walkerRightClick:
+      typeof data.walkerRightClick === 'boolean'
+        ? data.walkerRightClick
+        : DEFAULT_SETTINGS.walkerRightClick,
     // Optional. A non-string value drops to unset, which turns icons off. An
     // empty string is also unset, so clearing the field in the UI turns them off.
     ...(typeof data.darkAgesPath === 'string' && data.darkAgesPath !== ''

@@ -85,6 +85,13 @@ export interface MidirSettings {
   speakerRepeat: boolean
   /** The Walker destinations the user pinned, each a place name or a map id. */
   walkerPinnedDestinations: string[]
+  /**
+   * Walk by right-click: the walker hands a stretch of up to eight tiles to
+   * the client's own pathfinder with one right-click on empty ground, and
+   * confirms every tile off the wire as it does with the keys (WP35). Off by
+   * default, like every driving feature; the arrow keys are the shipped walk.
+   */
+  walkerRightClick: boolean
 }
 
 /** The largest cap the settings accept, in megabytes. */
@@ -103,7 +110,8 @@ export const DEFAULT_SETTINGS: MidirSettings = {
   speakerLines: [],
   speakerIntervalMs: 5000,
   speakerRepeat: true,
-  walkerPinnedDestinations: []
+  walkerPinnedDestinations: [],
+  walkerRightClick: false
 }
 
 /** One adapter Midir can capture from. */

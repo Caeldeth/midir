@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { centreFromClick, creaturePoint, tileOffset, VIEW_CENTRE } from '../view'
+import {
+  centreFromClick,
+  creaturePoint,
+  groundPoint,
+  tileAtPoint,
+  tileOffset,
+  VIEW_CENTRE
+} from '../view'
 
 describe('the view: tile to screen', () => {
   it('is the measured centre: the hand click on Eduardo of 2026-09-21', () => {
@@ -29,5 +36,29 @@ describe('the view: tile to screen', () => {
   it('recovers the centre from a hand click on a known NPC', () => {
     const click = creaturePoint({ x: 2, y: 11 }, { x: 1, y: 12 })
     expect(centreFromClick(click, { x: 2, y: 11 }, { x: 1, y: 12 })).toEqual(VIEW_CENTRE)
+  })
+
+  it('puts the ground of a tile at its centre, with no body lift (WP35)', () => {
+    expect(groundPoint({ x: 10, y: 10 }, { x: 10, y: 10 })).toEqual(VIEW_CENTRE)
+    // Eight tiles east: the far end of a right-click stretch, still on screen.
+    expect(groundPoint({ x: 10, y: 10 }, { x: 18, y: 10 })).toEqual({ x: 312 + 224, y: 199 + 108 })
+    // Four east and four south: straight down the screen.
+    expect(groundPoint({ x: 10, y: 10 }, { x: 14, y: 14 })).toEqual({ x: 312, y: 199 + 108 })
+  })
+
+  it('reads a screen point back to the tile it is on', () => {
+    const own = { x: 10, y: 10 }
+    for (const tile of [
+      { x: 10, y: 10 },
+      { x: 18, y: 10 },
+      { x: 14, y: 14 },
+      { x: 7, y: 12 },
+      { x: 10, y: 2 }
+    ]) {
+      expect(tileAtPoint(own, groundPoint(own, tile))).toEqual(tile)
+    }
+    // A point a little off the centre is still inside the diamond.
+    const point = groundPoint(own, { x: 13, y: 11 })
+    expect(tileAtPoint(own, { x: point.x + 10, y: point.y - 4 })).toEqual({ x: 13, y: 11 })
   })
 })

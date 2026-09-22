@@ -252,6 +252,8 @@ const speaker = createSpeaker({
 // Settings takes effect without a restart. The service opens legend.dat lazily,
 // on the first icon request, so an unset or wrong path costs nothing until then.
 let darkAgesPath: string | undefined
+/** Walk by right-click, from the settings (WP35). Off until the settings load. */
+let walkerRightClick = false
 void settingsManager
   .load()
   .then((settings) => {
@@ -288,6 +290,9 @@ const walker = createWalker({
   noticeFor: (connectionId) => captureService.noticeFor(connectionId),
   passportFor,
   gates: seededGates(),
+  // What stands on the map, so a right-click never aims at a taken tile (WP35).
+  entitiesFor: (connectionId) => captureService.entitiesFor(connectionId),
+  mode: () => (walkerRightClick ? 'rightClick' : 'keys'),
   // The errands' stand tiles, offered as `Place @ x,y` beside the map names.
   spots: () =>
     builtinErrands()
@@ -354,6 +359,7 @@ const ctx: HandlerContext = {
   recordingsPath,
   onSettingsSaved: (settings) => {
     darkAgesPath = settings.darkAgesPath
+    walkerRightClick = settings.walkerRightClick
     // Keep the running action layer in step with the settings: a new hotkey is
     // re-registered at once, so the user does not need a restart.
     actionLayer.updateSettings({
@@ -436,6 +442,7 @@ app.whenReady().then(() => {
   settingsManager
     .load()
     .then((settings) => {
+      walkerRightClick = settings.walkerRightClick
       actionLayer.updateSettings({
         stopHotkey: settings.assistStopHotkey,
         speakerToggleHotkey: settings.speakerToggleHotkey,

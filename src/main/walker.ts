@@ -1,6 +1,7 @@
 import type {
   ActionTarget,
   WalkerDestination,
+  WalkerMode,
   WalkerPosition,
   WalkerState,
   WalkOutcome,
@@ -12,6 +13,8 @@ import { CLOSE_BUTTON, isProtectedDialog } from './dialogScreen'
 import type { Logger } from './log'
 import type { DialogState } from './model/dialog'
 import type { ExchangeState } from './model/exchange'
+import { occupantAt, solidTiles, type EntityState } from './model/entities'
+import { groundPoint } from './laborer/view'
 import type { FieldMapState } from './model/fieldMap'
 import type { NoticeState } from './model/notice'
 import { gateFromNotice } from './model/access'
@@ -47,6 +50,18 @@ import { DIRECTION_DELTA } from './protocol/decode'
  * clicked. The walker reads the pane off the wire, picks the point whose map id
  * is the next map of the route, clicks it, and waits for the map change: the
  * same step-and-confirm rule, with a click for the step.
+ *
+ * Walking by right-click (WP35) makes the step bigger and keeps the rule. A
+ * right-click on empty ground asks the client's own pathfinder for the walk,
+ * and the client sends the same CWalk steps a key does, so the walker
+ * confirms each tile as it goes and re-plans from wherever the character is
+ * when the client stops. The click aims at most `RIGHT_CLICK_RANGE` tiles
+ * along the walker's own A* path, never at a warp tile, never at a tile
+ * something stands on, and never twice inside the client's double-click
+ * window: a double right press on a creature is pursue-and-attack, and the
+ * action layer makes the double impossible whatever the walker asks. The
+ * keys remain for the step onto a warp, for the approach beside an NPC, and
+ * for a few steps after the click has stranded.
  */
 
 /** The Win32 virtual keys the client reads as the four walk directions. */
@@ -122,6 +137,34 @@ const MAX_STALLS = 3
  */
 const DISMISS_WAIT_MS = 1500
 /**
+ * How far ahead a right-click aims, in tiles along the path (WP35).
+ *
+ * The client's pathfinder sees only the walls drawn for the current view, so
+ * a long click can plan through an unseen wall and strand there. Eight tiles
+ * is inside the view in every direction (the visible ground is about eleven
+ * tiles across), so everything the click asks for is on screen and in the
+ * walker's own complete collision view.
+ */
+const RIGHT_CLICK_RANGE = 8
+/** The fewest steps worth a click. A single step is one key, and the keys handle a turn. */
+const MIN_CLICK_STEPS = 2
+/**
+ * How long to wait for the first tile of a right-click stretch, in
+ * milliseconds. The client plans the route and starts the walk on the
+ * release, so the first step is a little slower than the rest.
+ */
+const CLICK_FIRST_STEP_MS = 2000
+/** How many strands in a row before the keys take over for a while. */
+const MAX_STRANDS = 2
+/**
+ * How many landed key steps after the strands before the click is tried
+ * again. The client's own planner does not see the creature the walker
+ * learned to route around, and its first choice of route may cross that
+ * tile from every nearby start; a few key steps along the walker's own
+ * route carry the character past it.
+ */
+const KEY_STEPS_AFTER_STRAND = 3
+/**
  * The most tiles of delayed own-progress to accept as one confirmation.
  *
  * Under server lag the confirmations for several of the walker's own steps
@@ -158,6 +201,14 @@ export interface WalkerOptions {
   passportFor?: (connectionId: string) => Passport | null
   /** The maps that admit only a registered citizen of one town. Absent means none. */
   gates?: Gate[]
+  /**
+   * What stands on the map around the character, from the capture service.
+   * Absent means nothing is known, and a right-click then aims only where the
+   * map file says is open (WP35).
+   */
+  entitiesFor?: (connectionId: string) => EntityState | null
+  /** How the walker walks: by the arrow keys, or by right-click. Read at every step. Absent means keys. */
+  mode?: () => WalkerMode
   /** The source of a map's passability. */
   maps: MapProvider
   /** The between-maps route graph. */
@@ -285,6 +336,8 @@ export function createWalker(options: WalkerOptions): Walker {
   const dialogFor = options.dialogFor ?? ((): DialogState | null => null)
   const exchangeFor = options.exchangeFor ?? ((): ExchangeState | null => null)
   const noticeFor = options.noticeFor ?? ((): NoticeState | null => null)
+  const entitiesFor = options.entitiesFor ?? ((): EntityState | null => null)
+  const mode = options.mode ?? ((): WalkerMode => 'keys')
   const passportFor = options.passportFor ?? ((): Passport | null => null)
   // The gated maps: the seed, plus what a gate's own refusal taught this
   // process. The maps whose gates refused each character are kept per
@@ -725,6 +778,112 @@ export function createWalker(options: WalkerOptions): Walker {
   }
 
   /**
+   * Where a right-click may aim along `path`: the last step of the longest
+   * prefix, at most `RIGHT_CLICK_RANGE` long, that touches no tile in
+   * `avoid`. Null when the prefix is shorter than `MIN_CLICK_STEPS`, which
+   * leaves the step to the keys.
+   *
+   * `avoid` holds every warp tile of the map, so the click never changes
+   * the map (the step onto a warp keeps the key walk's own handling), and
+   * every tile something solid stands on, so the click lands on empty ground
+   * and is a walk and nothing else. The tiles between are the walker's own
+   * A* path, so the client has an open way to the aim in the walker's
+   * complete collision view; the client may still choose another way of the
+   * same length.
+   */
+  function clickAim(path: PathStep[], avoid: Set<string>): { aim: PathStep; steps: number } | null {
+    let steps = 0
+    for (const step of path) {
+      if (steps >= RIGHT_CLICK_RANGE) break
+      if (avoid.has(`${step.x},${step.y}`)) break
+      steps++
+    }
+    if (steps < MIN_CLICK_STEPS) return null
+    return { aim: path[steps - 1]!, steps }
+  }
+
+  /** What a right-click stretch came to. */
+  type StretchResult =
+    /** The character reached the aim. */
+    | { kind: 'reached'; position: Position }
+    /** The character moved and then stopped short of the aim: re-plan from here. */
+    | { kind: 'short'; position: Position }
+    /** The character did not move at all: the click stranded, or it was not a walk. */
+    | { kind: 'stranded' }
+    /** The map changed under the walk. */
+    | { kind: 'mapChanged'; position: Position }
+    | WalkOutcome
+
+  /**
+   * One right-click stretch (WP35): click the ground of `aim`, then confirm
+   * the client's walk tile by tile off the wire until the aim is reached,
+   * the client stops, or the map changes.
+   *
+   * The client's route is its own, so progress is any move on the same map,
+   * not a move in a direction the walker chose: the client may take another
+   * shortest way, and under lag several of its steps confirm at once. A
+   * stop mid-stretch halts the walker at once; the client finishes the
+   * stretch it was given, which is at most `RIGHT_CLICK_RANGE` tiles and
+   * ends on empty ground short of every warp.
+   */
+  async function clickStretch(
+    run: Run,
+    target: ActionTarget,
+    from: Position,
+    aim: PathStep,
+    steps: number
+  ): Promise<StretchResult> {
+    const point = groundPoint(from, aim)
+    log.info(
+      'walker',
+      `On map ${from.mapId} at (${from.x}, ${from.y}); right-clicking (${aim.x}, ${aim.y}), ${steps} steps along the path, at game (${point.x}, ${point.y}).`
+    )
+    const refusal = await actionLayer.rightClick(target, point.x, point.y)
+    if (refusal !== null) {
+      if (refusal === 'stopped') return { kind: 'stopped', reason: run.stopReason ?? 'user' }
+      if (refusal === 'rateLimited') return { kind: 'stranded' }
+      return { kind: 'stopped', reason: 'lostCharacter' }
+    }
+
+    let last = from
+    let moved = 0
+    let timeout = CLICK_FIRST_STEP_MS
+    for (;;) {
+      const after = await waitFor(
+        run.connectionId,
+        (p) =>
+          p !== null &&
+          p.asOfMs > last.asOfMs &&
+          (p.mapId !== last.mapId || p.x !== last.x || p.y !== last.y),
+        timeout
+      )
+      if (!run.running || actionLayer.stopped) {
+        return { kind: 'stopped', reason: run.stopReason ?? 'user' }
+      }
+      if (after === null) {
+        if (moved === 0) return { kind: 'stranded' }
+        log.info(
+          'walker',
+          `The right-click walk stopped at (${last.x}, ${last.y}) after ${moved} tiles, ${steps - moved} short of (${aim.x}, ${aim.y}).`
+        )
+        return { kind: 'short', position: last }
+      }
+      if (after.mapId !== from.mapId) return { kind: 'mapChanged', position: after }
+      const tiles = Math.abs(after.x - last.x) + Math.abs(after.y - last.y)
+      moved += tiles
+      run.stepsTaken += tiles
+      run.lastPosition = after
+      publish(run)
+      last = after
+      if (after.x === aim.x && after.y === aim.y) {
+        log.info('walker', `The right-click walk reached (${aim.x}, ${aim.y}) in ${moved} tiles.`)
+        return { kind: 'reached', position: after }
+      }
+      timeout = STEP_CONFIRM_MS
+    }
+  }
+
+  /**
    * Run the walk. Returns the outcome. The loop re-plans from the current
    * position every step, so a missed step, a warp, and a wrong turn are all just
    * the next iteration reading a fresh position.
@@ -732,6 +891,11 @@ export function createWalker(options: WalkerOptions): Walker {
   async function runLoop(run: Run, destMapId: number, target: ActionTarget): Promise<WalkOutcome> {
     let stalls = 0
     let stallKey = ''
+    // How many right-clicks stranded in a row (WP35). At MAX_STRANDS the
+    // keys take the next KEY_STEPS_AFTER_STRAND landed steps, and a stretch
+    // that reaches its aim resets the count.
+    let strands = 0
+    let keySteps = 0
     // The direction the walker believes the character faces. A step in a new
     // direction turns the character first and moves on the next press (the Dark
     // Ages turn-then-move rule), so a turn is not a stall.
@@ -876,6 +1040,63 @@ export function createWalker(options: WalkerOptions): Walker {
         continue
       }
 
+      // Walking by right-click (WP35): hand a stretch of the path to the
+      // client, unless the click has been stranding, in which case the keys
+      // take a few steps first.
+      if (mode() === 'rightClick' && keySteps === 0) {
+        const avoid = solidTiles(entitiesFor(run.connectionId))
+        for (const exit of graph.node(before.mapId)?.exits ?? []) avoid.add(`${exit.x},${exit.y}`)
+        const chosen = clickAim(best.path, avoid)
+        if (chosen !== null) {
+          const stretch = await clickStretch(run, target, before, chosen.aim, chosen.steps)
+          if (stretch.kind === 'stopped' || stretch.kind === 'arrived') return stretch
+          if (stretch.kind === 'mapChanged') {
+            if (stretch.position.mapId === leg.toMapId) {
+              // The client's own way crossed the leg's warp: arrived early.
+              stalls = 0
+              log.warn(
+                'walker',
+                `The right-click walk crossed a warp to map ${stretch.position.mapId}; the aim was short of every warp the graph knows.`
+              )
+              publish(run)
+              continue
+            }
+            log.warn(
+              'walker',
+              `Map changed to ${stretch.position.mapId} under the right-click walk, not the ${leg.toMapId} asked for. Stopping.`
+            )
+            return { kind: 'stopped', reason: 'lostPosition' }
+          }
+          if (stretch.kind === 'stranded') {
+            // A popup holds the character still: clear it and retry, before
+            // the miss counts as a strand.
+            const popup = await checkPopup(run, target)
+            if (popup.kind === 'dismissed') continue
+            if (popup.kind === 'stop') return { kind: 'stopped', reason: popup.reason }
+            strands++
+            if (strands >= MAX_STRANDS) {
+              keySteps = KEY_STEPS_AFTER_STRAND
+              strands = 0
+            }
+            const who = occupantAt(entitiesFor(run.connectionId), chosen.aim.x, chosen.aim.y)
+            const onAim = who !== null ? `; ${who.name ?? who.kind} is on the aim now` : ''
+            const handOver =
+              keySteps > 0 ? ` The keys take the next ${KEY_STEPS_AFTER_STRAND} steps.` : ''
+            log.info(
+              'walker',
+              `The right-click at (${chosen.aim.x}, ${chosen.aim.y}) moved nothing within ${CLICK_FIRST_STEP_MS} ms (strand ${strands}/${MAX_STRANDS} at (${before.x}, ${before.y}))${onAim}.${handOver}`
+            )
+            continue
+          }
+          // Reached, or short: the character moved, so re-plan from where it is.
+          stalls = 0
+          if (stretch.kind === 'reached') strands = 0
+          facing = stretch.position.facing
+          await sleep(INTER_STEP_MS)
+          continue
+        }
+      }
+
       const step = best.path[0]
       // A step onto a plain warp tile changes the map. A step onto a hop tile
       // only lands there, and the hop follows on the next iteration.
@@ -1014,6 +1235,7 @@ export function createWalker(options: WalkerOptions): Walker {
       if (after.x === step.x && after.y === step.y) {
         run.stepsTaken++
         stalls = 0
+        if (keySteps > 0) keySteps--
         facing = step.direction
         log.info(
           'walker',
@@ -1040,6 +1262,7 @@ export function createWalker(options: WalkerOptions): Walker {
       if (alongStep && magnitude <= MAX_CATCHUP) {
         run.stepsTaken += magnitude
         stalls = 0
+        keySteps = Math.max(0, keySteps - magnitude)
         facing = step.direction
         log.info(
           'walker',
