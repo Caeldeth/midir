@@ -19,10 +19,11 @@ import {
  * Read on OPEN and not at mount: a dialog nobody opens costs nothing, and
  * `<React.StrictMode>` double-invokes effects in dev.
  *
- * Every line states a real rule from CLAUDE.md. Midir reads from the wire, it
- * posts keys and clicks to the client's own window, and it sends no packet
- * until WP18 says how. Keep it that way if you rewrite the copy: an ad that
- * promises what Midir refuses to do is worse than no ad.
+ * Every line states a real rule from CLAUDE.md. Midir reads from the wire and
+ * posts keys and clicks to the client's own window. Keep it that way if you
+ * rewrite the copy: an ad that promises what Midir refuses to do is worse than
+ * no ad. The copy stays affirmative, which is the house documentation style
+ * and also reads better than a list of what the app declines to do.
  */
 function AboutDialog({ open, onClose }: { open: boolean; onClose: () => void }): React.JSX.Element {
   const [version, setVersion] = React.useState('')
@@ -44,24 +45,25 @@ function AboutDialog({ open, onClose }: { open: boolean; onClose: () => void }):
       'DELIVERABLES',
       [
         'One search across every character for that one item',
-        'Errands worked by the words of the dialog, not by the pixel',
-        'A map of the world it learned by walking it'
+        'Errands worked by the words of the dialog',
+        'A map of the world, learned by walking it',
+        'Your character drawn in the armour it stands in'
       ]
     ],
     [
       'INCLUDES',
       [
-        'Freedom from the question "which one had the stone"',
-        'Total abstinence from your client memory',
-        'Not one forged packet'
+        'An answer to "which one of them had the stone"',
+        'Respect for your client, its memory and its files',
+        'One stop control, and it obeys from any window'
       ]
     ],
     [
       'SIDE EFFECTS',
       [
-        'Sudden knowledge of how much gold is in that bank',
+        'Sudden knowledge of the gold in that bank',
         'Uncontrollable urge to read the town board',
-        'Mild disappointment that it will not play for you'
+        'Mild disappointment that you still play the game yourself'
       ]
     ]
   ]
@@ -122,10 +124,10 @@ function AboutDialog({ open, onClose }: { open: boolean; onClose: () => void }):
             MIDIR
           </Typography>
           <Typography variant="body2" sx={{ fontFamily: 'inherit', fontStyle: 'italic', mb: 1 }}>
-            THE COMPANION THAT ONLY LISTENS
+            IT LISTENS, AND IT REMEMBERS
           </Typography>
           <Typography variant="body2" sx={{ fontFamily: 'inherit', mb: 2 }}>
-            EVERY CHARACTER YOU HAVE, OFF THE WIRE, AND NOT ONE PACKET OF ITS OWN
+            EVERY CHARACTER YOU HAVE, READ OFF THE WIRE AND KEPT
           </Typography>
 
           {sections.map(([heading, items]) => (
@@ -146,10 +148,10 @@ function AboutDialog({ open, onClose }: { open: boolean; onClose: () => void }):
               WARNING:
             </Typography>
             <Typography variant="body2" sx={{ fontFamily: 'inherit' }}>
-              Start Midir before you log in. It learns the keys from the handshake,
+              Start Midir first, then log in. It learns each session&apos;s keys
             </Typography>
             <Typography variant="body2" sx={{ fontFamily: 'inherit' }}>
-              and it will not guess them.
+              from the login handshake, and the handshake happens one time.
             </Typography>
           </Box>
         </Box>
