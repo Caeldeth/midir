@@ -54,8 +54,9 @@ function Walker(): React.JSX.Element {
   const setSelected = useWalkerStore((s) => s.setSelected)
   const destination = useWalkerStore((s) => s.destination)
   const setDestination = useWalkerStore((s) => s.setDestination)
-  const endX = useWalkerStore((s) => s.endX)
-  const endY = useWalkerStore((s) => s.endY)
+  // A store from before the fields (a dev reload) has no end tile yet.
+  const endX = useWalkerStore((s) => s.endX ?? '')
+  const endY = useWalkerStore((s) => s.endY ?? '')
   const setEndTile = useWalkerStore((s) => s.setEndTile)
   const refresh = useWalkerStore((s) => s.refresh)
   const refreshWindows = useWalkerStore((s) => s.refreshWindows)
