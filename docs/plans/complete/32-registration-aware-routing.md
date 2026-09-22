@@ -1,9 +1,9 @@
 # WP32 — registration-aware routing
 
 **Size:** M. **Depends on:** WP15 (the walker and the graph) and WP4/WP5 (the character record and
-its legend). Read `00-overview.md` first. **IN PROGRESS.** **Card:** `HTOO-81`.
+its legend). Read `00-overview.md` first. **COMPLETE — 2026-09-21.** **Card:** `HTOO-81`.
 
-**Built 2026-09-21; the live check is what is left.** The walker plans around the gates its
+**Built and merged 2026-09-21 (`midir` #20); the live check is Sabrael's, on the next walk that meets a gate.** The walker plans around the gates its
 character cannot pass (`planAround` in `walker.ts`), stops before it moves with the gate named when
 the only way is through one (`gated`), and learns a gate from the gate's own refusal mid-walk. The
 record carries `registered` from the wire's positive signals, and citizenship is the `nation` byte
