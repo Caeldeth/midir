@@ -6,7 +6,7 @@ import type { DialogAnswer, DialogState } from './model/dialog'
 import type { ExchangeState } from './model/exchange'
 import type { FieldMapState } from './model/fieldMap'
 import type { Position } from './model/position'
-import { centreFromClick, type Tile } from './laborer/view'
+import { centreFromClick, tileAtPoint, type Tile } from './laborer/view'
 
 /**
  * The pane watcher: while a world map or an NPC dialog is open, write down
@@ -82,12 +82,22 @@ interface WatchedDialog {
   lastExchangeSentAt?: number
   /** The last hand click on the world with no dialog up, and where the character stood. */
   worldClick?: { gameX: number; gameY: number; atMs: number; own: Tile; mapId: number }
+  /** The right button's state at the last tick, to see a release. */
+  rightDown?: boolean
+  /**
+   * A hand right-click on the world, watched until the character stops: the
+   * tile it stops on against the tile the projection named is the check of
+   * the projection the walker's own right-click uses (WP35).
+   */
+  rightWalk?: { aim: Tile; gameX: number; gameY: number; own: Tile; last: Position; atMs: number }
   /** Capture time of the dialog last seen, to notice a new one. */
   lastDialogAt?: number
 }
 
 /** How long after a hand click on the world a dialog that opens is credited to it. */
 const OPEN_WINDOW_MS = 2500
+/** How long the character may stand still after a hand right-click before its walk is over. */
+const RIGHT_WALK_SETTLE_MS = 2500
 
 /** Name the row a client answer chose, from the dialog it answered. */
 function describeAnswer(answered: DialogAnswer): string {
@@ -226,6 +236,7 @@ export function createPaneWatcher(options: PaneWatcherOptions): PaneWatcher {
     }
 
     if (dialog === null) {
+      watchRightWalk(connectionId, state, pointer)
       // No dialog up: a release on the world is remembered, in case a dialog
       // follows it.
       if (state.leftDown && !pointer.leftDown && pointer.inside) {
@@ -256,6 +267,52 @@ export function createPaneWatcher(options: PaneWatcherOptions): PaneWatcher {
       )
     }
     state.leftDown = pointer.leftDown
+  }
+
+  /**
+   * The right-click side, with no dialog up: a hand right-click on the
+   * world is a walk, and where the character stops is where the click
+   * landed. The log pairs the two with the tile the projection named, so the
+   * walker's own right-click (WP35) is measured the way every other screen
+   * position was.
+   */
+  function watchRightWalk(connectionId: string, state: WatchedDialog, pointer: PointerState): void {
+    const position = positionFor(connectionId)
+    const walk = state.rightWalk
+    if (walk !== undefined && position !== null) {
+      if (position.mapId !== walk.last.mapId) {
+        log.info(
+          'pane',
+          `The map changed to ${position.mapId} after the hand right-click at game (${walk.gameX}, ${walk.gameY}).`
+        )
+        state.rightWalk = undefined
+      } else if (position.x !== walk.last.x || position.y !== walk.last.y) {
+        walk.last = position
+        walk.atMs = now()
+      } else if (now() - walk.atMs > RIGHT_WALK_SETTLE_MS) {
+        const moved = position.x !== walk.own.x || position.y !== walk.own.y
+        const hit = position.x === walk.aim.x && position.y === walk.aim.y
+        log.info(
+          'pane',
+          moved
+            ? `The character stopped on (${position.x}, ${position.y}) after the hand right-click at game (${walk.gameX}, ${walk.gameY}) from (${walk.own.x}, ${walk.own.y}); the projection named (${walk.aim.x}, ${walk.aim.y})${hit ? ', which agrees' : ', which differs'}.`
+            : `The character did not move after the hand right-click at game (${walk.gameX}, ${walk.gameY}) from (${walk.own.x}, ${walk.own.y}); the projection named (${walk.aim.x}, ${walk.aim.y}).`
+        )
+        state.rightWalk = undefined
+      }
+    }
+    const wasDown = state.rightDown ?? false
+    state.rightDown = pointer.rightDown
+    if (!(wasDown && !pointer.rightDown && pointer.inside) || position === null) return
+    const gameX = Math.round((pointer.x * GAME_WIDTH) / Math.max(1, pointer.width))
+    const gameY = Math.round((pointer.y * GAME_HEIGHT) / Math.max(1, pointer.height))
+    const own = { x: position.x, y: position.y }
+    const aim = tileAtPoint(own, { x: gameX, y: gameY })
+    log.info(
+      'pane',
+      `Hand right-click released at game (${gameX}, ${gameY}) with the character at (${own.x}, ${own.y}) on map ${position.mapId}; the projection names tile (${aim.x}, ${aim.y}).`
+    )
+    state.rightWalk = { aim, gameX, gameY, own, last: position, atMs: now() }
   }
 
   function tick(): void {

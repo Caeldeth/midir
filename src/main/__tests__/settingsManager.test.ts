@@ -27,6 +27,13 @@ describe('settingsManager', () => {
     expect(await mgr.load()).toEqual({ ...DEFAULT_SETTINGS, theme: 'danaan' })
   })
 
+  it('keeps the right-click walk off by default, and round-trips it on (WP35)', async () => {
+    const mgr = createSettingsManager(dir)
+    expect(DEFAULT_SETTINGS.walkerRightClick).toBe(false)
+    await mgr.save({ ...DEFAULT_SETTINGS, walkerRightClick: true })
+    expect((await mgr.load()).walkerRightClick).toBe(true)
+  })
+
   it('writes human-readable JSON to settings.json', async () => {
     const mgr = createSettingsManager(dir)
     await mgr.save({ ...DEFAULT_SETTINGS, theme: 'chadul' })

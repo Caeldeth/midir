@@ -613,10 +613,10 @@ static Napi::Value IsWindowFn(const Napi::CallbackInfo& info) {
   return Napi::Boolean::New(env, IsWindow(handle) != 0);
 }
 
-// pointerIn(handle) -> { x, y, inside, leftDown } | null
+// pointerIn(handle) -> { x, y, inside, leftDown, rightDown } | null
 //
 // Where the real pointer is, in the window's client coordinates, and whether
-// the left button is down now. This reads the operating system's input state
+// the left and the right button are down now. This reads the operating system's input state
 // (GetCursorPos, GetAsyncKeyState), never the client's memory. A posted click
 // moves nothing here, so a watcher on this sees only the user's own clicks.
 // Returns null when the handle is not a live window.
@@ -636,11 +636,13 @@ static Napi::Value PointerIn(const Napi::CallbackInfo& info) {
   const bool inside = point.x >= client.left && point.x < client.right &&
                       point.y >= client.top && point.y < client.bottom;
   const bool leftDown = (GetAsyncKeyState(VK_LBUTTON) & 0x8000) != 0;
+  const bool rightDown = (GetAsyncKeyState(VK_RBUTTON) & 0x8000) != 0;
   Napi::Object result = Napi::Object::New(env);
   result.Set("x", Napi::Number::New(env, static_cast<double>(point.x)));
   result.Set("y", Napi::Number::New(env, static_cast<double>(point.y)));
   result.Set("inside", Napi::Boolean::New(env, inside));
   result.Set("leftDown", Napi::Boolean::New(env, leftDown));
+  result.Set("rightDown", Napi::Boolean::New(env, rightDown));
   result.Set("width", Napi::Number::New(env, static_cast<double>(client.right - client.left)));
   result.Set("height", Napi::Number::New(env, static_cast<double>(client.bottom - client.top)));
   return result;

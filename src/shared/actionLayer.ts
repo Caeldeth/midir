@@ -113,6 +113,12 @@ export function parseDestination(text: string): ParsedDestination {
 }
 
 /** Why the walker stopped short of the destination. */
+/**
+ * How the walker moves the character: one arrow key per tile, or a
+ * right-click on a tile ahead that the client walks to by itself (WP35).
+ */
+export type WalkerMode = 'keys' | 'rightClick'
+
 export type WalkStopReason =
   /** The user stopped it, by the button or the global stop. */
   | 'user'

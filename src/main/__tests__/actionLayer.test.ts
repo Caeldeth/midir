@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ClientSize, GameWindow, TcpConnection } from 'da-pcap'
 import {
   createActionLayer,
+  RIGHT_CLICK_GAP_MS,
   VK_ESCAPE,
   VK_RETURN,
   type ActionLayer,
@@ -252,6 +253,70 @@ describe('the action layer', () => {
     const target = layer.resolveTarget(idOf(CLIENT_A.local))!
     expect(await layer.click(target, 307, 77)).toBeNull()
     expect(windows.posted[0].lParam).toBe((77 << 16) | 307)
+  })
+
+  it('right-clicks as a move then one down-up pair, never two (WP35)', async () => {
+    // One press and one release: the client makes a double of two right
+    // presses close together, and on a creature that is pursue-and-attack.
+    const windows = fakeWindows([CLIENT_A])
+    const { layer } = build(windows, () => [{ connectionId: idOf(CLIENT_A.local), name: 'Alice' }])
+    const target = layer.resolveTarget(idOf(CLIENT_A.local))!
+    expect(await layer.rightClick(target, 340, 213)).toBeNull()
+    const lparam = (213 << 16) | 340
+    expect(windows.posted.map((p) => [p.message, p.wParam, p.lParam])).toEqual([
+      [0x0200, 0, lparam],
+      [0x0204, 2, lparam],
+      [0x0205, 0, lparam]
+    ])
+  })
+
+  it('waits out the double-click window before a second right press, whatever the caller asks', async () => {
+    let clock = 10_000
+    const waited: number[] = []
+    const windows = fakeWindows([CLIENT_A])
+    const { layer } = build(
+      windows,
+      () => [{ connectionId: idOf(CLIENT_A.local), name: 'Alice' }],
+      {
+        now: () => clock,
+        wait: async (ms: number) => {
+          waited.push(ms)
+          clock += ms
+        },
+        minActionGapMs: 0
+      }
+    )
+    const target = layer.resolveTarget(idOf(CLIENT_A.local))!
+    expect(await layer.rightClick(target, 340, 213)).toBeNull()
+    const first = clock
+    // The caller asks again at once, as the walker does after a strand.
+    expect(await layer.rightClick(target, 340, 213)).toBeNull()
+    expect(clock - first).toBeGreaterThanOrEqual(RIGHT_CLICK_GAP_MS)
+    expect(waited).toEqual([RIGHT_CLICK_GAP_MS])
+    // The client's own window is 1000 ms; the gap clears it with margin.
+    expect(RIGHT_CLICK_GAP_MS).toBeGreaterThanOrEqual(1500)
+    // Well after the gap, no wait at all.
+    clock += 5000
+    expect(await layer.rightClick(target, 340, 213)).toBeNull()
+    expect(waited).toEqual([RIGHT_CLICK_GAP_MS])
+    expect(windows.posted.filter((p) => p.message === 0x0204)).toHaveLength(3)
+  })
+
+  it('honours a stop that lands during the wait before a right press', async () => {
+    let clock = 10_000
+    const windows = fakeWindows([CLIENT_A])
+    const built = build(windows, () => [{ connectionId: idOf(CLIENT_A.local), name: 'Alice' }], {
+      now: () => clock,
+      wait: async (ms: number) => {
+        clock += ms
+        built.layer.stopAll('test')
+      },
+      minActionGapMs: 0
+    })
+    const target = built.layer.resolveTarget(idOf(CLIENT_A.local))!
+    expect(await built.layer.rightClick(target, 1, 1)).toBeNull()
+    expect(await built.layer.rightClick(target, 1, 1)).toBe('stopped')
+    expect(windows.posted.filter((p) => p.message === 0x0204)).toHaveLength(1)
   })
 
   it('refuses a click while stopped', async () => {

@@ -5,6 +5,8 @@ import type { DialogAnswer, DialogState } from '../model/dialog'
 import type { ExchangeState } from '../model/exchange'
 import type { FieldMapState } from '../model/fieldMap'
 import type { FieldMap } from '../protocol/decode/fieldMap'
+import type { Position } from '../model/position'
+import { groundPoint } from '../laborer/view'
 import type { Logger } from '../log'
 
 const CID = 'conn-1'
@@ -25,11 +27,13 @@ function harness() {
   let dialog: DialogState | null = null
   let answer: DialogAnswer | null = null
   let exchange: ExchangeState | null = null
+  let position: Position | null = null
   let pointer: PointerState | null = {
     x: 0,
     y: 0,
     inside: true,
     leftDown: false,
+    rightDown: false,
     width: 640,
     height: 480
   }
@@ -49,12 +53,29 @@ function harness() {
     dialogFor: (id) => (id === CID ? dialog : null),
     answerFor: (id) => (id === CID ? answer : null),
     exchangeFor: (id) => (id === CID ? exchange : null),
+    positionFor: (id) => (id === CID ? position : null),
     log,
     now: () => clock
   })
   return {
     watcher,
     lines,
+    /** Put the character on a tile. */
+    stand: (x: number, y: number, mapId = 3025) => {
+      position = { mapId, x, y, facing: 0, asOfMs: clock, confidence: 'confirmed' }
+    },
+    /** Time passes with the character still. */
+    wait: (ms: number) => {
+      clock += ms
+    },
+    /** Press and release the real right button at a client position. */
+    handRightClick: (x: number, y: number) => {
+      pointer = { x, y, inside: true, leftDown: false, rightDown: true, ...size }
+      watcher.tick()
+      clock += 30
+      pointer = { x, y, inside: true, leftDown: false, rightDown: false, ...size }
+      watcher.tick()
+    },
     openDialog: () => {
       dialog = {
         packet: {
@@ -123,10 +144,10 @@ function harness() {
     },
     /** Press and release the real button at a client position. */
     handClick: (x: number, y: number) => {
-      pointer = { x, y, inside: true, leftDown: true, ...size }
+      pointer = { x, y, inside: true, leftDown: true, rightDown: false, ...size }
       watcher.tick()
       clock += 30
-      pointer = { x, y, inside: true, leftDown: false, ...size }
+      pointer = { x, y, inside: true, leftDown: false, rightDown: false, ...size }
       watcher.tick()
     },
     resize: (width: number, height: number) => {
@@ -295,6 +316,57 @@ describe('the pane watcher on an NPC dialog', () => {
     h.watcher.tick()
     h.closeDialog()
     h.handClick(300, 140)
+    expect(h.lines).toEqual([])
+  })
+})
+
+describe('the pane watcher on a hand right-click (WP35)', () => {
+  it('names the tile the projection gives, and where the character stopped', () => {
+    const h = harness()
+    h.stand(10, 10)
+    const point = groundPoint({ x: 10, y: 10 }, { x: 13, y: 10 })
+    h.handRightClick(point.x, point.y)
+    expect(h.lines.at(-1)).toBe(
+      `Hand right-click released at game (${point.x}, ${point.y}) with the character at (10, 10) on map 3025; the projection names tile (13, 10).`
+    )
+    // The client walks, one tile at a time, then stands still.
+    for (const x of [11, 12, 13]) {
+      h.wait(300)
+      h.stand(x, 10)
+      h.watcher.tick()
+    }
+    h.wait(3000)
+    h.watcher.tick()
+    expect(h.lines.at(-1)).toBe(
+      `The character stopped on (13, 10) after the hand right-click at game (${point.x}, ${point.y}) from (10, 10); the projection named (13, 10), which agrees.`
+    )
+  })
+
+  it('says when the character did not move, and when it stopped elsewhere', () => {
+    const h = harness()
+    h.stand(10, 10)
+    h.handRightClick(312, 199)
+    h.wait(3000)
+    h.watcher.tick()
+    expect(h.lines.at(-1)).toContain('did not move after the hand right-click at game (312, 199)')
+
+    const point = groundPoint({ x: 10, y: 10 }, { x: 12, y: 10 })
+    h.handRightClick(point.x, point.y)
+    h.wait(300)
+    h.stand(11, 10)
+    h.watcher.tick()
+    h.wait(3000)
+    h.watcher.tick()
+    expect(h.lines.at(-1)).toContain('stopped on (11, 10)')
+    expect(h.lines.at(-1)).toContain('the projection named (12, 10), which differs.')
+  })
+
+  it('logs nothing for a right-click while a dialog is up', () => {
+    const h = harness()
+    h.stand(10, 10)
+    h.openDialog()
+    h.watcher.tick()
+    h.handRightClick(312, 199)
     expect(h.lines).toEqual([])
   })
 })

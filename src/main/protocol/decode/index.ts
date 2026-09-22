@@ -34,6 +34,14 @@ import {
 } from './exchange'
 import { decodePursuitMessage, type PursuitMessage } from './pursuit'
 import {
+  decodeAddWorldObjects,
+  decodeCreatureMove,
+  decodeRemoveWorldObject,
+  type AddWorldObjects,
+  type CreatureMove,
+  type RemoveWorldObject
+} from './world'
+import {
   decodeMapInfo,
   decodeTurn,
   decodeUserMove,
@@ -72,6 +80,7 @@ export * from './items'
 export * from './merchant'
 export * from './movement'
 export * from './pursuit'
+export * from './world'
 
 /** A packet Midir models, in either direction. */
 export type DecodedPacket =
@@ -82,6 +91,9 @@ export type DecodedPacket =
   | UserAppearance
   | UserPosition
   | UserMove
+  | AddWorldObjects
+  | CreatureMove
+  | RemoveWorldObject
   | MapInfo
   | Walk
   | Turn
@@ -117,6 +129,9 @@ const DECODERS = new Map<number, Decoder>([
   [ServerOpcode.UserAppearance, decodeUserAppearance],
   [ServerOpcode.UserPosition, decodeUserPosition],
   [ServerOpcode.Move, decodeUserMove],
+  [ServerOpcode.AddWorldObjects, decodeAddWorldObjects],
+  [ServerOpcode.CreatureMove, decodeCreatureMove],
+  [ServerOpcode.RemoveWorldObject, decodeRemoveWorldObject],
   [ServerOpcode.MapInfo, decodeMapInfo],
   [ServerOpcode.Status, decodeStatus],
   [ServerOpcode.AddInventory, decodeAddInventory],

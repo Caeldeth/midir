@@ -329,11 +329,12 @@ describe('createProtocolSession', () => {
 
   it('reports an opcode it does not model, and keeps the plaintext', () => {
     const session = createProtocolSession({ keyName: CHARACTER })
-    const body = sessionBody({ plaintext: [0x0c, 0x01, 0x02, 0x03] })
+    // 0x1f is SChangeWeather, which Midir does not read.
+    const body = sessionBody({ plaintext: [0x1f, 0x01, 0x02, 0x03] })
     const [event] = unreadable(session.push(S2C, frame(body)))
     expect(event!.reason).toBe('notModelled')
-    expect(event!.name).toBe('0x0c')
-    expect([...event!.body!]).toEqual([0x0c, 0x01, 0x02, 0x03])
+    expect(event!.name).toBe('0x1f')
+    expect([...event!.body!]).toEqual([0x1f, 0x01, 0x02, 0x03])
   })
 
   it('keeps the two directions apart', () => {

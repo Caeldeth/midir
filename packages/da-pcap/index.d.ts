@@ -147,6 +147,8 @@ export interface PointerState {
   inside: boolean
   /** True while the left button is held down. */
   leftDown: boolean
+  /** True while the right button is held down. */
+  rightDown: boolean
   /** The client area's size, for scaling to the game's own 640 x 480 coordinates. */
   width: number
   height: number

@@ -11,6 +11,10 @@ import type { DialogState } from '../model/dialog'
 import type { ExchangeState } from '../model/exchange'
 import type { NoticeState } from '../model/notice'
 import type { Gate, Passport } from '../route/access'
+import type { EntityState } from '../model/entities'
+import { groundPoint, tileAtPoint } from '../laborer/view'
+import { RIGHT_CLICK_GAP_MS } from '../actionLayer'
+import type { WalkerMode } from '../../shared/actionLayer'
 import type { FieldMap } from '../protocol/decode/fieldMap'
 import type { PursuitMessage } from '../protocol/decode/pursuit'
 import type { Logger } from '../log'
@@ -115,6 +119,14 @@ class World {
   otherKeys: number[] = []
   /** Every click on the dialog's Close button. */
   closeClicks = 0
+  /** Every right-click the walker posted, as the tile it fell on (WP35). */
+  rightClicks: { x: number; y: number; tile: { x: number; y: number }; atMs: number }[] = []
+  /** The route the client is walking after a right-click, one tile per tick. */
+  route: { x: number; y: number }[] = []
+  /** What stands on the map, as the capture service would report it. */
+  entities: EntityState | null = null
+  /** Whether a right-click walks at all. Off models a click that fell on something that is not ground. */
+  rightClickWalks = true
 
   constructor(
     readonly maps: Map<number, FakeMap>,
@@ -272,8 +284,105 @@ class World {
     this.pendingHop = { mapId: point.mapId, x: point.x, y: point.y }
   }
 
-  /** Time passes: the server completes a hop the client asked for. */
+  /**
+   * A right-click on the world (WP35): the client plans its own route to the
+   * tile under the pointer over the map's walls, and walks it one tile per
+   * tick. Its planner does not see a creature, so a route into one strands
+   * at the step, as the real client's does.
+   */
+  rightClick(x: number, y: number): void {
+    const tile = tileAtPoint(this.position, { x, y })
+    this.rightClicks.push({ x, y, tile, atMs: this.clock })
+    this.route = []
+    if (!this.rightClickWalks) return
+    const map = this.maps.get(this.position.mapId)!
+    const open = (tx: number, ty: number): boolean =>
+      tx >= 0 &&
+      ty >= 0 &&
+      tx < map.width &&
+      ty < map.height &&
+      (map.rows[ty][tx] !== '#' || map.warps.has(`${tx},${ty}`))
+    // Breadth-first, as the client does.
+    const start = `${this.position.x},${this.position.y}`
+    const cameFrom = new Map<string, string | null>([[start, null]])
+    const queue = [{ x: this.position.x, y: this.position.y }]
+    while (queue.length > 0) {
+      const at = queue.shift()!
+      if (at.x === tile.x && at.y === tile.y) break
+      for (const [dx, dy] of [
+        [0, -1],
+        [1, 0],
+        [0, 1],
+        [-1, 0]
+      ]) {
+        const nx = at.x + dx
+        const ny = at.y + dy
+        const key = `${nx},${ny}`
+        if (!open(nx, ny) || cameFrom.has(key)) continue
+        cameFrom.set(key, `${at.x},${at.y}`)
+        queue.push({ x: nx, y: ny })
+      }
+    }
+    const goal = `${tile.x},${tile.y}`
+    if (!cameFrom.has(goal)) return
+    const route: { x: number; y: number }[] = []
+    for (let key: string | null = goal; key !== null && key !== start; key = cameFrom.get(key)!) {
+      const [tx, ty] = key.split(',').map(Number)
+      route.unshift({ x: tx, y: ty })
+    }
+    this.route = route
+  }
+
+  /** Time passes: the server completes a hop the client asked for, and the client walks its route. */
   tick(): void {
+    if (this.route.length > 0) {
+      // A popup holds the character still, and the route is lost.
+      if (this.dialog !== null || this.exchange?.kind === 'open') {
+        this.route = []
+      } else {
+        const next = this.route[0]!
+        if (this.dynamicBlock.has(`${next.x},${next.y}`)) {
+          // The step is refused: the client strands, and does not try again.
+          this.route = []
+        } else {
+          this.route.shift()
+          const direction =
+            next.y < this.position.y
+              ? 0
+              : next.x > this.position.x
+                ? 1
+                : next.y > this.position.y
+                  ? 2
+                  : 3
+          const map = this.maps.get(this.position.mapId)!
+          const warp = map.warps.get(`${next.x},${next.y}`)
+          if (warp !== undefined) {
+            const dest = this.maps.get(warp.toMap)!
+            this.route = []
+            this.position = {
+              mapId: warp.toMap,
+              mapWidth: dest.width,
+              mapHeight: dest.height,
+              x: warp.ax,
+              y: warp.ay,
+              facing: direction,
+              asOfMs: ++this.clock,
+              confidence: 'confirmed'
+            }
+          } else {
+            this.position = {
+              ...this.position,
+              x: next.x,
+              y: next.y,
+              facing: direction,
+              asOfMs: ++this.clock,
+              confidence: this.moveConfidence
+            }
+          }
+          this.afterMove?.(this)
+        }
+      }
+    }
     if (this.pendingHop === null) return
     const { mapId, x, y } = this.pendingHop
     this.pendingHop = null
@@ -298,8 +407,14 @@ interface Harness {
   layer: { stopped: boolean; disarmed: string[]; armed: string[] }
 }
 
-function harness(world: World, graphNodes: RouteNode[], seedGates: Gate[] = []): Harness {
+function harness(
+  world: World,
+  graphNodes: RouteNode[],
+  seedGates: Gate[] = [],
+  mode: WalkerMode = 'keys'
+): Harness {
   const layerState = { stopped: false, disarmed: [] as string[], armed: [] as string[] }
+  let lastRightClickMs = Number.NEGATIVE_INFINITY
 
   const actionLayer = {
     resolveTarget: (id: string): ActionTarget | null => (id === CID ? TARGET : null),
@@ -334,6 +449,15 @@ function harness(world: World, graphNodes: RouteNode[], seedGates: Gate[] = []):
       world.click(x, y)
       return null
     },
+    rightClick: async (_t: ActionTarget, x: number, y: number): Promise<null | string> => {
+      // As the real layer: the double-click window is waited out first.
+      const due = lastRightClickMs + RIGHT_CLICK_GAP_MS
+      if (world.clock < due) world.clock = due
+      if (layerState.stopped) return 'stopped'
+      lastRightClickMs = world.clock
+      world.rightClick(x, y)
+      return null
+    },
     get stopped(): boolean {
       return layerState.stopped
     }
@@ -358,6 +482,8 @@ function harness(world: World, graphNodes: RouteNode[], seedGates: Gate[] = []):
     noticeFor: (id: string): NoticeState | null => (id === CID ? world.notice : null),
     passportFor: (id: string): Passport | null => (id === CID ? world.passport : null),
     gates: seedGates,
+    entitiesFor: (id: string): EntityState | null => (id === CID ? world.entities : null),
+    mode: () => mode,
     maps,
     graph: createRouteGraph(graphNodes),
     log: noop,
@@ -1261,5 +1387,217 @@ describe('walker across the world map', () => {
     const outcome = await walker.go({ connectionId: CID, destination: 'Abel Outskirts' })
     expect(outcome.kind).toBe('stopped')
     expect(world.clicks).toEqual([])
+  })
+})
+
+// --- WP35: walking by right-click ------------------------------------------
+
+/** One open corridor of `width` tiles with a warp at its east end to map 2. */
+function corridorGraph(width: number): RouteNode[] {
+  return [
+    { mapId: 1, name: 'Corridor', exits: [{ toMapId: 2, x: width - 1, y: 0 }] },
+    { mapId: 2, name: 'Beyond', exits: [] }
+  ]
+}
+
+function corridorWorld(width: number, rows = 1): World {
+  const row = '.'.repeat(width)
+  const maps = new Map<number, FakeMap>([
+    [
+      1,
+      fakeMap(
+        Array.from({ length: rows }, () => row),
+        new Map([[`${width - 1},0`, { toMap: 2, ax: 0, ay: 0 }]])
+      )
+    ],
+    [2, fakeMap(['.....'])]
+  ])
+  return new World(maps, { mapId: 1, x: 0, y: 0 })
+}
+
+function solidAt(...tiles: { x: number; y: number }[]): EntityState {
+  return {
+    mapId: 1,
+    byId: new Map(
+      tiles.map((t, i) => [
+        i + 1,
+        { id: i + 1, x: t.x, y: t.y, kind: 'player' as const, solid: true }
+      ])
+    ),
+    asOfMs: 1
+  }
+}
+
+describe('walker by right-click (WP35)', () => {
+  it('walks eight tiles on one right-click, confirmed tile by tile, with no key pressed for them', async () => {
+    // Acceptance criterion 1. A corridor of twelve: the click aims eight
+    // steps ahead at (8,0), the client walks there, and the keys take only
+    // the step onto the warp, which a click never aims at.
+    const world = corridorWorld(12)
+    const { walker } = harness(world, corridorGraph(12), [], 'rightClick')
+    const outcome = await walker.go({ connectionId: CID, destination: 2 })
+    expect(outcome).toEqual({ kind: 'arrived' })
+    expect(world.rightClicks.map((c) => c.tile)).toEqual([
+      { x: 8, y: 0 },
+      { x: 10, y: 0 }
+    ])
+    // The click is posted at the tile's ground, in game coordinates.
+    expect(world.rightClicks[0]).toMatchObject(groundPoint({ x: 0, y: 0 }, { x: 8, y: 0 }))
+    // From (10,0) the warp at (11,0) is one step: a key.
+    expect(world.presses).toBe(1)
+    expect(world.position.mapId).toBe(2)
+  })
+
+  it('never aims at a warp tile, and leaves a single step to the keys', async () => {
+    // A corridor of five: the path is four steps and the warp is the last,
+    // so the click aims at (3,0) and the key steps onto the warp.
+    const world = corridorWorld(5)
+    const { walker } = harness(world, corridorGraph(5), [], 'rightClick')
+    expect(await walker.go({ connectionId: CID, destination: 2 })).toEqual({ kind: 'arrived' })
+    expect(world.rightClicks.map((c) => c.tile)).toEqual([{ x: 3, y: 0 }])
+    expect(world.presses).toBe(1)
+  })
+
+  it('does not aim at a tile a player or a creature stands on', async () => {
+    // Acceptance criterion 4. A player on (5,0): the click aims short of it,
+    // at (4,0). The path then goes through the player, whom the walker's map
+    // cannot see, so the keys stall on it and the walker routes around by
+    // the second row, by click again once it has moved.
+    const world = corridorWorld(12, 2)
+    world.entities = solidAt({ x: 5, y: 0 })
+    world.dynamicBlock.add('5,0')
+    const { walker } = harness(world, corridorGraph(12), [], 'rightClick')
+    expect(await walker.go({ connectionId: CID, destination: 2 })).toEqual({ kind: 'arrived' })
+    expect(world.rightClicks[0]!.tile).toEqual({ x: 4, y: 0 })
+    for (const click of world.rightClicks) {
+      expect(click.tile).not.toEqual({ x: 5, y: 0 })
+    }
+  })
+
+  it('re-clicks from where the client stranded, then falls back to the keys at a tile that keeps stranding', async () => {
+    // Acceptance criterion 2. A creature on (4,0) the walker's map does not
+    // know: the client's route strands at (3,0). The walker clicks again
+    // from there (the same aim, since its own map still calls (4,0) open),
+    // that strands with no move at all, twice, and the keys take the tile:
+    // they stall on the creature, learn it, and route around by the second
+    // row, where the click takes over again.
+    const world = corridorWorld(12, 2)
+    world.dynamicBlock.add('4,0')
+    const { walker } = harness(world, corridorGraph(12), [], 'rightClick')
+    expect(await walker.go({ connectionId: CID, destination: 2 })).toEqual({ kind: 'arrived' })
+    const tiles = world.rightClicks.map((c) => c.tile)
+    expect(tiles[0]).toEqual({ x: 8, y: 0 })
+    // Two strands at (3,0), aiming as far as the tile before the warp, then the keys.
+    expect(tiles.slice(0, 3)).toEqual([
+      { x: 8, y: 0 },
+      { x: 10, y: 0 },
+      { x: 10, y: 0 }
+    ])
+    expect(world.presses).toBeGreaterThan(0)
+    // Once moved off (3,0), the click is used again.
+    expect(tiles.length).toBeGreaterThan(3)
+  })
+
+  it('never posts two right presses inside the double-click window', async () => {
+    // Acceptance criterion 3, as the walker's own log would show it: the
+    // strands above ask for clicks back to back, and every gap still clears
+    // the window.
+    const world = corridorWorld(12, 2)
+    world.dynamicBlock.add('4,0')
+    const { walker } = harness(world, corridorGraph(12), [], 'rightClick')
+    await walker.go({ connectionId: CID, destination: 2 })
+    expect(world.rightClicks.length).toBeGreaterThan(2)
+    for (let i = 1; i < world.rightClicks.length; i++) {
+      expect(world.rightClicks[i]!.atMs - world.rightClicks[i - 1]!.atMs).toBeGreaterThanOrEqual(
+        RIGHT_CLICK_GAP_MS
+      )
+    }
+  })
+
+  it('clears a popup that stops the client mid-stretch, and clicks again', async () => {
+    // A dialog pushed on the character after its first step holds it still
+    // and drops the client's route. The stretch ends short; the next click
+    // strands on the dialog; the walker closes it and clicks again.
+    const world = corridorWorld(12)
+    const dialog: DialogState = {
+      packet: {
+        kind: 'pursuitMessage',
+        npcName: 'Aingeal',
+        entityId: 7,
+        pursuit: 1,
+        step: 1,
+        text: 'A verdict.',
+        dialogKind: 'plain'
+      } as unknown as PursuitMessage,
+      asOfMs: 0
+    }
+    world.afterMove = (w) => {
+      if (w.position.x === 1 && w.dialog === null && w.closeClicks === 0) {
+        w.dialog = { ...dialog, asOfMs: ++w.clock }
+      }
+    }
+    const { walker } = harness(world, corridorGraph(12), [], 'rightClick')
+    expect(await walker.go({ connectionId: CID, destination: 2 })).toEqual({ kind: 'arrived' })
+    expect(world.closeClicks).toBe(1)
+    expect(world.rightClicks.length).toBeGreaterThanOrEqual(3)
+  })
+
+  it('stops at once on a stop mid-stretch, and clicks no more', async () => {
+    const world = corridorWorld(12)
+    const { walker } = harness(world, corridorGraph(12), [], 'rightClick')
+    world.afterMove = (w) => {
+      if (w.position.x === 3) walker.stop(CID)
+    }
+    const outcome = await walker.go({ connectionId: CID, destination: 2 })
+    expect(outcome).toEqual({ kind: 'stopped', reason: 'user' })
+    expect(world.rightClicks).toHaveLength(1)
+    expect(world.presses).toBe(0)
+  })
+
+  it('stops when the map changes under the client to a map it did not ask for', async () => {
+    // The client's own route crosses a warp the graph does not know.
+    const maps = new Map<number, FakeMap>([
+      [
+        1,
+        fakeMap(
+          ['............'],
+          new Map([
+            ['5,0', { toMap: 9, ax: 0, ay: 0 }],
+            ['11,0', { toMap: 2, ax: 0, ay: 0 }]
+          ])
+        )
+      ],
+      [2, fakeMap(['.....'])],
+      [9, fakeMap(['.....'])]
+    ])
+    const world = new World(maps, { mapId: 1, x: 0, y: 0 })
+    const { walker } = harness(world, corridorGraph(12), [], 'rightClick')
+    const outcome = await walker.go({ connectionId: CID, destination: 2 })
+    expect(outcome).toEqual({ kind: 'stopped', reason: 'lostPosition' })
+  })
+
+  it('is off by default: the key walk is unchanged and no right press is posted', async () => {
+    // Acceptance criterion 5.
+    const world = corridorWorld(12)
+    const { walker } = harness(world, corridorGraph(12))
+    expect(await walker.go({ connectionId: CID, destination: 2 })).toEqual({ kind: 'arrived' })
+    expect(world.rightClicks).toEqual([])
+    expect(world.presses).toBe(11)
+  })
+
+  it('keeps the approach beside an NPC on the keys', async () => {
+    // Decision 5: the last tiles to a tile are one key each, whatever the mode.
+    const maps = new Map<number, FakeMap>([[1, fakeMap(['..........'])]])
+    const world = new World(maps, { mapId: 1, x: 0, y: 0 })
+    const { walker } = harness(world, [{ mapId: 1, name: 'Room', exits: [] }], [], 'rightClick')
+    const outcome = await walker.go({
+      connectionId: CID,
+      destination: 1,
+      tile: { x: 6, y: 0 },
+      arrive: 'on'
+    })
+    expect(outcome).toEqual({ kind: 'arrived' })
+    expect(world.rightClicks).toEqual([])
+    expect(world.presses).toBe(6)
   })
 })

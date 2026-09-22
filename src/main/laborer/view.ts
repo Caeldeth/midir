@@ -56,6 +56,29 @@ export function tileOffset(own: Tile, tile: Tile): Point {
   return { x: ((dx - dy) * TILE_WIDTH) / 2, y: ((dx + dy) * TILE_HEIGHT) / 2 }
 }
 
+/**
+ * The screen point of the ground of `tile`, seen from `own`: the centre of
+ * the tile's diamond, where a right-click walks (WP35). No lift: a creature
+ * is clicked on its body, the ground on itself.
+ */
+export function groundPoint(own: Tile, tile: Tile, centre: Point = VIEW_CENTRE): Point {
+  const offset = tileOffset(own, tile)
+  return { x: Math.round(centre.x + offset.x), y: Math.round(centre.y + offset.y) }
+}
+
+/**
+ * The tile a screen point falls on, seen from `own`: the inverse of
+ * `groundPoint`, for reading a hand click. The diamond's rows overlap in y,
+ * so this rounds to the nearest tile centre, which is right inside the
+ * diamond and one off at its corners.
+ */
+export function tileAtPoint(own: Tile, point: Point, centre: Point = VIEW_CENTRE): Tile {
+  const sx = (point.x - centre.x) / (TILE_WIDTH / 2)
+  const sy = (point.y - centre.y) / (TILE_HEIGHT / 2)
+  // sx = dx - dy and sy = dx + dy, so dx = (sx + sy) / 2 and dy = (sy - sx) / 2.
+  return { x: own.x + Math.round((sx + sy) / 2), y: own.y + Math.round((sy - sx) / 2) }
+}
+
 /** The screen point to click a creature standing on `tile`, seen from `own`. */
 export function creaturePoint(own: Tile, tile: Tile, centre: Point = VIEW_CENTRE): Point {
   const offset = tileOffset(own, tile)
