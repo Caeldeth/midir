@@ -1,7 +1,15 @@
 import { describe, expect, it } from 'vitest'
-import { createRouteGraph, mergeLearned, worldGraph, type RouteNode } from '../graph'
+import {
+  createRouteGraph,
+  mergeLearned,
+  worldGraph,
+  XML_PROMOTION_OBSERVATIONS,
+  type LearnedLayer,
+  type RouteNode,
+  type XmlNode
+} from '../graph'
 import { createLiveGraph } from '../liveGraph'
-import type { LearnedEdge } from '../../store/transitionStore'
+import type { LearnedEdge, TransitionFile } from '../../store/transitionStore'
 import { builtinErrands } from '../../laborer/errands'
 
 /**
@@ -228,7 +236,7 @@ describe('hops', () => {
   })
 })
 
-describe('the learned layer (WP29)', () => {
+describe('the learned layer (WP29, WP30, WP24)', () => {
   const learned = (
     fromMapId: number,
     x: number,
@@ -245,24 +253,53 @@ describe('the learned layer (WP29)', () => {
     lastSeenMs: 2,
     ...over
   })
+  const key = (e: LearnedEdge): string => `${e.fromMapId}:${e.x},${e.y}>${e.toMapId}`
+  const file = (
+    edges: LearnedEdge[],
+    curations: TransitionFile['curations'] = {}
+  ): TransitionFile => ({
+    edges: Object.fromEntries(edges.map((e) => [key(e), e])),
+    curations
+  })
+  const layer = (
+    edges: LearnedEdge[],
+    over: Partial<LearnedLayer> & { curations?: TransitionFile['curations'] } = {}
+  ): LearnedLayer => {
+    const { curations, ...rest } = over
+    return { transitions: file(edges, curations), ...rest }
+  }
 
   it('confirms an authored edge with its count and adds one the file lacks as learned', () => {
-    const nodes = mergeLearned(NODES, [
-      learned(1, 3, 4, 2),
-      learned(1, 4, 4, 2, { observations: 3 })
-    ])
+    const nodes = mergeLearned(
+      NODES,
+      layer([learned(1, 3, 4, 2), learned(1, 4, 4, 2, { observations: 3 })])
+    )
     const town = nodes.find((n) => n.mapId === 1)!
     expect(town.exits).toEqual([
       { toMapId: 2, x: 3, y: 4, observations: 2 },
       { toMapId: 2, x: 5, y: 4 },
       { toMapId: 2, x: 4, y: 4, source: 'learned', observations: 3 }
     ])
+    expect(town.candidates).toBeUndefined()
+  })
+
+  it('keeps a learned edge seen once as a candidate, not an exit', () => {
+    const nodes = mergeLearned(NODES, layer([learned(1, 4, 4, 2, { observations: 1 })]))
+    const town = nodes.find((n) => n.mapId === 1)!
+    expect(town.exits.map((e) => e.x)).toEqual([3, 5])
+    expect(town.candidates).toEqual([
+      { toMapId: 2, x: 4, y: 4, source: 'learned', observations: 1 }
+    ])
+    expect(createRouteGraph(nodes).planRoute(1, 2)?.legs[0]?.warps).toHaveLength(2)
   })
 
   it('adds a map the file does not know, named and sized by the wire', () => {
-    const nodes = mergeLearned(NODES, [learned(1, 0, 9, 1978), learned(1978, 10, 8, 1)], {
-      '1978': { name: 'Tagor Pet Store', width: 12, height: 10 }
-    })
+    const nodes = mergeLearned(
+      NODES,
+      layer([learned(1, 0, 9, 1978), learned(1978, 10, 8, 1)], {
+        wire: { '1978': { name: 'Tagor Pet Store', width: 12, height: 10 } }
+      })
+    )
     const shop = nodes.find((n) => n.mapId === 1978)!
     expect(shop).toEqual({
       mapId: 1978,
@@ -283,31 +320,41 @@ describe('the learned layer (WP29)', () => {
   })
 
   it('lays the game name over a node and keeps the .dat name for resolving', () => {
-    const nodes = mergeLearned(NODES, [], { '2': { name: 'Green Field', width: 9, height: 9 } })
+    const nodes = mergeLearned(
+      NODES,
+      layer([], { wire: { '2': { name: 'Green Field', width: 9, height: 9 } } })
+    )
     const graph = createRouteGraph(nodes)
     expect(graph.node(2)).toMatchObject({ name: 'Field', gameName: 'Green Field', width: 9 })
     expect(graph.resolveDestination('Field')).toBe(2)
     expect(graph.resolveDestination('Green Field')).toBe(2)
     expect(graph.resolveDestination('green')).toBe(2)
     // The .dat's size wins over the wire's for a map it has.
-    const sized = mergeLearned([{ mapId: 7, name: 'Sized', width: 3, height: 3, exits: [] }], [], {
-      '7': { name: 'Sized', width: 30, height: 30 }
-    })
+    const sized = mergeLearned(
+      [{ mapId: 7, name: 'Sized', width: 3, height: 3, exits: [] }],
+      layer([], { wire: { '7': { name: 'Sized', width: 30, height: 30 } } })
+    )
     expect(sized[0]).toMatchObject({ width: 3, height: 3 })
   })
 
   it('carries a learned world-map hop with its click', () => {
     const via = { kind: 'fieldMap' as const, screenX: 306, screenY: 77 }
-    const nodes = mergeLearned(NODES, [learned(5, 0, 0, 1, { via })])
+    const nodes = mergeLearned(NODES, layer([learned(5, 0, 0, 1, { via })]))
     const graph = createRouteGraph(nodes)
     expect(graph.planRoute(5, 1)?.legs[0]?.warps).toEqual([{ x: 0, y: 0, via }])
   })
 
   it('never changes the imported nodes', () => {
     const frozen = JSON.stringify(NODES)
-    mergeLearned(NODES, [learned(1, 4, 4, 2), learned(1, 3, 4, 2)], {
-      '1': { name: 'Town Square', width: 5, height: 5 }
-    })
+    mergeLearned(
+      NODES,
+      layer([learned(1, 4, 4, 2), learned(1, 3, 4, 2)], {
+        wire: { '1': { name: 'Town Square', width: 5, height: 5 } },
+        xml: [
+          { mapId: 1, name: 'Old Town', width: 5, height: 5, exits: [{ toMapId: 2, x: 2, y: 4 }] }
+        ]
+      })
+    )
     expect(JSON.stringify(NODES)).toBe(frozen)
   })
 
@@ -315,22 +362,22 @@ describe('the learned layer (WP29)', () => {
     const at = 1
     const nodes = mergeLearned(
       NODES,
-      [learned(1, 4, 4, 2)],
-      {},
-      {
-        '1:3,4>2': { fromMapId: 1, x: 3, y: 4, toMapId: 2, verdict: 'rejected', atMs: at },
-        '1:4,4>2': { fromMapId: 1, x: 4, y: 4, toMapId: 2, verdict: 'rejected', atMs: at },
-        '1:2,4>2': { fromMapId: 1, x: 2, y: 4, toMapId: 2, verdict: 'accepted', atMs: at },
-        '5:0,0>1': {
-          fromMapId: 5,
-          x: 0,
-          y: 0,
-          toMapId: 1,
-          verdict: 'accepted',
-          via: { kind: 'prompt' },
-          atMs: at
+      layer([learned(1, 4, 4, 2)], {
+        curations: {
+          '1:3,4>2': { fromMapId: 1, x: 3, y: 4, toMapId: 2, verdict: 'rejected', atMs: at },
+          '1:4,4>2': { fromMapId: 1, x: 4, y: 4, toMapId: 2, verdict: 'rejected', atMs: at },
+          '1:2,4>2': { fromMapId: 1, x: 2, y: 4, toMapId: 2, verdict: 'accepted', atMs: at },
+          '5:0,0>1': {
+            fromMapId: 5,
+            x: 0,
+            y: 0,
+            toMapId: 1,
+            verdict: 'accepted',
+            via: { kind: 'prompt' },
+            atMs: at
+          }
         }
-      }
+      })
     )
     expect(nodes.find((n) => n.mapId === 1)?.exits).toEqual([
       { toMapId: 2, x: 5, y: 4 },
@@ -341,14 +388,83 @@ describe('the learned layer (WP29)', () => {
     ])
   })
 
+  it('a world XML edge is a candidate until the wire crosses it once or the user accepts it', () => {
+    // Town's XML: the .dat's door at (3,4), a second door at (4,4), and a
+    // map the .dat lacks, 8, with a door back.
+    const xml: XmlNode[] = [
+      {
+        mapId: 1,
+        name: 'Old Town',
+        width: 5,
+        height: 5,
+        exits: [
+          { toMapId: 2, x: 3, y: 4, arrivalX: 0, arrivalY: 0 },
+          { toMapId: 2, x: 4, y: 4 },
+          { toMapId: 8, x: 0, y: 0 }
+        ]
+      },
+      { mapId: 8, name: 'Old Cellar', width: 6, height: 6, exits: [{ toMapId: 1, x: 1, y: 1 }] }
+    ]
+    const bare = mergeLearned(NODES, layer([], { xml }))
+    const town = bare.find((n) => n.mapId === 1)!
+    expect(town.exits).toEqual([
+      { toMapId: 2, x: 3, y: 4 },
+      { toMapId: 2, x: 5, y: 4 }
+    ])
+    expect(town.candidates).toEqual([
+      { toMapId: 2, x: 4, y: 4, source: 'xml' },
+      { toMapId: 8, x: 0, y: 0, source: 'xml' }
+    ])
+    // The cellar is a node, named and sized by the XML, with its own candidate.
+    expect(bare.find((n) => n.mapId === 8)).toEqual({
+      mapId: 8,
+      name: '',
+      gameName: 'Old Cellar',
+      width: 6,
+      height: 6,
+      exits: [],
+      candidates: [{ toMapId: 1, x: 1, y: 1, source: 'xml' }]
+    })
+    expect(createRouteGraph(bare).planRoute(1, 8)).toBeNull()
+
+    // One crossing confirms the XML's word; an acceptance does too; the wire's name wins.
+    const confirmed = mergeLearned(
+      NODES,
+      layer([learned(1, 0, 0, 8, { observations: 1 })], {
+        xml,
+        wire: { '8': { name: 'The Cellar', width: 6, height: 6 } },
+        curations: {
+          '8:1,1>1': { fromMapId: 8, x: 1, y: 1, toMapId: 1, verdict: 'accepted', atMs: 1 }
+        }
+      })
+    )
+    const graph = createRouteGraph(confirmed)
+    expect(graph.node(1)?.exits).toContainEqual({
+      toMapId: 8,
+      x: 0,
+      y: 0,
+      source: 'xml',
+      observations: 1
+    })
+    expect(graph.node(1)?.candidates).toEqual([{ toMapId: 2, x: 4, y: 4, source: 'xml' }])
+    expect(graph.node(8)).toMatchObject({
+      gameName: 'The Cellar',
+      exits: [{ toMapId: 1, x: 1, y: 1, source: 'xml' }]
+    })
+    expect(graph.planRoute(1, 8)?.legs.map((l) => l.toMapId)).toEqual([8])
+    expect(XML_PROMOTION_OBSERVATIONS).toBe(1)
+  })
+
   it('the live graph answers from the newest merge', () => {
     const live = createLiveGraph(NODES)
     expect(live.planRoute(1, 5)).toBeNull()
-    live.update([learned(2, 8, 8, 5)], { '5': { name: 'The Island', width: 4, height: 4 } })
+    live.update(
+      layer([learned(2, 8, 8, 5)], { wire: { '5': { name: 'The Island', width: 4, height: 4 } } })
+    )
     expect(live.planRoute(1, 5)?.legs.map((l) => l.toMapId)).toEqual([2, 5])
     expect(live.resolveDestination('the island')).toBe(5)
     expect(live.nodes().find((n) => n.mapId === 5)?.gameName).toBe('The Island')
-    live.update([], {})
+    live.update(layer([]))
     expect(live.planRoute(1, 5)).toBeNull()
   })
 })

@@ -9,7 +9,6 @@ import { buildMapGrid, type Collision, type MapGrid } from '../route/mapGrid'
 import { createMapStore, withMapSize, type MapStore } from '../store/mapStore'
 import {
   createTransitionStore,
-  promotedEdges,
   withObservation,
   type TransitionStore
 } from '../store/transitionStore'
@@ -189,7 +188,7 @@ describe('the warp edit (WP30)', () => {
   /** The graph the app holds, rebuilt from the store the way main does. */
   async function rebuild(): Promise<void> {
     const file = await transitionStore.load()
-    live.update(promotedEdges(file), {}, file.curations)
+    live.update({ transitions: file })
   }
 
   beforeEach(async () => {
@@ -229,6 +228,8 @@ describe('the warp edit (WP30)', () => {
     await transitionStore.update((file) =>
       withObservation(file, { fromMapId: 1, x: 2, y: 2, toMapId: 3, atMs: 5 })
     )
+    // The capture service rebuilds the graph after every write; here by hand.
+    await rebuild()
     expect(await warpsOf(1)).toEqual([
       { x: 3, y: 0, to: 2, state: 'active', source: 'authored' },
       { x: 2, y: 2, to: 3, state: 'candidate', source: 'learned' }

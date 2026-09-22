@@ -1,7 +1,8 @@
 # WP24 — the walker route graph from ceridwen
 
-**Size:** M. **Depends on:** WP15, and ceridwen built out. Read `00-overview.md` first. **PLANNED —
-blocked: ceridwen is not built yet.** **Card:** `HTOO-73`.
+**Size:** M. **Depends on:** WP15, and ceridwen built out. Read `00-overview.md` first. **PART
+SHIPPED 2026-09-22, provisionally, from the world XML; the ceridwen switch-over waits for
+ceridwen.** **Card:** `HTOO-73`.
 **Trigger to start:** ceridwen built out, or the hand-made `WorldMap.dat` going stale, or WP17
 wanting NPC coordinates the `.dat` cannot give.
 
@@ -11,6 +12,24 @@ with `<Warp>` edges, `<MapTarget>` arrival tiles, and `<Npc>` tiles, in the same
 describes. WP33 took Piet Village and the Piet, Abel, and Undine storages from it, and it agreed
 with the `.dat` on every warp both describe. The importer this WP plans can read that set today;
 the blocker is only the choice to switch the whole graph over, not the data.
+
+**What shipped (2026-09-22): the provisional layer.** `scripts/import-world-xml.mjs` reads the
+`.ignore/Old*.xml` set and thirteen production areas whose maps are retail's, unchanged (Sabrael:
+Mehadi, Pravat, New Crypt, East and West Woods, Dubhaim Castle, CR, Astrid, Oren Ruins and Sewer,
+Shinewood Forest, Suomi, Undine); a map in both sets is read from `.ignore` and the production copy
+compared against it, differences printed and never merged. Targets resolve by name — the referring
+map's area first, then `.ignore`, then any unique match. The result, `route/xmlworld.json`, is 542
+maps and 4074 warps: 436 maps the `.dat` does not know, and of 434 warps on pairs it does, 319
+tile for tile, 66 within two tiles, 49 elsewhere. **Why provisional, in one example:** the XML
+puts the Rucesion Town Hall door at (4,5) and (5,5); the wire, 57 crossings, at (4,6) and (5,6).
+So every XML edge enters the graph as a **candidate** (`RouteNode.candidates`, `source: 'xml'`,
+outlined on the Map tab) and becomes an exit only when the wire crosses it once
+(`XML_PROMOTION_OBSERVATIONS`, against two for a bare learned edge: the XML and the wire agreeing
+is confirmation) or the user accepts it (WP30's edit); a reject removes it like any other. A map
+the `.dat` lacks is a node named by the XML until the wire names it, and sized by the XML, so the
+Map tab can draw it. The walker gains nothing from the file on its own, which is the stop-line
+this WP set. `mergeLearned` takes one `LearnedLayer` now: the transition file, the wire's names,
+and the XML. NPC positions (decision 2) and the ceridwen switch-over are still to come.
 
 ## Goal
 
@@ -62,7 +81,9 @@ session before the walker steers by it.
 1. A ceridwen-derived graph loads into the WP15 planner unchanged.
 2. The graph carries NPC positions the `.dat` did not have.
 3. The derived graph is verified against WP14 positions on a live session before it is trusted.
-4. `Repos/world` is not read.
+4. `Repos/world` is not read. **Revised 2026-09-22:** the world repo's `.ignore/Old*.xml` set and
+   the retail-unchanged production areas are read, as a provisional layer the wire confirms
+   (Sabrael, 2026-09-22); the divergent production town maps are not.
 
 ## Verification
 
