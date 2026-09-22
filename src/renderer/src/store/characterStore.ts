@@ -26,6 +26,28 @@ function upsert(characters: CharacterRecord[], record: CharacterRecord): Charact
   return [record, ...characters.filter((existing) => existing.name !== record.name)]
 }
 
+/**
+ * The file's list, with any live record the pushes delivered that the file
+ * has not caught up with.
+ *
+ * `characters:list` reads the file, and main writes the file a second after a
+ * change. A page that mounts inside that second asked for the list before the
+ * write and got the old one; replacing the store with it dropped the record a
+ * push had already delivered, until the next push. So the newer sighting wins
+ * by name, and the result stays newest first. The e2e replay found it (WP21).
+ */
+export function mergeListed(
+  listed: CharacterRecord[],
+  current: CharacterRecord[]
+): CharacterRecord[] {
+  const byName = new Map(listed.map((record) => [record.name, record]))
+  for (const record of current) {
+    const filed = byName.get(record.name)
+    if (filed === undefined || record.lastSeenMs > filed.lastSeenMs) byName.set(record.name, record)
+  }
+  return [...byName.values()].sort((a, b) => b.lastSeenMs - a.lastSeenMs)
+}
+
 export const useCharacterStore = create<CharacterState>((set, get) => ({
   characters: [],
   selected: null,
@@ -34,7 +56,8 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
   refresh: async () => {
     set({ loading: true })
     try {
-      set({ characters: await window.api.characters.list() })
+      const listed = await window.api.characters.list()
+      set({ characters: mergeListed(listed, get().characters) })
     } finally {
       set({ loading: false })
     }

@@ -150,7 +150,7 @@ WP18 (the packet-send spike)   PLANNED — gates every forged packet; WP17 is th
 triggered follow-ons (each carries its promotion trigger in its own doc header):
 
 WP20 (packet inspector)   PLANNED — needs WP11
-WP21 (e2e of the capture surface)   PLANNED — needs WP6, WP8, WP9
+WP21 (e2e of the capture surface)   COMPLETE — complete/21-e2e-capture-surface.md — MIDIR_REPLAY and a synthesised fixture
 WP22 (Deposit Item 0x43 decode)   PLANNED — needs WP11; blocked on a capture sample
 WP23 (0x39 response tail decode)   PLANNED — needs WP11; feeds WP17
 WP24 (route graph from ceridwen)   PLANNED — needs WP15; blocked on ceridwen
@@ -217,7 +217,7 @@ trigger is in each doc's header.
 | WP   | Size | Title                           | Card     | Status                                                     |
 | ---- | ---- | ------------------------------- | -------- | ---------------------------------------------------------- |
 | WP20 | M    | The packet inspector            | HTOO-69  | PLANNED — `20-packet-inspector.md`                         |
-| WP21 | S    | e2e of the capture surface      | HTOO-70  | PLANNED — `21-e2e-capture-surface.md`                      |
+| WP21 | S    | e2e of the capture surface      | HTOO-70  | COMPLETE 2026-09-22 — `complete/21-e2e-capture-surface.md` |
 | WP22 | S    | Deposit Item `0x43` decode      | HTOO-71  | PLANNED — `22-deposit-item-decode.md` (blocked)            |
 | WP23 | S    | The `0x39` response tail decode | HTOO-72  | PLANNED — `23-pursuit-response-tail.md`                    |
 | WP24 | M    | Route graph from ceridwen       | HTOO-73  | PLANNED — `24-ceridwen-route-graph.md` (blocked)           |

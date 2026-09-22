@@ -162,7 +162,7 @@ Aliases: `@renderer` to `src/renderer/src`, `@shared` to `src/shared`.
 
 `npm run dev` launches a real Electron window and **cannot run headless or sandboxed**. Verify with `npm test`, `npm run typecheck`, and `npm run build`. Hand GUI click-throughs to the user.
 
-The live capture path needs Npcap, an adapter, and a real game session. It cannot be verified by an agent. Use `replaySource` and a recorded session file for everything below the `PacketSource` seam, and say plainly when a check is handed to the user.
+The live capture path needs Npcap, an adapter, and a real game session. It cannot be verified by an agent. Use `replaySource` and a recorded session file for everything below the `PacketSource` seam, and say plainly when a check is handed to the user. `MIDIR_REPLAY=<recording> npm run dev` plays a recording into the whole app in place of an adapter (start capture on any device name); the e2e suite runs on `e2e/fixtures/session.ndjson`, a synthesised recording, never a real one, because the repository is public.
 
 ## MUI v9 gotchas
 
