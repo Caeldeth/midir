@@ -77,6 +77,21 @@ export interface CharacterAppearance {
   bootsSprite: number
   overcoatSprite: number
   overcoatColor: number
+  /**
+   * The rest of the form the world draws (WP37, the doll). The arms are their
+   * own sprite: the client draws the torso from `armorSprite` and the arms
+   * from this. The pants dye is the low nibble of the packed body byte; 0 is
+   * undyed. A record from before WP37 loads these as 0.
+   */
+  armsSprite: number
+  pantsDye: number
+  bootsColor: number
+  accessory1Sprite: number
+  accessory1Color: number
+  accessory2Sprite: number
+  accessory2Color: number
+  accessory3Sprite: number
+  accessory3Color: number
 }
 
 /** Everything Midir knows about one character. */
@@ -223,7 +238,16 @@ export function emptyCharacter(name: string, seenAtMs: number): CharacterRecord 
       shieldSprite: 0,
       bootsSprite: 0,
       overcoatSprite: 0,
-      overcoatColor: 0
+      overcoatColor: 0,
+      armsSprite: 0,
+      pantsDye: 0,
+      bootsColor: 0,
+      accessory1Sprite: 0,
+      accessory1Color: 0,
+      accessory2Sprite: 0,
+      accessory2Color: 0,
+      accessory3Sprite: 0,
+      accessory3Color: 0
     },
     equipment: {},
     inventory: {},

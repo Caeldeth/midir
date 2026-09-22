@@ -915,3 +915,32 @@ describe('an item moving into or out of the bank (WP22)', () => {
     expect(at(ready(), pick(0x56, [9, 0x41]), 2000).pendingMove).toBeUndefined()
   })
 })
+
+describe('the rest of the form, for the doll (WP37)', () => {
+  it('copies the arms, the pants dye, the boots colour, and the accessories from the draw', () => {
+    const draw = drawSelf(CHARACTER)
+    if (draw.kind !== 'drawHumanObjects' || draw.human === undefined) throw new Error('fixture')
+    const packet: DecodedPacket = {
+      ...draw,
+      human: {
+        ...draw.human,
+        armsSprite: 140,
+        pantsDye: 4,
+        bootsColor: 58,
+        accessory1: { sprite: 39, color: 6 },
+        accessory3: { sprite: 31, color: 1 }
+      }
+    }
+    const state = run([userAppearance(), fullStatus, packet], { keyName: CHARACTER })
+    expect(state.record.appearance).toMatchObject({
+      armsSprite: 140,
+      pantsDye: 4,
+      bootsColor: 58,
+      accessory1Sprite: 39,
+      accessory1Color: 6,
+      accessory2Sprite: 0,
+      accessory3Sprite: 31,
+      accessory3Color: 1
+    })
+  })
+})

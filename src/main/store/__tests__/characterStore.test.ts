@@ -14,6 +14,42 @@ import {
 } from '../characterStore'
 
 describe('withCharacter', () => {
+  it('loads a record from before the doll with its new appearance fields at 0 (WP37)', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'midir-store-old-'))
+    try {
+      const old = emptyCharacter('Sabrael', 1000) as unknown as {
+        appearance: Record<string, unknown>
+      }
+      const appearance = { ...old.appearance }
+      for (const key of [
+        'armsSprite',
+        'pantsDye',
+        'bootsColor',
+        'accessory1Sprite',
+        'accessory1Color',
+        'accessory2Sprite',
+        'accessory2Color',
+        'accessory3Sprite',
+        'accessory3Color'
+      ]) {
+        delete appearance[key]
+      }
+      await writeFile(
+        join(dir, CHARACTERS_FILE),
+        JSON.stringify({
+          version: 1,
+          characters: { Sabrael: { ...old, appearance: { ...appearance, hairStyle: 7 } } }
+        })
+      )
+      const loaded = await createCharacterStore(dir).load()
+      expect(loaded.characters['Sabrael']?.appearance.hairStyle).toBe(7)
+      expect(loaded.characters['Sabrael']?.appearance.armsSprite).toBe(0)
+      expect(loaded.characters['Sabrael']?.appearance.accessory3Color).toBe(0)
+    } finally {
+      await rm(dir, { recursive: true, force: true })
+    }
+  })
+
   it('adds a character', () => {
     const record = emptyCharacter('Sabrael', 1000)
     expect(withCharacter(emptyCharacterFile(), record).characters['Sabrael']).toEqual(record)
