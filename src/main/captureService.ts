@@ -19,6 +19,7 @@ import { reduceNotice, type NoticeState } from './model/notice'
 import { reduceExchange, type ExchangeState } from './model/exchange'
 import { reduceFieldMap, type FieldMapState } from './model/fieldMap'
 import { reduceEntities, type EntityState } from './model/entities'
+import { reduceDoors, type DoorState } from './model/doors'
 import { reduceBoard, type BoardState } from './model/board'
 import {
   withBoardList,
@@ -147,6 +148,8 @@ export interface CaptureService {
    * right-click never aims at a tile a creature or a player stands on (WP35).
    */
   entitiesFor(connectionId: string): EntityState | null
+  /** The doors the wire changed on the connection's current map (WP31). */
+  doorsFor(connectionId: string): DoorState | null
   /**
    * The boards as the client shows them on `connectionId` now: the list, the
    * open index with every page seen, the post on screen, and the client's
@@ -188,6 +191,7 @@ export function createCaptureService(options: CaptureServiceOptions): CaptureSer
   const fieldMaps = new Map<string, FieldMapState>()
   /** What the client draws around each character, keyed by connection id. */
   const entities = new Map<string, EntityState>()
+  const doors = new Map<string, DoorState>()
   /** The boards as each client shows them, keyed by connection id. */
   const boards = new Map<string, BoardState>()
   /** Changes to the board archive waiting for the next write, in order. */
@@ -476,6 +480,14 @@ export function createCaptureService(options: CaptureServiceOptions): CaptureSer
     if (entitiesAfter === null) entities.delete(id)
     else entities.set(id, entitiesAfter)
 
+    const doorsAfter = reduceDoors(doors.get(id) ?? null, {
+      packet: tracked.event.packet,
+      timestampMs: tracked.timestampMs,
+      sawLoss
+    })
+    if (doorsAfter === null) doors.delete(id)
+    else doors.set(id, doorsAfter)
+
     const before = sessions.get(id) ?? newSession(tracked.connection.openedAtMs)
     const after = reduce(before, {
       packet: tracked.event.packet,
@@ -519,6 +531,7 @@ export function createCaptureService(options: CaptureServiceOptions): CaptureSer
       exchanges.clear()
       fieldMaps.clear()
       entities.clear()
+      doors.clear()
       boards.clear()
       lossy.clear()
       tracker.clear()
@@ -553,6 +566,7 @@ export function createCaptureService(options: CaptureServiceOptions): CaptureSer
           exchanges.delete(connection.id)
           fieldMaps.delete(connection.id)
           entities.delete(connection.id)
+          doors.delete(connection.id)
           boards.delete(connection.id)
           connectionCount = tracker.activeConnections().length
           publishStatus()
@@ -606,6 +620,7 @@ export function createCaptureService(options: CaptureServiceOptions): CaptureSer
       exchanges.clear()
       fieldMaps.clear()
       entities.clear()
+      doors.clear()
       await flush()
       publishStatus()
     },
@@ -639,6 +654,9 @@ export function createCaptureService(options: CaptureServiceOptions): CaptureSer
     },
     entitiesFor(connectionId: string): EntityState | null {
       return entities.get(connectionId) ?? null
+    },
+    doorsFor(connectionId: string): DoorState | null {
+      return doors.get(connectionId) ?? null
     },
     boardFor(connectionId: string): BoardState | null {
       return boards.get(connectionId) ?? null

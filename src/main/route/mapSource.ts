@@ -2,7 +2,7 @@ import { join } from 'node:path'
 import { readFile } from 'node:fs/promises'
 import { DataArchive, SotpFile } from '@eriscorp/dalib-ts'
 import type { Logger } from '../log'
-import { buildMapGrid, type Collision, type MapGrid } from './mapGrid'
+import { buildMapGrid, type Collision, type DoorOverlay, type MapGrid } from './mapGrid'
 
 /**
  * The source of a map's passability, read from the game's own files.
@@ -19,8 +19,16 @@ import { buildMapGrid, type Collision, type MapGrid } from './mapGrid'
  * missing one is a stop, not a silent walk into a wall.
  */
 export interface MapProvider {
-  /** The passability of a map, or null when it cannot be read. */
-  gridFor(mapId: number, width: number, height: number): Promise<MapGrid | null>
+  /**
+   * The passability of a map, or null when it cannot be read. `doors` is the
+   * session's door overlay for that map (WP31); absent means the cache alone.
+   */
+  gridFor(
+    mapId: number,
+    width: number,
+    height: number,
+    doors?: DoorOverlay
+  ): Promise<MapGrid | null>
 }
 
 export interface MapSourceOptions {
@@ -77,7 +85,12 @@ export function createMapSource(options: MapSourceOptions): MapProvider {
     return collisionPromise
   }
 
-  async function gridFor(mapId: number, width: number, height: number): Promise<MapGrid | null> {
+  async function gridFor(
+    mapId: number,
+    width: number,
+    height: number,
+    doors?: DoorOverlay
+  ): Promise<MapGrid | null> {
     const folder = gameFolder()
     if (folder === undefined) {
       log.warn('walker', 'No Dark Ages folder is set, so no map passability is available.')
@@ -93,7 +106,7 @@ export function createMapSource(options: MapSourceOptions): MapProvider {
       return null
     }
     try {
-      return buildMapGrid(bytes, width, height, sotp)
+      return buildMapGrid(bytes, width, height, sotp, doors)
     } catch (error) {
       log.warn('walker', `Map ${mapId} cache does not fit ${width}x${height}: ${String(error)}.`)
       return null

@@ -160,7 +160,7 @@ WP28 (app standards audit)   COMPLETE — complete/28-app-standards.md — the h
 WP27 (cut the first release)   PLANNED — needs the quality gate and WP28
 WP29 (learn map transitions from the wire)   PLANNED — needs WP14; feeds WP15's graph and WP24
 WP30 (map viewer / route inspector)   PLANNED — needs WP15, WP14, WP7
-WP31 (dynamic door collision 0x32)   PLANNED — needs WP15; feeds WP17
+WP31 (dynamic door collision 0x32)   COMPLETE — complete/31-door-collision.md — the client's 66-pair table over the cache
 WP32 (registration-aware routing)   COMPLETE — complete/32-registration-aware-routing.md — gates, citizenship, the Laborer's pre-checks
 WP33 (world-map coverage for errands)   COMPLETE — complete/33-errand-map-coverage.md
 WP34 (dismiss blocking popups)   COMPLETE — 2026-09-21; a dialog, an exchange, and its confirm
@@ -227,7 +227,7 @@ trigger is in each doc's header.
 | WP28 | S    | App standards adoption          | HTOO-77  | COMPLETE 2026-09-22 — `complete/28-app-standards.md`       |
 | WP29 | M    | Learn map transitions from wire | HTOO-78  | PLANNED — `29-learn-transitions.md`                        |
 | WP30 | M    | Map viewer / route inspector    | HTOO-79  | PLANNED — `30-map-viewer.md`                               |
-| WP31 | S    | Dynamic door collision (`0x32`) | HTOO-80  | PLANNED — `31-door-collision.md`                           |
+| WP31 | S    | Dynamic door collision (`0x32`) | HTOO-80  | COMPLETE 2026-09-22 — `complete/31-door-collision.md`      |
 | WP32 | M    | Registration-aware routing      | HTOO-81  | COMPLETE — `complete/32-registration-aware-routing.md`     |
 | WP33 | S    | Map coverage for errand nodes   | HTOO-82  | COMPLETE — `complete/33-errand-map-coverage.md`            |
 | WP34 | S    | Dismiss blocking popups         | HTOO-83  | COMPLETE — `complete/34-dismiss-blocking-popups.md`        |

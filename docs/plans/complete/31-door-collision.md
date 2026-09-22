@@ -1,7 +1,26 @@
 # WP31 — dynamic door collision
 
-**Size:** S. **Depends on:** WP15 (the grid and the walker). Read `00-overview.md` first. **PLANNED.** **Card:** `HTOO-80`.
+**Size:** S. **Depends on:** WP15 (the grid and the walker). Read `00-overview.md` first.
+**COMPLETE 2026-09-22.** **Card:** `HTOO-80`.
 **Trigger to start:** a route the walker needs runs only through a door, or WP17 (Laborer) wants it.
+Sabrael, 2026-09-22: the low items, all of them.
+
+**What shipped, and where the plan below was wrong.** The wire carries no tile id. `0x32` is
+`[u8 count]` then `count` records of `[u8 x][u8 y][u8 state][u8 side]` (both protocol sources; the
+document repo's page binary-verifies it). The client looks the object's current tile id up in a
+66-pair table in its own executable and moves it to column 1 for state 0 and column 0 otherwise,
+and its collision follows the form it shows. So `route/doorTable.ts` is that table, read from
+`Darkages.exe` at `DAT_0068b8b0` (every row the house page cites agrees), `model/doors.ts` keeps
+the wire's word per connection (`doorKey(x, y, side)` to the last state, cleared on a map change
+and on a loss), and `mapGrid.ts` resolves the swapped id when it builds the grid and applies the
+same SOTP rule. A tile in no row is not a door to the client and changes nothing. The side byte is
+a measurement, not a name: against four map caches (505, 3048, 502, 501) every side-1 record lands
+on the cell's first static (file offset +2) and every side-0 record on its second; the second
+protocol source's left/right naming is the other way round. The cache stores some doors in their
+open form (Rucesion's (42,11) is `2904`), which is why the lookup reads both columns. 907 door
+records in 68 recordings; retail batches a two-panel door as one packet with `count` 2. The walker's
+warp-tile allowance (a warp is entered whatever the cache says) stays: it is how the character
+reaches a door the client has not opened yet.
 
 ## Goal
 
@@ -77,10 +96,14 @@ export type DoorOverlay = Map<string /* `${mapId}:${x}:${y}` */, number /* tileI
 ## Acceptance criteria
 
 1. A closed door blocks A*, so the walker routes around it or stops `blocked` when it is the only way.
-2. After a `0x32` opens the door, A* paths through it on the next re-plan.
+   (`walker.test.ts`, `route/__tests__/doors.test.ts`.)
+2. After a `0x32` opens the door, A* paths through it on the next re-plan. (Same.)
 3. The overlay clears on a map change and on a gap, so a stale door state never misleads the walker.
-4. Two clients keep two overlays, and one client's door state never reaches the other.
-5. Nothing reads memory, and nothing sends a packet.
+   (`model/__tests__/doors.test.ts`.)
+4. Two clients keep two overlays, and one client's door state never reaches the other. (Keyed by
+   connection in `captureService.ts`, beside the entities; the walker asks for its own.)
+5. Nothing reads memory, and nothing sends a packet. The table is read from the executable on disk
+   once, by hand, and checked in as data.
 
 ## Verification
 
