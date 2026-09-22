@@ -95,7 +95,8 @@ const api: MidirApi = {
   },
 
   walker: {
-    destinations: (): Promise<WalkerDestination[]> => ipcRenderer.invoke('walker:destinations'),
+    destinations: (connectionId?: string): Promise<WalkerDestination[]> =>
+      ipcRenderer.invoke('walker:destinations', connectionId),
     go: (request: WalkRequest): Promise<WalkOutcome> => ipcRenderer.invoke('walker:go', request),
     stop: (connectionId: string): Promise<void> => ipcRenderer.invoke('walker:stop', connectionId),
     state: (): Promise<WalkerState[]> => ipcRenderer.invoke('walker:state'),

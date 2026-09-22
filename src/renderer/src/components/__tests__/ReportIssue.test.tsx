@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import AboutCard from '@renderer/components/AboutCard'
 import ReportIssueDialog from '@renderer/components/ReportIssueDialog'
-import TitleBar from '@renderer/components/TitleBar'
+import NavBar from '@renderer/components/NavBar'
 import { useReportStore } from '@renderer/store/reportStore'
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -14,8 +14,8 @@ beforeEach(() => {
 })
 
 describe('the two openers', () => {
-  it('the title bar bug button opens the report', async () => {
-    render(<TitleBar />)
+  it('the tab row bug button opens the report', async () => {
+    render(<NavBar value="live" onChange={() => {}} showDiagnostics={false} />)
     await userEvent.click(screen.getByTestId('report-issue'))
     expect(useReportStore.getState().open).toBe(true)
   })

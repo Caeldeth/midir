@@ -107,8 +107,12 @@ export function walkerState(ctx: AssistHandlerContext): WalkerState[] {
   return ctx.walker.states()
 }
 
-export function walkerDestinations(ctx: AssistHandlerContext): WalkerDestination[] {
-  return ctx.walker.destinations()
+export function walkerDestinations(
+  ctx: AssistHandlerContext,
+  connectionId?: unknown
+): WalkerDestination[] {
+  const parsed = connectionIdSchema.safeParse(connectionId)
+  return ctx.walker.destinations(parsed.success ? parsed.data : undefined)
 }
 
 export function laborerErrands(ctx: AssistHandlerContext): Errand[] {
@@ -153,7 +157,9 @@ export function registerAssistHandlers(ipcMain: IpcMain, ctx: AssistHandlerConte
   ipcMain.handle('walker:go', (_, request) => startWalker(ctx, request))
   ipcMain.handle('walker:stop', (_, connectionId) => stopWalker(ctx, connectionId))
   ipcMain.handle('walker:state', () => walkerState(ctx))
-  ipcMain.handle('walker:destinations', () => walkerDestinations(ctx))
+  ipcMain.handle('walker:destinations', (_event, connectionId: unknown) =>
+    walkerDestinations(ctx, connectionId)
+  )
   ipcMain.handle('errand:list', () => laborerErrands(ctx))
   ipcMain.handle('errand:run', (_, request) => runErrand(ctx, request))
   ipcMain.handle('errand:stop', (_, connectionId) => stopErrand(ctx, connectionId))

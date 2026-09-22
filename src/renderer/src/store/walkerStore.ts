@@ -76,7 +76,11 @@ export const useWalkerStore = create<WalkerStoreState>((set, get) => ({
   busy: false,
   error: null,
 
-  setSelected: (connectionId) => set({ selected: connectionId }),
+  setSelected: (connectionId) => {
+    set({ selected: connectionId })
+    // A different character stands somewhere else, so what it reaches differs.
+    void get().refresh()
+  },
   setDestination: (destination) => set({ destination }),
   setEndTile: (x, y) => set({ endX: x, endY: y }),
 
@@ -85,11 +89,14 @@ export const useWalkerStore = create<WalkerStoreState>((set, get) => ({
   },
 
   refresh: async () => {
+    // The destinations carry reachability from where the selected window's
+    // character stands, so the refresh names the window (WP39).
+    const selected = get().selected
     const [windows, assist, walkers, destinations] = await Promise.all([
       window.api.assist.windows(),
       window.api.assist.state(),
       window.api.walker.state(),
-      window.api.walker.destinations()
+      window.api.walker.destinations(selected === '' ? undefined : selected)
     ])
     const running: Record<string, WalkerState> = {}
     for (const state of walkers) if (state.running) running[state.connectionId] = state

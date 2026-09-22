@@ -29,7 +29,6 @@ import React, { useEffect, useMemo } from 'react'
 
 const cardSx = { p: 3, display: 'flex', flexDirection: 'column' } as const
 const headingSx = { color: 'text.button', fontWeight: 'bold' } as const
-const descriptionSx = { color: 'text.secondary', mb: 2 } as const
 
 const MIN_SECONDS = Math.ceil(MIN_SPEAKER_INTERVAL_MS / 1000)
 
@@ -107,12 +106,6 @@ function Speaker(): React.JSX.Element {
         <Typography variant="h6" sx={headingSx}>
           Speaker
         </Typography>
-        <Typography variant="body2" sx={descriptionSx}>
-          Type a list of lines into one game window on a timer. Midir posts the keys to the window
-          you pick, so it works while you do something else. It sends no packet and changes nothing
-          in the client. A character must be logged in on the window, or the Speaker does not start.
-        </Typography>
-
         {stopped ? (
           <Alert
             severity="warning"

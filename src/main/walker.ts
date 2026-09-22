@@ -236,8 +236,12 @@ export interface WalkerOptions {
 }
 
 export interface Walker {
-  /** Every place the walker can be sent to, for the destination picker. */
-  destinations(): WalkerDestination[]
+  /**
+   * Every place the walker can be sent to, for the destination picker. With a
+   * connection whose character is on a map, each place also says whether a
+   * walk from that map reaches it (WP39).
+   */
+  destinations(connectionId?: string): WalkerDestination[]
   /** Walk a character to a place. Resolves with how the walk ended. */
   go(request: WalkRequest): Promise<WalkOutcome>
   /** Stop the walker on one connection. */
@@ -1711,8 +1715,15 @@ export function createWalker(options: WalkerOptions): Walker {
   }
 
   return {
-    destinations(): WalkerDestination[] {
-      return graph.destinations()
+    destinations(connectionId?: string): WalkerDestination[] {
+      const places = graph.destinations()
+      // Reachability is from where the character stands, so it needs a live
+      // position. Without one every place is left unmarked rather than
+      // guessed at.
+      const from = connectionId !== undefined ? positionFor(connectionId) : null
+      if (from === null) return places
+      const reached = graph.reachableFrom(from.mapId)
+      return places.map((place) => ({ ...place, reachable: reached.has(place.mapId) }))
     },
     go,
     stop,

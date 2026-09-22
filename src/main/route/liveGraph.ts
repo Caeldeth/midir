@@ -35,6 +35,8 @@ export function createLiveGraph(base: RouteNode[]): LiveGraph {
       current.resolveDestination(destination),
     planRoute: (fromMapId: number, toMapId: number, options?: PlanOptions): RoutePlan | null =>
       current.planRoute(fromMapId, toMapId, options),
+    reachableFrom: (fromMapId: number, options?: PlanOptions): Set<number> =>
+      current.reachableFrom(fromMapId, options),
     update(layer): void {
       current = createRouteGraph(mergeLearned(base, layer))
     }

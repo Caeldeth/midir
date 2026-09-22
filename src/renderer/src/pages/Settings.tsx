@@ -100,12 +100,6 @@ function Settings(): React.JSX.Element {
           <Typography variant="h6" sx={headingSx}>
             Capture
           </Typography>
-          <Typography variant="body2" sx={descriptionSx}>
-            Midir reads the game client&apos;s own connections through Npcap. It never sends a
-            packet and never changes the client. Start Midir before you log in, because it learns
-            each session&apos;s keys from the login handshake.
-          </Typography>
-
           {availability !== null && !canCapture ? (
             <Alert severity="error" sx={{ mb: 2 }}>
               {availability.reason ?? 'Packet capture is unavailable.'}
@@ -312,13 +306,7 @@ function Settings(): React.JSX.Element {
 
         <Paper sx={cardSx} data-testid="icon-settings">
           <Typography variant="h6" sx={headingSx}>
-            Item icons
-          </Typography>
-          <Typography variant="body2" sx={descriptionSx}>
-            Midir can draw each item&apos;s own icon from your Dark Ages files. Point it at your
-            Dark Ages folder, the one that holds legend.dat. Midir reads that file only to draw
-            icons, and never changes it. This is optional: with no folder set, every list reads
-            exactly as it does now.
+            Legacy data files
           </Typography>
 
           <TextField

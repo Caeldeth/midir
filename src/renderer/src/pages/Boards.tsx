@@ -127,13 +127,6 @@ function PollPanel(): React.JSX.Element {
 
   return (
     <Paper sx={{ m: 2.5, mb: 0, p: 2, flexShrink: 0 }} data-testid="board-poll">
-      <Typography variant="body2" sx={{ color: 'text.secondary', mb: 1.5 }}>
-        Read everything opens the board list and reads every board and the mailbox to the oldest
-        post, through the game's own pane: rows, the scrollbar, View, and Up, and nothing that
-        writes. Read the open board reads the list on screen now, which is how a board in the world
-        is read: click it in the game first. A board in the archive has its own Read button. The
-        poll stops on any dialog it did not open. A character must be logged in on the window.
-      </Typography>
       {pollError !== null ? (
         <Alert severity="error" sx={{ mb: 1.5 }}>
           {pollError}

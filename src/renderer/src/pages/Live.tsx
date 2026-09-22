@@ -62,8 +62,8 @@ function Live({ onOpenSettings }: LiveProps): React.JSX.Element {
         title="Listening"
         detail={
           status.connections > 0
-            ? 'Dark Ages is connected. The sheet fills as soon as the world sends your character.'
-            : 'Start Dark Ages and log in. Midir reads the login handshake as it happens.'
+            ? 'Dark Ages is connected. Your character appears as soon as the world sends it.'
+            : 'Log in to Dark Ages to begin.'
         }
       />
     )
