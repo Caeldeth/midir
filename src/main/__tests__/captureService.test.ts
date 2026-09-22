@@ -255,6 +255,48 @@ describe('createCaptureService', () => {
     expect(service.status()).toMatchObject({ running: false, state: 'stopped', connections: 0 })
   })
 
+  it('a flush joins the write the debounce timer already started', async () => {
+    // The timer flushes unawaited. A second flush that finds nothing left to
+    // save must still wait for that write, or the caller closes the directory
+    // under it: the mailbox test failed one run in two this way.
+    const store = createCharacterStore(directory)
+    let release: (() => void) | undefined
+    let updates = 0
+    const held: typeof store = {
+      ...store,
+      update: async (transform) => {
+        updates++
+        await new Promise<void>((resolve) => {
+          release = resolve
+        })
+        await store.update(transform)
+      }
+    }
+    const service = createCaptureService({
+      store: held,
+      createSource: (): PacketSource => createReplaySource(loginRecording()),
+      now: () => 7000,
+      saveDebounceMs: 1
+    })
+    await service.start('adapter')
+    // The timer fires and its flush enters the held write.
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    expect(updates).toBe(1)
+
+    let flushed = false
+    const flush = service.flush().then(() => {
+      flushed = true
+    })
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    expect(flushed).toBe(false)
+
+    release?.()
+    await flush
+    expect(flushed).toBe(true)
+    expect((await store.load()).characters[CHARACTER]?.name).toBe(CHARACTER)
+    await service.stop()
+  })
+
   it('builds a character from a recorded login and writes it', async () => {
     const { service, store } = build(loginRecording())
     await service.start('adapter')
