@@ -80,14 +80,14 @@ map editor, with Taliesin's visual tab as the closer model.
 
 ## Current state when you start
 
-- [route/mapGrid.ts](../../src/main/route/mapGrid.ts) and
-  [route/mapSource.ts](../../src/main/route/mapSource.ts) — the passability grid, ready to render.
-- [route/graph.ts](../../src/main/route/graph.ts) — the warps for a map.
-- [captureService.ts](../../src/main/captureService.ts) — `positionFor(connectionId)`, the live
+- [route/mapGrid.ts](../../../src/main/route/mapGrid.ts) and
+  [route/mapSource.ts](../../../src/main/route/mapSource.ts) — the passability grid, ready to render.
+- [route/graph.ts](../../../src/main/route/graph.ts) — the warps for a map.
+- [captureService.ts](../../../src/main/captureService.ts) — `positionFor(connectionId)`, the live
   position.
-- [walker.ts](../../src/main/walker.ts) — the `walker:state` push already carries the position, the
+- [walker.ts](../../../src/main/walker.ts) — the `walker:state` push already carries the position, the
   next warp, and the steps taken; the stop reason is in the outcome.
-- [icons/iconService.ts](../../src/main/icons/iconService.ts) — the dalib-ts render path, for the
+- [icons/iconService.ts](../../../src/main/icons/iconService.ts) — the dalib-ts render path, for the
   optional tile-art layer.
 - The renderer pages and the store pattern, for where the view and its state live.
 
