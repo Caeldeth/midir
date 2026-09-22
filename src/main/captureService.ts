@@ -272,7 +272,25 @@ export function createCaptureService(options: CaptureServiceOptions): CaptureSer
     }, saveDebounceMs)
   }
 
-  async function flush(): Promise<void> {
+  /**
+   * The flush in flight, so every caller joins it rather than racing it.
+   *
+   * The debounce timer calls `flush` unawaited. A `flush` from `stop` or a
+   * test that ran while the timer's was mid-write found nothing left to save
+   * and returned at once, and the caller then closed the directory under the
+   * writer (`ENOTEMPTY` in the service tests, one run in two). Serialising
+   * every flush through one chain makes "flush resolved" mean "the file is
+   * written", whoever started the write.
+   */
+  let flushing: Promise<void> = Promise.resolve()
+
+  function flush(): Promise<void> {
+    const next = flushing.then(writeAll, writeAll)
+    flushing = next
+    return next
+  }
+
+  async function writeAll(): Promise<void> {
     if (mapWrites.length > 0 && options.mapStore !== undefined) {
       const writes = mapWrites
       mapWrites = []
