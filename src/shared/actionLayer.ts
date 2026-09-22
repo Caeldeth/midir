@@ -258,6 +258,18 @@ export interface Errand {
   standTile?: { x: number; y: number }
   /** The NPC name, matched against the dialog the server sends. */
   npcName: string
+  /**
+   * The town whose citizen the errand needs: clout at Mileth is for a Mileth
+   * citizen, at Rucesion for a Rucesion citizen (Sabrael, 2026-09-21). The
+   * Laborer checks the record's citizenship before it walks.
+   */
+  needsCitizenship?: string
+  /**
+   * True when the server refuses the errand to an unregistered character
+   * ("(( Register first … ))" for labor and for clout, captured 2026-09-21).
+   * The Laborer checks the record's registration before it walks.
+   */
+  needsRegistration?: boolean
   /** The values the user gives before the run, filled into the steps. */
   params?: ErrandParam[]
   /** The steps, in order. Each expects a dialog and answers it. */
@@ -286,6 +298,10 @@ export type ErrandStopReason =
   | 'protected'
   /** The server answered a step with a notice and no dialog: a refusal. */
   | 'serverNotice'
+  /** The errand needs a citizen of a town, and the record says the character is not one. */
+  | 'notCitizen'
+  /** The errand needs a registered character, and the record says this one is not. */
+  | 'unregistered'
 
 /** How an errand ended. */
 export type ErrandOutcome =
@@ -341,6 +357,10 @@ export function errandStopMessage(reason: ErrandStopReason): string {
       return 'The Laborer saw a login or password dialog and stopped.'
     case 'serverNotice':
       return 'The server refused the step with a notice.'
+    case 'notCitizen':
+      return 'The errand needs a citizen of the town, and this character is not one.'
+    case 'unregistered':
+      return 'The errand needs a registered character, and this one is not.'
   }
 }
 

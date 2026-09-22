@@ -6,8 +6,10 @@ import type {
   ErrandRequest,
   LaborerState
 } from '../shared/types'
-import type { Errand } from '../shared/types'
+import type { Errand, ErrandStopReason } from '../shared/types'
 import { errandStopMessage } from '../shared/types'
+import { NATION_OF_TOWN } from './model/access'
+import type { Passport } from './route/access'
 import type { ActionLayer, LiveConnection } from './actionLayer'
 import { CLOSE_BUTTON } from './dialogScreen'
 import type { DialogState } from './model/dialog'
@@ -66,6 +68,11 @@ export interface LaborerOptions {
   positionFor?: (connectionId: string) => Position | null
   /** A destination's map id, from the route graph. To know the walk fell short on the right map. */
   resolveDestination?: (destination: string | number) => number | null
+  /**
+   * Registration and citizenship as the record knows them, for the errand's
+   * pre-checks. Absent means unknown, which refuses nothing (WP32).
+   */
+  passportFor?: (connectionId: string) => Passport | null
   /**
    * The newest server notice for a connection. From the capture service. A
    * notice and a dialog close in place of the next dialog is a refusal.
@@ -259,6 +266,24 @@ export function createLaborer(options: LaborerOptions): Laborer {
   const noticeFor = options.noticeFor ?? ((): null => null)
   const positionFor = options.positionFor ?? ((): null => null)
   const resolveDestination = options.resolveDestination ?? ((): null => null)
+  const passportFor = options.passportFor ?? ((): null => null)
+
+  /**
+   * What the record says against the errand's needs, before any walk. Only a
+   * known fact refuses: an unknown registration or an unseen citizenship
+   * byte lets the errand run, and the server's own refusal is then the
+   * verdict (`serverNotice`).
+   */
+  function preCheck(connectionId: string, errand: Errand): ErrandStopReason | null {
+    const passport = passportFor(connectionId)
+    if (passport === null) return null
+    if (errand.needsRegistration === true && passport.registered === false) return 'unregistered'
+    if (errand.needsCitizenship !== undefined && passport.citizenship !== undefined) {
+      const needed = NATION_OF_TOWN[errand.needsCitizenship]
+      if (needed !== undefined && passport.citizenship !== needed) return 'notCitizen'
+    }
+    return null
+  }
 
   /**
    * Whether a walk that did not arrive still ended in reach of the NPC: on
@@ -445,6 +470,14 @@ export function createLaborer(options: LaborerOptions): Laborer {
 
     const runState: Run = { connectionId, errand: errand.name, running: true, step: 0 }
     runs.set(connectionId, runState)
+
+    // What the record already knows refuses the errand before any walk.
+    const refused = preCheck(connectionId, errand)
+    if (refused !== null) {
+      log.warn('laborer', `${errand.name} refused before the walk: ${errandStopMessage(refused)}`)
+      return finish(runState, { kind: 'stopped', reason: refused })
+    }
+
     publish(runState, 'walking to the NPC')
     log.info('laborer', `Laborer started on ${connectionId}: ${errand.name}.`)
 
