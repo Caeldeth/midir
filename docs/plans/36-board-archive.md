@@ -98,6 +98,12 @@ with no board list), **Read in the game** on each board of the archive, the "ski
 read" box, and the line that says what the poll is on. Proven against a retail-shaped fake
 client through the real reducer (`__tests__/boardPoll.test.ts`), with the two quirks a live run
 could show (Up back to the top; more rows a click) each learned from one miss.
+**A post id is not unique over a board's life** (Sabrael, 2026-09-22, with the poll working):
+a post that leaves the board frees its id for the next one, so the archive never overwrites a
+post under its id. A listed id whose author, date, or subject differ from the post held is a
+new post; the old one moves to `${id}~${seenAtMs}` with `displacedAtMs`, the tab shows it after
+the post that took the id ("gone from the board; its id was reused"), the export marks it
+`displaced`, and the poll's "already read" check counts only the post the board shows now.
 **First live run, 05:06Z: a posted `W` with its character opened nothing** (five tries, the
 same key a hand press opens the list with), so the opener is the client's own board button,
 measured at game (626, 248) from two hand clicks the watcher paired with `listBoards`. **Second

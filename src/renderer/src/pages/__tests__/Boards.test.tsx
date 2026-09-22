@@ -101,6 +101,37 @@ describe('the Boards page', () => {
     expect(screen.getByText(/2 posts seen, 1 with the body read/)).toBeInTheDocument()
   })
 
+  it('shows a post whose id was reused after the post that took it, marked', async () => {
+    const reused: BoardRecord = {
+      ...PUBLIC,
+      posts: {
+        ...PUBLIC.posts,
+        '42~100': {
+          postId: 42,
+          author: 'Old',
+          month: 1,
+          day: 2,
+          subject: 'The first 42',
+          highlighted: false,
+          body: 'Long ago',
+          seenAtMs: 100,
+          seenBy: 'Sabrael',
+          displacedAtMs: 500
+        }
+      }
+    }
+    window.api.boards.list = vi.fn(async () => [SUMMARY])
+    window.api.boards.get = vi.fn(async () => reused)
+    render(<Boards />)
+    await screen.findByTestId('board-view')
+    const posts = screen.getAllByTestId('board-post')
+    expect(posts).toHaveLength(3)
+    expect(posts[0]).toHaveTextContent('Hello')
+    expect(posts[1]).toHaveTextContent('The first 42')
+    expect(posts[1]).toHaveTextContent('gone from the board; its id was reused')
+    expect(posts[2]).toHaveTextContent('Older')
+  })
+
   it("shows a body's carriage returns as line breaks", async () => {
     window.api.boards.list = vi.fn(async () => [SUMMARY])
     window.api.boards.get = vi.fn(async () => PUBLIC)

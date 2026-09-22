@@ -37,7 +37,7 @@ import { pruneRecordings } from './recordings'
 import { createSettingsManager } from './settingsManager'
 import { createSplashWindow } from './splash'
 import { createCharacterStore } from './store/characterStore'
-import { createBoardStore } from './store/boardStore'
+import { createBoardStore, readPostIds } from './store/boardStore'
 
 // Settings + cache both under %LOCALAPPDATA%/Erisco/Midir (local). On Windows,
 // Electron's appData path is the ROAMING dir, so we resolve %LOCALAPPDATA%
@@ -335,14 +335,7 @@ const boardPoll = createBoardPoll({
   dialogFor: (connectionId) => captureService.dialogFor(connectionId),
   readBodies: async (key) => {
     await captureService.flush()
-    const board = (await boardStore.load()).boards[key]
-    return new Set(
-      board === undefined
-        ? []
-        : Object.values(board.posts)
-            .filter((p) => p.body !== undefined)
-            .map((p) => p.postId)
-    )
+    return readPostIds((await boardStore.load()).boards[key])
   },
   log,
   onState: (state) => pushToRenderer(BOARD_POLL_STATE_CHANNEL, state)

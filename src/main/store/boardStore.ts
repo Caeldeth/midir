@@ -31,7 +31,8 @@ const postSchema = z.object({
   body: z.string().optional(),
   seenAtMs: z.number(),
   bodyAtMs: z.number().optional(),
-  seenBy: z.string()
+  seenBy: z.string(),
+  displacedAtMs: z.number().optional()
 })
 
 // A field missing from this schema is dropped on load, silently (WP11's rule).
@@ -132,9 +133,45 @@ export interface PostListSeen {
 }
 
 /**
- * Put a page of headers into `file`. A header updates the row's subject,
- * author, date, and highlight, and never touches a body the post already
- * has.
+ * Whether a header on the wire is the post the archive holds under its id.
+ * A post is never edited on retail, so its author, date, and subject are
+ * fixed; only the highlight moves. A difference in any of the three means
+ * the board freed the id and another post took it.
+ */
+export function samePost(
+  held: PostRecord,
+  seen: { author: string; month: number; day: number; subject: string }
+): boolean {
+  return (
+    held.author === seen.author &&
+    held.month === seen.month &&
+    held.day === seen.day &&
+    held.subject === seen.subject
+  )
+}
+
+/**
+ * Make room under `postId` for a different post: the post held there moves
+ * to a key of its own, stamped, and is never lost. Returns the posts with
+ * the id free.
+ */
+function displaced(
+  posts: Record<string, PostRecord>,
+  postId: number,
+  nowMs: number
+): Record<string, PostRecord> {
+  const key = String(postId)
+  const held = posts[key]
+  if (held === undefined) return posts
+  const { [key]: _gone, ...rest } = posts
+  return { ...rest, [`${key}~${held.seenAtMs}`]: { ...held, displacedAtMs: nowMs } }
+}
+
+/**
+ * Put a page of headers into `file`. A header updates the row's highlight
+ * and never touches a body the post already has. A header whose author,
+ * date, or subject differ from the post held under its id is a new post
+ * on a reused id: the old post is kept under a key of its own.
  */
 export function withPostList(file: BoardFile, seen: PostListSeen): BoardFile {
   const key = boardKey(seen.boardId, seen.mail, seen.seenBy)
@@ -147,9 +184,13 @@ export function withPostList(file: BoardFile, seen: PostListSeen): BoardFile {
     seen.seenBy,
     seen.seenAtMs
   )
-  const posts = { ...board.posts }
+  let posts = { ...board.posts }
   for (const row of seen.rows) {
-    const existing = posts[String(row.postId)]
+    const held = posts[String(row.postId)]
+    const existing = held !== undefined && samePost(held, row) ? held : undefined
+    if (held !== undefined && existing === undefined) {
+      posts = displaced(posts, row.postId, seen.seenAtMs)
+    }
     posts[String(row.postId)] = {
       ...(existing ?? {}),
       postId: row.postId,
@@ -182,12 +223,19 @@ export interface PostSeen {
 /**
  * Put an opened post into `file`, body and all. The board's name is what the
  * archive already knows, because a post does not carry it; a post for a board
- * never listed gets a nameless board that the next list names.
+ * never listed gets a nameless board that the next list names. A post whose
+ * author, date, or subject differ from the one held under its id displaces
+ * it, as a header does.
  */
 export function withPost(file: BoardFile, seen: PostSeen): BoardFile {
   const key = boardKey(seen.boardId, seen.mail, seen.seenBy)
   const board = boardIn(file, key, seen.boardId, '', seen.mail, seen.seenBy, seen.seenAtMs)
-  const existing = board.posts[String(seen.postId)]
+  const held = board.posts[String(seen.postId)]
+  const posts =
+    held !== undefined && !samePost(held, seen)
+      ? displaced(board.posts, seen.postId, seen.seenAtMs)
+      : board.posts
+  const existing = posts[String(seen.postId)]
   const post: PostRecord = {
     postId: seen.postId,
     author: seen.author,
@@ -203,9 +251,19 @@ export function withPost(file: BoardFile, seen: PostSeen): BoardFile {
   return {
     boards: {
       ...file.boards,
-      [key]: { ...board, posts: { ...board.posts, [String(seen.postId)]: post } }
+      [key]: { ...board, posts: { ...posts, [String(seen.postId)]: post } }
     }
   }
+}
+
+/** The post ids the board shows a body for now: displaced posts do not count. */
+export function readPostIds(board: BoardRecord | undefined): Set<number> {
+  if (board === undefined) return new Set()
+  return new Set(
+    Object.entries(board.posts)
+      .filter(([key, post]) => key === String(post.postId) && post.body !== undefined)
+      .map(([, post]) => post.postId)
+  )
 }
 
 /** What the Boards tab lists: every board, most recently seen first. */

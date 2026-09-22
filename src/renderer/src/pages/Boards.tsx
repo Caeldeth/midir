@@ -311,9 +311,13 @@ function BoardView({
   onExport,
   onRead
 }: BoardViewProps): React.JSX.Element {
-  // Newest first, as the game lists them: post ids rise with time.
+  // Newest first, as the game lists them: post ids rise with time. A post
+  // whose id another took since sits after the one that took it.
   const posts = useMemo(
-    () => Object.values(board.posts).sort((a, b) => b.postId - a.postId),
+    () =>
+      Object.values(board.posts).sort(
+        (a, b) => b.postId - a.postId || (a.displacedAtMs ?? 0) - (b.displacedAtMs ?? 0)
+      ),
     [board.posts]
   )
   const read = posts.filter((p) => p.body !== undefined).length
@@ -356,7 +360,11 @@ function BoardView({
       ) : null}
 
       {posts.map((post) => (
-        <Accordion key={post.postId} disableGutters data-testid="board-post">
+        <Accordion
+          key={`${post.postId}${post.displacedAtMs !== undefined ? `~${post.seenAtMs}` : ''}`}
+          disableGutters
+          data-testid="board-post"
+        >
           <AccordionSummary expandIcon={<ExpandMoreOutlined />}>
             <Box sx={{ minWidth: 0, flex: 1 }}>
               <Typography
@@ -369,6 +377,9 @@ function BoardView({
               <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                 {post.author} · {postDate(post)} · #{post.postId}
                 {post.body === undefined ? ' · not opened' : ''}
+                {post.displacedAtMs !== undefined
+                  ? ' · gone from the board; its id was reused'
+                  : ''}
               </Typography>
             </Box>
           </AccordionSummary>

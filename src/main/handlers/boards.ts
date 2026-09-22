@@ -92,7 +92,8 @@ export function exportOf(board: BoardRecord, nowMs: number): BoardExport {
       day: p.day,
       subject: p.subject,
       body: p.body ?? null,
-      highlighted: p.highlighted
+      highlighted: p.highlighted,
+      ...(p.displacedAtMs !== undefined ? { displaced: true } : {})
     }))
   }
 }

@@ -23,6 +23,14 @@ export interface PostRecord {
   bodyAtMs?: number
   /** The character who was logged in when the post was seen. */
   seenBy: string
+  /**
+   * Set when another post took this post's id on the board. A board's ids
+   * are not unique over time: a post that leaves the board frees its id
+   * for the next, so a listed id whose author, date, or subject differ
+   * from the post held is a new post, and the old one is kept under a key
+   * of its own with this stamp, never overwritten.
+   */
+  displacedAtMs?: number
 }
 
 /** One board, or one character's mailbox. */
@@ -36,7 +44,10 @@ export interface BoardRecord {
   mail: boolean
   /** The character whose mailbox this is. Absent for a board. */
   owner?: string
-  /** Posts by post id, as a string key. */
+  /**
+   * Posts by post id, as a string key, for the post the board shows under
+   * that id now; a post the id was taken from is under `${id}~${seenAtMs}`.
+   */
   posts: Record<string, PostRecord>
   /** When the board was last seen on the wire, in capture time. */
   seenAtMs: number
@@ -77,6 +88,8 @@ export interface BoardExport {
     subject: string
     body: string | null
     highlighted: boolean
+    /** True for a post whose id another post took since; the board no longer shows it. */
+    displaced?: boolean
   }[]
 }
 
