@@ -30,13 +30,29 @@ unreadable. What it settled, beyond the plan:
   and it must wait for one reply before it scrolls again.
 - **Next is `navOffset −1`** (79 after 80) **and Prev is `+1`**, and the reply carries the post's
   real id. Not used by the poll (decision 4), but known.
-- **A body's line breaks are `
-`, `
-`, and `
-`**, as each player typed them; the tab shows
+- **A body's line breaks are `\r`, `\r\n`, and `\n`**, as each player typed them; the tab shows
   them as breaks and the export keeps them as sent.
 - A post arrives with `subType 3` and an index with `subType 2` when opened from the board list;
   the plan's "0 normal" is Hybrasyl's value.
+
+The second browse the same night (Angelique, 04:10Z to 04:16Z: Rucesion Political Discourse and
+Demagoguery, the Rangers board; 352 requests and 355 replies, none unreadable) added these:
+
+- **A board in the world opens with no `0x3B`.** A board object on a map (the Rucesion Hall
+  boards, the Cura board at Vaillaire) is clicked as an object, `CClick 0x43`, and the server
+  pushes the first page (`subType 2`) as the reply to that click. Only the pages after it are
+  `listPosts`. The passive archive needs nothing for this, since a page is stored whichever
+  request brought it, and the poll reads every board through the `W` list, where each has a row.
+- **The client fetches a second page on its own** as soon as a full first page arrives: `32767`,
+  the reply, then `oldest − 1` within 2 ms, every time a board opens. A board of 16 posts or
+  fewer needs one page and gets one request. The poll counts pages by what they add, so the
+  client's own second page costs it nothing.
+- **The repeat trap again, worse:** one scroll at the bottom of the Rangers board sent the same
+  `listPosts 271,-16` **190 times in 130 ms**, and the server answered all 190.
+- **The client's own post decodes.** Angelique's "Jailed - Micus - Botting" went out as action
+  `post` with the subject and the body as typed, and the reply was type 6 "Your letter was sent."
+  The poll never sends this, and the decoder now has a live sample.
+- Prev is `+1` again (269 after 268), read from the post pane.
 
 PR2 is the poll. The pane watcher's board side (this PR) logs every hand click on a board pane
 with what the pane showed and pairs it with the client's next `0x3B`; the poll's positions come
