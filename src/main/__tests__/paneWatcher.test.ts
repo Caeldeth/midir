@@ -6,6 +6,7 @@ import type { ExchangeState } from '../model/exchange'
 import type { FieldMapState } from '../model/fieldMap'
 import type { FieldMap } from '../protocol/decode/fieldMap'
 import type { Position } from '../model/position'
+import type { BoardState } from '../model/board'
 import { groundPoint } from '../laborer/view'
 import type { Logger } from '../log'
 
@@ -28,6 +29,7 @@ function harness() {
   let answer: DialogAnswer | null = null
   let exchange: ExchangeState | null = null
   let position: Position | null = null
+  let board: BoardState | null = null
   let pointer: PointerState | null = {
     x: 0,
     y: 0,
@@ -54,12 +56,44 @@ function harness() {
     answerFor: (id) => (id === CID ? answer : null),
     exchangeFor: (id) => (id === CID ? exchange : null),
     positionFor: (id) => (id === CID ? position : null),
+    boardFor: (id) => (id === CID ? board : null),
     log,
     now: () => clock
   })
   return {
     watcher,
     lines,
+    /** A board's index is up, as the capture service would report it. */
+    openBoard: () => {
+      board = {
+        open: {
+          boardId: 188,
+          boardName: 'Mileth Political Discourse',
+          mail: false,
+          rows: [],
+          lastPageAdded: 16,
+          lastPageRows: 16,
+          asOfMs: clock
+        },
+        asOfMs: clock
+      }
+    },
+    /** The client asks to read a post, as it does after a row and View. */
+    readPost: (postId: number, afterMs = 400) => {
+      clock += afterMs
+      board = {
+        ...board!,
+        request: {
+          kind: 'bulletinRequest',
+          action: 'readPost',
+          boardId: 188,
+          postId,
+          navOffset: 0,
+          asOfMs: clock
+        },
+        asOfMs: clock
+      }
+    },
     /** Put the character on a tile. */
     stand: (x: number, y: number, mapId = 3025) => {
       position = { mapId, x, y, facing: 0, asOfMs: clock, confidence: 'confirmed' }
@@ -367,6 +401,43 @@ describe('the pane watcher on a hand right-click (WP35)', () => {
     h.openDialog()
     h.watcher.tick()
     h.handRightClick(312, 199)
+    expect(h.lines).toEqual([])
+  })
+})
+
+describe('the pane watcher on a board pane (WP36)', () => {
+  it('logs a hand click on the pane with what it showed, and pairs the request the client sent', () => {
+    const h = harness()
+    h.openBoard()
+    h.watcher.tick()
+    h.handClick(540, 90)
+    expect(h.lines.at(-1)).toBe(
+      'Hand click released at game (540, 90) on board 188 (Mileth Political Discourse), 0 rows held.'
+    )
+    h.readPost(80)
+    h.watcher.tick()
+    expect(h.lines.at(-1)).toBe(
+      'The client sent read post 80 of board 188 (offset 0), 400 ms after the hand click at game (540, 90) on board 188 (Mileth Political Discourse), 0 rows held.'
+    )
+  })
+
+  it('reports a request with no hand click before it', () => {
+    const h = harness()
+    h.openBoard()
+    h.watcher.tick()
+    h.readPost(80)
+    h.watcher.tick()
+    expect(h.lines.at(-1)).toBe(
+      'The client sent read post 80 of board 188 (offset 0) with no hand click before it.'
+    )
+  })
+
+  it('takes a click as one on the world once the board state is stale', () => {
+    const h = harness()
+    h.openBoard()
+    h.wait(6 * 60 * 1000)
+    h.stand(10, 10)
+    h.handClick(300, 140)
     expect(h.lines).toEqual([])
   })
 })

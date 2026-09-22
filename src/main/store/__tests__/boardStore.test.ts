@@ -10,7 +10,9 @@ import {
   withBoardList,
   withPost,
   withPostList,
-  type BoardFile
+  type BoardFile,
+  readPostIds,
+  samePost
 } from '../boardStore'
 
 /** The board archive (WP36). */
@@ -67,6 +69,19 @@ describe('the board archive', () => {
     })
   })
 
+  it("leaves the list's Mail entry out: the mailbox is kept per character", () => {
+    // Retail lists Mail as board 0 (live, 2026-09-22).
+    const file = withBoardList(
+      emptyBoardFile(),
+      [
+        { id: 0, name: 'Mail' },
+        { id: 1, name: 'Events of Temuair' }
+      ],
+      500
+    )
+    expect(Object.keys(file.boards)).toEqual(['1'])
+  })
+
   it('keeps every header a page lists, and a body once a post is opened', () => {
     let file = page(emptyBoardFile(), [row(50), row(49)])
     expect(Object.keys(file.boards['10']!.posts).sort()).toEqual(['49', '50'])
@@ -75,18 +90,81 @@ describe('the board archive', () => {
     expect(file.boards['10']!.posts['50']).toMatchObject({ body: 'Body of 50', bodyAtMs: 2000 })
   })
 
-  it('never replaces a body with a header, and lets a header update the rest', () => {
+  it('never replaces a body with a header, and lets a header update the highlight', () => {
     let file = opened(page(emptyBoardFile(), [row(50)]), 50)
-    file = page(file, [row(50, 'Edited', true)], 3000)
+    file = page(file, [row(50, 'Post 50', true)], 3000)
     expect(file.boards['10']!.posts['50']).toMatchObject({
       body: 'Body of 50',
-      subject: 'Edited',
+      subject: 'Post 50',
       highlighted: true,
       seenAtMs: 3000
     })
     // A post opened again keeps its highlight from the list.
     file = opened(file, 50, 4000)
     expect(file.boards['10']!.posts['50']).toMatchObject({ highlighted: true, bodyAtMs: 4000 })
+  })
+
+  it('keeps a post whose id another post took, and never overwrites it (Sabrael, 2026-09-22)', () => {
+    // A board's ids are not unique over time: a post that leaves the board
+    // frees its id for the next one.
+    let file = opened(page(emptyBoardFile(), [row(50)]), 50)
+    file = page(file, [row(50, 'Another post')], 5000)
+    const posts = file.boards['10']!.posts
+    expect(Object.keys(posts).sort()).toEqual(['50', '50~2000'])
+    // The old post is whole, marked, and out of the id's way.
+    expect(posts['50~2000']).toMatchObject({
+      postId: 50,
+      subject: 'Post 50',
+      body: 'Body of 50',
+      displacedAtMs: 5000
+    })
+    // The new post has the id, and no body of its own yet.
+    expect(posts['50']).toMatchObject({ subject: 'Another post', seenAtMs: 5000 })
+    expect(posts['50']!.body).toBeUndefined()
+    // Its body arrives and fills the new post, not the old.
+    file = withPost(file, {
+      boardId: 10,
+      mail: false,
+      postId: 50,
+      author: 'Ari',
+      month: 7,
+      day: 15,
+      subject: 'Another post',
+      body: 'New words',
+      seenAtMs: 6000,
+      seenBy: 'Sabrael'
+    })
+    expect(file.boards['10']!.posts['50']!.body).toBe('New words')
+    expect(file.boards['10']!.posts['50~2000']!.body).toBe('Body of 50')
+    // Only the post the board shows counts as read.
+    expect(readPostIds(file.boards['10'])).toEqual(new Set([50]))
+  })
+
+  it('takes a body with a new author on a held id as a new post too', () => {
+    let file = opened(page(emptyBoardFile(), [row(50)]), 50)
+    file = withPost(file, {
+      boardId: 10,
+      mail: false,
+      postId: 50,
+      author: 'Bran',
+      month: 8,
+      day: 1,
+      subject: 'Post 50',
+      body: 'Bran wrote this',
+      seenAtMs: 7000,
+      seenBy: 'Sabrael'
+    })
+    const posts = file.boards['10']!.posts
+    expect(posts['50']).toMatchObject({ author: 'Bran', body: 'Bran wrote this' })
+    expect(posts['50~2000']).toMatchObject({
+      author: 'Ari',
+      body: 'Body of 50',
+      displacedAtMs: 7000
+    })
+    // A different post seen only in the list, then the same id opened as the held one: no displacement.
+    expect(samePost(posts['50']!, { author: 'Bran', month: 8, day: 1, subject: 'Post 50' })).toBe(
+      true
+    )
   })
 
   it('keeps the mailbox under the character who owns it, apart from every board', () => {

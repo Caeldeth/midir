@@ -10,8 +10,106 @@ index with every page seen and what the newest page added, the post on screen, t
 request); `store/boardStore.ts` is `boards.json`, with a header never replacing a body and the
 mailbox keyed `mail:<name>`; the capture service attributes a post to the board the client's read
 asked for and queues the archive's writes with the characters'; the **Boards** tab lists the
-archive and exports a board in the prototype's shape. The decoders are proven by the first live
-browse (verification 3), which is what is left of PR1. PR2 is the poll.
+archive and exports a board in the prototype's shape.
+
+**The live browse of 2026-09-22 03:31Z proved the decoders** — Sabrael read Mileth Political
+Discourse (board 188) on retail: 80 headers over five pages and seven bodies, no `0x31` or `0x3B`
+unreadable. What it settled, beyond the plan:
+
+- **The post's `u16` is the post id.** `readPost 80` was answered with `postId 80`; the document
+  repo was right and darkages-741-re's `board_id` is wrong.
+- **Retail lists the mailbox as board 0 "Mail"** in the board list (heading empty), so a board
+  list does put a "Mail" entry on the wire; the archive leaves it out, since the mailbox is per
+  character.
+- **The client's page cursor is the oldest held id minus one**, so retail's pages do not overlap
+  (80–65, then 64–49, 48–33 …): the prototype's "inclusive" overlap was its own cursor. Sixteen
+  rows a page. The dedupe stays, and costs nothing.
+- **The client's repeat trap is real.** One scroll at the bottom sent the same `listPosts 32,-16`
+  91 times in 100 ms and the server answered every one. The poll drives that client, so it must
+  count a page by what it adds (the reducer's `lastPageAdded`) and never by the number of replies,
+  and it must wait for one reply before it scrolls again.
+- **Next is `navOffset −1`** (79 after 80) **and Prev is `+1`**, and the reply carries the post's
+  real id. Not used by the poll (decision 4), but known.
+- **A body's line breaks are `\r`, `\r\n`, and `\n`**, as each player typed them; the tab shows
+  them as breaks and the export keeps them as sent.
+- A post arrives with `subType 3` and an index with `subType 2` when opened from the board list;
+  the plan's "0 normal" is Hybrasyl's value.
+
+The second browse the same night (Angelique, 04:10Z to 04:16Z: Rucesion Political Discourse and
+Demagoguery, the Rangers board; 352 requests and 355 replies, none unreadable) added these:
+
+- **A board in the world opens with no `0x3B`.** A board object on a map (the Rucesion Hall
+  boards, the Cura board at Vaillaire) is clicked as an object, `CClick 0x43`, and the server
+  pushes the first page (`subType 2`) as the reply to that click. Only the pages after it are
+  `listPosts`. The passive archive needs nothing for this, since a page is stored whichever
+  request brought it, and the poll reads every board through the board list, where each has a row.
+- **The client fetches a second page on its own** as soon as a full first page arrives: `32767`,
+  the reply, then `oldest − 1` within 2 ms, every time a board opens. A board of 16 posts or
+  fewer needs one page and gets one request. The poll counts pages by what they add, so the
+  client's own second page costs it nothing.
+- **The repeat trap again, worse:** one scroll at the bottom of the Rangers board sent the same
+  `listPosts 271,-16` **190 times in 130 ms**, and the server answered all 190.
+- **The client's own post decodes.** Angelique's "Jailed - Micus - Botting" went out as action
+  `post` with the subject and the body as typed, and the reply was type 6 "Your letter was sent."
+  The poll never sends this, and the decoder now has a live sample.
+- Prev is `+1` again (269 after 268), read from the post pane. The id in a Prev or Next request
+  is the shown id plus or minus one, and the server answers with the nearest post that exists:
+  `read 74 by -1` on a board with no 74 came back as 71.
+
+**The measuring browse (Evenue at the Vaillaire Cura board, 04:33Z to 04:42Z, through the pane
+watcher's board side)** gave the poll its positions and its gestures:
+
+- **The pane sits at x 30, y 0** in the game's 640 x 480 space: a 581-wide pane centred across the
+  width and flush with the top. Every measured button fits that offset and no other: View at game
+  (562, 51) sent a read, Next at (562, 96) and (573, 95), Prev at (570, 69), Up at (573, 228)
+  went back to the list with no packet, Close at (555, 259) and (562, 258).
+- **Rows are 18 px from pane y 18, and 14 are visible.** The top row's centre is game y 27
+  (a click at (319, 29) then View read the newest post); a click at y 208 after a scroll to the
+  bottom of a 72-row list opened the 69th newest post, which is row 10 of the last 14.
+- **A single click on a row selects it, and View opens it.** A double click on a row opens it
+  too (the hand browse did that on the board list), which the poll does not rely on: `click` is
+  posted once for a row, and the client's request after the row click, when the double landed
+  anyway, is what tells the poll to skip View.
+- **The scrollbar's arrows move the list a row a click, and the down arrow at the bottom asks
+  for the next page.** The scrollbar sits at game x 529 to 532, its up arrow at y 26 and its down
+  arrow at y 265; fifteen hand clicks on each were logged, and the clicks at the bottom sent
+  `listPosts 24`. The arrow keys and the mouse wheel do the same by hand (Sabrael's key run sent
+  `listPosts 56` and `40` with no click at all), **but a posted Down moved no selection** on the
+  second live run (05:10Z: the poll clicked View after each press and the client read the same
+  post, row 0, four times), as a posted `W` opened nothing and a posted digit chose nothing on a
+  dialog (WP17). So the poll is clicks only: it keeps a picture of the list (which row is at the
+  top of the fourteen on screen, and how many rows a click moves), clicks a row it can see, and
+  the post id the server answers with is the check on the picture. A wrong reply corrects it and
+  teaches it: that Up from a post puts the list back at the top, or that a click moves more rows
+  than one; each is learned from one miss and holds for the board.
+- **Up from a post goes back to the list with no packet; Up from a list sends `listBoards`.**
+- **The mail panes differ from the board panes in two buttons.** The mail list's View is at pane
+  y 61 to 83 (the board list's is 35 to 57), and the mail list has Quit at 218 to 240 and Up at
+  245 to 267, the reverse of the post list's Up (218 to 240) and Close (245 to 267). A poll that
+  clicked the board list's Up on the mailbox would close the whole pane.
+
+**PR2, the poll, built 2026-09-22** from the measuring browse: `boardPoll.ts` is the driver
+(the board button, a visible row, the scrollbar's arrows, View, Up, Quit; every gesture waits
+for its packet, and the post id in every reply checks the poll's picture of the list),
+`handlers/boards.ts` gains `boards:poll`, `boards:poll-stop`, and `boards:poll-state`, and the
+Boards tab has the window picker, **Read everything**, **Read the open board** (the list on
+screen now, which is how a board in the world is read, since a click on a board object opens it
+with no board list), **Read in the game** on each board of the archive, the "skip posts already
+read" box, and the line that says what the poll is on. Proven against a retail-shaped fake
+client through the real reducer (`__tests__/boardPoll.test.ts`), with the two quirks a live run
+could show (Up back to the top; more rows a click) each learned from one miss.
+**A post id is not unique over a board's life** (Sabrael, 2026-09-22, with the poll working):
+a post that leaves the board frees its id for the next one, so the archive never overwrites a
+post under its id. A listed id whose author, date, or subject differ from the post held is a
+new post; the old one moves to `${id}~${seenAtMs}` with `displacedAtMs`, the tab shows it after
+the post that took the id ("gone from the board; its id was reused"), the export marks it
+`displaced`, and the poll's "already read" check counts only the post the board shows now.
+**First live run, 05:06Z: a posted `W` with its character opened nothing** (five tries, the
+same key a hand press opens the list with), so the opener is the client's own board button,
+measured at game (626, 248) from two hand clicks the watcher paired with `listBoards`. **Second
+run, 05:10Z: a posted Down moved no selection**, so the keys are out and every gesture is a
+click. The profile click for the legend is not in it: the profile button's place is not
+measured.
 
 **Trigger:** Sabrael, 2026-09-21: retail's boards hold years of player-written content that exists
 nowhere else, and no tool in the house reads them. The Brigid prototype (`feat/board-capture-debug`,
@@ -112,7 +210,8 @@ never right of the Content pane on a post.
 3. **The poll is a driving assistant on a tab of its own, "Boards".** The tab lists the boards the
    archive knows with post counts and read counts, an export button per board (JSON, the shape the
    prototype wrote: `boardId`, `boardName`, `capturedUtc`, `posts[]`), and one button: **Read
-   everything**. The poll then, on the selected window: opens the mailbox (`W`), which lists the
+   everything**. The poll then, on the selected window: opens the board list (the client's board
+   button; a posted `W` opened nothing live), which lists the
    boards; for each board in the list, clicks its row and View, reads the list page off the wire,
    pages older by scrolling to the bottom until a page adds no new id, then opens every post the
    list holds from its own row (row and View, newest first; a post already in the archive with a
@@ -132,10 +231,14 @@ never right of the Content pane on a post.
    id ±1 itself rather than trust them, and a poll that leaned on them would depend on the
    server's sibling rule and would have no proof it saw every post. The list is the proof: a
    post in the list with no body after the walk is logged as one the walk missed, and the poll
-   opens it again once before it moves on. The list dialog shows a page of rows at a time, so the
-   poll scrolls: the gesture that pages the client's list (the scroll bar, or the keys the dialog
-   consumes) is measured on the first live run by the pane watcher, like every other position,
-   and a row is clicked only while it is on screen.
+   opens it again once before it moves on. The list dialog shows a page of rows at a time, and
+   the poll never clicks a row it cannot see: it scrolls with the scrollbar's arrows until the
+   row is among the fourteen on screen (the down arrow at the bottom is what asks the client for
+   the next page), clicks the row, and clicks View. Which row is at the top is a picture the poll
+   keeps; the post id in every reply is the check on it, and a reply that names another post
+   corrects the picture from the list, learns what was wrong (Up put the list back at the top; a
+   click moves more rows than one), and tries again, at most `MAX_MISSES` times per board before
+   the poll stops as lost. No key is posted: the client answered none on the live runs.
 5. **The pane positions are measured before they are used.** The layouts (`_nbdlist.txt`,
    `_narlist.txt`, `_narti.txt`, `_nmaill.txt`, `_nmailr.txt` in `setoa.dat`) give a 581 × 290 pane
    with View at 507–568 × 35–57 (board list), the list rows in 19–499 × 18–273, Prev/Next at
@@ -170,8 +273,8 @@ never right of the Content pane on a post.
   and the schema as the law of what survives a restart.
 - `laborer.ts` is the driving assistant to copy: `waitForDialog`, `chooseRow`, the stop reasons,
   the tab with a window picker and a status line. `paneWatcher.ts` is where the measuring goes.
-- `actionLayer.pressKey` posts a key with its scan code and character (`W` needs both, as Escape
-  did); `click` posts a left click in game coordinates.
+- `actionLayer.pressKey` posts a key with its scan code and, for Escape, its character; `click`
+  posts a left click in game coordinates, once when asked.
 
 ## Contracts
 
@@ -194,11 +297,13 @@ interface BoardRecord { id: number; name: string; posts: Record<number, PostReco
 interface PostRecord { author: string; month: number; day: number; subject: string; highlighted: boolean; body?: string; seenAtMs: number; seenBy: string }
 
 // boardPoll.ts
-interface BoardPoll { start(connectionId: string, options: { fillGapsOnly: boolean }): Promise<PollOutcome>; stop(connectionId: string): void; states(): PollState[] }
+interface BoardPoll { run(request: BoardPollRequest): Promise<BoardPollOutcome>; stop(connectionId: string): void; states(): BoardPollState[] }
+interface BoardPollRequest { connectionId: string; onlyUnread: boolean }
 ```
 
-`window.api.boards`: `list()`, `posts(boardKey)`, `exportJson(boardKey)`, `poll.start/stop/state`,
-and a push channel for the poll's state and for a changed board.
+`window.api.boards`: `list()`, `get(boardKey)`, `exportJson(boardKey)`, `poll(request)`,
+`stopPoll(connectionId)`, `pollState()`, `onPollState(handler)`, and `onChanged(handler)` for
+a changed board.
 
 ## Acceptance criteria
 
@@ -207,10 +312,10 @@ and a push channel for the poll's state and for a changed board.
 2. A hand browse of one board fills `boards.json` with every header seen and every body opened,
    and a restart shows the same. A header never replaces a body.
 3. The mailbox is stored under the character's key and never under another character's.
-4. The poll reads a whole board with no key pressed but `W` and the list's own scroll, and no
-   button clicked but rows, View, and Up; the log states every click's pane position and the `0x3B`
-   that followed it; every post the list holds has a body at the end, or is named in the log as one
-   the walk missed twice.
+4. The poll reads a whole board with no key pressed, and no button clicked but the board
+   button, a visible row, the scrollbar's arrows, View, Up, and Quit; the log states every
+   click's game position and the `0x3B` that followed it; every post the list holds has a body
+   at the end, or is named in the log as one the walk missed.
 5. The poll stops on a compose dialog, a result alert, the credential pane, and a stop; it never
    sends `0x3B` action 4, 5, 6, or 7 (asserted in the tests and grep-able in the log).
 6. The export is the prototype's shape, and a board of 200 posts exports in one file.

@@ -8,6 +8,7 @@ import { createActionLayer, type HotkeyRegistrar, type WindowApi } from './actio
 import { createSpeaker } from './speaker'
 import { createWalker } from './walker'
 import { createLaborer } from './laborer'
+import { createBoardPoll } from './boardPoll'
 import { builtinErrands } from './laborer/errands'
 import { createPaneWatcher } from './paneWatcher'
 import { createMapSource } from './route/mapSource'
@@ -21,6 +22,7 @@ import {
   ASSIST_STATE_CHANNEL,
   CAPTURE_STATUS_CHANNEL,
   BOARDS_CHANGED_CHANNEL,
+  BOARD_POLL_STATE_CHANNEL,
   CHARACTER_CHANGED_CHANNEL,
   LOG_APPENDED_CHANNEL,
   LABORER_STATE_CHANNEL,
@@ -35,7 +37,7 @@ import { pruneRecordings } from './recordings'
 import { createSettingsManager } from './settingsManager'
 import { createSplashWindow } from './splash'
 import { createCharacterStore } from './store/characterStore'
-import { createBoardStore } from './store/boardStore'
+import { createBoardStore, readPostIds } from './store/boardStore'
 
 // Settings + cache both under %LOCALAPPDATA%/Erisco/Midir (local). On Windows,
 // Electron's appData path is the ROAMING dir, so we resolve %LOCALAPPDATA%
@@ -323,6 +325,22 @@ const laborer = createLaborer({
   onState: (state) => pushToRenderer(LABORER_STATE_CHANNEL, state)
 })
 
+// The board poll reads every board and the mailbox through the client's own
+// board pane (WP36 PR2): the arrow keys walk the list, View opens a row, and
+// every reply off the wire is the check on where the selection is.
+const boardPoll = createBoardPoll({
+  actionLayer,
+  liveConnections: () => captureService.liveCharacterEntries(),
+  boardFor: (connectionId) => captureService.boardFor(connectionId),
+  dialogFor: (connectionId) => captureService.dialogFor(connectionId),
+  readBodies: async (key) => {
+    await captureService.flush()
+    return readPostIds((await boardStore.load()).boards[key])
+  },
+  log,
+  onState: (state) => pushToRenderer(BOARD_POLL_STATE_CHANNEL, state)
+})
+
 // While a world map is open, the pane watcher logs where the user clicks by
 // hand and pairs it with the point the client sends (WP33). A diagnostic: it
 // reads the pointer through the operating system and drives nothing.
@@ -335,6 +353,8 @@ const paneWatcher = createPaneWatcher({
   answerFor: (connectionId) => captureService.answerFor(connectionId),
   positionFor: (connectionId) => captureService.positionFor(connectionId),
   exchangeFor: (connectionId) => captureService.exchangeFor(connectionId),
+  // A hand click on a board pane, paired with the client's request (WP36).
+  boardFor: (connectionId) => captureService.boardFor(connectionId),
   // The NPC tiles the errands know, so a hand click on one measures the view.
   knownNpcs: () =>
     builtinErrands().flatMap((e) => {
@@ -354,6 +374,7 @@ const ctx: HandlerContext = {
   captureService,
   characterStore,
   boardStore,
+  boardPoll,
   actionLayer,
   speaker,
   walker,
@@ -492,6 +513,7 @@ app.on('window-all-closed', () => {
 app.on('will-quit', () => {
   paneWatcher.stop()
   laborer.dispose()
+  boardPoll.dispose()
   walker.dispose()
   speaker.dispose()
   actionLayer.dispose()

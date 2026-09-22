@@ -1,7 +1,14 @@
 import type { BrowserWindow as BrowserWindowType, Dialog, IpcMain } from 'electron'
 import { writeFile } from 'node:fs/promises'
 import { z } from 'zod'
-import type { BoardExport, BoardRecord, BoardSummary } from '../../shared/boards'
+import type {
+  BoardExport,
+  BoardPollOutcome,
+  BoardPollState,
+  BoardRecord,
+  BoardSummary
+} from '../../shared/boards'
+import type { BoardPoll } from '../boardPoll'
 import type { CaptureService } from '../captureService'
 import { summarize, type BoardStore } from '../store/boardStore'
 
@@ -13,9 +20,45 @@ import { summarize, type BoardStore } from '../store/boardStore'
 export interface BoardHandlerContext {
   boardStore: BoardStore
   captureService: CaptureService
+  /** The poll that reads every board (WP36 PR2). */
+  boardPoll: BoardPoll
 }
 
 const keySchema = z.string().min(1)
+
+const pollRequestSchema = z.object({
+  connectionId: z.string().min(1, 'Pick a game window first.'),
+  scope: z
+    .union([
+      z.literal('all'),
+      z.literal('open'),
+      z.object({ boardIds: z.array(z.number().int().nonnegative()).min(1) })
+    ])
+    .default('all'),
+  onlyUnread: z.boolean().default(true)
+})
+
+/** Start the poll on one window. Rejects with a message to show. */
+export async function pollBoards(
+  ctx: BoardHandlerContext,
+  request: unknown
+): Promise<BoardPollOutcome> {
+  const parsed = pollRequestSchema.safeParse(request)
+  if (!parsed.success) throw new Error(parsed.error.issues[0]?.message ?? 'Invalid poll request')
+  return ctx.boardPoll.run(parsed.data)
+}
+
+/** Stop the poll on one window. */
+export function stopPoll(ctx: BoardHandlerContext, connectionId: unknown): void {
+  const parsed = keySchema.safeParse(connectionId)
+  if (!parsed.success) return
+  ctx.boardPoll.stop(parsed.data)
+}
+
+/** Every poll running now. */
+export function pollState(ctx: BoardHandlerContext): BoardPollState[] {
+  return ctx.boardPoll.states()
+}
 
 /** Every board and mailbox the archive knows, most recently seen first. */
 export async function listBoards(ctx: BoardHandlerContext): Promise<BoardSummary[]> {
@@ -49,7 +92,8 @@ export function exportOf(board: BoardRecord, nowMs: number): BoardExport {
       day: p.day,
       subject: p.subject,
       body: p.body ?? null,
-      highlighted: p.highlighted
+      highlighted: p.highlighted,
+      ...(p.displacedAtMs !== undefined ? { displaced: true } : {})
     }))
   }
 }
@@ -104,7 +148,12 @@ export function registerBoardHandlers(
   ipcMain.handle('boards:export', (event, key) =>
     exportBoard(ctx, dialog, BrowserWindow.fromWebContents(event.sender), key)
   )
+  ipcMain.handle('boards:poll', (_, request) => pollBoards(ctx, request))
+  ipcMain.handle('boards:poll-stop', (_, connectionId) => stopPoll(ctx, connectionId))
+  ipcMain.handle('boards:poll-state', () => pollState(ctx))
 }
 
 /** The channel main uses to say the archive changed. */
 export const BOARDS_CHANGED_CHANNEL = 'boards:changed'
+/** The channel main uses to push a poll's state to the renderer. */
+export const BOARD_POLL_STATE_CHANNEL = 'boards:poll-changed'

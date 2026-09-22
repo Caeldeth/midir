@@ -1,3 +1,5 @@
+import type { BoardPoll } from '../../boardPoll'
+import type { BoardPollRequest } from '../../../shared/boards'
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -11,7 +13,10 @@ import {
   exportOf,
   getBoard,
   listBoards,
-  registerBoardHandlers
+  pollBoards,
+  pollState,
+  registerBoardHandlers,
+  stopPoll
 } from '../boards'
 
 /** The board archive IPC (WP36). */
@@ -28,7 +33,9 @@ const row = (postId: number, subject: string) => ({
   subject
 })
 
-async function context(): Promise<Parameters<typeof listBoards>[0] & { flushed: number }> {
+async function context(): Promise<
+  Parameters<typeof listBoards>[0] & { flushed: number; polls: BoardPollRequest[]; stops: string[] }
+> {
   const boardStore = createBoardStore(dir)
   await boardStore.update((file) => {
     const listed = withPostList(file, {
@@ -58,9 +65,27 @@ async function context(): Promise<Parameters<typeof listBoards>[0] & { flushed: 
       counter.flushed++
     }
   } as unknown as CaptureService
+  const polls: BoardPollRequest[] = []
+  const stops: string[] = []
+  const boardPoll: BoardPoll = {
+    run: async (request) => {
+      polls.push(request)
+      return { kind: 'done', boardsRead: 2, postsRead: 5 }
+    },
+    stop: (connectionId) => {
+      stops.push(connectionId)
+    },
+    states: () => [
+      { connectionId: 'c1', running: true, boardsDone: 1, boardsTotal: 3, postsRead: 4 }
+    ],
+    dispose: () => undefined
+  }
   return {
     boardStore,
     captureService,
+    boardPoll,
+    polls,
+    stops,
     get flushed() {
       return counter.flushed
     }
@@ -139,7 +164,7 @@ describe('the board handlers', () => {
     expect(dialog.showSaveDialog).toHaveBeenCalledTimes(1)
   })
 
-  it('registers the three channels', async () => {
+  it('registers the six channels', async () => {
     const ctx = await context()
     const handle = vi.fn()
     registerBoardHandlers(
@@ -151,7 +176,37 @@ describe('the board handlers', () => {
     expect(handle.mock.calls.map((c) => c[0])).toEqual([
       'boards:list',
       'boards:get',
-      'boards:export'
+      'boards:export',
+      'boards:poll',
+      'boards:poll-stop',
+      'boards:poll-state'
     ])
+  })
+})
+
+describe('the poll handlers (WP36 PR2)', () => {
+  it('starts the poll on a window, unread posts only by default', async () => {
+    const ctx = await context()
+    const outcome = await pollBoards(ctx, { connectionId: 'c1' })
+    expect(outcome).toEqual({ kind: 'done', boardsRead: 2, postsRead: 5 })
+    expect(ctx.polls).toEqual([{ connectionId: 'c1', scope: 'all', onlyUnread: true }])
+    await pollBoards(ctx, { connectionId: 'c1', scope: { boardIds: [0, 205] }, onlyUnread: false })
+    expect(ctx.polls[1]).toEqual({
+      connectionId: 'c1',
+      scope: { boardIds: [0, 205] },
+      onlyUnread: false
+    })
+  })
+
+  it('refuses a request with no window', async () => {
+    const ctx = await context()
+    await expect(pollBoards(ctx, { connectionId: '' })).rejects.toThrow('Pick a game window')
+  })
+
+  it('stops the poll on a window and reports every poll running', async () => {
+    const ctx = await context()
+    stopPoll(ctx, 'c1')
+    expect(ctx.stops).toEqual(['c1'])
+    expect(pollState(ctx)[0]).toMatchObject({ connectionId: 'c1', running: true })
   })
 })

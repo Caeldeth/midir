@@ -1,7 +1,13 @@
 // Pure types + defaults shared between main, preload, and renderer. No runtime
 // imports from electron or node so this file is safe to pull from any process.
 
-import type { BoardRecord, BoardSummary } from './boards'
+import type {
+  BoardPollOutcome,
+  BoardPollRequest,
+  BoardPollState,
+  BoardRecord,
+  BoardSummary
+} from './boards'
 import type { CharacterRecord } from './character'
 import type { LogEntry, LogFileInfo, RecordingInfo } from './log'
 import type {
@@ -290,6 +296,14 @@ export interface MidirApi {
     exportJson: (key: string) => Promise<string | null>
     /** Watch for the archive changing. Call the result to stop watching. */
     onChanged: (handler: () => void) => () => void
+    /** Read every board and the mailbox on one window (WP36 PR2). Resolves with how it ended. */
+    poll: (request: BoardPollRequest) => Promise<BoardPollOutcome>
+    /** Stop the poll on one window. */
+    stopPoll: (connectionId: string) => Promise<void>
+    /** Every poll running now. */
+    pollState: () => Promise<BoardPollState[]>
+    /** Watch a poll as it changes. Call the result to stop watching. */
+    onPollState: (handler: (state: BoardPollState) => void) => () => void
   }
   characters: {
     /** Every character Midir has recorded, newest first. */

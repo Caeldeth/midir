@@ -202,6 +202,19 @@ describe('the action layer', () => {
     ])
   })
 
+  it('clicks once when asked, so a list row is selected and not opened (WP36)', async () => {
+    const windows = fakeWindows([CLIENT_A])
+    const { layer } = build(windows, () => [{ connectionId: idOf(CLIENT_A.local), name: 'Alice' }])
+    const target = layer.resolveTarget(idOf(CLIENT_A.local))!
+    expect(await layer.click(target, 290, 27, { once: true })).toBeNull()
+    const lparam = (27 << 16) | 290
+    expect(windows.posted.map((p) => [p.message, p.wParam, p.lParam])).toEqual([
+      [0x0200, 0, lparam],
+      [0x0201, 1, lparam],
+      [0x0202, 0, lparam]
+    ])
+  })
+
   it('scales a click to a larger DPI-aware window', async () => {
     // A 150 % display: the window is 960 x 720 and stretches the game's
     // 640 x 480, so the game's (307, 77) is the window's (461, 116).
