@@ -154,7 +154,7 @@ WP21 (e2e of the capture surface)   PLANNED — needs WP6, WP8, WP9
 WP22 (Deposit Item 0x43 decode)   PLANNED — needs WP11; blocked on a capture sample
 WP23 (0x39 response tail decode)   PLANNED — needs WP11; feeds WP17
 WP24 (route graph from ceridwen)   PLANNED — needs WP15; blocked on ceridwen
-WP25 (record pruning / hide unseen)   PLANNED — needs WP4
+WP25 (record pruning / hide unseen)   COMPLETE — complete/25-record-pruning.md — a view, counted back from the newest sighting
 WP26 (bug report to cernunnos)   COMPLETE — complete/26-bug-report.md — the house Report Issue module over Midir's log
 WP28 (app standards audit)   COMPLETE — complete/28-app-standards.md — the house Electron sweep, every card's Midir row
 WP27 (cut the first release)   PLANNED — needs the quality gate and WP28
@@ -221,7 +221,7 @@ trigger is in each doc's header.
 | WP22 | S    | Deposit Item `0x43` decode      | HTOO-71  | PLANNED — `22-deposit-item-decode.md` (blocked)            |
 | WP23 | S    | The `0x39` response tail decode | HTOO-72  | PLANNED — `23-pursuit-response-tail.md`                    |
 | WP24 | M    | Route graph from ceridwen       | HTOO-73  | PLANNED — `24-ceridwen-route-graph.md` (blocked)           |
-| WP25 | S    | Record pruning / hide unseen    | HTOO-74  | PLANNED — `25-record-pruning.md`                           |
+| WP25 | S    | Record pruning / hide unseen    | HTOO-74  | COMPLETE 2026-09-22 — `complete/25-record-pruning.md`      |
 | WP26 | M    | The bug report to cernunnos     | HTOO-75  | COMPLETE 2026-09-22 — `complete/26-bug-report.md`          |
 | WP27 | M    | Cut the first release           | HTOO-76  | PLANNED — `27-first-release.md`                            |
 | WP28 | S    | App standards adoption          | HTOO-77  | COMPLETE 2026-09-22 — `complete/28-app-standards.md`       |

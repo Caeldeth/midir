@@ -103,6 +103,13 @@ export interface MidirSettings {
    * default, like every driving feature; the arrow keys are the shipped walk.
    */
   walkerRightClick: boolean
+  /**
+   * Hide a character not seen for this many days (WP25). 0 is off. The days
+   * count back from the newest sighting in the record, capture time, not from
+   * the wall clock. Hiding is a view: the record stays in the file, and only
+   * Forget removes one.
+   */
+  hideUnseenDays: number
 }
 
 /** The largest cap the settings accept, in megabytes. */
@@ -122,7 +129,8 @@ export const DEFAULT_SETTINGS: MidirSettings = {
   speakerIntervalMs: 5000,
   speakerRepeat: true,
   walkerPinnedDestinations: [],
-  walkerRightClick: false
+  walkerRightClick: false,
+  hideUnseenDays: 0
 }
 
 /** One adapter Midir can capture from. */

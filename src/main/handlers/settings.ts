@@ -35,7 +35,9 @@ export const settingsSchema = z.object({
   speakerRepeat: z.boolean(),
   // The Walker destinations the user pinned.
   walkerPinnedDestinations: z.array(z.string()),
-  walkerRightClick: z.boolean()
+  walkerRightClick: z.boolean(),
+  // Days, 0 for off (WP25).
+  hideUnseenDays: z.number().int().min(0)
 })
 
 export async function loadSettings(ctx: SettingsHandlerContext): Promise<MidirSettings> {

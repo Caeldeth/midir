@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { toSettings } from '@shared/settings'
 import { DEFAULT_SETTINGS, type MidirSettings, type ThemeName } from '@shared/types'
 
 interface SettingsActions {
@@ -17,6 +18,7 @@ interface SettingsActions {
   setSpeakerRepeat: (value: boolean) => void
   setWalkerPinnedDestinations: (value: string[]) => void
   setWalkerRightClick: (value: boolean) => void
+  setHideUnseenDays: (value: number) => void
   hydrate: () => Promise<void>
 }
 
@@ -55,6 +57,7 @@ export const useSettingsStore = create<SettingsStore>((set) => ({
   setSpeakerRepeat: (value) => set({ speakerRepeat: value }),
   setWalkerPinnedDestinations: (value) => set({ walkerPinnedDestinations: value }),
   setWalkerRightClick: (value) => set({ walkerRightClick: value }),
+  setHideUnseenDays: (value) => set({ hideUnseenDays: value }),
 
   hydrate: async () => {
     const loaded = await window.api.settings.load()
@@ -84,48 +87,13 @@ useSettingsStore.subscribe((state) => {
   if (saveTimer) clearTimeout(saveTimer)
   saveTimer = setTimeout(() => {
     if (typeof window === 'undefined' || !window.api?.settings) return
-    const {
-      theme,
-      captureDevice,
-      autoStartCapture,
-      recordSessions,
-      recordingCapMb,
-      showDiagnostics,
-      darkAgesPath,
-      assistStopHotkey,
-      speakerToggleHotkey,
-      assistStopOnFocusLoss,
-      speakerLines,
-      speakerIntervalMs,
-      speakerRepeat,
-      walkerPinnedDestinations,
-      walkerRightClick
-    } = state
-    window.api.settings
-      .save({
-        theme,
-        captureDevice,
-        autoStartCapture,
-        recordSessions,
-        recordingCapMb,
-        showDiagnostics,
-        darkAgesPath,
-        assistStopHotkey,
-        speakerToggleHotkey,
-        assistStopOnFocusLoss,
-        speakerLines,
-        speakerIntervalMs,
-        speakerRepeat,
-        walkerPinnedDestinations,
-        walkerRightClick
+    window.api.settings.save(toSettings(state)).catch((err) =>
+      // Main owns the log. A failure here is exactly the one a packaged
+      // build used to lose, because the renderer has no console either.
+      window.api.diagnostics.report({
+        source: 'settings',
+        message: `The save over IPC failed: ${err instanceof Error ? err.message : String(err)}`
       })
-      .catch((err) =>
-        // Main owns the log. A failure here is exactly the one a packaged
-        // build used to lose, because the renderer has no console either.
-        window.api.diagnostics.report({
-          source: 'settings',
-          message: `The save over IPC failed: ${err instanceof Error ? err.message : String(err)}`
-        })
-      )
+    )
   }, 200)
 })

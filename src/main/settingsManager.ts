@@ -65,6 +65,10 @@ function withDefaults(data: Partial<MidirSettings>): MidirSettings {
       typeof data.walkerRightClick === 'boolean'
         ? data.walkerRightClick
         : DEFAULT_SETTINGS.walkerRightClick,
+    hideUnseenDays:
+      typeof data.hideUnseenDays === 'number' && Number.isFinite(data.hideUnseenDays)
+        ? Math.max(0, Math.floor(data.hideUnseenDays))
+        : DEFAULT_SETTINGS.hideUnseenDays,
     // Optional. A non-string value drops to unset, which turns icons off. An
     // empty string is also unset, so clearing the field in the UI turns them off.
     ...(typeof data.darkAgesPath === 'string' && data.darkAgesPath !== ''

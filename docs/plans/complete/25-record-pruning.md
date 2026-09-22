@@ -1,8 +1,20 @@
 # WP25 — character record pruning, and "hide unseen"
 
-**Size:** S. **Depends on:** WP4. Read `00-overview.md` first. **PLANNED.** **Card:** `HTOO-74`.
+**Size:** S. **Depends on:** WP4. Read `00-overview.md` first. **COMPLETE 2026-09-22.** **Card:**
+`HTOO-74`.
 **Trigger to start:** a character list long enough to be annoying, or a request to hide characters
-not seen since a date.
+not seen since a date. Sabrael, 2026-09-22: the low items, all of them.
+
+**What shipped:** `shared/unseen.ts` (`splitUnseen`, `newestSeenMs`, the day choices), the
+`hideUnseenDays` setting through the type, the manager, the Zod schema, and the store, and the
+control on the Characters list itself with a "N hidden, still on file" line under the list. The
+threshold counts back from the **newest sighting in the record**, not the wall clock: the wall
+clock would hide every character after a month with Midir off, and everyone but one during a
+replay of an old evening. A selection the filter hides falls back to the newest listed character.
+Nothing touches the file; Forget is unchanged. Found on the way: the settings store built its
+save payload by destructuring fourteen names, so the fifteenth field would have saved as nothing
+(the template's HTOO-235); `shared/settings.ts` derives the payload from `DEFAULT_SETTINGS` and
+`settingsPayload.test.ts` pins its keys to the schema's.
 
 ## Goal
 
@@ -37,8 +49,8 @@ record has a per-character forget), but there is no policy that hides or prunes 
 ## Acceptance criteria
 
 1. A "hide unseen since" filter hides characters not seen since the threshold, and shows them again
-   when it changes.
-2. The threshold reads capture time.
+   when it changes. (`Characters.test.tsx`.)
+2. The threshold reads capture time: the newest `lastSeenMs` less the days. (`unseen.test.ts`.)
 3. A hidden character is never removed from the file.
 4. The explicit "Forget" still deletes, exactly as today.
 
