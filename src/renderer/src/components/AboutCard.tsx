@@ -52,7 +52,7 @@ function AboutCard(): React.JSX.Element {
           </Typography>
           <Typography variant="body2" sx={{ color: 'text.secondary' }} data-testid="about-version">
             {version ? `Version ${version}` : 'Version…'} — a companion for retail Dark Ages: your
-            characters, their items, the boards, off the wire.
+            characters, their items, the boards, and the map, off the wire.
           </Typography>
           {/* Both go through setWindowOpenHandler → isSafeExternalUrl →
               shell.openExternal, so they open in the system browser. */}
@@ -107,8 +107,8 @@ function AboutCard(): React.JSX.Element {
 
       <Box sx={{ flexGrow: 1 }} />
       <Typography variant="caption" sx={{ color: 'text.secondary', mt: 2 }}>
-        Midir reads the game from the wire and drives it through its own window. It sends no packet,
-        and it reads no memory.
+        Midir reads the game from the wire, and drives it through the game&apos;s own window. Each
+        assistant feature waits until you turn it on.
       </Typography>
     </Paper>
   )
