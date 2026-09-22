@@ -3,20 +3,77 @@ import { Box, Tooltip, Typography } from '@mui/material'
 import ItemIcon from '@renderer/components/ItemIcon'
 import { equipmentSlotName, formatDurability } from '@renderer/lib/format'
 import type { CharacterRecord, ItemRef } from '@shared/types'
-import React from 'react'
+import { dollUrl } from '@shared/doll'
+import React, { useEffect, useState } from 'react'
 
 /**
  * The equipment, in the client's Equip-screen layout.
  *
  * Each frame holds one slot. A worn item draws its own icon; an empty slot
- * draws an empty frame. The centre keeps a placeholder, because Midir does not
- * yet composite the character sprite the client shows there — that needs the
- * body archives and a layer compositor Midir does not have.
+ * draws an empty frame. The centre is the character doll (WP37), composited
+ * in main from the client's own khan archives the way the client's paperdoll
+ * is, and asked for by URL like an item icon; when there is no doll (no game
+ * folder, no body on the record yet) the centre keeps its placeholder.
  *
  * The layout follows the client Equip screen: head and neck across the top, the
  * body down the centre, the hands and arms to the sides, and the legs, feet,
  * and belt across the bottom.
  */
+
+/**
+ * The doll, or the placeholder when main has none to give. The `<img>` asks
+ * `midir-icon://doll/…`; a 404 fires `onError`, and the placeholder returns.
+ * The URL changes with the appearance, so a new login redraws it.
+ */
+function Doll({ record }: { record: CharacterRecord }): React.JSX.Element {
+  const src = record.appearance.bodyShape > 0 ? dollUrl(record.appearance) : null
+  const [failed, setFailed] = useState<string | null>(null)
+  useEffect(() => setFailed(null), [src])
+  const showDoll = src !== null && failed !== src
+  return (
+    <Box
+      sx={{
+        gridArea: 'body',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        color: 'text.disabled',
+        gap: 0.5,
+        minWidth: 0,
+        overflow: 'visible'
+      }}
+      data-testid="equip-doll"
+    >
+      {showDoll ? (
+        <Box
+          component="img"
+          src={src}
+          alt={`${record.name}, as the game draws them`}
+          onError={() => setFailed(src)}
+          // The composite's natural size: 57 px of body with 27 px of
+          // transparent padding each side for the wide sheets, so it may
+          // overflow its cell without touching the frames beside it.
+          sx={{
+            imageRendering: 'pixelated',
+            width: 111,
+            height: 85,
+            maxWidth: 'none',
+            flexShrink: 0
+          }}
+          data-testid="doll-image"
+        />
+      ) : (
+        <>
+          <PersonOutlineOutlinedIcon sx={{ fontSize: 56 }} />
+          <Typography variant="caption" sx={{ textAlign: 'center' }}>
+            No preview
+          </Typography>
+        </>
+      )}
+    </Box>
+  )
+}
 
 /** Each cell maps a grid area to an equipment slot id (see labels.ts). */
 const SLOT_CELLS: readonly { area: string; slot: number }[] = [
@@ -89,7 +146,9 @@ function EquipScreen({ record }: { record: CharacterRecord }): React.JSX.Element
       sx={{
         display: 'grid',
         gridTemplateAreas: GRID_AREAS,
-        gridTemplateColumns: 'repeat(5, 1fr)',
+        // minmax(0, 1fr): a track never grows for its content, so the doll,
+        // wider than its cell, overflows it rather than squeezing the rest.
+        gridTemplateColumns: 'repeat(5, minmax(0, 1fr))',
         gap: 1,
         maxWidth: 340,
         mx: 'auto'
@@ -98,22 +157,7 @@ function EquipScreen({ record }: { record: CharacterRecord }): React.JSX.Element
       {SLOT_CELLS.map((cell) => (
         <SlotFrame key={cell.slot} slot={cell.slot} item={record.equipment[cell.slot]} />
       ))}
-      <Box
-        sx={{
-          gridArea: 'body',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          color: 'text.disabled',
-          gap: 0.5
-        }}
-      >
-        <PersonOutlineOutlinedIcon sx={{ fontSize: 56 }} />
-        <Typography variant="caption" sx={{ textAlign: 'center' }}>
-          No preview
-        </Typography>
-      </Box>
+      <Doll record={record} />
     </Box>
   )
 }

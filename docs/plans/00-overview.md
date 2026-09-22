@@ -166,6 +166,7 @@ WP33 (world-map coverage for errands)   COMPLETE — complete/33-errand-map-cove
 WP34 (dismiss blocking popups)   COMPLETE — 2026-09-21; a dialog, an exchange, and its confirm
 WP35 (right-click walking)   COMPLETE — complete/35-right-click-walking.md — the client walks a stretch; every tile confirmed
 WP36 (the board archive)   COMPLETE — complete/36-board-archive.md — every board and mail off the wire; the poll reads them all
+WP37 (the character doll)   COMPLETE — complete/37-character-doll.md — Brigid's compositor over the khan archives, asked for by URL
 ```
 
 WP7 was the one gap in the shipped run. It was specified, deferred for the protocol work that kept
@@ -233,13 +234,14 @@ trigger is in each doc's header.
 | WP34 | S    | Dismiss blocking popups         | HTOO-83  | COMPLETE — `complete/34-dismiss-blocking-popups.md`           |
 | WP35 | M    | Right-click walking             | HTOO-468 | COMPLETE 2026-09-21 — `complete/35-right-click-walking.md`    |
 | WP36 | L    | The board archive               | HTOO-395 | COMPLETE 2026-09-22 — `complete/36-board-archive.md`          |
+| WP37 | M    | The character doll              | HTOO-84  | COMPLETE 2026-09-22 — `complete/37-character-doll.md`         |
 
 `00a-backlog.md` now holds only what is not a WP: the non-goals, the debts owed to another repo, and
 the one conditional rule.
 
-Two features deferred out of WP19 are cards without a WP doc, because neither is scheduled: the
-composited character doll is `HTOO-84`, and list virtualization is `HTOO-85`. Their briefs stay in
-the non-goals of `complete/19-read-app-polish.md`.
+One feature deferred out of WP19 is a card without a WP doc, because it is not scheduled: list
+virtualization is `HTOO-85` (measure first; nothing is slow). The composited character doll, the
+other, became WP37 and shipped.
 
 ## Conventions every WP follows
 

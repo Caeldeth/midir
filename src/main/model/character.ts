@@ -444,7 +444,16 @@ function applyAppearance(
       shieldSprite: human.shieldSprite,
       bootsSprite: human.bootsSprite,
       overcoatSprite: human.overcoatSprite,
-      overcoatColor: human.overcoatColor
+      overcoatColor: human.overcoatColor,
+      armsSprite: human.armsSprite,
+      pantsDye: human.pantsDye,
+      bootsColor: human.bootsColor,
+      accessory1Sprite: human.accessory1.sprite,
+      accessory1Color: human.accessory1.color,
+      accessory2Sprite: human.accessory2.sprite,
+      accessory2Color: human.accessory2.color,
+      accessory3Sprite: human.accessory3.sprite,
+      accessory3Color: human.accessory3.color
     }
   }
 }

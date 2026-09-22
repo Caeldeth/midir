@@ -75,7 +75,17 @@ const appearanceSchema = z.object({
   shieldSprite: z.number(),
   bootsSprite: z.number(),
   overcoatSprite: z.number(),
-  overcoatColor: z.number()
+  overcoatColor: z.number(),
+  // WP37. A file from before the doll has none of these; they load as 0.
+  armsSprite: z.number().default(0),
+  pantsDye: z.number().default(0),
+  bootsColor: z.number().default(0),
+  accessory1Sprite: z.number().default(0),
+  accessory1Color: z.number().default(0),
+  accessory2Sprite: z.number().default(0),
+  accessory2Color: z.number().default(0),
+  accessory3Sprite: z.number().default(0),
+  accessory3Color: z.number().default(0)
 })
 
 const slotsSchema = z.record(z.string(), itemSchema)
