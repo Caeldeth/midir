@@ -3,12 +3,11 @@ import { z } from 'zod'
 import type { LiveConnection } from '../actionLayer'
 import type { Position } from '../model/position'
 import type { DoorState } from '../model/doors'
-import type { RouteGraph, RouteNode } from '../route/graph'
+import type { RouteExit, RouteGraph, RouteNode } from '../route/graph'
 import type { MapProvider } from '../route/mapSource'
 import type { MapStore } from '../store/mapStore'
 import {
   edgeKey,
-  promotedEdges,
   withCuration,
   type Curation,
   type TransitionStore
@@ -131,23 +130,24 @@ export async function mapView(ctx: MapHandlerContext, mapId: unknown): Promise<M
       width: grid.width,
       height: grid.height,
       collision: Array.from(grid.collision),
-      warps: warpsOf(mapId, node?.exits ?? [], layer, nameOf),
+      warps: warpsOf(mapId, node, layer, nameOf),
       sizeSource: size.source
     }
   }
 }
 
 /**
- * The map's warps: the graph's exits, then the learned layer's candidates
- * (not promoted, not curated), then the rejected ones, each keyed apart.
+ * The map's warps: the graph's exits, its candidates (a learned edge the
+ * wire has not seen twice, a world XML edge nothing has confirmed), and the
+ * rejected ones from the hand edits, each keyed apart.
  */
 function warpsOf(
   mapId: number,
-  exits: RouteNode['exits'],
+  node: RouteNode | null,
   layer: Awaited<ReturnType<TransitionStore['load']>>,
   nameOf: (id: number) => string
 ): MapWarp[] {
-  const warps: MapWarp[] = exits.map((exit) => ({
+  const toWarp = (exit: RouteExit, state: MapWarp['state']): MapWarp => ({
     x: exit.x,
     y: exit.y,
     toMapId: exit.toMapId,
@@ -155,30 +155,17 @@ function warpsOf(
     ...(exit.via !== undefined ? { via: exit.via.kind } : {}),
     source: exit.source ?? 'authored',
     ...(exit.observations !== undefined ? { observations: exit.observations } : {}),
-    state: 'active'
-  }))
-  const active = new Set(warps.map((w) => edgeKey({ fromMapId: mapId, ...w })))
-  const promoted = new Set(promotedEdges(layer).map(edgeKey))
-  for (const edge of Object.values(layer.edges)) {
-    const key = edgeKey(edge)
-    if (edge.fromMapId !== mapId || active.has(key) || promoted.has(key)) continue
-    const curation = layer.curations[key]
-    if (curation?.verdict === 'rejected') continue
-    warps.push({
-      x: edge.x,
-      y: edge.y,
-      toMapId: edge.toMapId,
-      toMapName: nameOf(edge.toMapId),
-      ...(edge.via !== undefined ? { via: edge.via.kind } : {}),
-      source: 'learned',
-      observations: edge.observations,
-      state: 'candidate'
-    })
-  }
+    state
+  })
+  const warps: MapWarp[] = [
+    ...(node?.exits ?? []).map((exit) => toWarp(exit, 'active')),
+    ...(node?.candidates ?? []).map((exit) => toWarp(exit, 'candidate'))
+  ]
+  const shown = new Set(warps.map((w) => edgeKey({ fromMapId: mapId, ...w })))
   for (const curation of Object.values(layer.curations)) {
     if (curation.fromMapId !== mapId || curation.verdict !== 'rejected') continue
     const key = edgeKey(curation)
-    if (active.has(key)) continue
+    if (shown.has(key)) continue
     const learned = layer.edges[key]
     warps.push({
       x: curation.x,

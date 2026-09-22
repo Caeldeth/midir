@@ -5,16 +5,16 @@
 export type MapHopKind = 'fieldMap' | 'prompt' | 'dialog'
 
 /**
- * Where an edge of the route graph came from (WP29): the imported
- * `WorldMap.dat`, the wire, a hand edit on the Map tab (WP30), or a later
- * world import.
+ * Where an edge of the route graph came from: the imported `WorldMap.dat`,
+ * the wire (WP29), a hand edit on the Map tab (WP30), or the world XML
+ * (WP24, provisional).
  */
-export type EdgeSource = 'authored' | 'learned' | 'curated' | 'ceridwen'
+export type EdgeSource = 'authored' | 'learned' | 'curated' | 'xml'
 
 /**
  * Whether the walker uses a warp now. A `candidate` is a learned edge the
- * wire has not seen often enough; a `rejected` one was turned off by hand
- * and can be restored.
+ * wire has not seen often enough, or a world XML edge nothing has confirmed;
+ * a `rejected` one was turned off by hand and can be restored.
  */
 export type WarpState = 'active' | 'candidate' | 'rejected'
 

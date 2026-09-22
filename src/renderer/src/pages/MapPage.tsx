@@ -36,7 +36,8 @@ import type { WalkerState } from '@shared/actionLayer'
  * positioned element over it, so a test can find it. A warp the wire proved
  * (WP29) is drawn in its own colour, and its hover says how often; one the
  * imported file holds and the wire has confirmed says so too. A candidate the
- * wire has not seen often enough is outlined, and a rejected one is faint.
+ * wire has not seen often enough, or a world XML warp nothing has confirmed
+ * (WP24), is outlined, and a rejected one is faint.
  *
  * The edit is light and explicit (decision 4): click a warp and a bar names
  * it with what can be done to it. Accept turns a candidate on, Reject turns
@@ -57,6 +58,10 @@ function warpProvenance(warp: MapWarp): string {
         ? ' · rejected by hand'
         : ''
   if (warp.source === 'curated') return ` · placed by hand${state}`
+  if (warp.source === 'xml')
+    return ` · from the world XML${
+      warp.observations !== undefined ? `, seen ${times(warp.observations)}` : ''
+    }${state}`
   if (warp.source === 'learned')
     return ` · learned from the wire, seen ${times(warp.observations ?? 0)}${state}`
   if (warp.observations !== undefined)
@@ -527,7 +532,9 @@ function MapPage(): React.JSX.Element {
                   ? 'warning.main'
                   : warp.source === 'learned' || warp.source === 'curated'
                     ? 'success.main'
-                    : 'secondary.main'
+                    : warp.source === 'xml'
+                      ? 'info.main'
+                      : 'secondary.main'
               const picked = warpKey(warp) === pickedWarp
               return (
                 <Tooltip key={warpKey(warp)} title={`${warpTarget(warp)}${warpProvenance(warp)}`}>

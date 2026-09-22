@@ -24,7 +24,8 @@ import { createBoardPoll } from './boardPoll'
 import { builtinErrands } from './laborer/errands'
 import { createPaneWatcher } from './paneWatcher'
 import { createMapSource } from './route/mapSource'
-import { worldNodes } from './route/graph'
+import { worldNodes, type XmlNode } from './route/graph'
+import xmlworld from './route/xmlworld.json'
 import { createLiveGraph } from './route/liveGraph'
 import { seededGates, type Passport } from './route/access'
 import { createIconService } from './icons/iconService'
@@ -64,7 +65,7 @@ import {
 import { createCharacterStore } from './store/characterStore'
 import { createBoardStore, readPostIds } from './store/boardStore'
 import { createMapStore } from './store/mapStore'
-import { createTransitionStore, promotedEdges } from './store/transitionStore'
+import { createTransitionStore } from './store/transitionStore'
 
 // Settings + cache both under %LOCALAPPDATA%/Erisco/Midir (local). On Windows,
 // Electron's appData path is the ROAMING dir, so we resolve %LOCALAPPDATA%
@@ -314,7 +315,7 @@ const transitionStore = createTransitionStore(settingsPath, (failure) => {
 const worldGraph = createLiveGraph(worldNodes)
 async function rebuildGraph(): Promise<void> {
   const [transitions, maps] = await Promise.all([transitionStore.load(), mapStore.load()])
-  worldGraph.update(promotedEdges(transitions), maps.maps, transitions.curations)
+  worldGraph.update({ transitions, wire: maps.maps, xml: xmlworld.nodes as XmlNode[] })
 }
 rebuildGraph().catch((error: unknown) => {
   log.error('transitions', `The learned graph would not build: ${String(error)}`)

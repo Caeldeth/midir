@@ -1,6 +1,6 @@
 import worldmapData from './worldmap.json'
 import type { EdgeSource } from '../../shared/map'
-import { edgeKey, type Curation, type LearnedEdge } from '../store/transitionStore'
+import { edgeKey, promotedEdges, type TransitionFile } from '../store/transitionStore'
 
 /**
  * The between-maps planner: the graph of how the world connects, and a search
@@ -14,10 +14,10 @@ import { edgeKey, type Curation, type LearnedEdge } from '../store/transitionSto
  * The graph is data, imported once from DA Walker's WorldMap.dat and versioned
  * as route/worldmap.json (WP15 decision 1). It is not parsed at runtime; see
  * scripts/import-worldmap.mjs for the import. The wire adds to it at run
- * time: `mergeLearned` lays the edges the transition learner proved (WP29)
- * and the names and sizes the wire gave (WP30) over the imported nodes, and
- * every edge says which source it came from. The imported file is never
- * written.
+ * time: `mergeLearned` lays the edges the transition learner proved (WP29),
+ * the names and sizes the wire gave (WP30), the hand edits (WP30), and the
+ * world XML's provisional edges (WP24) over the imported nodes, and every
+ * edge says which source it came from. The imported files are never written.
  */
 
 /**
@@ -70,6 +70,12 @@ export interface RouteNode {
   height?: number
   /** Where this map warps to, and the tile that does it. */
   exits: RouteExit[]
+  /**
+   * Warps the graph knows of but does not plan on: a learned edge the wire
+   * has not seen often enough, or a world XML edge nothing has confirmed.
+   * The Map tab shows them so the user can accept one (WP30).
+   */
+  candidates?: RouteExit[]
 }
 
 /** A warp tile of one leg: where it is, and what it needs beyond the step. */
@@ -255,35 +261,62 @@ export interface WireMap {
   height: number
 }
 
+/** One map of the world XML (`route/xmlworld.json`), the provisional layer (WP24). */
+export interface XmlNode {
+  mapId: number
+  name: string
+  width: number
+  height: number
+  exits: { toMapId: number; x: number; y: number; arrivalX?: number; arrivalY?: number }[]
+}
+
+/** Crossings that confirm a world XML edge: the XML and the wire agreeing once is enough. */
+export const XML_PROMOTION_OBSERVATIONS = 1
+
+/** Everything laid over the imported nodes. */
+export interface LearnedLayer {
+  /** The learned edges and the hand edits, as `transitions.json` holds them. */
+  transitions: TransitionFile
+  /** The wire's names and sizes, as `maps.json` holds them. */
+  wire?: Record<string, WireMap>
+  /** The world XML, when it is in. */
+  xml?: XmlNode[]
+}
+
+const sameTile = (
+  a: { toMapId: number; x: number; y: number },
+  b: { toMapId: number; x: number; y: number }
+): boolean => a.toMapId === b.toMapId && a.x === b.x && a.y === b.y
+
 /**
- * Lay the learned layer over the imported nodes (WP29).
+ * Lay the learned layer over the imported nodes (WP29, WP30, WP24).
  *
- * A learned edge the file already holds (same origin tile, same destination)
- * confirms it: the exit keeps its source and gains the count. One the file
- * lacks is added with `source: 'learned'`; when its origin map is not in the
- * file at all, the map is added as a node, named and sized by the wire. A
- * learned world-map hop carries the point the client clicked as its `via`.
- * The wire's name and size go on every node they are known for. The hand
- * edits (WP30) come last: a rejected edge leaves, whoever put it there, and
- * an accepted edge no other source holds is added as `curated`. The imported
- * nodes are never changed; the result is a new list.
+ * In order: a rejected edge leaves, whoever put it there. A learned edge the
+ * file already holds confirms it, and one the file lacks is added with
+ * `source: 'learned'` once promoted (two crossings, or an acceptance); below
+ * that it is a candidate. A world XML edge is a candidate until the wire
+ * crosses it once or the user accepts it, and then an exit with
+ * `source: 'xml'`. An accepted edge no source holds is `curated`. A map no
+ * source in the file knows is added as a node, named by the wire first and
+ * the XML second, and sized by whichever has a size. The imported nodes are
+ * never changed; the result is a new list.
  */
-export function mergeLearned(
-  nodes: RouteNode[],
-  learned: LearnedEdge[],
-  wire: Record<string, WireMap> = {},
-  curations: Record<string, Curation> = {}
-): RouteNode[] {
-  const rejected = (exit: { toMapId: number; x: number; y: number }, mapId: number): boolean =>
-    curations[edgeKey({ fromMapId: mapId, ...exit })]?.verdict === 'rejected'
+export function mergeLearned(nodes: RouteNode[], layer: LearnedLayer): RouteNode[] {
+  const { transitions } = layer
+  const wire = layer.wire ?? {}
+  const curations = transitions.curations
+  const verdictOf = (mapId: number, exit: { toMapId: number; x: number; y: number }) =>
+    curations[edgeKey({ fromMapId: mapId, ...exit })]?.verdict
+  const rejected = (mapId: number, exit: { toMapId: number; x: number; y: number }): boolean =>
+    verdictOf(mapId, exit) === 'rejected'
+
   const byId = new Map<number, RouteNode>()
   for (const node of nodes) {
     byId.set(node.mapId, {
       ...node,
-      exits: node.exits.filter((e) => !rejected(e, node.mapId)).map((e) => ({ ...e }))
+      exits: node.exits.filter((e) => !rejected(node.mapId, e)).map((e) => ({ ...e }))
     })
   }
-
   const ensure = (mapId: number): RouteNode => {
     const existing = byId.get(mapId)
     if (existing !== undefined) return existing
@@ -291,36 +324,74 @@ export function mergeLearned(
     byId.set(mapId, added)
     return added
   }
+  const candidate = (node: RouteNode, exit: RouteExit): void => {
+    if (node.exits.some((e) => sameTile(e, exit))) return
+    node.candidates = node.candidates ?? []
+    if (node.candidates.some((e) => sameTile(e, exit))) return
+    node.candidates.push(exit)
+  }
 
-  for (const edge of learned) {
-    if (rejected(edge, edge.fromMapId)) continue
+  // The wire's edges: promoted ones as exits, the rest as candidates.
+  const promoted = new Set(promotedEdges(transitions).map(edgeKey))
+  for (const edge of Object.values(transitions.edges)) {
+    if (rejected(edge.fromMapId, edge)) continue
     const node = ensure(edge.fromMapId)
     ensure(edge.toMapId)
-    const known = node.exits.find(
-      (e) => e.toMapId === edge.toMapId && e.x === edge.x && e.y === edge.y
-    )
-    if (known !== undefined) {
-      known.observations = edge.observations
-      continue
-    }
-    node.exits.push({
+    const exit: RouteExit = {
       toMapId: edge.toMapId,
       x: edge.x,
       y: edge.y,
       ...(edge.via !== undefined ? { via: edge.via } : {}),
       source: 'learned',
       observations: edge.observations
-    })
+    }
+    const known = node.exits.find((e) => sameTile(e, edge))
+    if (known !== undefined) {
+      known.observations = edge.observations
+      continue
+    }
+    if (promoted.has(edgeKey(edge))) node.exits.push(exit)
+    else candidate(node, exit)
   }
 
+  // The world XML: confirmed by one crossing or an acceptance, else a candidate.
+  for (const xmlNode of layer.xml ?? []) {
+    const node = ensure(xmlNode.mapId)
+    if (node.name === '' && node.gameName === undefined && xmlNode.name !== '') {
+      node.gameName = xmlNode.name
+    }
+    if (node.width === undefined) {
+      node.width = xmlNode.width
+      node.height = xmlNode.height
+    }
+    for (const exit of xmlNode.exits) {
+      if (rejected(xmlNode.mapId, exit)) continue
+      ensure(exit.toMapId)
+      if (node.exits.some((e) => sameTile(e, exit))) continue
+      const seen = transitions.edges[edgeKey({ fromMapId: xmlNode.mapId, ...exit })]
+      const confirmed =
+        (seen?.observations ?? 0) >= XML_PROMOTION_OBSERVATIONS ||
+        verdictOf(xmlNode.mapId, exit) === 'accepted'
+      const placed: RouteExit = {
+        toMapId: exit.toMapId,
+        x: exit.x,
+        y: exit.y,
+        source: 'xml',
+        ...(seen !== undefined ? { observations: seen.observations } : {})
+      }
+      if (confirmed) {
+        node.exits.push(placed)
+        node.candidates = node.candidates?.filter((e) => !sameTile(e, exit))
+      } else candidate(node, placed)
+    }
+  }
+
+  // The hand edits: an accepted edge no source holds is placed by hand.
   for (const curation of Object.values(curations)) {
     if (curation.verdict !== 'accepted') continue
     const node = ensure(curation.fromMapId)
     ensure(curation.toMapId)
-    const held = node.exits.some(
-      (e) => e.toMapId === curation.toMapId && e.x === curation.x && e.y === curation.y
-    )
-    if (held) continue
+    if (node.exits.some((e) => sameTile(e, curation))) continue
     node.exits.push({
       toMapId: curation.toMapId,
       x: curation.x,
@@ -330,16 +401,20 @@ export function mergeLearned(
     })
   }
 
+  // The wire's word on names and sizes wins over the XML's.
   for (const [key, size] of Object.entries(wire)) {
     const mapId = Number(key)
     if (!Number.isInteger(mapId)) continue
     const node = byId.get(mapId)
     if (node === undefined) continue
     if (size.name !== '') node.gameName = size.name
-    if (node.width === undefined) {
+    if (node.width === undefined || byId.get(mapId)?.width === undefined) {
       node.width = size.width
       node.height = size.height
     }
+  }
+  for (const node of byId.values()) {
+    if (node.candidates !== undefined && node.candidates.length === 0) delete node.candidates
   }
 
   return [...byId.values()]
