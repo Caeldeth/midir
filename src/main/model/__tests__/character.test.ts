@@ -399,6 +399,8 @@ describe('profile and appearance', () => {
     expect(record.appearance.nation).toBe(4)
     expect(record.appearance.characterClass).toBe(3)
     expect(record.legend).toEqual([{ icon: 3, color: 1, key: 'mark_wiz', text: 'Became a Wizard' }])
+    // Stamped with the capture time, so the store can keep the newer reading.
+    expect(record.profileReadAtMs).toBe(1010)
   })
 
   it('replaces the whole legend, because the server always sends all of it', () => {

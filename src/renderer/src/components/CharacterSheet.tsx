@@ -325,19 +325,26 @@ function CharacterSheet({ record }: { record: CharacterRecord }): React.JSX.Elem
       </Section>
 
       <Section title="Legend">
-        {record.legend.length === 0 ? (
+        {record.profileReadAtMs === undefined ? (
+          // The server sends the legend only when the player opens their own
+          // profile, so an unread legend is not an empty one.
           <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-            No legend marks seen yet.
+            Not read yet. Midir fills this when you open your profile.
           </Typography>
         ) : (
-          record.legend.map((mark, index) => (
-            <Box key={`${mark.key}-${index}`} sx={{ py: 0.5 }}>
-              <Typography variant="body2">{mark.text}</Typography>
-              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                {legendIconName(mark.icon)}
-              </Typography>
-            </Box>
-          ))
+          <>
+            <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 1 }}>
+              {plural(record.legend.length, 'mark')} · read {formatAgo(record.profileReadAtMs)}
+            </Typography>
+            {record.legend.map((mark, index) => (
+              <Box key={`${mark.key}-${index}`} sx={{ py: 0.5 }}>
+                <Typography variant="body2">{mark.text}</Typography>
+                <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                  {legendIconName(mark.icon)}
+                </Typography>
+              </Box>
+            ))}
+          </>
         )}
       </Section>
     </Box>

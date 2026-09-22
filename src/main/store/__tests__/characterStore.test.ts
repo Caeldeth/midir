@@ -61,6 +61,52 @@ describe('withCharacter', () => {
     expect(file.characters['Sabrael']?.bank).toEqual({ readAtMs: 1900, items: [] })
   })
 
+  it('keeps a legend a later login did not read, and lets a newer reading replace it', () => {
+    // The profile (legend, title, guild, class name) arrives only when the
+    // player opens it. A login that never did must not wipe the last one read;
+    // a newer reading, even an emptier one, replaces it.
+    const mark = { icon: 3, color: 1, key: 'mark_wiz', text: 'Became a Wizard' }
+    const read = {
+      ...emptyCharacter('Sabrael', 1000),
+      legend: [mark],
+      title: 'Grand Master',
+      guild: 'Solid Union',
+      guildRank: 'Elder',
+      displayClass: 'Gardcorp',
+      profileReadAtMs: 900
+    }
+    const later = emptyCharacter('Sabrael', 90000)
+    let file = withCharacter(withCharacter(emptyCharacterFile(), read), later)
+    expect(file.characters['Sabrael']).toMatchObject({
+      legend: [mark],
+      title: 'Grand Master',
+      guild: 'Solid Union',
+      guildRank: 'Elder',
+      displayClass: 'Gardcorp',
+      profileReadAtMs: 900,
+      lastSeenMs: 90000
+    })
+    const reread = { ...emptyCharacter('Sabrael', 95000), legend: [], profileReadAtMs: 94000 }
+    file = withCharacter(file, reread)
+    expect(file.characters['Sabrael']).toMatchObject({
+      legend: [],
+      title: '',
+      profileReadAtMs: 94000
+    })
+    // An older reading arriving late (a replay) does not roll a newer one back.
+    file = withCharacter(file, read)
+    expect(file.characters['Sabrael']?.profileReadAtMs).toBe(94000)
+  })
+
+  it('keeps a legend stored before the stamp existed', () => {
+    const mark = { icon: 3, color: 1, key: 'mark_wiz', text: 'Became a Wizard' }
+    const old = { ...emptyCharacter('Sabrael', 1000), legend: [mark] }
+    const later = emptyCharacter('Sabrael', 90000)
+    const file = withCharacter(withCharacter(emptyCharacterFile(), old), later)
+    expect(file.characters['Sabrael']?.legend).toEqual([mark])
+    expect(file.characters['Sabrael']?.profileReadAtMs).toBeUndefined()
+  })
+
   it('keeps a registration a later login showed no signal for, and lets a newer signal replace it', () => {
     // WP32: registration is a positive fact. A login with no signal keeps the
     // last known value; a refusal after an expiry replaces it.
@@ -141,6 +187,14 @@ describe('createCharacterStore', () => {
     await store.update((file) => withCharacter(file, record))
     const reopened = createCharacterStore(directory)
     expect((await reopened.load()).characters['Sabrael']?.registered).toBe(true)
+  })
+
+  it('keeps the profile stamp across a restart', async () => {
+    const record = { ...emptyCharacter('Sabrael', 1000), profileReadAtMs: 900 }
+    const store = createCharacterStore(directory)
+    await store.update((file) => withCharacter(file, record))
+    const reopened = createCharacterStore(directory)
+    expect((await reopened.load()).characters['Sabrael']?.profileReadAtMs).toBe(900)
   })
 
   it('keeps a bank across a restart', async () => {

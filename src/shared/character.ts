@@ -98,6 +98,15 @@ export interface CharacterRecord {
   guildRank: string
   /** The class name the server shows, for example "Gardcorp". */
   displayClass: string
+  /**
+   * When the profile (the legend, the title, the guild, the class name) was
+   * last read, in capture time. SSelfLook 0x39 carries it, and the server
+   * sends that only when the player opens their own profile (and once when a
+   * fresh client first enters the world), so a login often shows none. The
+   * stored profile stays until a newer one arrives, as the bank does.
+   * `undefined` means never read.
+   */
+  profileReadAtMs?: number
   /** Whether the character had unread mail when last seen. */
   hasMail: boolean
   /**
