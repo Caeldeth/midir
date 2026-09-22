@@ -28,6 +28,13 @@ const keySchema = z.string().min(1)
 
 const pollRequestSchema = z.object({
   connectionId: z.string().min(1, 'Pick a game window first.'),
+  scope: z
+    .union([
+      z.literal('all'),
+      z.literal('open'),
+      z.object({ boardIds: z.array(z.number().int().nonnegative()).min(1) })
+    ])
+    .default('all'),
   onlyUnread: z.boolean().default(true)
 })
 

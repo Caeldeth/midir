@@ -1,6 +1,7 @@
 import type {
   AssistWindow,
   BoardPollOutcome,
+  BoardPollScope,
   BoardPollState,
   BoardRecord,
   BoardSummary
@@ -41,8 +42,8 @@ interface BoardStoreState {
   refreshWindows: () => Promise<void>
   setPollWindow: (connectionId: string) => void
   setOnlyUnread: (onlyUnread: boolean) => void
-  /** Start the poll on the picked window. */
-  poll: () => void
+  /** Start the poll on the picked window: every board, the open board, or the boards named. */
+  poll: (scope: BoardPollScope) => void
   stopPoll: (connectionId: string) => Promise<void>
   select: (key: string | null) => Promise<void>
   exportSelected: () => Promise<void>
@@ -84,14 +85,14 @@ export const useBoardStore = create<BoardStoreState>((set, get) => ({
   setPollWindow: (connectionId) => set({ pollWindow: connectionId }),
   setOnlyUnread: (onlyUnread) => set({ onlyUnread }),
 
-  poll: () => {
+  poll: (scope) => {
     const { pollWindow, onlyUnread } = get()
     if (pollWindow === '') return
     set({ pollError: null, lastPoll: undefined })
     // The poll resolves when it ends, which may be many minutes. Do not await
     // it: the running state arrives on a push, and the outcome is kept.
     window.api.boards
-      .poll({ connectionId: pollWindow, onlyUnread })
+      .poll({ connectionId: pollWindow, scope, onlyUnread })
       .then((outcome) => set({ lastPoll: outcome }))
       .catch((error) => set({ pollError: messageOf(error) }))
   },

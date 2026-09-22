@@ -132,7 +132,17 @@ describe('the poll on the Boards page (WP36 PR2)', () => {
     expect(screen.getByTestId('poll-start')).toBeDisabled()
     useBoardStore.getState().setPollWindow('c1')
     await userEvent.click(screen.getByTestId('poll-start'))
-    expect(window.api.boards.poll).toHaveBeenCalledWith({ connectionId: 'c1', onlyUnread: true })
+    expect(window.api.boards.poll).toHaveBeenCalledWith({
+      connectionId: 'c1',
+      scope: 'all',
+      onlyUnread: true
+    })
+    await userEvent.click(screen.getByTestId('poll-open'))
+    expect(window.api.boards.poll).toHaveBeenLastCalledWith({
+      connectionId: 'c1',
+      scope: 'open',
+      onlyUnread: true
+    })
     expect(await screen.findByTestId('poll-outcome')).toHaveTextContent('read 0 boards and 0 posts')
   })
 
@@ -158,5 +168,22 @@ describe('the poll on the Boards page (WP36 PR2)', () => {
     expect(screen.getByTestId('poll-status')).toHaveTextContent('reading Rangers, post 3 of 48')
     await userEvent.click(screen.getByTestId('poll-stop'))
     expect(window.api.boards.stopPoll).toHaveBeenCalledWith('c1')
+  })
+
+  it('reads one board of the archive in the game, on the picked window', async () => {
+    window.api.boards.list = vi.fn(async () => [SUMMARY])
+    window.api.boards.get = vi.fn(async () => PUBLIC)
+    window.api.assist.windows = vi.fn(async () => [WINDOW])
+    render(<Boards />)
+    await screen.findByTestId('board-view')
+    // No window picked: the button waits.
+    expect(screen.getByTestId('board-read')).toBeDisabled()
+    useBoardStore.getState().setPollWindow('c1')
+    await userEvent.click(screen.getByTestId('board-read'))
+    expect(window.api.boards.poll).toHaveBeenCalledWith({
+      connectionId: 'c1',
+      scope: { boardIds: [10] },
+      onlyUnread: true
+    })
   })
 })

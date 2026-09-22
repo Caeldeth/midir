@@ -189,7 +189,13 @@ describe('the poll handlers (WP36 PR2)', () => {
     const ctx = await context()
     const outcome = await pollBoards(ctx, { connectionId: 'c1' })
     expect(outcome).toEqual({ kind: 'done', boardsRead: 2, postsRead: 5 })
-    expect(ctx.polls).toEqual([{ connectionId: 'c1', onlyUnread: true }])
+    expect(ctx.polls).toEqual([{ connectionId: 'c1', scope: 'all', onlyUnread: true }])
+    await pollBoards(ctx, { connectionId: 'c1', scope: { boardIds: [0, 205] }, onlyUnread: false })
+    expect(ctx.polls[1]).toEqual({
+      connectionId: 'c1',
+      scope: { boardIds: [0, 205] },
+      onlyUnread: false
+    })
   })
 
   it('refuses a request with no window', async () => {

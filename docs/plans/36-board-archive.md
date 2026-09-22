@@ -70,13 +70,18 @@ watcher's board side)** gave the poll its positions and its gestures:
   too (the hand browse did that on the board list), which the poll does not rely on: `click` is
   posted once for a row, and the client's request after the row click, when the double landed
   anyway, is what tells the poll to skip View.
-- **The arrow keys walk the selection, and Down past the last row asks for the next page.**
-  Sabrael's arrow-key run sent `listPosts 56` and `40` with no click at all, one request per
-  press past the end (and one per repeat while held). The scrollbar's arrows do the same: it
-  sits at game x 529 to 532, its up arrow at y 26 and its down arrow at y 265, one row per click
-  and a page request when clicked at the bottom. The mouse wheel pages too. The poll uses the
-  keys: the selection is then a count the poll keeps, the post id the server answers with is the
-  check on that count, and no scroll position has to be modelled.
+- **The scrollbar's arrows move the list a row a click, and the down arrow at the bottom asks
+  for the next page.** The scrollbar sits at game x 529 to 532, its up arrow at y 26 and its down
+  arrow at y 265; fifteen hand clicks on each were logged, and the clicks at the bottom sent
+  `listPosts 24`. The arrow keys and the mouse wheel do the same by hand (Sabrael's key run sent
+  `listPosts 56` and `40` with no click at all), **but a posted Down moved no selection** on the
+  second live run (05:10Z: the poll clicked View after each press and the client read the same
+  post, row 0, four times), as a posted `W` opened nothing and a posted digit chose nothing on a
+  dialog (WP17). So the poll is clicks only: it keeps a picture of the list (which row is at the
+  top of the fourteen on screen, and how many rows a click moves), clicks a row it can see, and
+  the post id the server answers with is the check on the picture. A wrong reply corrects it and
+  teaches it: that Up from a post puts the list back at the top, or that a click moves more rows
+  than one; each is learned from one miss and holds for the board.
 - **Up from a post goes back to the list with no packet; Up from a list sends `listBoards`.**
 - **The mail panes differ from the board panes in two buttons.** The mail list's View is at pane
   y 61 to 83 (the board list's is 35 to 57), and the mail list has Quit at 218 to 240 and Up at
@@ -84,16 +89,21 @@ watcher's board side)** gave the poll its positions and its gestures:
   clicked the board list's Up on the mailbox would close the whole pane.
 
 **PR2, the poll, built 2026-09-22** from the measuring browse: `boardPoll.ts` is the driver
-(the board button, the top row once, the arrow keys, View, Up, Quit; every gesture waits for its packet, and
-the post id in every reply checks the selection count), `handlers/boards.ts` gains `boards:poll`,
-`boards:poll-stop`, and `boards:poll-state`, and the Boards tab has the window picker, the
-button, the "skip posts already read" box, and the line that says what the poll is on. Proven
-against a retail-shaped fake client through the real reducer (`__tests__/boardPoll.test.ts`).
+(the board button, a visible row, the scrollbar's arrows, View, Up, Quit; every gesture waits
+for its packet, and the post id in every reply checks the poll's picture of the list),
+`handlers/boards.ts` gains `boards:poll`, `boards:poll-stop`, and `boards:poll-state`, and the
+Boards tab has the window picker, **Read everything**, **Read the open board** (the list on
+screen now, which is how a board in the world is read, since a click on a board object opens it
+with no board list), **Read in the game** on each board of the archive, the "skip posts already
+read" box, and the line that says what the poll is on. Proven against a retail-shaped fake
+client through the real reducer (`__tests__/boardPoll.test.ts`), with the two quirks a live run
+could show (Up back to the top; more rows a click) each learned from one miss.
 **First live run, 05:06Z: a posted `W` with its character opened nothing** (five tries, the
 same key a hand press opens the list with), so the opener is the client's own board button,
-measured at game (626, 248) from two hand clicks the watcher paired with `listBoards`. **Not
-yet proven live**: the arrow keys as posted keys and the selection after Up. The profile click
-for the legend is not in it: the profile button's place is not measured.
+measured at game (626, 248) from two hand clicks the watcher paired with `listBoards`. **Second
+run, 05:10Z: a posted Down moved no selection**, so the keys are out and every gesture is a
+click. The profile click for the legend is not in it: the profile button's place is not
+measured.
 
 **Trigger:** Sabrael, 2026-09-21: retail's boards hold years of player-written content that exists
 nowhere else, and no tool in the house reads them. The Brigid prototype (`feat/board-capture-debug`,
@@ -216,11 +226,13 @@ never right of the Content pane on a post.
    server's sibling rule and would have no proof it saw every post. The list is the proof: a
    post in the list with no body after the walk is logged as one the walk missed, and the poll
    opens it again once before it moves on. The list dialog shows a page of rows at a time, and
-   the poll never clicks a row it cannot see: it clicks the top row once, walks the selection
-   with the arrow keys (Down past the last row is what asks the client for the next page), and
-   clicks View. The selection is a count the poll keeps; the post id in every reply is the check
-   on it, and a reply that names another post re-syncs the count from the list and tries again,
-   at most `MAX_MISSES` times per board before the poll stops as lost.
+   the poll never clicks a row it cannot see: it scrolls with the scrollbar's arrows until the
+   row is among the fourteen on screen (the down arrow at the bottom is what asks the client for
+   the next page), clicks the row, and clicks View. Which row is at the top is a picture the poll
+   keeps; the post id in every reply is the check on it, and a reply that names another post
+   corrects the picture from the list, learns what was wrong (Up put the list back at the top; a
+   click moves more rows than one), and tries again, at most `MAX_MISSES` times per board before
+   the poll stops as lost. No key is posted: the client answered none on the live runs.
 5. **The pane positions are measured before they are used.** The layouts (`_nbdlist.txt`,
    `_narlist.txt`, `_narti.txt`, `_nmaill.txt`, `_nmailr.txt` in `setoa.dat`) give a 581 × 290 pane
    with View at 507–568 × 35–57 (board list), the list rows in 19–499 × 18–273, Prev/Next at
@@ -294,10 +306,10 @@ a changed board.
 2. A hand browse of one board fills `boards.json` with every header seen and every body opened,
    and a restart shows the same. A header never replaces a body.
 3. The mailbox is stored under the character's key and never under another character's.
-4. The poll reads a whole board with no key pressed but the arrow keys, and no button clicked
-   but the board button, the top row, View, Up, and Quit; the log states every click's game position and
-   the `0x3B` that followed it; every post the list holds has a body at the end, or is named in
-   the log as one the walk missed.
+4. The poll reads a whole board with no key pressed, and no button clicked but the board
+   button, a visible row, the scrollbar's arrows, View, Up, and Quit; the log states every
+   click's game position and the `0x3B` that followed it; every post the list holds has a body
+   at the end, or is named in the log as one the walk missed.
 5. The poll stops on a compose dialog, a result alert, the credential pane, and a stop; it never
    sends `0x3B` action 4, 5, 6, or 7 (asserted in the tests and grep-able in the log).
 6. The export is the prototype's shape, and a board of 200 posts exports in one file.

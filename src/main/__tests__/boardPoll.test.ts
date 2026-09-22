@@ -6,11 +6,16 @@ import {
   MAX_MISSES,
   OPEN_TRIES,
   PANE,
+  ROW_PITCH,
+  ROW_TOP,
   rowPoint,
+  SCROLL_DOWN,
+  SCROLL_UP,
+  VISIBLE_ROWS,
   type BoardPollOptions,
   type Sleeper
 } from '../boardPoll'
-import { VK_DOWN, VK_UP, type ActionLayer } from '../actionLayer'
+import type { ActionLayer } from '../actionLayer'
 import type { ActionRefusal, ActionTarget } from '../../shared/types'
 import type { BoardPollState } from '../../shared/boards'
 import { reduceBoard, type BoardState } from '../model/board'
@@ -23,13 +28,14 @@ import type { Logger } from '../log'
  * The board poll (WP36 PR2), run whole against a fake client with no game.
  *
  * The fake client is the retail client as the live browses of 2026-09-22
- * showed it: the board button lists the boards, a row and View open a board with its first
- * page and, when that was full, a second page on its own; Down walks the
- * selection and a press past the last row asks for the next page (the same
- * cursor again for every press until the reply); View on a post list reads
- * the selected post; Up on a post goes back with no packet; Up on a list asks
- * for the board list again. Every reply goes through the real reducer, so
- * the poll sees exactly what the capture service would give it.
+ * showed it: the board button lists the boards, a click selects a visible
+ * row and View opens it, a board opens with its first page and, when that
+ * was full, a second page on its own; the scrollbar's arrows move the list
+ * a row a click, and the down arrow at the bottom asks for the next page
+ * (the same cursor again for every click until the reply); Up on a post
+ * goes back with no packet; Up on a list asks for the board list again.
+ * Every reply goes through the real reducer, so the poll sees exactly what
+ * the capture service would give it.
  */
 
 const CID = 'conn-1'
@@ -67,11 +73,17 @@ interface FakeBoard {
   posts: number[]
 }
 
+/** A list on screen: its rows, which is at the top of the fourteen shown, and the selected one. */
+interface ListPane {
+  top: number
+  selected: number
+}
+
 type Pane =
   | { kind: 'closed' }
-  | { kind: 'boardList'; selected: number }
-  | { kind: 'postList'; board: FakeBoard; rows: number[]; selected: number; exhausted: boolean }
-  | { kind: 'post'; board: FakeBoard; rows: number[]; selected: number; exhausted: boolean }
+  | ({ kind: 'boardList' } & ListPane)
+  | ({ kind: 'postList'; board: FakeBoard; rows: number[]; exhausted: boolean } & ListPane)
+  | ({ kind: 'post'; board: FakeBoard; rows: number[]; exhausted: boolean } & ListPane)
 
 interface FakeClient {
   layer: ActionLayer
@@ -87,6 +99,8 @@ interface FakeClient {
   misreadNext: (postId: number) => void
   /** Make the next board open show this board instead of the selection. */
   misopenNext: (boardId: number) => void
+  /** Open a board's list as a click on a board in the world does: no board list, no request. */
+  openFromWorld: (board: FakeBoard) => void
   fireStop: (reason: string) => void
   stopped: { value: boolean }
 }
@@ -99,7 +113,12 @@ function header(postId: number): PostHeader {
  * A retail-shaped client over `boards`. Each gesture is answered with the
  * packets the live browses showed, through the real reducer.
  */
-function fakeClient(boards: FakeBoard[], clock: { now: () => number }): FakeClient {
+function fakeClient(
+  boards: FakeBoard[],
+  clock: { now: () => number },
+  quirks: { scrollToTopOnUp?: boolean; rowsPerClick?: number } = {}
+): FakeClient {
+  const rowsPerClick = quirks.rowsPerClick ?? 1
   let state: BoardState | null = null
   let pane: Pane = { kind: 'closed' }
   const requests: BulletinRequest[] = []
@@ -153,7 +172,7 @@ function fakeClient(boards: FakeBoard[], clock: { now: () => number }): FakeClie
       rows = [...rows, ...second]
       exhausted = second.length < PAGE_SIZE
     }
-    pane = { kind: 'postList', board, rows, selected: -1, exhausted }
+    pane = { kind: 'postList', board, rows, top: 0, selected: -1, exhausted }
   }
 
   const listBoards = (): void => {
@@ -163,12 +182,27 @@ function fakeClient(boards: FakeBoard[], clock: { now: () => number }): FakeClie
       heading: '',
       boards: boards.map((b) => ({ id: b.id, name: b.name }))
     })
-    pane = { kind: 'boardList', selected: -1 }
+    pane = { kind: 'boardList', top: 0, selected: -1 }
+  }
+
+  /** The visible row a click at game y lands on, or -1 off the rows. */
+  const visibleRowAt = (x: number, y: number): number => {
+    if (x !== rowPoint(0).x) return -1
+    const row = Math.floor((y - PANE.y - ROW_TOP) / ROW_PITCH)
+    return row >= 0 && row < VISIBLE_ROWS ? row : -1
+  }
+
+  /** Scroll a list by the arrows: a row a click, never past the last page. */
+  const scrollList = (list: ListPane, rowCount: number, down: boolean): void => {
+    const lastTop = Math.max(0, rowCount - VISIBLE_ROWS)
+    list.top = Math.min(Math.max(0, list.top + (down ? rowsPerClick : -rowsPerClick)), lastTop)
   }
 
   const buttonName = (x: number, y: number): string => {
-    if (x === rowPoint(0).x && y === rowPoint(0).y) return 'row0'
+    if (visibleRowAt(x, y) >= 0) return `row${visibleRowAt(x, y)}`
     if (x === BOARD_BUTTON.x && y === BOARD_BUTTON.y) return 'boardButton'
+    if (x === SCROLL_DOWN.x && y === SCROLL_DOWN.y) return 'scrollDown'
+    if (x === SCROLL_UP.x && y === SCROLL_UP.y) return 'scrollUp'
     const at = (p: { x: number; y: number }): boolean => p.x === x && p.y === y
     if (at(BUTTONS.view(false))) return 'view'
     if (at(BUTTONS.view(true))) return 'viewMail'
@@ -188,9 +222,13 @@ function fakeClient(boards: FakeBoard[], clock: { now: () => number }): FakeClie
     clicked.push(name + (options?.once === true ? '' : '×2'))
     if (refusal !== null) return refusal
     if (name === 'boardButton' && pane.kind === 'closed') listBoards()
+    const row = visibleRowAt(x, y)
     switch (pane.kind) {
       case 'boardList':
-        if (name === 'row0') pane.selected = 0
+        if (row >= 0) {
+          if (pane.top + row < boards.length) pane.selected = pane.top + row
+        } else if (name === 'scrollDown') scrollList(pane, boards.length, true)
+        else if (name === 'scrollUp') scrollList(pane, boards.length, false)
         else if (name === 'view' && pane.selected >= 0) {
           const chosen =
             misopen !== null ? boards.find((b) => b.id === misopen)! : boards[pane.selected]!
@@ -203,8 +241,22 @@ function fakeClient(boards: FakeBoard[], clock: { now: () => number }): FakeClie
         const viewName = mail ? 'viewMail' : 'view'
         // The list's View row and Up row differ between a board and the mailbox.
         const upName = mail ? 'upMail' : 'up'
-        if (name === 'row0') pane.selected = 0
-        else if (name === viewName && pane.selected >= 0) {
+        if (row >= 0) {
+          if (pane.top + row < pane.rows.length) pane.selected = pane.top + row
+        } else if (name === 'scrollUp') scrollList(pane, pane.rows.length, false)
+        else if (name === 'scrollDown') {
+          const lastTop = Math.max(0, pane.rows.length - VISIBLE_ROWS)
+          if (pane.top < lastTop) scrollList(pane, pane.rows.length, true)
+          else if (!pane.exhausted) {
+            // At the bottom: the next page, from the oldest held id minus one.
+            const more = requestPage(pane.board, pane.rows[pane.rows.length - 1]! - 1)
+            pane.rows = [...pane.rows, ...more]
+            if (more.length < PAGE_SIZE) pane.exhausted = true
+          } else {
+            // The trap: an exhausted list re-sends the same cursor.
+            requestPage(pane.board, pane.rows[pane.rows.length - 1]! - 1)
+          }
+        } else if (name === viewName && pane.selected >= 0) {
           const id = misread ?? pane.rows[pane.selected]!
           misread = null
           send({ action: 'readPost', boardId: pane.board.id, postId: id, navOffset: 0 })
@@ -225,7 +277,10 @@ function fakeClient(boards: FakeBoard[], clock: { now: () => number }): FakeClie
         break
       }
       case 'post':
-        if (name === 'up') pane = { ...pane, kind: 'postList' }
+        if (name === 'up') {
+          pane = { ...pane, kind: 'postList' }
+          if (quirks.scrollToTopOnUp === true) pane.top = 0
+        }
         break
       case 'closed':
         break
@@ -235,27 +290,7 @@ function fakeClient(boards: FakeBoard[], clock: { now: () => number }): FakeClie
 
   const pressKey = async (_t: ActionTarget, key: number): Promise<ActionRefusal | null> => {
     keys.push(key)
-    if (refusal !== null) return refusal
-    if (pane.kind === 'boardList') {
-      if (key === VK_DOWN) pane.selected = Math.min(pane.selected + 1, boards.length - 1)
-      if (key === VK_UP) pane.selected = Math.max(pane.selected - 1, 0)
-    }
-    if (pane.kind === 'postList') {
-      if (key === VK_UP) pane.selected = Math.max(pane.selected - 1, 0)
-      if (key === VK_DOWN) {
-        if (pane.selected < pane.rows.length - 1) pane.selected++
-        else if (!pane.exhausted) {
-          // Past the last row: the next page, from the oldest held id minus one.
-          const more = requestPage(pane.board, pane.rows[pane.rows.length - 1]! - 1)
-          pane.rows = [...pane.rows, ...more]
-          if (more.length < PAGE_SIZE) pane.exhausted = true
-        } else {
-          // The trap: an exhausted list re-sends the same cursor.
-          requestPage(pane.board, pane.rows[pane.rows.length - 1]! - 1)
-        }
-      }
-    }
-    return null
+    return refusal
   }
 
   const layer = {
@@ -288,6 +323,28 @@ function fakeClient(boards: FakeBoard[], clock: { now: () => number }): FakeClie
     misopenNext: (id) => {
       misopen = id
     },
+    openFromWorld: (board) => {
+      // The server pushes the first page as the reply to the click on the
+      // board object (CClick 0x43), with no 0x3B; the client then asks for
+      // its second page as it does from the list.
+      const first = page(board, NEWEST_POST_CURSOR)
+      feed({
+        kind: 'postList',
+        mail: false,
+        subType: 2,
+        boardId: board.id,
+        boardName: board.name,
+        rows: first.map(header)
+      })
+      let rows = first
+      let exhausted = first.length < PAGE_SIZE
+      if (!exhausted) {
+        const second = requestPage(board, first[first.length - 1]! - 1)
+        rows = [...rows, ...second]
+        exhausted = second.length < PAGE_SIZE
+      }
+      pane = { kind: 'postList', board, rows, top: 0, selected: -1, exhausted }
+    },
     fireStop: (reason) => {
       stopped.value = true
       onStop?.(reason)
@@ -306,10 +363,18 @@ interface Harness {
 
 function harness(
   boards: FakeBoard[],
-  options: { bodies?: Record<string, number[]>; live?: boolean } = {}
+  options: {
+    bodies?: Record<string, number[]>
+    live?: boolean
+    scrollToTopOnUp?: boolean
+    rowsPerClick?: number
+  } = {}
 ): Harness {
   const clock = fakeClock()
-  const client = fakeClient(boards, clock)
+  const client = fakeClient(boards, clock, {
+    ...(options.scrollToTopOnUp !== undefined ? { scrollToTopOnUp: options.scrollToTopOnUp } : {}),
+    ...(options.rowsPerClick !== undefined ? { rowsPerClick: options.rowsPerClick } : {})
+  })
   const states: BoardPollState[] = []
   const bodies = new Map(
     Object.entries(options.bodies ?? {}).map(([key, ids]) => [key, new Set(ids)])
@@ -341,7 +406,7 @@ const EMPTY: FakeBoard = { id: 11, name: 'Law', posts: [] }
 describe('the board poll (WP36 PR2)', () => {
   it('reads every board and the mailbox end to end, and quits the pane', async () => {
     const h = harness([MAIL, PUBLIC, EMPTY])
-    const outcome = await h.poll.run({ connectionId: CID, onlyUnread: true })
+    const outcome = await h.poll.run({ connectionId: CID, scope: 'all', onlyUnread: true })
     expect(outcome).toEqual({ kind: 'done', boardsRead: 3, postsRead: 21 })
     // Every post of every board was read, from its own row.
     const reads = h.client.requests.filter((r) => r.action === 'readPost')
@@ -352,11 +417,13 @@ describe('the board poll (WP36 PR2)', () => {
     // The mailbox was read through its own View and Up rows.
     expect(h.client.clicked).toContain('viewMail')
     expect(h.client.clicked).toContain('upMail')
-    // Nothing but the closed set was clicked, and every click was a single one.
-    expect(new Set(h.client.clicked)).toEqual(
-      new Set(['boardButton', 'row0', 'view', 'viewMail', 'up', 'upMail', 'quit'])
+    // Nothing but the closed set was clicked, every click was a single one, and no key was pressed.
+    const rowClicks = h.client.clicked.filter((c) => /^row\d+$/.test(c))
+    expect(rowClicks.length).toBeGreaterThan(0)
+    expect(new Set(h.client.clicked.filter((c) => !/^row\d+$/.test(c)))).toEqual(
+      new Set(['boardButton', 'view', 'viewMail', 'up', 'upMail', 'quit', 'scrollDown'])
     )
-    expect(h.client.keys.every((k) => k === VK_DOWN || k === VK_UP)).toBe(true)
+    expect(h.client.keys).toEqual([])
     // The pane is closed at the end.
     expect(h.client.pane().kind).toBe('closed')
     const last = h.states[h.states.length - 1]
@@ -366,7 +433,7 @@ describe('the board poll (WP36 PR2)', () => {
 
   it('pages to the oldest post with one request in flight, and never re-sends an exhausted cursor', async () => {
     const h = harness([PUBLIC])
-    await h.poll.run({ connectionId: CID, onlyUnread: true })
+    await h.poll.run({ connectionId: CID, scope: 'all', onlyUnread: true })
     const pages = h.client.requests.filter((r) => r.action === 'listPosts')
     // The open (two pages, the second by the client itself) and nothing more:
     // the second page was short, so the poll pressed no further.
@@ -376,11 +443,11 @@ describe('the board poll (WP36 PR2)', () => {
     ])
   })
 
-  it('asks for the next page by Down past the last row, and stops when a page adds nothing', async () => {
+  it('asks for the next page with the down arrow at the bottom, and stops when a page adds nothing', async () => {
     // Exactly 32 posts: two full pages, then a page from 0 that is empty.
     const board: FakeBoard = { id: 12, name: 'Full', posts: [...Array(33).keys()].slice(1) }
     const h = harness([board])
-    const outcome = await h.poll.run({ connectionId: CID, onlyUnread: true })
+    const outcome = await h.poll.run({ connectionId: CID, scope: 'all', onlyUnread: true })
     expect(outcome).toEqual({ kind: 'done', boardsRead: 1, postsRead: 32 })
     const cursors = h.client.requests
       .filter((r) => r.action === 'listPosts')
@@ -390,7 +457,7 @@ describe('the board poll (WP36 PR2)', () => {
 
   it('skips the posts whose body the archive holds, and reads them all when asked', async () => {
     const h = harness([PUBLIC], { bodies: { '10': [20, 19, 18] } })
-    const outcome = await h.poll.run({ connectionId: CID, onlyUnread: true })
+    const outcome = await h.poll.run({ connectionId: CID, scope: 'all', onlyUnread: true })
     expect(outcome).toMatchObject({ kind: 'done', postsRead: 16 })
     const read = h.client.requests
       .filter((r) => r.action === 'readPost')
@@ -399,15 +466,15 @@ describe('the board poll (WP36 PR2)', () => {
     expect(read).toContain(17)
 
     const all = harness([PUBLIC], { bodies: { '10': [20, 19, 18] } })
-    const everything = await all.poll.run({ connectionId: CID, onlyUnread: false })
+    const everything = await all.poll.run({ connectionId: CID, scope: 'all', onlyUnread: false })
     expect(everything).toMatchObject({ kind: 'done', postsRead: 19 })
   })
 
-  it('re-syncs the selection from a wrong post and tries the row again', async () => {
+  it('re-syncs its picture of the list from a wrong post and tries the row again', async () => {
     const h = harness([PUBLIC])
     // The first read shows post 18 (row 2) when row 0 (post 20) was asked for.
     h.client.misreadNext(18)
-    const outcome = await h.poll.run({ connectionId: CID, onlyUnread: true })
+    const outcome = await h.poll.run({ connectionId: CID, scope: 'all', onlyUnread: true })
     expect(outcome).toEqual({ kind: 'done', boardsRead: 1, postsRead: 19 })
     const read = h.client.requests
       .filter((r) => r.action === 'readPost')
@@ -427,14 +494,14 @@ describe('the board poll (WP36 PR2)', () => {
       }
       return original(t, x, y, o)
     }
-    const outcome = await h.poll.run({ connectionId: CID, onlyUnread: true })
+    const outcome = await h.poll.run({ connectionId: CID, scope: 'all', onlyUnread: true })
     expect(outcome).toMatchObject({ kind: 'stopped', reason: 'lost' })
   })
 
   it('tries a board row once more when another board opened, then stops as lost', async () => {
     const h = harness([MAIL, PUBLIC, EMPTY])
     h.client.misopenNext(11)
-    const outcome = await h.poll.run({ connectionId: CID, onlyUnread: true })
+    const outcome = await h.poll.run({ connectionId: CID, scope: 'all', onlyUnread: true })
     // The first open showed Law in place of the mailbox; Up and the second try got it right.
     expect(outcome).toMatchObject({ kind: 'done', boardsRead: 3 })
 
@@ -451,7 +518,9 @@ describe('the board poll (WP36 PR2)', () => {
       }
       return original(t, x, y, o)
     }
-    expect(await twice.poll.run({ connectionId: CID, onlyUnread: true })).toMatchObject({
+    expect(
+      await twice.poll.run({ connectionId: CID, scope: 'all', onlyUnread: true })
+    ).toMatchObject({
       kind: 'stopped',
       reason: 'lost',
       boardsRead: 0
@@ -460,28 +529,32 @@ describe('the board poll (WP36 PR2)', () => {
 
   it('stops on the global stop, on a refusal, and when the character is gone', async () => {
     const stopped = harness([PUBLIC])
-    let presses = 0
-    const original = stopped.client.layer.pressKey
-    stopped.client.layer.pressKey = async (t, k) => {
-      if (++presses === 3) stopped.client.fireStop('hotkey')
-      return original(t, k)
+    let clicks = 0
+    const original = stopped.client.layer.click
+    stopped.client.layer.click = async (t, x, y, o) => {
+      if (++clicks === 3) stopped.client.fireStop('hotkey')
+      return original(t, x, y, o)
     }
-    expect(await stopped.poll.run({ connectionId: CID, onlyUnread: true })).toMatchObject({
+    expect(
+      await stopped.poll.run({ connectionId: CID, scope: 'all', onlyUnread: true })
+    ).toMatchObject({
       kind: 'stopped',
       reason: 'user'
     })
 
     const refused = harness([PUBLIC])
     refused.client.setRefusal('noWindow')
-    expect(await refused.poll.run({ connectionId: CID, onlyUnread: true })).toMatchObject({
+    expect(
+      await refused.poll.run({ connectionId: CID, scope: 'all', onlyUnread: true })
+    ).toMatchObject({
       kind: 'stopped',
       reason: 'lostCharacter'
     })
 
     const gone = harness([PUBLIC], { live: false })
-    await expect(gone.poll.run({ connectionId: CID, onlyUnread: true })).rejects.toThrow(
-      'No character is logged in'
-    )
+    await expect(
+      gone.poll.run({ connectionId: CID, scope: 'all', onlyUnread: true })
+    ).rejects.toThrow('No character is logged in')
   })
 
   it('stops when a dialog it did not open comes up, and touches nothing', async () => {
@@ -497,7 +570,7 @@ describe('the board poll (WP36 PR2)', () => {
       }
       return result
     }
-    const outcome = await h.poll.run({ connectionId: CID, onlyUnread: true })
+    const outcome = await h.poll.run({ connectionId: CID, scope: 'all', onlyUnread: true })
     expect(outcome).toMatchObject({ kind: 'stopped', reason: 'dialog' })
     // No click at the dialog's Close, no key to it: the last gesture was the poll's own.
     expect(h.client.clicked.filter((c) => c.startsWith('?'))).toEqual([])
@@ -506,28 +579,103 @@ describe('the board poll (WP36 PR2)', () => {
   it('stops with a timeout when the board button brings no board list', async () => {
     const h = harness([PUBLIC])
     h.client.layer.click = async () => null
-    const outcome = await h.poll.run({ connectionId: CID, onlyUnread: true })
+    const outcome = await h.poll.run({ connectionId: CID, scope: 'all', onlyUnread: true })
     expect(outcome).toMatchObject({ kind: 'stopped', reason: 'timeout' })
   })
 
   it('can be stopped from the tab while it runs', async () => {
     const h = harness([PUBLIC])
-    const original = h.client.layer.pressKey
-    let presses = 0
-    h.client.layer.pressKey = async (t, k) => {
-      if (++presses === 2) h.poll.stop(CID)
-      return original(t, k)
+    const original = h.client.layer.click
+    let clicks = 0
+    h.client.layer.click = async (t, x, y, o) => {
+      if (++clicks === 2) h.poll.stop(CID)
+      return original(t, x, y, o)
     }
-    expect(await h.poll.run({ connectionId: CID, onlyUnread: true })).toMatchObject({
+    expect(await h.poll.run({ connectionId: CID, scope: 'all', onlyUnread: true })).toMatchObject({
       kind: 'stopped',
       reason: 'user'
     })
     expect(h.poll.states()).toEqual([])
   })
 
+  it('reads a long board by scrolling each row on screen before it clicks it', async () => {
+    const board: FakeBoard = { id: 12, name: 'Long', posts: [...Array(41).keys()].slice(1) }
+    const h = harness([board])
+    const outcome = await h.poll.run({ connectionId: CID, scope: 'all', onlyUnread: true })
+    expect(outcome).toEqual({ kind: 'done', boardsRead: 1, postsRead: 40 })
+    // Every row was clicked on a visible row, never off the fourteen on screen.
+    const rows = h.client.clicked.filter((c) => /^row\d+$/.test(c)).map((c) => Number(c.slice(3)))
+    expect(Math.max(...rows)).toBeLessThan(VISIBLE_ROWS)
+    // Every post was read exactly once: no miss, no repeat.
+    const read = h.client.requests
+      .filter((r) => r.action === 'readPost')
+      .map((r) => (r.action === 'readPost' ? r.postId : 0))
+    expect([...read].sort((a, b) => a - b)).toEqual(board.posts)
+  })
+
+  it('recovers when Up puts the list back at the top, and when a click scrolls more than a row', async () => {
+    const board: FakeBoard = { id: 12, name: 'Long', posts: [...Array(41).keys()].slice(1) }
+    const reset = harness([board], { scrollToTopOnUp: true })
+    expect(await reset.poll.run({ connectionId: CID, scope: 'all', onlyUnread: true })).toEqual({
+      kind: 'done',
+      boardsRead: 1,
+      postsRead: 40
+    })
+    // One miss taught it, and no post was opened twice after that.
+    const reads = (h: Harness): number =>
+      h.client.requests.filter((r) => r.action === 'readPost').length
+    expect(reads(reset)).toBe(41)
+    const three = harness([board], { rowsPerClick: 3 })
+    expect(await three.poll.run({ connectionId: CID, scope: 'all', onlyUnread: true })).toEqual({
+      kind: 'done',
+      boardsRead: 1,
+      postsRead: 40
+    })
+    expect(reads(three)).toBe(41)
+  })
+
+  it('reads the boards named, in the list order, and names the ones the list lacks', async () => {
+    const h = harness([MAIL, PUBLIC, EMPTY])
+    const outcome = await h.poll.run({
+      connectionId: CID,
+      scope: { boardIds: [11, 0, 99] },
+      onlyUnread: true
+    })
+    expect(outcome).toEqual({ kind: 'done', boardsRead: 2, postsRead: 2 })
+    const opened = h.client.requests
+      .filter((r) => r.action === 'listPosts')
+      .map((r) => (r.action === 'listPosts' ? r.boardId : -1))
+    expect(opened).toEqual([0, 11])
+  })
+
+  it('reads the open board, as a board in the world is opened, and leaves the pane', async () => {
+    const h = harness([MAIL])
+    const world: FakeBoard = {
+      id: 156,
+      name: 'Vaillaire Cura',
+      posts: [...Array(21).keys()].slice(1)
+    }
+    h.client.openFromWorld(world)
+    const outcome = await h.poll.run({ connectionId: CID, scope: 'open', onlyUnread: true })
+    expect(outcome).toEqual({ kind: 'done', boardsRead: 1, postsRead: 20 })
+    expect(h.client.clicked).not.toContain('boardButton')
+    expect(h.client.clicked).not.toContain('quit')
+    expect(h.client.pane().kind).toBe('postList')
+    expect(h.client.requests.filter((r) => r.action === 'listBoards')).toEqual([])
+  })
+
+  it('refuses to read the open board when none is open', async () => {
+    const h = harness([MAIL])
+    await expect(
+      h.poll.run({ connectionId: CID, scope: 'open', onlyUnread: true })
+    ).rejects.toThrow('No board list is open')
+  })
+
   it('names the pane where the hand browse measured it', () => {
     expect(PANE).toEqual({ x: 30, y: 0 })
     expect(BOARD_BUTTON).toEqual({ x: 626, y: 248 })
+    expect(SCROLL_UP).toEqual({ x: 530, y: 27 })
+    expect(SCROLL_DOWN).toEqual({ x: 531, y: 265 })
     expect(rowPoint(0)).toEqual({ x: 290, y: 27 })
     expect(BUTTONS.view(false)).toEqual({ x: 567, y: 46 })
     expect(BUTTONS.view(true)).toEqual({ x: 567, y: 72 })

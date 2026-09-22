@@ -80,9 +80,18 @@ export interface BoardExport {
   }[]
 }
 
+/**
+ * Which boards the poll reads: every board in the client's list and the
+ * mailbox; the board whose list is open on screen now (a board in the world
+ * is opened by a click on it and is not in the list); or named boards from
+ * the list, the mailbox as id 0.
+ */
+export type BoardPollScope = 'all' | 'open' | { boardIds: number[] }
+
 /** What the poll is asked to do (WP36 PR2). */
 export interface BoardPollRequest {
   connectionId: string
+  scope: BoardPollScope
   /**
    * Skip every post whose body the archive already holds. On by default: a
    * post never changes once written, so a second poll of the same board only

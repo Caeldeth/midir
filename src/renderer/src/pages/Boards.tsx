@@ -31,7 +31,7 @@ import React, { useEffect, useMemo } from 'react'
  * The archive fills as the player browses. A post seen only in a list has a
  * header and no body; opening it in the game fills the body in. The poll at
  * the top reads every board and the mailbox end to end through the client's
- * own board pane (WP36 PR2): it clicks the board button, presses the arrow keys, clicks rows,
+ * own board pane (WP36 PR2): it clicks the board button, the scrollbar, rows,
  * View, and Up, and nothing that writes.
  */
 
@@ -129,8 +129,10 @@ function PollPanel(): React.JSX.Element {
     <Paper sx={{ m: 2.5, mb: 0, p: 2, flexShrink: 0 }} data-testid="board-poll">
       <Typography variant="body2" sx={{ color: 'text.secondary', mb: 1.5 }}>
         Read everything opens the board list and reads every board and the mailbox to the oldest
-        post, through the game's own pane: the arrow keys, View, and Up, and nothing that writes. It
-        stops on any dialog it did not open. A character must be logged in on the window.
+        post, through the game's own pane: rows, the scrollbar, View, and Up, and nothing that
+        writes. Read the open board reads the list on screen now, which is how a board in the world
+        is read: click it in the game first. A board in the archive has its own Read button. The
+        poll stops on any dialog it did not open. A character must be logged in on the window.
       </Typography>
       {pollError !== null ? (
         <Alert severity="error" sx={{ mb: 1.5 }}>
@@ -168,15 +170,26 @@ function PollPanel(): React.JSX.Element {
           label="Skip posts already read"
         />
         {running === undefined ? (
-          <Button
-            variant="contained"
-            size="small"
-            disabled={selectedValue === ''}
-            onClick={poll}
-            data-testid="poll-start"
-          >
-            Read everything
-          </Button>
+          <>
+            <Button
+              variant="contained"
+              size="small"
+              disabled={selectedValue === ''}
+              onClick={() => poll('all')}
+              data-testid="poll-start"
+            >
+              Read everything
+            </Button>
+            <Button
+              variant="outlined"
+              size="small"
+              disabled={selectedValue === ''}
+              onClick={() => poll('open')}
+              data-testid="poll-open"
+            >
+              Read the open board
+            </Button>
+          </>
         ) : (
           <Button
             variant="outlined"
@@ -231,6 +244,12 @@ function Archive({
   onRefresh,
   onExport
 }: ArchiveProps): React.JSX.Element {
+  const windows = useBoardStore((s) => s.windows)
+  const pollWindow = useBoardStore((s) => s.pollWindow)
+  const polls = useBoardStore((s) => s.polls)
+  const poll = useBoardStore((s) => s.poll)
+  const canPoll =
+    windows.some((w) => w.connectionId === pollWindow) && polls[pollWindow] === undefined
   return (
     <Box sx={{ display: 'flex', flex: 1, minHeight: 0 }}>
       <Box
@@ -263,7 +282,13 @@ function Archive({
         {board === null ? (
           <Button onClick={onRefresh}>Reload</Button>
         ) : (
-          <BoardView board={board} exportedTo={exportedTo} error={error} onExport={onExport} />
+          <BoardView
+            board={board}
+            exportedTo={exportedTo}
+            error={error}
+            onExport={onExport}
+            onRead={canPoll ? () => poll({ boardIds: [board.id] }) : undefined}
+          />
         )}
       </Box>
     </Box>
@@ -275,9 +300,17 @@ interface BoardViewProps {
   exportedTo: string | null
   error: string | null
   onExport: () => void
+  /** Read this board in the game, through the poll. Absent while no window is picked or a poll runs. */
+  onRead?: () => void
 }
 
-function BoardView({ board, exportedTo, error, onExport }: BoardViewProps): React.JSX.Element {
+function BoardView({
+  board,
+  exportedTo,
+  error,
+  onExport,
+  onRead
+}: BoardViewProps): React.JSX.Element {
   // Newest first, as the game lists them: post ids rise with time.
   const posts = useMemo(
     () => Object.values(board.posts).sort((a, b) => b.postId - a.postId),
@@ -291,6 +324,15 @@ function BoardView({ board, exportedTo, error, onExport }: BoardViewProps): Reac
         <Typography variant="h6" sx={{ color: 'text.button', fontWeight: 'bold', flex: 1 }}>
           {boardLabel(board)}
         </Typography>
+        <Button
+          variant="outlined"
+          size="small"
+          disabled={onRead === undefined}
+          onClick={onRead}
+          data-testid="board-read"
+        >
+          Read in the game
+        </Button>
         <Button variant="outlined" size="small" onClick={onExport} data-testid="board-export">
           Export JSON
         </Button>
