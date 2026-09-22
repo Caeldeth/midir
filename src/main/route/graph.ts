@@ -281,6 +281,12 @@ export interface LearnedLayer {
   wire?: Record<string, WireMap>
   /** The world XML, when it is in. */
   xml?: XmlNode[]
+  /**
+   * Seed names by map id, as `mapnames.json` holds them (WP38). They are the
+   * weakest name in the graph: one reaches a map only when no other source
+   * names it, and the wire replaces it on the first visit.
+   */
+  names?: Record<string, string>
 }
 
 const sameTile = (
@@ -297,9 +303,10 @@ const sameTile = (
  * that it is a candidate. A world XML edge is a candidate until the wire
  * crosses it once or the user accepts it, and then an exit with
  * `source: 'xml'`. An accepted edge no source holds is `curated`. A map no
- * source in the file knows is added as a node, named by the wire first and
- * the XML second, and sized by whichever has a size. The imported nodes are
- * never changed; the result is a new list.
+ * source in the file knows is added as a node, and sized by whichever source
+ * has a size. A name comes from the wire first, the XML second, and the seed
+ * list last (WP38). The imported nodes are never changed; the result is a new
+ * list.
  */
 export function mergeLearned(nodes: RouteNode[], layer: LearnedLayer): RouteNode[] {
   const { transitions } = layer
@@ -401,7 +408,16 @@ export function mergeLearned(nodes: RouteNode[], layer: LearnedLayer): RouteNode
     })
   }
 
-  // The wire's word on names and sizes wins over the XML's.
+  // The seed names: a name for a map WorldMap.dat and the XML both leave
+  // unnamed. It names no map of its own, because a name with no edge behind
+  // it is a destination the walker cannot plan a route to.
+  for (const [key, name] of Object.entries(layer.names ?? {})) {
+    const node = byId.get(Number(key))
+    if (node === undefined || name === '') continue
+    if (node.name === '' && node.gameName === undefined) node.gameName = name
+  }
+
+  // The wire's word on names and sizes wins over the XML's and the seed's.
   for (const [key, size] of Object.entries(wire)) {
     const mapId = Number(key)
     if (!Number.isInteger(mapId)) continue
