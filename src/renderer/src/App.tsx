@@ -14,6 +14,7 @@ import type { ThemeName } from '@shared/types'
 import { useSettingsStore } from '@renderer/store/settingsStore'
 import { useCaptureStore } from '@renderer/store/captureStore'
 import { useCharacterStore } from '@renderer/store/characterStore'
+import { useBoardStore } from '@renderer/store/boardStore'
 import { useDiagnosticsStore } from '@renderer/store/diagnosticsStore'
 import { useSpeakerStore } from '@renderer/store/speakerStore'
 import { useWalkerStore } from '@renderer/store/walkerStore'
@@ -24,6 +25,7 @@ import NavBar, { type ViewName } from '@renderer/components/NavBar'
 import Live from '@renderer/pages/Live'
 import Items from '@renderer/pages/Items'
 import Characters from '@renderer/pages/Characters'
+import Boards from '@renderer/pages/Boards'
 import Speaker from '@renderer/pages/Speaker'
 import Walker from '@renderer/pages/Walker'
 import Laborer from '@renderer/pages/Laborer'
@@ -74,6 +76,7 @@ function App(): React.JSX.Element {
   useEffect(() => {
     const stopStatus = useCaptureStore.getState().subscribe()
     const stopCharacters = useCharacterStore.getState().subscribe()
+    const stopBoards = useBoardStore.getState().subscribe()
     const stopLog = useDiagnosticsStore.getState().subscribe()
     const stopSpeaker = useSpeakerStore.getState().subscribe()
     const stopWalker = useWalkerStore.getState().subscribe()
@@ -81,6 +84,7 @@ function App(): React.JSX.Element {
     return () => {
       stopStatus()
       stopCharacters()
+      stopBoards()
       stopLog()
       stopSpeaker()
       stopWalker()
@@ -135,6 +139,7 @@ function App(): React.JSX.Element {
                 {view === 'live' ? <Live onOpenSettings={() => setView('settings')} /> : null}
                 {view === 'items' ? <Items /> : null}
                 {view === 'characters' ? <Characters /> : null}
+                {view === 'boards' ? <Boards /> : null}
                 {view === 'speaker' ? <Speaker /> : null}
                 {view === 'walker' ? <Walker /> : null}
                 {view === 'laborer' ? <Laborer /> : null}

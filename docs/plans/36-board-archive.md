@@ -1,8 +1,17 @@
 # WP36 — the board archive: bulletin boards and mail off the wire
 
 **Size:** L. **Depends on:** WP11 (the store), WP13 (the action layer), WP17 (the pane watcher and
-the click gestures), WP34 (the popup rule). Read `00-overview.md` first. **PLANNED.** **Card:**
+the click gestures), WP34 (the popup rule). Read `00-overview.md` first. **IN PROGRESS.** **Card:**
 `HTOO-395`.
+
+**PR1, the passive half, built 2026-09-22.** `decode/board.ts` reads every `0x31` type and every
+`0x3B` action; `model/board.ts` keeps what the client shows per connection (the list, the open
+index with every page seen and what the newest page added, the post on screen, the newest
+request); `store/boardStore.ts` is `boards.json`, with a header never replacing a body and the
+mailbox keyed `mail:<name>`; the capture service attributes a post to the board the client's read
+asked for and queues the archive's writes with the characters'; the **Boards** tab lists the
+archive and exports a board in the prototype's shape. The decoders are proven by the first live
+browse (verification 3), which is what is left of PR1. PR2 is the poll.
 
 **Trigger:** Sabrael, 2026-09-21: retail's boards hold years of player-written content that exists
 nowhere else, and no tool in the house reads them. The Brigid prototype (`feat/board-capture-debug`,
