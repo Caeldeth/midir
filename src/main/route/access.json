@@ -1,17 +1,19 @@
 {
-  "note": "Maps that admit only a registered citizen of one town (WP32). Hand-kept, apart from the generated worldmap.json so a re-import never clobbers it. Each entry names the observation that put it here.",
+  "note": "Maps that admit only a registered citizen of the towns listed (WP32). Hand-kept, apart from the generated worldmap.json so a re-import never clobbers it. Each entry names the observation that put it here. Sabrael, 2026-09-21: these two are the only maps gated on citizenship.",
   "gates": [
     {
       "mapId": 3025,
       "name": "Mileth Commons",
       "town": "Mileth",
-      "observed": "Gabrael, a Mileth citizen and unregistered, refused at the gate on 2026-09-21 10:15Z: 'Only a Mileth citizen may enter here' then '((Register at www.DarkAges.com for full benefits))'; entered once registered."
+      "admits": ["Mileth", "Loures"],
+      "observed": "Gabrael, a Mileth citizen and unregistered, refused at the gate on 2026-09-21 10:15Z: 'Only a Mileth citizen may enter here' then '((Register at www.DarkAges.com for full benefits))'; entered once registered. Loures admitted too (Sabrael)."
     },
     {
       "mapId": 3048,
       "name": "Rucesion Commons",
       "town": "Rucesion",
-      "observed": "'Only a Rucesion citizen may enter here' on 2026-07-23 13:44Z and 2026-09-21 10:00Z."
+      "admits": ["Rucesion", "Loures"],
+      "observed": "'Only a Rucesion citizen may enter here' on 2026-07-23 13:44Z and 2026-09-21 10:00Z. Loures admitted too (Sabrael)."
     }
   ]
 }

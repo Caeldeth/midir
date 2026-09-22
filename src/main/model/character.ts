@@ -288,6 +288,8 @@ function applyPacket(
           nation: packet.nation,
           characterClass: packet.characterClass
         },
+        // The byte is the citizenship, and 0 (none) is a fact once it is seen.
+        citizenship: packet.nation,
         // The unregistered mark is a positive signal; its absence is not.
         ...(hasUnregisteredMark(packet.legend) ? { registered: false } : {})
       }

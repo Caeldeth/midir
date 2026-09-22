@@ -287,11 +287,11 @@ export function createWalker(options: WalkerOptions): Walker {
   const noticeFor = options.noticeFor ?? ((): NoticeState | null => null)
   const passportFor = options.passportFor ?? ((): Passport | null => null)
   // The gated maps: the seed, plus what a gate's own refusal taught this
-  // process. The towns whose gates refused each character are kept per
+  // process. The maps whose gates refused each character are kept per
   // connection, so a stale citizenship byte never sends it back to a gate
   // that said no.
   const gates = new Map<number, Gate>((options.gates ?? []).map((g) => [g.mapId, g]))
-  const refusedTowns = new Map<string, Set<string>>()
+  const refusedMaps = new Map<string, Set<number>>()
   const now = options.now ?? Date.now
   const sleep = options.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)))
 
@@ -480,7 +480,7 @@ export function createWalker(options: WalkerOptions): Walker {
   ): (mapId: number) => { gate: Gate; text: string } | null {
     const passport: Passport = {
       ...(passportFor(connectionId) ?? {}),
-      refusedTowns: refusedTowns.get(connectionId)
+      refusedMaps: refusedMaps.get(connectionId)
     }
     return (mapId) => {
       const gate = gates.get(mapId)
@@ -522,10 +522,10 @@ export function createWalker(options: WalkerOptions): Walker {
   /**
    * A gate's own refusal after a warp that did not fire (WP32): "Only a
    * <Town> citizen may enter here", newer than the step. The map is learned
-   * as that town's gate for the rest of the process, the town as one that
-   * refused this character for the rest of the session, and the walk stops
-   * with the gate named. The register line that may follow is the record's
-   * business (`model/character.ts`).
+   * as that town's gate for the rest of the process, and as one that refused
+   * this character for the rest of the session, and the walk stops with the
+   * gate named. The register line that may follow is the record's business
+   * (`model/character.ts`).
    */
   function gateRefusal(run: Run, sinceMs: number, mapId: number): boolean {
     const notice = noticeFor(run.connectionId)
@@ -545,9 +545,9 @@ export function createWalker(options: WalkerOptions): Walker {
         `Learned map ${mapId} (${gate.name ?? 'unnamed'}) as ${refusal.town}'s gate, from its refusal.`
       )
     }
-    const towns = refusedTowns.get(run.connectionId) ?? new Set<string>()
-    towns.add(refusal.town)
-    refusedTowns.set(run.connectionId, towns)
+    const maps = refusedMaps.get(run.connectionId) ?? new Set<number>()
+    maps.add(mapId)
+    refusedMaps.set(run.connectionId, maps)
     run.stopDetail = `${gate.name ?? `map ${mapId}`} refused the character: "${notice.packet.text.trim()}"`
     log.warn('walker', `${run.stopDetail}. Stopping.`)
     return true

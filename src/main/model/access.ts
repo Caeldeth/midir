@@ -23,16 +23,22 @@ import type { LegendMark } from '../../shared/character'
  *
  * ## Citizenship
  *
- * The `nation` byte of SSelfLook 0x39, on the record as `appearance.nation`,
- * is the citizenship: 4 Mileth, 6 Rucesion (the Nation table in
- * darkages-741-re; 0 None, 1 Suomi, 3 Loures, 5 Tagor, 7 Noes, 9 Piet, 11
- * Abel, 12 Undine). Every recording agrees with its legend where the legend
- * speaks, and the byte is right where the legend is stale: the legend mark
- * "<Town> Citizen by oath of <Name> - <Date>" is given only by Mileth and
- * Rucesion, Medenia does not remove the marks of other towns, and Sylphid
- * (Medenian, Sabrael) is nation 7 with an old Rucesion mark. So the byte is
- * the fact and the legend is not read for this. Value 0 is "None" and also
- * the empty record's default, so 0 bars nothing.
+ * The `nation` byte of SSelfLook 0x39, on the record as `citizenship`, is
+ * the citizenship: 4 Mileth, 6 Rucesion, 3 Loures (the Nation table in
+ * darkages-741-re; 0 None, 1 Suomi, 5 Tagor, 7 Noes, 9 Piet, 11 Abel, 12
+ * Undine). Every recording agrees with its legend where the legend speaks,
+ * and the byte is right where the legend is stale: the legend mark "<Town>
+ * Citizen by oath of <Name> - <Date>" is given only by Mileth and Rucesion,
+ * Medenia does not remove the marks of other towns, and Sylphid (Medenian,
+ * Sabrael) is nation 7 with an old Rucesion mark. So the byte is the fact
+ * and the legend is not read for this. Value 0 is "None", a citizenship of
+ * nowhere, and it is a fact once SelfLook has been seen: it bars both
+ * Commons, and clout at Mileth and Rucesion (Sabrael). Only "not yet seen"
+ * bars nothing.
+ *
+ * Who a gate admits (Sabrael, 2026-09-21): the Mileth Commons admits Mileth
+ * and Loures; the Rucesion Commons admits Rucesion and Loures; no other map
+ * is gated on citizenship.
  *
  * ## The gate's own word
  *

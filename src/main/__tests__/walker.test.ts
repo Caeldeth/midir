@@ -911,12 +911,12 @@ describe('walker and a popup mid-walk (WP34)', () => {
 
 describe('walker and a gated map (WP32)', () => {
   // Town(1) -> Field(2) -> Cave(3): Field is the Mileth Commons of this world.
-  const FIELD_GATE: Gate = { mapId: 2, town: 'Mileth', name: 'Field' }
+  const FIELD_GATE: Gate = { mapId: 2, town: 'Mileth', admits: ['Mileth', 'Loures'], name: 'Field' }
 
   it('stops an unregistered character before it moves, and says which gate', async () => {
     // Acceptance criterion 1.
     const world = lineWorld()
-    world.passport = { registered: false, nation: 4 }
+    world.passport = { registered: false, citizenship: 4 }
     const { walker } = harness(world, lineGraph(), [FIELD_GATE])
     const outcome = await walker.go({ connectionId: CID, destination: 'Cave' })
     expect(outcome).toEqual({ kind: 'stopped', reason: 'gated' })
@@ -925,17 +925,39 @@ describe('walker and a gated map (WP32)', () => {
 
   it('stops a citizen of another town the same way', async () => {
     const world = lineWorld()
-    world.passport = { registered: true, nation: 6 }
+    world.passport = { registered: true, citizenship: 6 }
     const { walker } = harness(world, lineGraph(), [FIELD_GATE])
     const outcome = await walker.go({ connectionId: CID, destination: 'Cave' })
     expect(outcome).toEqual({ kind: 'stopped', reason: 'gated' })
     expect(world.presses).toBe(0)
   })
 
+  it('walks a Loures citizen through, and stops a citizen of nowhere', async () => {
+    // Each Commons admits its own town and Loures; nation 0 is a known fact
+    // once SelfLook has been seen, and bars.
+    const loures = lineWorld()
+    loures.passport = { registered: true, citizenship: 3 }
+    expect(
+      await harness(loures, lineGraph(), [FIELD_GATE]).walker.go({
+        connectionId: CID,
+        destination: 'Cave'
+      })
+    ).toEqual({ kind: 'arrived' })
+    const nowhere = lineWorld()
+    nowhere.passport = { registered: true, citizenship: 0 }
+    expect(
+      await harness(nowhere, lineGraph(), [FIELD_GATE]).walker.go({
+        connectionId: CID,
+        destination: 'Cave'
+      })
+    ).toEqual({ kind: 'stopped', reason: 'gated' })
+    expect(nowhere.presses).toBe(0)
+  })
+
   it('walks a registered citizen of the gate town through', async () => {
     // Acceptance criterion 2.
     const world = lineWorld()
-    world.passport = { registered: true, nation: 4 }
+    world.passport = { registered: true, citizenship: 4 }
     const { walker } = harness(world, lineGraph(), [FIELD_GATE])
     const outcome = await walker.go({ connectionId: CID, destination: 'Cave' })
     expect(outcome).toEqual({ kind: 'arrived' })
@@ -962,7 +984,7 @@ describe('walker and a gated map (WP32)', () => {
     // seed here; the world's gate refuses at the warp.
     const world = lineWorld()
     world.gatedMaps.set(2, 'Mileth')
-    world.passport = { registered: true, nation: 6 }
+    world.passport = { registered: true, citizenship: 6 }
     const { walker } = harness(world, lineGraph())
     const first = await walker.go({ connectionId: CID, destination: 'Cave' })
     expect(first).toEqual({ kind: 'stopped', reason: 'gated' })
@@ -979,7 +1001,7 @@ describe('walker and a gated map (WP32)', () => {
     // A stale citizenship byte: the gate's word wins for the session.
     const world = lineWorld()
     world.gatedMaps.set(2, 'Mileth')
-    world.passport = { registered: true, nation: 4 }
+    world.passport = { registered: true, citizenship: 4 }
     const { walker } = harness(world, lineGraph())
     expect(await walker.go({ connectionId: CID, destination: 'Cave' })).toEqual({
       kind: 'stopped',

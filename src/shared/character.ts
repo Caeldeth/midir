@@ -110,6 +110,14 @@ export interface CharacterRecord {
    */
   registered?: boolean
   /**
+   * The Nation byte of SelfLook, which is the citizenship: 4 Mileth, 6
+   * Rucesion, 3 Loures, 0 none. `undefined` until SelfLook has been seen.
+   * `appearance.nation` holds the same byte but defaults to 0, and 0 is a
+   * fact here (no citizenship bars the Commons and clout), so this field
+   * says whether the byte has been seen at all. See model/access.ts.
+   */
+  citizenship?: number
+  /**
    * What the bank held the last time the player opened it.
    *
    * The retail protocol has no bank opcode, so this fills only when the player

@@ -282,7 +282,7 @@ const walker = createWalker({
     const record = captureService.recordFor(connectionId)
     return record === null
       ? null
-      : { registered: record.registered, nation: record.appearance.nation }
+      : { registered: record.registered, citizenship: record.citizenship }
   },
   gates: seededGates(),
   // The errands' stand tiles, offered as `Place @ x,y` beside the map names.

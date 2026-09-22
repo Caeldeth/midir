@@ -491,8 +491,11 @@ describe('registration (WP32)', () => {
     expect(run([settings], { from: before }).record).toBe(before.record)
   })
 
-  it('keeps the citizenship byte from SelfLook on the record', () => {
-    expect(identified().record.appearance.nation).toBe(4)
+  it('keeps the citizenship byte from SelfLook on the record, unknown until then', () => {
+    expect(run([fullStatus], { keyName: 'Gabrael' }).record.citizenship).toBeUndefined()
+    expect(identified().record.citizenship).toBe(4)
+    const nowhere: DecodedPacket = { ...selfLook, kind: 'selfLook', nation: 0 }
+    expect(run([fullStatus, nowhere], { keyName: 'Gabrael' }).record.citizenship).toBe(0)
   })
 })
 
