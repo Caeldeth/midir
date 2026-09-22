@@ -1,9 +1,12 @@
 # WP35 — right-click walking
 
 **Size:** M. **Depends on:** WP15 (the walker), WP13 (the action layer), WP33 (the click gesture).
-Read `00-overview.md` first. **IN PROGRESS.** **Card:** `HTOO-468`.
+Read `00-overview.md` first. **COMPLETE 2026-09-21** (PR #22). **Card:** `HTOO-468`.
 
-**Built 2026-09-21; the live check is what is left.** The walker hands a stretch of up to eight
+**Live check passed 2026-09-21:** Sabrael walked with the setting on and called the right-click
+"excellent". The projection at WP17's centre held, so no per-layout table was needed.
+
+**Built 2026-09-21.** The walker hands a stretch of up to eight
 tiles to the client with one right-click (`clickStretch` in `walker.ts`), confirms each tile off
 the wire, and re-plans from wherever the client stops. The action layer's `rightClick` posts one
 press and waits out the client's double-click window before a second, so the double is impossible
@@ -183,4 +186,5 @@ the character then stops on, so a drift or the other layout shows up in the log.
    tile the projection names for the click, and the tile the character stopped on. They agree when
    the projection is right. Then turn the setting on and walk one route across Rucesion, and read
    the walker's lines: each right-click names its aim and its game coordinates, each stretch says
-   how many tiles it walked, and each right press states the gap since the last.
+   how many tiles it walked, and each right press states the gap since the last. **Passed**, live,
+   2026-09-21.
