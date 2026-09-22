@@ -2,6 +2,8 @@ import React from 'react'
 import { Box, Button, Link, Paper, Stack, Typography } from '@mui/material'
 import BugReportOutlinedIcon from '@mui/icons-material/BugReportOutlined'
 import FolderOpenOutlinedIcon from '@mui/icons-material/FolderOpenOutlined'
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined'
+import AboutDialog from '@renderer/components/AboutDialog'
 import appIcon from '@renderer/assets/midir.webp'
 import { useReportStore } from '@renderer/store/reportStore'
 
@@ -22,6 +24,8 @@ const headingSx = { color: 'text.button', fontWeight: 'bold' } as const
 
 function AboutCard(): React.JSX.Element {
   const [version, setVersion] = React.useState('')
+  // About Midir has exactly one opener, so its flag is local state.
+  const [aboutOpen, setAboutOpen] = React.useState(false)
   const openReport = useReportStore((s) => s.setOpen)
 
   React.useEffect(() => {
@@ -76,6 +80,14 @@ function AboutCard(): React.JSX.Element {
       <Stack direction="row" sx={{ flexWrap: 'wrap', gap: 1.5 }}>
         <Button
           variant="outlined"
+          startIcon={<InfoOutlinedIcon />}
+          onClick={() => setAboutOpen(true)}
+          data-testid="about-midir"
+        >
+          About Midir…
+        </Button>
+        <Button
+          variant="outlined"
           startIcon={<BugReportOutlinedIcon />}
           onClick={() => openReport(true)}
           data-testid="about-report"
@@ -90,6 +102,8 @@ function AboutCard(): React.JSX.Element {
           Reveal recordings folder
         </Button>
       </Stack>
+
+      <AboutDialog open={aboutOpen} onClose={() => setAboutOpen(false)} />
 
       <Box sx={{ flexGrow: 1 }} />
       <Typography variant="caption" sx={{ color: 'text.secondary', mt: 2 }}>

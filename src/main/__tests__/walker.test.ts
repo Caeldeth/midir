@@ -1664,3 +1664,28 @@ describe('walker by right-click (WP35)', () => {
     expect(beside.presses).toBe(0)
   })
 })
+
+describe('destinations that no route reaches (WP39)', () => {
+  it('marks each place from where the character stands, and marks none without one', () => {
+    const maps = new Map<number, FakeMap>([[1, fakeMap(['..........'])]])
+    const world = new World(maps, { mapId: 1, x: 0, y: 0 })
+    // Room and Beyond connect; Island stands alone.
+    const graph: RouteNode[] = [
+      { mapId: 1, name: 'Room', exits: [{ toMapId: 2, x: 9, y: 0 }] },
+      { mapId: 2, name: 'Beyond', exits: [{ toMapId: 1, x: 0, y: 0 }] },
+      { mapId: 3, name: 'Island', exits: [] }
+    ]
+    const { walker } = harness(world, graph)
+    const marked = walker.destinations(CID)
+    expect(marked.map((d) => [d.name, d.reachable])).toEqual([
+      ['Beyond', true],
+      ['Island', false],
+      ['Room', true]
+    ])
+    // A window with no character has no map to ask from, so nothing is marked.
+    expect(walker.destinations('no-such-connection').every((d) => d.reachable === undefined)).toBe(
+      true
+    )
+    expect(walker.destinations().every((d) => d.reachable === undefined)).toBe(true)
+  })
+})

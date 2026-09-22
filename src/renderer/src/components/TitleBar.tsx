@@ -1,14 +1,12 @@
 import React from 'react'
 import { Toolbar, IconButton, Tooltip, Box, Typography } from '@mui/material'
-import { GiBugNet, GiContract, GiExpand, GiDeathSkull } from 'react-icons/gi'
-import BugReportOutlined from '@mui/icons-material/BugReportOutlined'
+import { GiContract, GiExpand, GiDeathSkull } from 'react-icons/gi'
 import RemoveIcon from '@mui/icons-material/Remove'
 import CropSquareIcon from '@mui/icons-material/CropSquare'
 import CloseIcon from '@mui/icons-material/Close'
 import { PLAIN_CHROME_THEMES } from '@shared/types'
 import CaptureIndicator from '@renderer/components/CaptureIndicator'
 import { useSettingsStore } from '@renderer/store/settingsStore'
-import { useReportStore } from '@renderer/store/reportStore'
 // A 128px webp, not the icon master: this draws at 24px, and vite hashes it
 // into the bundle. Regenerate with:
 //   magick build/icon.png -resize 128x128 -strip -quality 90 //     src/renderer/src/assets/midir.webp
@@ -68,7 +66,6 @@ function TitleBar(): React.JSX.Element {
   const plain = PLAIN_CHROME_THEMES.includes(themeName)
 
   const winBtnSx = plain ? plainBtnSx : gameBtnSx
-  const openReport = useReportStore((s) => s.setOpen)
   const closeBtnSx = {
     ...winBtnSx,
     '&:hover': plain
@@ -126,22 +123,6 @@ function TitleBar(): React.JSX.Element {
       <Box sx={{ flexGrow: 1 }} />
 
       <CaptureIndicator />
-
-      {/* Report an issue: the house module's bug button, beside the window
-          controls because it acts on Midir itself and not on a view. `GiBugNet`
-          is the house glyph (taliesin, creidhne, epona, balor); the corporate
-          themes get the flat MUI bug, as every other icon in this bar is paired. */}
-      <Tooltip title="Report an issue">
-        <IconButton
-          size="small"
-          aria-label="Report an issue"
-          sx={winBtnSx}
-          onClick={() => openReport(true)}
-          data-testid="report-issue"
-        >
-          {plain ? <BugReportOutlined /> : <GiBugNet />}
-        </IconButton>
-      </Tooltip>
 
       <Tooltip title="Minimize">
         <IconButton

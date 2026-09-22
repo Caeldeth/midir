@@ -276,7 +276,7 @@ export interface MidirApi {
   /** The Walker: name a place, and the character walks there across maps. */
   walker: {
     /** Every place the walker can be sent to, for the destination picker. */
-    destinations: () => Promise<WalkerDestination[]>
+    destinations: (connectionId?: string) => Promise<WalkerDestination[]>
     /** Walk the bound character to a place. Resolves with how the walk ended. */
     go: (request: WalkRequest) => Promise<WalkOutcome>
     /** Stop the Walker on one connection. */

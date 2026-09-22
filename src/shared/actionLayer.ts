@@ -178,6 +178,12 @@ export interface WalkerDestination {
   name: string
   /** The game's own name, from the wire, when it has given one (WP29). */
   gameName?: string
+  /**
+   * Whether a walk from where the character stands now reaches this map
+   * (WP39). Absent when no character is logged in on the window, because
+   * reachability is from a map and there is no map to ask from.
+   */
+  reachable?: boolean
 }
 
 /** A message worth showing the user for each walk-stop reason. */

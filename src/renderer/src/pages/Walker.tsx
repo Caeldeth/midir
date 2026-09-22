@@ -39,7 +39,6 @@ import React, { useEffect } from 'react'
 
 const cardSx = { p: 3, display: 'flex', flexDirection: 'column' } as const
 const headingSx = { color: 'text.button', fontWeight: 'bold' } as const
-const descriptionSx = { color: 'text.secondary', mb: 2 } as const
 
 function Walker(): React.JSX.Element {
   const windows = useWalkerStore((s) => s.windows)
@@ -101,8 +100,19 @@ function Walker(): React.JSX.Element {
   const endEmpty = endX.trim() === '' && endY.trim() === ''
   const endValid = endEmpty || endTile !== undefined
 
+  // The place the text names, when it names one the picker lists. A map id or
+  // a name the graph resolves by itself is not matched here, and is left to
+  // main: this is for the warning, not for the walk.
+  const named = destinations.find(
+    (d) => (d.gameName ?? d.name).toLowerCase() === destination.trim().toLowerCase()
+  )
+  // Midir knows the place and knows no way to walk there from where the
+  // character stands. `reachable` is absent until a character is logged in.
+  const unreachable = named?.reachable === false
+  const noWayText = `Midir knows no way to walk there from where the character stands. Walk a warp it has not seen yet, or add one on the Map tab.`
+
   const onGo = (): void => {
-    if (selectedValue === '' || destination.trim() === '' || !endValid) return
+    if (selectedValue === '' || destination.trim() === '' || !endValid || unreachable) return
     go(selectedValue, destination.trim(), endTile)
   }
 
@@ -136,13 +146,6 @@ function Walker(): React.JSX.Element {
         <Typography variant="h6" sx={headingSx}>
           Walker
         </Typography>
-        <Typography variant="body2" sx={descriptionSx}>
-          Name a place, and the character walks there, across maps, by the route the world allows.
-          Midir posts the arrow keys to the window you pick and reads each step off the wire, so it
-          re-plans when a step does not land and stops when something else moves the character. It
-          sends no packet and reads no memory. A character must be logged in on the window.
-        </Typography>
-
         {stopped ? (
           <Alert
             severity="warning"
@@ -198,17 +201,43 @@ function Walker(): React.JSX.Element {
             value={destination}
             onInputChange={(_event, value) => setDestination(value)}
             disabled={isRunning}
+            // A place with no route is shown and dimmed, never hidden: the
+            // player is told why it cannot be walked to, and the Map tab is
+            // where a missing warp is added (WP39).
+            getOptionDisabled={(option) =>
+              destinations.find((d) => (d.gameName ?? d.name) === option)?.reachable === false
+            }
+            renderOption={(props, option) => {
+              const place = destinations.find((d) => (d.gameName ?? d.name) === option)
+              const { key, ...rest } = props as typeof props & { key: string }
+              return (
+                <Box component="li" key={key} {...rest}>
+                  <Box sx={{ minWidth: 0 }}>
+                    <Typography variant="body2" noWrap>
+                      {option}
+                    </Typography>
+                    {place?.reachable === false ? (
+                      <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                        No route Midir knows
+                      </Typography>
+                    ) : null}
+                  </Box>
+                </Box>
+              )
+            }}
             renderInput={(params) => (
               <TextField
                 {...params}
                 size="small"
                 label="Destination"
                 placeholder="A place name or map id"
-                error={!endValid}
+                error={!endValid || unreachable}
                 helperText={
-                  endValid
-                    ? 'Pick a known place, or type a map name or number. End x and y are optional: a tile to stand on.'
-                    : 'Give both End x and End y, or neither.'
+                  !endValid
+                    ? 'Give both End x and End y, or neither.'
+                    : unreachable
+                      ? noWayText
+                      : 'Pick a known place, or type a map name or number. End x and y are optional: a tile to stand on.'
                 }
               />
             )}
@@ -277,14 +306,18 @@ function Walker(): React.JSX.Element {
               Stop
             </Button>
           ) : (
-            <Button
-              variant="contained"
-              disabled={selectedValue === '' || destination.trim() === ''}
-              onClick={onGo}
-              data-testid="walker-go"
-            >
-              Go
-            </Button>
+            <Tooltip title={unreachable ? noWayText : ''}>
+              <span>
+                <Button
+                  variant="contained"
+                  disabled={selectedValue === '' || destination.trim() === '' || unreachable}
+                  onClick={onGo}
+                  data-testid="walker-go"
+                >
+                  Go
+                </Button>
+              </span>
+            </Tooltip>
           )}
 
           <InfoTip

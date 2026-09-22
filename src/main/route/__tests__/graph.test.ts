@@ -139,6 +139,27 @@ describe('planRoute', () => {
   })
 })
 
+describe('reachableFrom (WP39)', () => {
+  const graph = createRouteGraph(NODES)
+
+  it('names every map a walk reaches, and leaves out the ones it does not', () => {
+    // Island (5) stands alone; the rest connect through Field.
+    expect([...graph.reachableFrom(1)].sort((a, b) => a - b)).toEqual([1, 2, 3, 4])
+    expect(graph.reachableFrom(5)).toEqual(new Set([5]))
+    expect(graph.reachableFrom(99)).toEqual(new Set())
+    // A map the caller shuts takes everything behind it.
+    expect([...graph.reachableFrom(1, { passable: (mapId) => mapId !== 2 })]).toEqual([1])
+  })
+
+  it('never crosses a warp that needs an NPC dialog', () => {
+    const ship = createRouteGraph([
+      { mapId: 1, name: 'Port', exits: [{ toMapId: 2, x: 0, y: 0, via: { kind: 'dialog' } }] },
+      { mapId: 2, name: 'Island', exits: [] }
+    ])
+    expect(ship.reachableFrom(1)).toEqual(new Set([1]))
+  })
+})
+
 describe('the imported world graph', () => {
   it('knows Mileth, Abel, and the Mileth Bank', () => {
     expect(worldGraph.node(500)?.name).toBe('Mileth Altar')

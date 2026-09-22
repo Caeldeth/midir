@@ -144,6 +144,12 @@ export interface RouteGraph {
    * search never uses it.
    */
   planRoute(fromMapId: number, toMapId: number, options?: PlanOptions): RoutePlan | null
+  /**
+   * Every map a walk can reach from this one, including the map itself, or an
+   * empty set when the graph does not know it. The Walker asks so it can say
+   * which destinations it has no way to (WP39).
+   */
+  reachableFrom(fromMapId: number, options?: PlanOptions): Set<number>
 }
 
 /** What a plan may leave out. */
@@ -203,6 +209,25 @@ export function createRouteGraph(nodes: RouteNode[]): RouteGraph {
     return partial.length === 1 ? partial[0].mapId : null
   }
 
+  function reachableFrom(fromMapId: number, options?: PlanOptions): Set<number> {
+    const reached = new Set<number>()
+    if (!byId.has(fromMapId)) return reached
+    const passable = options?.passable ?? ((): boolean => true)
+    reached.add(fromMapId)
+    const queue: number[] = [fromMapId]
+    while (queue.length > 0) {
+      const current = queue.shift()!
+      for (const exit of byId.get(current)!.exits) {
+        if (!walkable(exit)) continue
+        if (reached.has(exit.toMapId) || !byId.has(exit.toMapId)) continue
+        if (!passable(exit.toMapId)) continue
+        reached.add(exit.toMapId)
+        queue.push(exit.toMapId)
+      }
+    }
+    return reached
+  }
+
   function planRoute(fromMapId: number, toMapId: number, options?: PlanOptions): RoutePlan | null {
     if (!byId.has(fromMapId) || !byId.has(toMapId)) return null
     if (fromMapId === toMapId) return { fromMapId, toMapId, legs: [] }
@@ -255,7 +280,14 @@ export function createRouteGraph(nodes: RouteNode[]): RouteGraph {
 
   const sortedNodes = [...nodes].sort((a, b) => a.mapId - b.mapId)
 
-  return { node, nodes: () => sortedNodes, destinations, resolveDestination, planRoute }
+  return {
+    node,
+    nodes: () => sortedNodes,
+    destinations,
+    resolveDestination,
+    planRoute,
+    reachableFrom
+  }
 }
 
 /** The imported nodes, as WorldMap.dat and the overrides give them. */

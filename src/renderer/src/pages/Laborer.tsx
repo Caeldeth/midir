@@ -31,7 +31,6 @@ import React, { useEffect } from 'react'
 
 const cardSx = { p: 3, display: 'flex', flexDirection: 'column' } as const
 const headingSx = { color: 'text.button', fontWeight: 'bold' } as const
-const descriptionSx = { color: 'text.secondary', mb: 2 } as const
 
 function Laborer(): React.JSX.Element {
   const windows = useLaborerStore((s) => s.windows)
@@ -95,14 +94,6 @@ function Laborer(): React.JSX.Element {
         <Typography variant="h6" sx={headingSx}>
           Errands
         </Typography>
-        <Typography variant="body2" sx={descriptionSx}>
-          Choose an errand, and the character walks to the NPC and works the dialog. Midir reads the
-          conversation off the wire and posts the keys to choose each option by what the option
-          says, not by where it is on the screen. It stops on any dialog it does not expect, and it
-          never works a login or password dialog. It sends no packet and reads no memory. A
-          character must be logged in on the window.
-        </Typography>
-
         {stopped ? (
           <Alert
             severity="warning"
@@ -158,11 +149,7 @@ function Laborer(): React.JSX.Element {
           value={errandValue}
           onChange={(event) => setErrand(event.target.value)}
           disabled={isRunning}
-          helperText={
-            errands.length === 0
-              ? 'No errands are set up yet.'
-              : 'Each errand names one NPC and the steps to work.'
-          }
+          helperText={errands.length === 0 ? 'No errands are set up yet.' : undefined}
           sx={{ mb: 2 }}
         >
           {errands.map((e) => (

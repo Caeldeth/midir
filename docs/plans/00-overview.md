@@ -236,6 +236,7 @@ trigger is in each doc's header.
 | WP36 | L    | The board archive               | HTOO-395 | COMPLETE 2026-09-22 — `complete/36-board-archive.md`                 |
 | WP37 | M    | The character doll              | HTOO-84  | COMPLETE 2026-09-22 — `complete/37-character-doll.md`                |
 | WP38 | S    | Seed the blank map names        | HTOO-471 | COMPLETE 2026-09-22 — `complete/38-map-name-seed.md`                 |
+| WP39 | S    | UI cleanup; no-route clue       | HTOO-472 | COMPLETE 2026-09-22 — `complete/39-ui-cleanup.md`                    |
 
 `00a-backlog.md` now holds only what is not a WP: the non-goals, the debts owed to another repo, and
 the one conditional rule.
