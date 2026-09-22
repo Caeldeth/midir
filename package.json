@@ -60,7 +60,7 @@
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^5.2.0",
-    "@vitest/coverage-v8": "^4.1.5",
+    "@vitest/coverage-v8": "^4.1.11",
     "electron": "^41.1.0",
     "electron-builder": "^26.8.1",
     "electron-vite": "^5.0.0",
@@ -73,6 +73,12 @@
     "react-dom": "^19.0.0",
     "typescript": "^5.7.0",
     "vite": "^7.3.2",
-    "vitest": "^4.1.5"
+    "vitest": "^4.1.11"
+  },
+  "//allowScripts": "npm 12 blocks every dependency install script unless it is listed here, and it blocks SILENTLY on 'npm install' — a warning at the end of the output, exit 0, node_modules populated. electron's postinstall is what downloads the runtime binary into node_modules/electron/dist, so a checkout without this block installs clean and then cannot launch, package, or run e2e. esbuild's postinstall selects its platform binary the same way, and electron-winstaller's picks the 7z build. Nothing else in the tree has an install script; 'npm install-scripts ls' reports anything new.",
+  "allowScripts": {
+    "electron": true,
+    "esbuild": true,
+    "electron-winstaller": true
   }
 }
