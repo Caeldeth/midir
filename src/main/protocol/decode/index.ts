@@ -23,7 +23,7 @@ import {
   type TransferServer,
   type VersionCheck
 } from './handshake'
-import { decodeScreenMenu, type BankContents, type NpcMenu } from './dialog'
+import { decodeScreenMenu, type BankContents, type NpcMenu, type PlayerItemMenu } from './dialog'
 import { decodeFieldMap, decodeFieldMapClick, type FieldMap, type FieldMapClick } from './fieldMap'
 import { decodeSystemMessage, type SystemMessage } from './message'
 import {
@@ -109,6 +109,7 @@ export type DecodedPacket =
   | DrawHumanObjects
   | SelfLook
   | BankContents
+  | PlayerItemMenu
   | NpcMenu
   | PursuitMessage
   | FieldMap

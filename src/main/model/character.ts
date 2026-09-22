@@ -7,6 +7,7 @@ import { FIRST_EQUIPMENT_SLOT, INVENTORY_SLOT_COUNT, LAST_EQUIPMENT_SLOT } from 
 import { emptyCharacter, type CharacterRecord, type ItemRef } from '../../shared/character'
 import { hasUnregisteredMark, registrationFromNotice } from './access'
 import { applyGold, type PendingGold } from './bankGold'
+import { applyBankMove, type PendingMove } from './bankMoves'
 import { SYSTEM_NOTICE } from '../protocol/decode/message'
 
 /**
@@ -63,6 +64,8 @@ export interface CharacterSession {
   pendingBank?: PendingBank
   /** A banker's money prompt answered, waiting for the server's word on the gold. */
   pendingGold?: PendingGold
+  /** A deposit or withdraw pick made, waiting for the inventory change that confirms it (WP22). */
+  pendingMove?: PendingMove
   record: CharacterRecord
 }
 
@@ -101,14 +104,36 @@ export function reduce(state: CharacterSession, input: ReducerInput): CharacterS
   const named = applyName(state, input)
   const wait = applyBankWait(named, input)
   const gold = applyGold(named.pendingGold, wait.record, input.packet, input.timestampMs)
-  const record = applyPacket(gold.record, input, named)
-  const session = withPendingGold(withPendingBank(named, wait.pendingBank), gold.pending)
+  // The move reads the inventory as it stood before this packet, so it runs
+  // before applyPacket takes the deposited slot away.
+  const move =
+    input.sawLoss === true
+      ? { pending: undefined, record: gold.record }
+      : applyBankMove(named.pendingMove, gold.record, input.packet, input.timestampMs)
+  const record = applyPacket(move.record, input, named)
+  const session = withPendingMove(
+    withPendingGold(withPendingBank(named, wait.pendingBank), gold.pending),
+    move.pending
+  )
   if (record === named.record) return session
   return {
     ...session,
     hasCharacterData: true,
     record: { ...record, lastSeenMs: input.timestampMs }
   }
+}
+
+function withPendingMove(
+  state: CharacterSession,
+  pending: PendingMove | undefined
+): CharacterSession {
+  if (pending === state.pendingMove) return state
+  if (pending === undefined) {
+    const next = { ...state }
+    delete next.pendingMove
+    return next
+  }
+  return { ...state, pendingMove: pending }
 }
 
 function withPendingGold(
