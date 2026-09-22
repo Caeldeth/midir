@@ -1,5 +1,15 @@
 import { electronApp, is, optimizer } from '@electron-toolkit/utils'
-import { app, BrowserWindow, dialog, globalShortcut, ipcMain, protocol, shell } from 'electron'
+import {
+  app,
+  BrowserWindow,
+  clipboard,
+  dialog,
+  globalShortcut,
+  ipcMain,
+  protocol,
+  session,
+  shell
+} from 'electron'
 import { copyFileSync, existsSync, mkdirSync } from 'fs'
 import { join } from 'path'
 import type { CaptureAvailability } from '../shared/types'
@@ -35,7 +45,18 @@ import {
 import { createLogger, messageOf } from './log'
 import { pruneRecordings } from './recordings'
 import { createSettingsManager } from './settingsManager'
-import { createSplashWindow } from './splash'
+import { createSplashWindow, type SplashController } from './splash'
+import { installGlobalErrorHandlers } from './errorHandlers'
+import { formatErrorLine } from '../shared/diagnostics'
+import { REMOTE_SESSION_CSS, shouldDisableHardwareAcceleration } from './remoteSession'
+import {
+  cspForEnvironment,
+  guardIpc,
+  hardenWindow,
+  initWindowSecurity,
+  installContentSecurityPolicy,
+  registerTrustedWindow
+} from './windowSecurity'
 import { createCharacterStore } from './store/characterStore'
 import { createBoardStore, readPostIds } from './store/boardStore'
 
@@ -48,6 +69,36 @@ const localAppData =
     : app.getPath('appData')
 const settingsPath = join(localAppData, 'Erisco', 'Midir')
 app.setPath('userData', settingsPath)
+
+// A Remote Desktop session has no GPU, so Chromium rasterises in software while
+// still paying for GPU compositing and RDP re-encodes every repaint, and a
+// frameless window drags through Chromium's app-region hit testing, which is
+// the expensive path under exactly those conditions. HTOO-325;
+// `remoteSession.ts` carries the reasoning, the MIDIR_DISABLE_GPU override,
+// and what this deliberately does not detect (a reconnected console session).
+//
+// It sits HERE, beside the `setPath` above, because both must run before the
+// `ready` event and this one fails SILENTLY afterwards rather than throwing.
+// That ordering is the one thing about this fix no unit test could otherwise
+// see, so `bootOrder.test.ts` reads this file and asserts the position. Read
+// ONCE and kept, because `createWindow` needs the same answer later.
+const isRemoteSession = shouldDisableHardwareAcceleration(process.platform, process.env)
+if (isRemoteSession) app.disableHardwareAcceleration()
+
+// Single instance (HTOO-351, WP28). Two copies of Midir write the same
+// characters.json, boards.json, settings, and recordings under userData, and
+// the crash-safe tmp-then-rename write coordinates one process, not two: the
+// second to flush wins and the first's record is gone. So the lock guards the
+// store, not only the taskbar, and a second launch surfaces the window we
+// already have. The lock is keyed on the userData dir, so it is requested
+// after the setPath above, and after the GPU call, which cannot move down.
+//
+// `app.exit(0)`, not `app.quit()`: `quit()` is async, so a losing instance
+// would run every module-scope side effect below (the roaming migration, the
+// logger's rotation of the session logs, the stores) against the owner's files
+// before the event loop tore it down. `exit()` stops here.
+const gotSingleInstanceLock = app.requestSingleInstanceLock()
+if (!gotSingleInstanceLock) app.exit(0)
 
 // One-time roaming → local settings migration (Windows). Best-effort: if a
 // returning user has settings under %APPDATA%/Erisco/Midir, carry them over.
@@ -69,6 +120,16 @@ function migrateSettingsFromRoaming(): void {
 }
 migrateSettingsFromRoaming()
 
+// The renderer entry point, named once so `loadFile` and the trusted-location
+// allowlist cannot drift apart. A mismatch here is a lockout, not a weakness:
+// every IPC would be rejected and the app would boot to a dead window.
+const PROD_INDEX_HTML = join(__dirname, '../renderer/index.html')
+
+// Must run before any window loads AND before registerHandlers below, because
+// the guard fails closed: with no trusted locations recorded, every IPC is
+// rejected.
+initWindowSecurity(process.env['ELECTRON_RENDERER_URL'], PROD_INDEX_HTML)
+
 // The item-icon scheme must be declared privileged before the app is ready, so
 // an `<img src="midir-icon://...">` can load it. The handler is installed after
 // the app is ready (see whenReady). Icons are decoration over a complete
@@ -87,8 +148,19 @@ protocol.registerSchemesAsPrivileged([
 // These come before the logger, because the logger pushes each entry to the
 // window and reads `mainWindow` to do it.
 let mainWindow: BrowserWindow | null = null
-let splashWindow: BrowserWindow | null = null
+let splashWindow: SplashController | null = null
 let mainWindowRevealed = false
+
+function focusMainWindow(): void {
+  if (!mainWindow || mainWindow.isDestroyed()) return
+  if (mainWindow.isMinimized()) mainWindow.restore()
+  mainWindow.show()
+  mainWindow.focus()
+}
+
+// Registered before whenReady: the losing instance signals as soon as it fails
+// the lock, which can land before this instance has finished booting.
+app.on('second-instance', focusMainWindow)
 
 /** Send a push to the renderer, if a window is there to receive it. */
 function pushToRenderer(channel: string, value: unknown): void {
@@ -107,6 +179,12 @@ const log = createLogger(logsPath, {
   onEntry: (entry) => pushToRenderer(LOG_APPENDED_CHANNEL, entry)
 })
 log.info('app', 'Midir started.')
+
+// The main process's own error nets, into the same log (the house Report Issue
+// module). An uncaught exception or a rejection nobody caught is the line a bug
+// report most needs, and without this it went to a console a packaged build
+// does not have.
+installGlobalErrorHandlers((entry) => log.error(entry.source ?? 'error', formatErrorLine(entry)))
 
 const settingsManager = createSettingsManager(settingsPath, log)
 
@@ -381,6 +459,12 @@ const ctx: HandlerContext = {
   laborer,
   log,
   logsPath,
+  // The report's two side effects, injected so the handler module stays free of
+  // electron at test time.
+  diagnosticsIo: {
+    writeClipboard: (text) => clipboard.writeText(text),
+    openExternal: (url) => void shell.openExternal(url)
+  },
   recordingsPath,
   onSettingsSaved: (settings) => {
     darkAgesPath = settings.darkAgesPath
@@ -401,12 +485,14 @@ const ctx: HandlerContext = {
 function revealMainWindow(): void {
   if (mainWindowRevealed) return
   mainWindowRevealed = true
-  if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.show()
-    mainWindow.focus()
-  }
-  if (splashWindow && !splashWindow.isDestroyed()) splashWindow.destroy()
+  const splash = splashWindow
   splashWindow = null
+  // The splash owns the timing: it holds itself on screen for its minimum
+  // visible window, then tears down and calls back. Revealing from the callback
+  // keeps the always-on-top splash from hovering over a live main window, and
+  // a packaged boot fast enough to beat the splash's first paint still shows it.
+  if (splash) splash.dismiss(focusMainWindow)
+  else focusMainWindow()
 }
 
 function createWindow(): void {
@@ -418,27 +504,71 @@ function createWindow(): void {
     show: false,
     autoHideMenuBar: true,
     frame: false,
-    icon: join(__dirname, '../../resources/midir.png'),
+    // A 256px PNG32, not the icon master: electron-builder generates the
+    // platform icons from the master at build/icon.png, and nativeImage decodes
+    // this one once. Regenerate with:
+    //   magick build/icon.png -resize 256x256 -strip \
+    //     -define png:compression-level=9 PNG32:resources/midir-icon-256.png
+    icon: join(__dirname, '../../resources/midir-icon-256.png'),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
-      sandbox: false
+      // Stated rather than inherited: these two are the load-bearing
+      // preferences, and an auditor should not need Electron's default table.
+      contextIsolation: true,
+      nodeIntegration: false,
+      // The preload imports `electron` and nothing else at run time (the shared
+      // types are erased), which is what a sandboxed preload's loader can
+      // resolve. HTOO-54.
+      sandbox: true
     }
   })
   mainWindow = win
 
-  win.on('closed', () => {
-    if (mainWindow === win) mainWindow = null
+  // The other half of the remote-session mitigation (HTOO-327). Four of the
+  // six themes put `backdropFilter: blur(2px)` on `MuiPaper.root`, a readback
+  // and convolve on every repaint that is nearly free with a GPU and is the
+  // most expensive thing left once it is gone. `dom-ready` fires before first
+  // paint, so there is no flash of the blurred style; a failure is logged, not
+  // thrown, because a window with one expensive effect still beats no window.
+  if (isRemoteSession) {
+    win.webContents.on('dom-ready', () => {
+      win.webContents.insertCSS(REMOTE_SESSION_CSS).catch((err) => {
+        log.warn('display', `The remote-session CSS was not applied: ${messageOf(err)}`)
+      })
+    })
+  }
+
+  // A window keeps its native background, Electron's default white, while the
+  // renderer's compositor tears down, and that is what paints for the last
+  // frame or two on the way out: the white flash on quit (HTOO-456). Hiding the
+  // window takes it off screen first. `close` runs before the teardown, and the
+  // close proceeds after this returns; Midir has no close guard, so one hide
+  // covers every close path. The capture flush in `before-quit` is not a
+  // guard on this window, and it never asks the renderer anything.
+  win.on('close', () => {
+    win.hide()
   })
 
-  win.webContents.setWindowOpenHandler((details) => {
-    shell.openExternal(details.url)
-    return { action: 'deny' }
+  win.on('closed', () => {
+    if (mainWindow === win) mainWindow = null
+    // The splash is alwaysOnTop + skipTaskbar. If the window it was narrating
+    // dies before the reveal, tear it down rather than stranding a floating
+    // panel the user cannot focus, close, or find in the taskbar.
+    splashWindow?.destroy()
+    splashWindow = null
   })
+
+  // Deny top-level navigation and every child window; hand only allowlisted
+  // external URLs to the OS. Replaces a bare `openExternal(details.url)`, which
+  // forwarded any scheme the renderer asked for (WP28, R-006).
+  hardenWindow(win, { allowExternal: true, openExternal: shell.openExternal })
+  // Only a registered window's IPC is accepted; see guardIpc below.
+  registerTrustedWindow(win)
 
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
     win.loadURL(process.env['ELECTRON_RENDERER_URL'])
   } else {
-    win.loadFile(join(__dirname, '../renderer/index.html')).catch((err) => {
+    win.loadFile(PROD_INDEX_HTML).catch((err) => {
       log.error('window', `Could not load the renderer: ${messageOf(err)}`)
     })
   }
@@ -456,6 +586,14 @@ app.whenReady().then(() => {
   // differ, Windows cannot match the window to the installed shortcut and it
   // shows the generic Electron icon and name in the taskbar.
   electronApp.setAppUserModelId('co.eris.midir')
+
+  // HTOO-467. The CSP on the RESPONSE, not only in the document's own <meta>
+  // tag: a meta policy applies once the parser reaches it, a header applies to
+  // the response itself. The policy string is the tag's, and the tag stays as
+  // defence in depth. It sits here because `session.defaultSession` does not
+  // exist before `ready`, and before the two windows below, because a listener
+  // registered after a document has loaded stamps nothing it needed to.
+  installContentSecurityPolicy(session.defaultSession, cspForEnvironment(process.env.NODE_ENV))
 
   // Install the item-icon handler now the app is ready. The scheme was declared
   // privileged before this (see registerSchemesAsPrivileged above).
@@ -527,4 +665,7 @@ app.on('before-quit', (event) => {
   void captureService.stop().finally(() => app.quit())
 })
 
-registerHandlers({ ipcMain, BrowserWindow, shell, dialog }, ctx)
+// guardIpc, not bare ipcMain: every channel registered here, and every channel
+// added later, rejects an IPC whose sender is not the top frame of a trusted
+// window, by construction rather than by remembering to opt in.
+registerHandlers({ ipcMain: guardIpc(ipcMain), BrowserWindow, shell, dialog }, ctx)

@@ -11,6 +11,7 @@ import {
   TextField,
   Typography
 } from '@mui/material'
+import AboutCard from '@renderer/components/AboutCard'
 import HotkeyField from '@renderer/components/HotkeyField'
 import InfoTip from '@renderer/components/InfoTip'
 import ThemePicker from '@renderer/components/ThemePicker'
@@ -344,6 +345,8 @@ function Settings(): React.JSX.Element {
             {iconStatus()}
           </Typography>
         </Paper>
+
+        <AboutCard />
       </Box>
     </Box>
   )

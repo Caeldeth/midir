@@ -1,0 +1,182 @@
+# Continuous integration, MANUAL ONLY (HTOO-390). Nothing here runs by itself.
+#
+#     gh workflow run ci.yml --ref <branch>     # run it
+#     gh run watch                              # follow it
+#
+# ## Why it is manual
+#
+# GitHub bills Windows runners at 2x and macOS at 10x, and a workflow that ran
+# on every pull request and every push checked each change twice whether or not
+# it could reach the code under test. One day of that across the house
+# (2026-08-12) exhausted the shared Actions allowance mid-merge. The house
+# answer is the pre-push hook: `npm run validate` through `.githooks/pre-push`,
+# armed by the `prepare` script. The jobs below run the same commands, so a CI
+# failure reproduces locally with the identical command.
+#
+# **Mind the part `validate` does NOT cover.** `validate` is lint, typecheck,
+# and the unit tests. The `check` job also runs `npm run build`,
+# `verify-preload-sandbox.mjs`, and `npm audit`, and the `e2e` job runs the
+# Playwright specs against the BUILT app. The preload check is the one to
+# remember: a preload that cannot load in the sandbox boots the app to a blank
+# page, and the built file is the only place that is visible. Run
+# `npm run build && npm run verify:preload` after touching the preload or its
+# imports.
+#
+# release.yml is untouched: it fires on a `v*` tag and on dispatch, and it
+# builds the macOS and Linux artifacts a Windows dev box cannot.
+#
+# ## When to spend a run
+#
+# Before a release, before a platform-shaped change, and before merging
+# anything that touches main, the preload, the capture path, the window
+# lifecycle, or packaging. A renderer-only change with green unit tests rarely
+# needs it.
+#
+# `lint:check` runs with `--max-warnings 0`: any warning fails the job.
+
+name: CI
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One run per ref. A second dispatch on the same branch cancels the first.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    # Ubuntu is the cheaper runner and the unit tests need no Windows: the
+    # Windows-only code (the %LOCALAPPDATA% resolution, the da-pcap addon) is
+    # behind injected fakes and the addon's non-Windows stub, which is why the
+    # suite has always passed on ubuntu in release.yml.
+    runs-on: ubuntu-latest
+
+    steps:
+      # `fetch-depth` is left at the default of 1, deliberately (HTOO-328). A
+      # depth-1 clone records NO PARENTS for the commit it checks out, so
+      # anything reading ancestry (commit parents, merge-base, ahead/behind,
+      # `git describe`) answers confidently and wrongly in CI.
+      #
+      # Nothing in Midir reads git. No source, script, unit test, or e2e spec
+      # shells out to it or parses its output: `scripts/changelog-extract.mjs`
+      # reads CHANGELOG.md, and release.yml's release notes come from the API.
+      # Revisit the moment anything here reads parents, merge-base,
+      # ahead/behind, or `git describe`. Same note in release.yml.
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+          package-manager-cache: false
+
+      # `cache: npm` caches the npm registry cache and nothing else. Electron's
+      # postinstall then fetches a ~100 MB binary from github.com on every run
+      # of every job, and that server returned 503 seven times in one day
+      # (2026-08-12). `electron_config_cache` is what
+      # `node_modules/electron/install.js` reads, so the download lands where
+      # `actions/cache` can restore it. Under `runner.temp`, not the workspace:
+      # a cache inside the checkout is a directory every glob has to ignore.
+      # Both the env var and the path are STEP-level: the `runner` context does
+      # not exist at job level and expands to an empty string there.
+      - name: Cache the Electron binary
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/electron-cache
+          key: electron-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: electron-${{ runner.os }}-
+
+      # Retried, because a cache miss still meets the same server. Three
+      # attempts, backing off, and the exit status of the last one is the
+      # step's.
+      - name: Install dependencies
+        shell: bash
+        env:
+          electron_config_cache: ${{ runner.temp }}/electron-cache
+        run: |
+          for attempt in 1 2 3; do
+            if npm ci; then exit 0; fi
+            echo "npm ci failed (attempt $attempt of 3)"
+            if [ "$attempt" -lt 3 ]; then sleep $((attempt * 20)); fi
+          done
+          exit 1
+
+      # First, because it is the only step that catches a type error: the
+      # bundles are transpiled, not typechecked.
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint (0 warnings tolerated)
+        run: npm run lint:check
+
+      - name: Test + coverage floors
+        run: npm run test:coverage
+
+      - name: Build
+        run: npm run build
+
+      # Directly after Build, because it reads out/preload/index.js and that
+      # file is the only place the failure is visible. A missing artifact is a
+      # hard failure, so this cannot pass by skipping.
+      - name: Verify the built preload can load in the sandbox
+        run: npm run verify:preload
+
+      # Production dependencies only, and only high/critical. Nothing in the
+      # dev tree ships, and a gate that cries wolf gets deleted. The dev tree
+      # is handled by hand (no dependabot, a house decision).
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
+
+  # The Playwright specs drive the BUILT app through a real Electron window, so
+  # they need a Windows runner: the helper redirects %LOCALAPPDATA% to a temp
+  # dir to keep the real profile clean. windows-2022, pinned: windows-latest
+  # carries a Visual Studio node-gyp 11 cannot parse, and `npm run build` runs
+  # `@electron/rebuild` for da-pcap. Without Npcap on the runner the capture
+  # is unavailable, which is a first-class state the boot spec accepts.
+  e2e:
+    runs-on: windows-2022
+
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+          package-manager-cache: false
+
+      - name: Cache the Electron binary
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/electron-cache
+          key: electron-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: electron-${{ runner.os }}-
+
+      - name: Install dependencies
+        shell: bash
+        env:
+          electron_config_cache: ${{ runner.temp }}/electron-cache
+        run: |
+          for attempt in 1 2 3; do
+            if npm ci; then exit 0; fi
+            echo "npm ci failed (attempt $attempt of 3)"
+            if [ "$attempt" -lt 3 ]; then sleep $((attempt * 20)); fi
+          done
+          exit 1
+
+      # `npm run e2e` builds first; the specs load out/main/index.js.
+      - name: End-to-end tests
+        run: npm run e2e
+
+      - name: Upload Playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@v5
+        with:
+          name: playwright-report
+          path: |
+            test-results/
+            playwright-report/
+          if-no-files-found: ignore
+          retention-days: 7

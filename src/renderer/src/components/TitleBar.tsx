@@ -1,12 +1,18 @@
 import React from 'react'
 import { Toolbar, IconButton, Tooltip, Box, Typography } from '@mui/material'
-import { GiContract, GiExpand, GiDeathSkull } from 'react-icons/gi'
+import { GiBugNet, GiContract, GiExpand, GiDeathSkull } from 'react-icons/gi'
+import BugReportOutlined from '@mui/icons-material/BugReportOutlined'
 import RemoveIcon from '@mui/icons-material/Remove'
 import CropSquareIcon from '@mui/icons-material/CropSquare'
 import CloseIcon from '@mui/icons-material/Close'
 import { PLAIN_CHROME_THEMES } from '@shared/types'
 import CaptureIndicator from '@renderer/components/CaptureIndicator'
 import { useSettingsStore } from '@renderer/store/settingsStore'
+import { useReportStore } from '@renderer/store/reportStore'
+// A 128px webp, not the icon master: this draws at 24px, and vite hashes it
+// into the bundle. Regenerate with:
+//   magick build/icon.png -resize 128x128 -strip -quality 90 //     src/renderer/src/assets/midir.webp
+import appIcon from '@renderer/assets/midir.webp'
 
 // Shared shadow vocabulary for the title bar. KEYLINE is the crisp four-way
 // #000 outline; DEPTH is the soft layer that lifts the glyph off the bar.
@@ -62,6 +68,7 @@ function TitleBar(): React.JSX.Element {
   const plain = PLAIN_CHROME_THEMES.includes(themeName)
 
   const winBtnSx = plain ? plainBtnSx : gameBtnSx
+  const openReport = useReportStore((s) => s.setOpen)
   const closeBtnSx = {
     ...winBtnSx,
     '&:hover': plain
@@ -82,6 +89,22 @@ function TitleBar(): React.JSX.Element {
         flexShrink: 0
       }}
     >
+      <Box
+        component="img"
+        src={appIcon}
+        alt=""
+        aria-hidden
+        sx={{
+          height: 24,
+          width: 24,
+          mr: 1,
+          objectFit: 'contain',
+          // Match the wordmark's lift on the gamified themes; the plain themes
+          // drop the shadow vocabulary entirely.
+          filter: plain ? 'none' : `drop-shadow(${DEPTH})`
+        }}
+      />
+
       <Typography
         variant="h6"
         sx={{
@@ -103,6 +126,22 @@ function TitleBar(): React.JSX.Element {
       <Box sx={{ flexGrow: 1 }} />
 
       <CaptureIndicator />
+
+      {/* Report an issue: the house module's bug button, beside the window
+          controls because it acts on Midir itself and not on a view. `GiBugNet`
+          is the house glyph (taliesin, creidhne, epona, balor); the corporate
+          themes get the flat MUI bug, as every other icon in this bar is paired. */}
+      <Tooltip title="Report an issue">
+        <IconButton
+          size="small"
+          aria-label="Report an issue"
+          sx={winBtnSx}
+          onClick={() => openReport(true)}
+          data-testid="report-issue"
+        >
+          {plain ? <BugReportOutlined /> : <GiBugNet />}
+        </IconButton>
+      </Tooltip>
 
       <Tooltip title="Minimize">
         <IconButton
