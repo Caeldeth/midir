@@ -96,7 +96,11 @@ the `0x06` the client sends.
    collision view from the map file. **Taken.** The prefix also stops before every warp tile the
    graph knows on the map, so a click never changes the map and the step onto a warp keeps the key
    walk's own handling (the gate refusal, the one-tile-beyond probe, the hop). Fewer than two steps
-   is left to the keys.
+   is left to the keys. **Revised 2026-09-22 (Sabrael: the errand's turn, step, turn, step to the
+   Town Hall):** the leg's own warp tiles are fair aims, so one click takes the whole leg; every
+   other map's warp still stops the prefix. A single step is a click too, because a key in a new
+   direction turns first. The key walk's warp handling remains for a warp tile the click reached
+   that did not fire.
 4. **Confirm as now.** After a click the walker watches the position. Progress along the path is
    the client walking; no progress within a confirm window is a strand, and the walker clicks again
    from the current tile, then falls back to the keys after a few strands at the same tile. The
@@ -111,6 +115,9 @@ the `0x06` the client sends.
    leg's own destination is arrival; to any other map it stops as `lostPosition`.
 5. **Keys for the last tiles.** The approach to the tile beside an NPC (`approachTile`) stays on the
    arrow keys, one tile at a time. It is short, and it is where a stray click would matter most.
+   **Revised 2026-09-22:** the approach clicks like the map walk, through the same `clickTurn`,
+   short of every warp on the map; the aim is never a tile something stands on, so the NPC's own
+   tile is never clicked.
 6. **The projection is data, checked live.** The view centre per layout and the tile size are
    constants in one place, with the spike's measured values and how they were measured.
 7. **A setting, off by default,** like every driving feature. The keys remain the shipped default
