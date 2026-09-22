@@ -33,6 +33,7 @@ import {
   type ExchangeRequest
 } from './exchange'
 import { decodePursuitMessage, type PursuitMessage } from './pursuit'
+import { decodeStaticObjectState, type StaticObjectState } from './staticObject'
 import { decodeBulletin, decodeBulletinRequest, type Bulletin, type BulletinRequest } from './board'
 import {
   decodeAddWorldObjects,
@@ -82,6 +83,7 @@ export * from './items'
 export * from './merchant'
 export * from './movement'
 export * from './pursuit'
+export * from './staticObject'
 export * from './world'
 
 /** A packet Midir models, in either direction. */
@@ -116,6 +118,7 @@ export type DecodedPacket =
   | SystemMessage
   | Exchange
   | ExchangeRequest
+  | StaticObjectState
   | ClientExit
   | MerchantResponse
   | PursuitResponse
@@ -149,7 +152,8 @@ const DECODERS = new Map<number, Decoder>([
   [ServerOpcode.FieldMap, decodeFieldMap],
   [ServerOpcode.Bulletin, decodeBulletin],
   [ServerOpcode.SystemMessage, decodeSystemMessage],
-  [ServerOpcode.Exchange, decodeExchange]
+  [ServerOpcode.Exchange, decodeExchange],
+  [ServerOpcode.StaticObjectState, decodeStaticObjectState]
 ])
 
 const CLIENT_DECODERS = new Map<number, Decoder>([

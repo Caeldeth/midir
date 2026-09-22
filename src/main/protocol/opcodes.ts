@@ -100,6 +100,8 @@ export const ServerOpcode = {
   PursuitMessage: 0x30,
   /** The bulletin boards and the mailbox: every view the server sends. See decode/board.ts. */
   Bulletin: 0x31,
+  /** A door opened or closed (or a walk acknowledged, with no records). See decode/staticObject.ts. */
+  StaticObjectState: 0x32,
   DrawHumanObjects: 0x33,
   ObjectInfo: 0x34,
   AddEquip: 0x37,

@@ -62,7 +62,8 @@ function context(
     exchangeFor: () => null,
     recordFor: () => null,
     entitiesFor: () => null,
-    boardFor: () => null
+    boardFor: () => null,
+    doorsFor: () => null
   }
   return {
     log: fakeLogger(currentLogFile),

@@ -402,6 +402,7 @@ const walker = createWalker({
   gates: seededGates(),
   // What stands on the map, so a right-click never aims at a taken tile (WP35).
   entitiesFor: (connectionId) => captureService.entitiesFor(connectionId),
+  doorsFor: (connectionId) => captureService.doorsFor(connectionId),
   mode: () => (walkerRightClick ? 'rightClick' : 'keys'),
   maps: mapSource,
   graph: worldGraph,

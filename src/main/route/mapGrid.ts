@@ -1,4 +1,6 @@
 import { DIRECTION_DELTA, isWalkDirection } from '../protocol/decode'
+import { doorKey } from '../model/doors'
+import { doorTileFor } from './doorTable'
 
 /**
  * A map's passability, built from the client's own tile cache and the SOTP
@@ -14,6 +16,16 @@ import { DIRECTION_DELTA, isWalkDirection } from '../protocol/decode'
  * (SMapPart 0x3C) only on a cache miss, so a returning player's client loads the
  * map from `lodNNNNN.map` and the wire is silent. The disk cache is the complete
  * source, and it is the same six-byte cell format.
+ *
+ * The one live change is a door (WP31). `SStaticObjectState 0x32` moves a
+ * static object between the two forms of its row in the client's door table,
+ * and the client's collision follows the form it shows: it asks each static
+ * object for its current tile id and looks that up in SOTP. The grid does the
+ * same with the door overlay: a cell with a state on the wire takes the tile id
+ * `doorTileFor` gives for it, then the same SOTP rule. The cache is never
+ * written; the overlay is the session's word over it. Which static slot a
+ * record's `side` names is a measurement against four map caches: side 1 is
+ * the first static (offset +2), side 0 the second (+4).
  */
 
 /** The bytes one map cell holds. */
@@ -35,6 +47,27 @@ const DIRECTION_BIT = [0x08, 0x04, 0x02, 0x01]
 export interface Collision {
   /** The low-nibble collision bits for a static tile id, or 0 when it is empty. */
   collisionFor(tileId: number): number
+}
+
+/**
+ * The doors the wire changed on this map: `doorKey(x, y, side)` to the last
+ * state byte. Absent or empty means the cache is the whole truth.
+ */
+export type DoorOverlay = ReadonlyMap<string, number>
+
+/** The map-file static slot a record's side byte names. See the header. */
+function overlaidStatic(
+  doors: DoorOverlay | undefined,
+  x: number,
+  y: number,
+  side: number,
+  cached: number
+): number {
+  if (doors === undefined || doors.size === 0) return cached
+  const state = doors.get(doorKey(x, y, side))
+  if (state === undefined) return cached
+  // A tile in no row is not a door to the client, and the packet changed nothing.
+  return doorTileFor(cached, state) ?? cached
 }
 
 /** A map's passability, ready for the pathfinder. */
@@ -63,7 +96,8 @@ export function buildMapGrid(
   bytes: Uint8Array,
   width: number,
   height: number,
-  collision: Collision
+  collision: Collision,
+  doors?: DoorOverlay
 ): MapGrid {
   const cells = width * height
   if (bytes.length < cells * CELL_BYTES) {
@@ -78,8 +112,10 @@ export function buildMapGrid(
   const blockedBits = new Uint8Array(cells)
   for (let i = 0; i < cells; i++) {
     const base = i * CELL_BYTES
-    const leftStatic = view.getUint16(base + 2, true)
-    const rightStatic = view.getUint16(base + 4, true)
+    const x = i % width
+    const y = (i - x) / width
+    const leftStatic = overlaidStatic(doors, x, y, 1, view.getUint16(base + 2, true))
+    const rightStatic = overlaidStatic(doors, x, y, 0, view.getUint16(base + 4, true))
     let bits = 0
     if (leftStatic !== EMPTY_TILE_ID) bits |= collision.collisionFor(leftStatic)
     if (rightStatic !== EMPTY_TILE_ID) bits |= collision.collisionFor(rightStatic)

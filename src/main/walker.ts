@@ -14,6 +14,7 @@ import type { Logger } from './log'
 import type { DialogState } from './model/dialog'
 import type { ExchangeState } from './model/exchange'
 import { occupantAt, solidTiles, type EntityState } from './model/entities'
+import type { DoorState } from './model/doors'
 import { groundPoint } from './laborer/view'
 import type { FieldMapState } from './model/fieldMap'
 import type { NoticeState } from './model/notice'
@@ -207,6 +208,12 @@ export interface WalkerOptions {
    * map file says is open (WP35).
    */
   entitiesFor?: (connectionId: string) => EntityState | null
+  /**
+   * The doors the wire changed on the character's map, from the capture
+   * service (WP31). Absent means the map cache alone, where every door is in
+   * the form the cache stores.
+   */
+  doorsFor?: (connectionId: string) => DoorState | null
   /** How the walker walks: by the arrow keys, or by right-click. Read at every step. Absent means keys. */
   mode?: () => WalkerMode
   /** The source of a map's passability. */
@@ -332,6 +339,14 @@ export function createWalker(options: WalkerOptions): Walker {
   const exchangeFor = options.exchangeFor ?? ((): ExchangeState | null => null)
   const noticeFor = options.noticeFor ?? ((): NoticeState | null => null)
   const entitiesFor = options.entitiesFor ?? ((): EntityState | null => null)
+  const doorsFor = options.doorsFor ?? ((): DoorState | null => null)
+
+  /** The door overlay for `mapId`, or undefined when the session holds none for it. */
+  function doorsOn(connectionId: string, mapId: number): ReadonlyMap<string, number> | undefined {
+    const state = doorsFor(connectionId)
+    if (state === null || state.mapId !== mapId || state.states.size === 0) return undefined
+    return state.states
+  }
   const mode = options.mode ?? ((): WalkerMode => 'keys')
   const passportFor = options.passportFor ?? ((): Passport | null => null)
   // The gated maps: the seed, plus what a gate's own refusal taught this
@@ -949,7 +964,12 @@ export function createWalker(options: WalkerOptions): Walker {
       }
       const leg = plan.legs[0]
 
-      const rawGrid = await maps.gridFor(position.mapId, position.mapWidth, position.mapHeight)
+      const rawGrid = await maps.gridFor(
+        position.mapId,
+        position.mapWidth,
+        position.mapHeight,
+        doorsOn(run.connectionId, position.mapId)
+      )
       if (rawGrid === null) return { kind: 'stopped', reason: 'blocked' }
       // Route around the tiles this run has learned it cannot get through, and
       // into the leg's warp tiles whatever the cache says of them.
@@ -1344,7 +1364,12 @@ export function createWalker(options: WalkerOptions): Walker {
         return { kind: 'stopped', reason: 'lostPosition' }
       }
 
-      const rawGrid = await maps.gridFor(position.mapId, position.mapWidth, position.mapHeight)
+      const rawGrid = await maps.gridFor(
+        position.mapId,
+        position.mapWidth,
+        position.mapHeight,
+        doorsOn(run.connectionId, position.mapId)
+      )
       if (rawGrid === null) return { kind: 'stopped', reason: 'blocked' }
       const grid = gridWithBlocks(rawGrid, position.mapId, blocked)
 

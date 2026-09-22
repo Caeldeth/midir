@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { createWalker } from '../walker'
 import { createRouteGraph, type RouteNode } from '../route/graph'
-import { buildMapGrid, type Collision, type MapGrid } from '../route/mapGrid'
+import { buildMapGrid, type Collision, type DoorOverlay, type MapGrid } from '../route/mapGrid'
+import { doorKey, type DoorState } from '../model/doors'
 import type { ActionLayer, LiveConnection } from '../actionLayer'
 import type { ActionTarget } from '../../shared/actionLayer'
 import type { MapProvider } from '../route/mapSource'
@@ -25,10 +26,15 @@ const CID = 'conn-1'
 const TARGET: ActionTarget = { connectionId: CID, windowHandle: 1 }
 
 const WALL = 100
-const COLLISION: Collision = { collisionFor: (id) => (id === WALL ? 0x0f : 0) }
+const COLLISION: Collision = {
+  collisionFor: (id) => (id === WALL || id === DOOR_CLOSED ? 0x0f : 0)
+}
 
-/** A MapGrid from ASCII rows: '#' is a wall, anything else is open. */
-function asciiGrid(rows: string[]): MapGrid {
+/** A MapGrid from ASCII rows: '#' is a wall, 'D' a closed door, anything else is open. */
+/** A door in the client's table, cached in its closed form (Rucesion Village's row). */
+const DOOR_CLOSED = 2898
+
+function asciiGrid(rows: string[], doors?: DoorOverlay): MapGrid {
   const height = rows.length
   const width = rows[0].length
   const bytes = new Uint8Array(width * height * 6)
@@ -36,9 +42,10 @@ function asciiGrid(rows: string[]): MapGrid {
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
       if (rows[y][x] === '#') view.setUint16((y * width + x) * 6 + 2, WALL, true)
+      if (rows[y][x] === 'D') view.setUint16((y * width + x) * 6 + 2, DOOR_CLOSED, true)
     }
   }
-  return buildMapGrid(bytes, width, height, COLLISION)
+  return buildMapGrid(bytes, width, height, COLLISION, doors)
 }
 
 interface FakeMap {
@@ -125,6 +132,8 @@ class World {
   route: { x: number; y: number }[] = []
   /** What stands on the map, as the capture service would report it. */
   entities: EntityState | null = null
+  /** The doors the wire changed, as the capture service would report them (WP31). */
+  doors: DoorState | null = null
   /** Whether a right-click walks at all. Off models a click that fell on something that is not ground. */
   rightClickWalks = true
 
@@ -464,9 +473,9 @@ function harness(
   } as unknown as ActionLayer
 
   const maps: MapProvider = {
-    gridFor: async (mapId: number): Promise<MapGrid | null> => {
+    gridFor: async (mapId: number, _w, _h, doors?: DoorOverlay): Promise<MapGrid | null> => {
       const m = world.maps.get(mapId)
-      return m === undefined ? null : asciiGrid(m.rows)
+      return m === undefined ? null : asciiGrid(m.rows, doors)
     }
   }
 
@@ -483,6 +492,7 @@ function harness(
     passportFor: (id: string): Passport | null => (id === CID ? world.passport : null),
     gates: seedGates,
     entitiesFor: (id: string): EntityState | null => (id === CID ? world.entities : null),
+    doorsFor: (id: string): DoorState | null => (id === CID ? world.doors : null),
     mode: () => mode,
     maps,
     graph: createRouteGraph(graphNodes),
@@ -639,6 +649,46 @@ describe('walker', () => {
     const outcome = await walker.go({ connectionId: CID, destination: 2 })
     expect(outcome).toEqual({ kind: 'arrived' })
     expect(world.position.mapId).toBe(2)
+  })
+
+  it('stops blocked at a closed door, and paths through it once the wire opened it (WP31)', async () => {
+    // A 5x1 corridor with a door at (2,0) and the warp at (4,0). The cache
+    // stores the door closed, so without the overlay there is no path.
+    const maps = new Map<number, FakeMap>([
+      [1, fakeMap(['..D..'], new Map([['4,0', { toMap: 2, ax: 0, ay: 0 }]]))],
+      [2, fakeMap(['.....'])]
+    ])
+    const graph: RouteNode[] = [
+      { mapId: 1, name: 'Town', exits: [{ toMapId: 2, x: 4, y: 0 }] },
+      { mapId: 2, name: 'Field', exits: [{ toMapId: 1, x: 0, y: 0 }] }
+    ]
+    const shut = harness(new World(maps, { mapId: 1, x: 0, y: 0 }), graph)
+    expect(await shut.walker.go({ connectionId: CID, destination: 2 })).toEqual({
+      kind: 'stopped',
+      reason: 'blocked'
+    })
+
+    // The same corridor after a 0x32 opened the door on its first static.
+    const open = harness(new World(maps, { mapId: 1, x: 0, y: 0 }), graph)
+    open.world.doors = { mapId: 1, states: new Map([[doorKey(2, 0, 1), 0]]), asOfMs: 0 }
+    expect(await open.walker.go({ connectionId: CID, destination: 2 })).toEqual({ kind: 'arrived' })
+  })
+
+  it('does not apply a door overlay from another map (WP31)', async () => {
+    const maps = new Map<number, FakeMap>([
+      [1, fakeMap(['..D..'], new Map([['4,0', { toMap: 2, ax: 0, ay: 0 }]]))],
+      [2, fakeMap(['.....'])]
+    ])
+    const graph: RouteNode[] = [
+      { mapId: 1, name: 'Town', exits: [{ toMapId: 2, x: 4, y: 0 }] },
+      { mapId: 2, name: 'Field', exits: [{ toMapId: 1, x: 0, y: 0 }] }
+    ]
+    const { walker, world } = harness(new World(maps, { mapId: 1, x: 0, y: 0 }), graph)
+    world.doors = { mapId: 3048, states: new Map([[doorKey(2, 0, 1), 0]]), asOfMs: 0 }
+    expect(await walker.go({ connectionId: CID, destination: 2 })).toEqual({
+      kind: 'stopped',
+      reason: 'blocked'
+    })
   })
 
   it('accepts delayed multi-tile progress along the pressed direction', async () => {
