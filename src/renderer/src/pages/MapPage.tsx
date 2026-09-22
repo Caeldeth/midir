@@ -40,9 +40,11 @@ import type { WalkerState } from '@shared/actionLayer'
  *
  * The edit is light and explicit (decision 4): click a warp and a bar names
  * it with what can be done to it. Accept turns a candidate on, Reject turns
- * a warp off, Restore withdraws either, and Nudge moves it to the next tile
- * clicked. Every edit writes to the learned layer through main, never to the
- * imported file or a client file, and the view redraws from main's answer.
+ * a warp off, Restore withdraws either, and Edit opens a form for its tile
+ * and destination; Add warp opens the same form for a new one, and a click
+ * on the map fills the tile while the form is open. Every edit writes to the
+ * learned layer through main, never to the imported file or a client file,
+ * and the view redraws from main's answer.
  */
 
 /** Where a warp came from, for its hover: the wire's word, when it has one. */
@@ -219,16 +221,23 @@ function MapPage(): React.JSX.Element {
   const [hover, setHover] = useState<{ x: number; y: number } | null>(null)
   const editWarp = useMapStore((s) => s.editWarp)
   const [pickedWarp, setPickedWarp] = useState<string | null>(null)
-  const [nudging, setNudging] = useState(false)
   const chosen = view?.warps.find((w) => warpKey(w) === pickedWarp) ?? null
+  /** The place form: the tile and destination being typed, and the warp it replaces. */
+  const [form, setForm] = useState<{
+    x: string
+    y: string
+    toMapId: number | null
+    replace?: { x: number; y: number; toMapId: number }
+  } | null>(null)
 
   // A new map, or a warp that left the view, ends the edit.
   useEffect(() => {
-    if (chosen === null) {
-      setPickedWarp(null)
-      setNudging(false)
-    }
+    if (chosen === null) setPickedWarp(null)
   }, [chosen])
+  useEffect(() => {
+    setForm(null)
+    setPickedWarp(null)
+  }, [view?.mapId])
 
   const edit = (action: 'accept' | 'reject' | 'restore'): void => {
     if (view === null || chosen === null) return
@@ -239,23 +248,33 @@ function MapPage(): React.JSX.Element {
       y: chosen.y,
       toMapId: chosen.toMapId
     }
-    setNudging(false)
     void editWarp(request)
   }
 
-  const nudgeTo = (tile: { x: number; y: number }): void => {
-    if (view === null || chosen === null) return
-    setNudging(false)
-    setPickedWarp(`${tile.x}:${tile.y}:${chosen.toMapId}`)
-    void editWarp({
-      action: 'nudge',
+  const formTile = (): { x: number; y: number } | null => {
+    if (form === null || view === null) return null
+    const x = Number(form.x)
+    const y = Number(form.y)
+    if (!Number.isInteger(x) || !Number.isInteger(y)) return null
+    if (x < 0 || y < 0 || x >= view.width || y >= view.height) return null
+    return { x, y }
+  }
+  const formValid = formTile() !== null && form?.toMapId !== null && form?.toMapId !== undefined
+
+  const place = (): void => {
+    const tile = formTile()
+    if (view === null || form === null || tile === null || form.toMapId === null) return
+    const request: WarpEdit = {
+      action: 'place',
       fromMapId: view.mapId,
-      x: chosen.x,
-      y: chosen.y,
-      toMapId: chosen.toMapId,
-      toX: tile.x,
-      toY: tile.y
-    })
+      x: tile.x,
+      y: tile.y,
+      toMapId: form.toMapId,
+      ...(form.replace !== undefined ? { replace: form.replace } : {})
+    }
+    setForm(null)
+    setPickedWarp(`${tile.x}:${tile.y}:${form.toMapId}`)
+    void editWarp(request)
   }
 
   useEffect(() => {
@@ -329,6 +348,19 @@ function MapPage(): React.JSX.Element {
           label="Follow the character"
         />
         {view !== null ? (
+          <Button
+            size="small"
+            variant="outlined"
+            disabled={form !== null}
+            onClick={() => {
+              setPickedWarp(null)
+              setForm({ x: '', y: '', toMapId: null })
+            }}
+          >
+            Add warp
+          </Button>
+        ) : null}
+        {view !== null ? (
           <Typography variant="body2" sx={{ color: 'text.secondary' }} data-testid="map-caption">
             {view.width} × {view.height} tiles, size from{' '}
             {view.sizeSource === 'wire'
@@ -371,15 +403,75 @@ function MapPage(): React.JSX.Element {
           {chosen.state !== 'rejected' ? (
             <Button
               size="small"
-              variant={nudging ? 'contained' : 'outlined'}
-              onClick={() => setNudging((n) => !n)}
+              variant="outlined"
+              onClick={() =>
+                setForm({
+                  x: String(chosen.x),
+                  y: String(chosen.y),
+                  toMapId: chosen.toMapId,
+                  replace: { x: chosen.x, y: chosen.y, toMapId: chosen.toMapId }
+                })
+              }
             >
-              {nudging ? 'Click a tile…' : 'Nudge'}
+              Edit
             </Button>
           ) : null}
           <Button size="small" onClick={() => setPickedWarp(null)}>
             Done
           </Button>
+        </Stack>
+      ) : null}
+
+      {view !== null && form !== null ? (
+        <Stack
+          direction="row"
+          sx={{ gap: 1, alignItems: 'flex-start', flexWrap: 'wrap' }}
+          data-testid="warp-form"
+        >
+          <TextField
+            size="small"
+            label="X"
+            value={form.x}
+            onChange={(event) => setForm({ ...form, x: event.target.value })}
+            slotProps={{ htmlInput: { inputMode: 'numeric', 'data-testid': 'warp-x' } }}
+            sx={{ width: 80 }}
+          />
+          <TextField
+            size="small"
+            label="Y"
+            value={form.y}
+            onChange={(event) => setForm({ ...form, y: event.target.value })}
+            slotProps={{ htmlInput: { inputMode: 'numeric', 'data-testid': 'warp-y' } }}
+            sx={{ width: 80 }}
+          />
+          <Autocomplete
+            sx={{ minWidth: 280 }}
+            options={maps}
+            getOptionLabel={labelOf}
+            value={maps.find((m) => m.mapId === form.toMapId) ?? null}
+            onChange={(_event, value) => setForm({ ...form, toMapId: value?.mapId ?? null })}
+            isOptionEqualToValue={(a, b) => a.mapId === b.mapId}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                size="small"
+                label="Destination"
+                slotProps={{
+                  ...params.slotProps,
+                  htmlInput: { ...params.slotProps.htmlInput, 'data-testid': 'warp-destination' }
+                }}
+              />
+            )}
+          />
+          <Button size="small" variant="contained" disabled={!formValid} onClick={place}>
+            {form.replace !== undefined ? 'Save' : 'Place'}
+          </Button>
+          <Button size="small" onClick={() => setForm(null)}>
+            Cancel
+          </Button>
+          <Typography variant="caption" sx={{ color: 'text.secondary', alignSelf: 'center' }}>
+            Click a tile on the map to fill X and Y.
+          </Typography>
         </Stack>
       ) : null}
 
@@ -420,10 +512,12 @@ function MapPage(): React.JSX.Element {
             onMouseMove={onMove}
             onMouseLeave={() => setHover(null)}
             onClick={() => {
-              if (nudging && hover !== null) nudgeTo(hover)
+              if (form !== null && hover !== null) {
+                setForm({ ...form, x: String(hover.x), y: String(hover.y) })
+              }
             }}
             data-testid="map-view"
-            style={{ cursor: nudging ? 'crosshair' : undefined }}
+            style={{ cursor: form !== null ? 'crosshair' : undefined }}
           >
             <TileCanvas view={view} scale={scale} />
 
@@ -441,7 +535,7 @@ function MapPage(): React.JSX.Element {
                     data-testid="map-warp"
                     data-state={warp.state}
                     onClick={(event) => {
-                      if (nudging) return
+                      if (form !== null) return
                       event.stopPropagation()
                       setPickedWarp(picked ? null : warpKey(warp))
                     }}

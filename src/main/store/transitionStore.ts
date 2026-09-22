@@ -26,8 +26,9 @@ import type { RouteHop } from '../route/graph'
  * The file is also the editable layer the Map tab writes (WP30): a
  * `curation` per edge key says the user accepted the edge (it enters the
  * graph whatever its count) or rejected it (it leaves the graph, whether the
- * wire or the imported file put it there). A nudge is a rejection of the old
- * tile and an acceptance of the new one. The imported file is never written.
+ * wire or the imported file put it there). A warp placed by hand is an
+ * acceptance, and one placed in place of another rejects that one too. The
+ * imported file is never written.
  */
 export const TRANSITIONS_FILE = 'transitions.json'
 
@@ -184,7 +185,8 @@ export function withObservation(file: TransitionFile, seen: TransitionObservatio
 
 /**
  * `file` with one hand edit applied (WP30). `via` is the hop of the warp
- * being edited, when it is a hop, so a nudged hop keeps its click.
+ * being edited or replaced, when it is a hop, so a moved hop keeps its
+ * gesture.
  */
 export function withCuration(
   file: TransitionFile,
@@ -213,11 +215,18 @@ export function withCuration(
     case 'restore':
       delete curations[key]
       break
-    case 'nudge': {
-      const moved = edgeKey({ ...edit, x: edit.toX, y: edit.toY })
-      if (moved === key) break
-      curations[key] = record(edit.x, edit.y, 'rejected')
-      curations[moved] = record(edit.toX, edit.toY, 'accepted')
+    case 'place': {
+      const replaced =
+        edit.replace === undefined
+          ? undefined
+          : edgeKey({ fromMapId: edit.fromMapId, ...edit.replace })
+      if (replaced !== undefined && replaced !== key) {
+        curations[replaced] = {
+          ...record(edit.replace!.x, edit.replace!.y, 'rejected'),
+          toMapId: edit.replace!.toMapId
+        }
+      }
+      curations[key] = record(edit.x, edit.y, 'accepted')
       break
     }
   }

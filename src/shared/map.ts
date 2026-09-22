@@ -43,10 +43,10 @@ export interface MapWarp {
 
 /**
  * One hand edit to a warp (WP30). `accept` turns a candidate on, `reject`
- * turns a warp off, `restore` withdraws either, and `nudge` moves a warp to
- * another tile of the same map: the old tile is rejected and the new one
- * accepted. Every edit writes to the learned layer, never to the imported
- * file.
+ * turns a warp off, `restore` withdraws either, and `place` puts a warp on a
+ * tile by hand, in place of the one in `replace` when it edits an existing
+ * warp: the old one is rejected and the new one accepted. Every edit writes
+ * to the learned layer, never to the imported file.
  */
 export type WarpEdit =
   | {
@@ -57,13 +57,12 @@ export type WarpEdit =
       toMapId: number
     }
   | {
-      action: 'nudge'
+      action: 'place'
       fromMapId: number
       x: number
       y: number
       toMapId: number
-      toX: number
-      toY: number
+      replace?: { x: number; y: number; toMapId: number }
     }
 
 /**

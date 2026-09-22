@@ -193,11 +193,11 @@ describe('withCuration (WP30)', () => {
     )
   })
 
-  it('a nudge rejects the old tile and accepts the new one, keeping a hop', () => {
+  it('a placed warp is accepted, and the one it replaces rejected, keeping a hop', () => {
     const via = { kind: 'fieldMap' as const, screenX: 306, screenY: 77 }
     const moved = withCuration(
       emptyTransitionFile(),
-      { action: 'nudge', ...edge, toX: 5, toY: 6 },
+      { action: 'place', ...edge, x: 5, replace: { x: 4, y: 6, toMapId: 3049 } },
       80,
       via
     )
@@ -205,9 +205,15 @@ describe('withCuration (WP30)', () => {
       '3048:4,6>3049': { ...edge, verdict: 'rejected', via, atMs: 80 },
       '3048:5,6>3049': { ...edge, x: 5, verdict: 'accepted', via, atMs: 80 }
     })
-    // A nudge onto the same tile is no edit.
-    expect(
-      withCuration(emptyTransitionFile(), { action: 'nudge', ...edge, toX: 4, toY: 6 }, 1)
-    ).toEqual(emptyTransitionFile())
+    // Placed on its own tile again: only the acceptance.
+    const same = withCuration(
+      emptyTransitionFile(),
+      { action: 'place', ...edge, replace: { x: 4, y: 6, toMapId: 3049 } },
+      1
+    )
+    expect(Object.keys(same.curations)).toEqual(['3048:4,6>3049'])
+    // Placed fresh, replacing nothing.
+    const fresh = withCuration(emptyTransitionFile(), { action: 'place', ...edge }, 2)
+    expect(fresh.curations['3048:4,6>3049']?.verdict).toBe('accepted')
   })
 })

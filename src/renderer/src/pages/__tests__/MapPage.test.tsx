@@ -99,7 +99,7 @@ describe('the Map page', () => {
     ).toBeInTheDocument()
   })
 
-  it('a clicked warp opens the edit bar, and Accept, Reject, and Nudge write through main (WP30)', async () => {
+  it('a clicked warp opens the edit bar, and Accept, Reject, Edit, and Add warp write through main (WP30)', async () => {
     const edits: unknown[] = []
     window.api.map.editWarp = vi.fn(async (edit) => {
       edits.push(edit)
@@ -126,26 +126,39 @@ describe('the Map page', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Reject' }))
     expect(edits.at(-1)).toEqual({ action: 'reject', fromMapId: 1, x: 3, y: 0, toMapId: 2 })
 
-    // Nudge: the next click on the map names the new tile.
-    await userEvent.click(screen.getByRole('button', { name: 'Nudge' }))
-    expect(screen.getByRole('button', { name: 'Click a tile…' })).toBeInTheDocument()
+    // Edit: the form holds the warp's tile and destination; a click on the
+    // map fills the tile; Save places it in place of the old one.
+    await userEvent.click(screen.getByRole('button', { name: 'Edit' }))
+    expect(screen.getByTestId('warp-x')).toHaveValue('3')
+    expect(screen.getByTestId('warp-y')).toHaveValue('0')
+    expect(screen.getByTestId('warp-destination')).toHaveValue('Field (2)')
     const view = screen.getByTestId('map-view')
     // Every tile is `scale` px square; the box is laid out at (0,0) in jsdom.
     const scale = scaleFor(TOWN, { width: 800 - 16, height: 600 - 16 })
     fireEvent.mouseMove(view, { clientX: 2 * scale + 1, clientY: 1 * scale + 1 })
     fireEvent.click(view)
+    expect(screen.getByTestId('warp-x')).toHaveValue('2')
+    expect(screen.getByTestId('warp-y')).toHaveValue('1')
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }))
     expect(edits.at(-1)).toEqual({
-      action: 'nudge',
+      action: 'place',
       fromMapId: 1,
-      x: 3,
-      y: 0,
+      x: 2,
+      y: 1,
       toMapId: 2,
-      toX: 2,
-      toY: 1
+      replace: { x: 3, y: 0, toMapId: 2 }
     })
-    // The bar follows the warp to its new tile; the mocked view has no warp
-    // there, so the bar closes as it does for any warp that left the view.
-    expect(screen.queryByTestId('warp-edit')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('warp-form')).not.toBeInTheDocument()
+
+    // Add warp: an empty form; Place is off until a tile and a destination are given.
+    await userEvent.click(screen.getByRole('button', { name: 'Add warp' }))
+    expect(screen.getByRole('button', { name: 'Place' })).toBeDisabled()
+    await userEvent.type(screen.getByTestId('warp-x'), '1')
+    await userEvent.type(screen.getByTestId('warp-y'), '2')
+    await userEvent.click(screen.getByTestId('warp-destination'))
+    await userEvent.click(await screen.findByRole('option', { name: 'Field (2)' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Place' }))
+    expect(edits.at(-1)).toEqual({ action: 'place', fromMapId: 1, x: 1, y: 2, toMapId: 2 })
 
     // Done closes the bar.
     await userEvent.click(warps[1]!)

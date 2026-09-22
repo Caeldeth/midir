@@ -205,13 +205,12 @@ const editSchema = z.union([
     toMapId: mapId
   }),
   z.object({
-    action: z.literal('nudge'),
+    action: z.literal('place'),
     fromMapId: mapId,
     x: tile,
     y: tile,
     toMapId: mapId,
-    toX: tile,
-    toY: tile
+    replace: z.object({ x: tile, y: tile, toMapId: mapId }).optional()
   })
 ])
 
@@ -228,11 +227,16 @@ export async function editWarp(
   const parsed = editSchema.safeParse(edit)
   if (!parsed.success) return { ok: false, failure: { kind: 'unknownMap' } }
   const request: WarpEdit = parsed.data
-  // A hop keeps its click when it moves: the graph's exit or the learned edge has it.
+  // A hop keeps its gesture when it moves: the graph's exit or the learned
+  // edge of the warp being edited or replaced has it.
+  const subject =
+    request.action === 'place' && request.replace !== undefined
+      ? { fromMapId: request.fromMapId, ...request.replace }
+      : request
   const exit = ctx.graph
-    .node(request.fromMapId)
-    ?.exits.find((e) => e.toMapId === request.toMapId && e.x === request.x && e.y === request.y)
-  const learned = (await ctx.transitionStore.load()).edges[edgeKey(request)]
+    .node(subject.fromMapId)
+    ?.exits.find((e) => e.toMapId === subject.toMapId && e.x === subject.x && e.y === subject.y)
+  const learned = (await ctx.transitionStore.load()).edges[edgeKey(subject)]
   const via: Curation['via'] | undefined = exit?.via ?? learned?.via
   await ctx.transitionStore.update((file) => withCuration(file, request, now(), via))
   await ctx.graphChanged()

@@ -260,8 +260,15 @@ describe('the warp edit (WP30)', () => {
     expect((await transitionStore.load()).curations).toEqual({})
   })
 
-  it('nudges a warp to another tile: the old one rejected, the new one curated', async () => {
-    await editWarp(ctx, { action: 'nudge', fromMapId: 1, x: 3, y: 0, toMapId: 2, toX: 3, toY: 1 })
+  it('places a warp by hand in place of another: the old one rejected, the new one curated', async () => {
+    await editWarp(ctx, {
+      action: 'place',
+      fromMapId: 1,
+      x: 3,
+      y: 1,
+      toMapId: 2,
+      replace: { x: 3, y: 0, toMapId: 2 }
+    })
     expect(await warpsOf(1)).toEqual([
       { x: 3, y: 1, to: 2, state: 'active', source: 'curated' },
       { x: 3, y: 0, to: 2, state: 'rejected', source: 'authored' }
@@ -269,8 +276,17 @@ describe('the warp edit (WP30)', () => {
     expect(live.planRoute(1, 2)?.legs[0]?.warps).toEqual([{ x: 3, y: 1 }])
   })
 
-  it('a nudged hop keeps its click', async () => {
-    await editWarp(ctx, { action: 'nudge', fromMapId: 2, x: 0, y: 0, toMapId: 1, toX: 1, toY: 0 })
+  it('places a new warp on an empty tile, and a moved hop keeps its gesture', async () => {
+    await editWarp(ctx, { action: 'place', fromMapId: 1, x: 0, y: 2, toMapId: 3 })
+    expect(live.planRoute(1, 3)?.legs[0]?.warps).toEqual([{ x: 0, y: 2 }])
+    await editWarp(ctx, {
+      action: 'place',
+      fromMapId: 2,
+      x: 1,
+      y: 0,
+      toMapId: 1,
+      replace: { x: 0, y: 0, toMapId: 1 }
+    })
     expect(live.node(2)?.exits).toEqual([
       { toMapId: 1, x: 1, y: 0, via: { kind: 'prompt' }, source: 'curated' }
     ])
