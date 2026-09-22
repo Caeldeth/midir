@@ -1,32 +1,53 @@
 # Midir
 
-Midir is a companion app for retail Dark Ages. It watches the game client's network traffic, decodes it, and keeps a record of every character that you log in on.
+Midir is a companion app for retail Dark Ages. It reads the game client's network traffic, decodes it, and keeps a record of each character that you log in on. The record stays on your computer.
 
-Two views come out of that record:
+Midir does for Dark Ages what Altoholic does for World of Warcraft. It answers the question "which of my characters holds that item?", and it answers it while the character is offline.
 
-- **Items** — a searchable index of the items in your inventories and banks, with the count of each item and the character that holds it.
-- **Characters** — the details of each character: statistics, equipped items, visible appearance, legend marks, gold, class, title, and guild.
+Midir also drives the client for you. It walks your character to a place that you name, it speaks lines for you, and it works an NPC errand. Each of these features is off until you turn it on.
 
-Think of Altoholic for World of Warcraft, for Dark Ages.
+## What Midir shows you
 
-Three assistants use the same record, and each is off until you turn it on:
+- **Live** — the character that is logged in now: statistics, health and mana, equipment, inventory, appearance, legend marks, gold, title, and guild. The sheet fills as the packets arrive.
+- **Characters** — each character that you log in on, and the time Midir last read it.
+- **Items** — each item across all of your characters, searchable by name. A row gives the total, and names each character that holds it. Point at a name to see the slot, the durability, and the time Midir last read that character. The bank is included.
+- **Boards** — the posts from the town boards and from your mailbox, kept for you to read again. Midir can also read a board for you: it opens the board through the game's own pane, and it reads each post to the oldest one. It writes nothing and it posts nothing.
+- **Map** — the map that your character stands on, drawn as a grid from the game's own map cache. The grid shows the blocked tiles, the warps, each live character, and the route that the Walker planned. You can also correct a warp here.
+- **Diagnostics** — Midir's own log, and your session recordings. You can filter the log, copy it into a report, and delete a recording.
 
-- **Walker** — walk to a place you name, across maps, by the route the world allows.
-- **Speaker** — say a line of text on an interval you set.
-- **Laborer** — walk to the right NPC, then work the dialog for you.
+## What Midir does for you
 
-They replace DA Walker and DA Speaker, two long-standing community tools that read the game's memory to do less.
+Each of these features is off until you turn it on. One stop control halts all of them.
+
+- **Walker** — name a place, and Midir walks your character there across maps. Midir reads each step from the network. It plans again when a step does not land, and it stops when something else moves your character.
+- **Speaker** — Midir says your lines in one game window, on an interval that you set.
+- **Errands** — Midir walks to an NPC, then works the dialog. It reads the conversation from the network, and it selects each option by the words of that option. It stops at a dialog that it does not expect.
+
+The Walker and the Speaker replace DA Walker and DA Speaker. These two community tools read the game's memory. Midir reads the network instead.
+
+## What Midir learns while you play
+
+- **The way between maps.** Your character walks through a warp, and Midir learns that warp from the wire. After two crossings, Midir plans routes through it.
+- **A correction that you make.** The Map tab shows each warp that Midir knows, and where the warp came from. You can accept a warp, refuse it, move it to the correct tile, or add one. Your correction has more authority than the map data that Midir imported.
+- **A place that Midir cannot reach.** The Walker makes such a place dim, and the Go button stays off. Walk that warp one time by hand, or add the warp on the Map tab.
+- **The name of each map.** Midir learns the game's own name for a map on your first visit there. Until then it uses the names in its own data files.
+- **The bank, the legend, and the boards.** The game sends these only when you open them. Midir keeps what it reads, and always gives the time that it read them.
+
+## Your Dark Ages files
+
+This step is optional. In Settings, under **Legacy data files**, select your Dark Ages folder. Midir then draws the icon of each item, and a picture of your character in its equipment. Midir reads these files only. It never changes them. With no folder selected, each view works as before.
 
 ## How Midir works with the client
 
-Midir reads from the network and acts through the game's own window.
+Midir reads from the network, and acts through the game's own window.
 
-- **It reads passively.** Capture is with Npcap, the same driver that Wireshark uses. Midir does not read the game's memory and does not need to — the map, your position, your items, and your bank are all on the wire.
-- **It acts as you do.** The assistant features post keys and clicks to the game window. The client checks every action, and nothing happens that you could not do by hand.
-- **It never modifies the game client, its memory, or its files.** No injected library, no patch.
-- **Every assistant feature is off until you turn it on**, and one stop halts all of them.
+- **It reads passively.** Capture is with Npcap, the same driver that Wireshark uses. Midir does not read the game's memory, and it does not need to. The map, your position, your items, and your bank are all on the wire.
+- **It acts as you do.** The assistant features send keys and clicks to the game window. The client examines each action, and nothing occurs that you cannot do by hand.
+- **It never changes the game client, its memory, or its files.** There is no injected library and no patch.
+- **Each assistant feature is off until you turn it on**, and one stop halts all of them.
+- **Midir never types your password.** No feature operates a login dialog or a password field.
 
-Automating a game is against most operators' terms of service. Turning an assistant feature on is your decision and your risk.
+Automation of a game is against the terms of service of most operators. You turn on an assistant feature at your own risk.
 
 ## Requirements
 
