@@ -98,14 +98,14 @@ be complete.
 
 ## Current state when you start
 
-- [protocol/decode/movement.ts](../../src/main/protocol/decode/movement.ts) — `0x06`, `0x0B`,
+- [protocol/decode/movement.ts](../../../src/main/protocol/decode/movement.ts) — `0x06`, `0x0B`,
   `0x15`, and `0x04` are decoded, with the direction deltas.
-- [model/position.ts](../../src/main/model/position.ts) — the position reducer, which already tracks
+- [model/position.ts](../../../src/main/model/position.ts) — the position reducer, which already tracks
   the confirmed tile, the map, and the `unknown` state after a gap or a map change.
-- [captureService.ts](../../src/main/captureService.ts) — the per-connection position and the packet
+- [captureService.ts](../../../src/main/captureService.ts) — the per-connection position and the packet
   stream to observe.
-- [route/graph.ts](../../src/main/route/graph.ts) — the graph the learned edges merge into.
-- [protocol/opcodes.ts](../../src/main/protocol/opcodes.ts) — where the spell, item, and skill-use
+- [route/graph.ts](../../../src/main/route/graph.ts) — the graph the learned edges merge into.
+- [protocol/opcodes.ts](../../../src/main/protocol/opcodes.ts) — where the spell, item, and skill-use
   client opcodes are named, or added, for the exclusion check. Read both protocol sources for them.
 
 ## Contracts
