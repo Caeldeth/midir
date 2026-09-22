@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
+  BANK_DEPOSIT_PURSUIT,
   BANK_WITHDRAW_PURSUIT,
   decodeBankContents,
+  decodePlayerItemMenu,
   decodeScreenMenu,
   type NpcMenu
 } from '../decode/dialog'
@@ -254,5 +256,51 @@ describe('decodeScreenMenu (general NPC menus)', () => {
 
   it('returns null for a shop item list it does not model', () => {
     expect(decodeScreenMenu(screenMenu({ menuType: 4, pursuit: 0x4a, rows: ROWS }))).toBeNull()
+  })
+})
+
+describe('decodePlayerItemMenu (WP22)', () => {
+  /** Antonio's Deposit Item list, 2026-09-22: nineteen slots the banker will take. */
+  const CAPTURED = Uint8Array.from(
+    '2f 05 01 00 00 1f 2e 01 40 38 00 01 40 38 00 00 07 41 6e 74 6f 6e 69 6f 00 49 49 20 63 61 6e 20 6f 6e 6c 79 20 74 61 6b 65 20 6e 65 77 20 6f 72 20 66 75 6c 6c 79 20 72 65 70 61 69 72 65 64 20 69 74 65 6d 73 2e 20 57 68 61 74 20 64 6f 20 79 6f 75 20 77 61 6e 74 20 74 6f 20 64 65 70 6f 73 69 74 3f 00 53 13 01 02 03 04 05 06 07 08 0a 0b 0c 25 26 28 32 33 34 36 39'
+      .split(' ')
+      .map((b) => parseInt(b, 16))
+  )
+
+  it('reads the banker, the prompt, the pursuit, and the slots from the captured bytes', () => {
+    const menu = decodePlayerItemMenu(CAPTURED)
+    expect(menu).toMatchObject({
+      kind: 'playerItemMenu',
+      sourceId: 0x1f2e,
+      npcName: 'Antonio',
+      pursuit: BANK_DEPOSIT_PURSUIT
+    })
+    expect(menu?.text).toMatch(/^I can only take new or fully repaired items/)
+    expect(menu?.slots).toEqual([
+      1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 37, 38, 40, 50, 51, 52, 54, 57
+    ])
+  })
+
+  it('is what decodeScreenMenu returns for type 5, and type 11 reads the same', () => {
+    expect(decodeScreenMenu(CAPTURED)?.kind).toBe('playerItemMenu')
+    const eleven = Uint8Array.from(CAPTURED)
+    eleven[1] = 11
+    expect(decodePlayerItemMenu(eleven)?.slots).toHaveLength(19)
+  })
+
+  it('returns null for every other type', () => {
+    for (const type of [0, 2, 3, 4, 6, 7, 10]) {
+      const other = Uint8Array.from(CAPTURED)
+      other[1] = type
+      expect(decodePlayerItemMenu(other)).toBeNull()
+    }
+  })
+
+  it('steps over the handle of the 0x4E form, and stops at a short body', () => {
+    const head = Array.from(CAPTURED.subarray(0, CAPTURED.length - 22))
+    const handled = Uint8Array.from([...head, 0x00, 0x4e, 0x02, 0x01, 0, 0, 0, 9, 0x02, 0, 0, 0, 8])
+    expect(decodePlayerItemMenu(handled)?.slots).toEqual([1, 2])
+    const short = Uint8Array.from([...head, 0x00, 0x53, 0x05, 0x01, 0x02])
+    expect(decodePlayerItemMenu(short)?.slots).toEqual([1, 2])
   })
 })

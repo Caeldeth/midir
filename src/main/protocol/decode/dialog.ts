@@ -73,6 +73,79 @@ export const BANK_WITHDRAW_REQUEST_PURSUIT = 0x45
 /** The menu types that carry a server-owned item list. Type 10 is an alias. */
 const ITEM_LIST_MENU_TYPES = new Set([4, 10])
 
+/** The menu types that carry a list of the player's own inventory slots. Type 11 is an alias. */
+const PLAYER_ITEM_MENU_TYPES = new Set([5, 11])
+
+/**
+ * The pursuit id the client sends to ask a banker for the deposit list, from
+ * the banker's menu row "Deposit Item" (Antonio, 2026-09-22). One banker so
+ * far, so it is read as the withdraw pursuit is: a constant until a capture
+ * says otherwise.
+ */
+export const BANK_DEPOSIT_REQUEST_PURSUIT = 0x43
+
+/**
+ * The pursuit id the server puts on the deposit list, and the one the client
+ * echoes with the slot it chose. Same capture; same caveat.
+ */
+export const BANK_DEPOSIT_PURSUIT = 0x53
+
+/**
+ * The player-owned item list a type-5 pursuit of this id carries: a `u32`
+ * server handle after each slot. Neither reference server emits it (the
+ * document repo's 0x2F page: a client-side fossil), so a menu carrying it is
+ * read for its slots and nothing else.
+ */
+const PLAYER_ITEM_HANDLE_PURSUIT = 0x4e
+
+/**
+ * SScreenMenu 0x2F, type 5 (or 11): the player's own inventory slots the NPC
+ * will take. The banker's Deposit Item is the one Midir has seen (Antonio,
+ * 2026-09-22: "I can only take new or fully repaired items. What do you want
+ * to deposit?", 19 slots). The client draws each slot from the inventory it
+ * holds; the wire carries the slot numbers only.
+ */
+export interface PlayerItemMenu {
+  kind: 'playerItemMenu'
+  sourceId: number
+  npcName: string
+  text: string
+  /** The pursuit the client echoes with the slot it chose. */
+  pursuit: number
+  /** One-based inventory slots. */
+  slots: number[]
+}
+
+/**
+ * Decode SScreenMenu 0x2F when it is a player-owned item list, else null.
+ *
+ * Body after the header: `[u16 pursuit][u8 count]` then `count` rows of
+ * `[u8 slot]`, or `[u8 slot][u32 handle]` when the pursuit is 0x4E. Both
+ * protocol sources agree, and the captured bytes do: `00 53 13` then nineteen
+ * slot bytes. The count is one byte, unlike the type-4 list's two.
+ */
+export function decodePlayerItemMenu(body: Uint8Array): PlayerItemMenu | null {
+  const reader = new PacketReader(body, 1)
+  const menuType = reader.u8()
+  if (!PLAYER_ITEM_MENU_TYPES.has(menuType)) return null
+  const header = readMenuHeader(reader)
+  const pursuit = reader.u16()
+  const count = reader.u8()
+  const slots: number[] = []
+  for (let index = 0; index < count && reader.hasMore; index++) {
+    slots.push(reader.u8())
+    if (pursuit === PLAYER_ITEM_HANDLE_PURSUIT) reader.u32()
+  }
+  return {
+    kind: 'playerItemMenu',
+    sourceId: header.sourceId,
+    npcName: header.npcName,
+    text: header.text,
+    pursuit,
+    slots
+  }
+}
+
 /** One item a bank holds. */
 export interface BankItem {
   name: string
@@ -266,6 +339,6 @@ function decodeNpcMenu(body: Uint8Array): NpcMenu | null {
  * other readable menu is a general NPC menu. A menu Midir does not model
  * returns null, which is the usual case for this opcode.
  */
-export function decodeScreenMenu(body: Uint8Array): BankContents | NpcMenu | null {
-  return decodeBankContents(body) ?? decodeNpcMenu(body)
+export function decodeScreenMenu(body: Uint8Array): BankContents | PlayerItemMenu | NpcMenu | null {
+  return decodeBankContents(body) ?? decodePlayerItemMenu(body) ?? decodeNpcMenu(body)
 }

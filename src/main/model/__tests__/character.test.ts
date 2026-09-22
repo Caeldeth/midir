@@ -790,3 +790,128 @@ describe('the bank the player asked for', () => {
     expect(resolvePendingBank(state, 9999)).toBe(state)
   })
 })
+
+describe('an item moving into or out of the bank (WP22)', () => {
+  const BANKER = 0x1f6f
+
+  const pick = (pursuit: number, tail: number[]): DecodedPacket => ({
+    kind: 'merchantResponse',
+    objectType: 1,
+    objectId: BANKER,
+    pursuit,
+    tail: Uint8Array.from(tail)
+  })
+
+  const str8 = (text: string): number[] => [text.length, ...Buffer.from(text, 'latin1')]
+
+  const bankList = (items: { name: string; count: number }[]): DecodedPacket => ({
+    kind: 'bankContents',
+    sourceId: BANKER,
+    npcName: 'Antonio',
+    items: items.map((i) => ({ name: i.name, sprite: 0x0134, color: 7, count: i.count }))
+  })
+
+  const remove = (slot: number): DecodedPacket => ({ kind: 'removeInventory', slot })
+
+  function at(
+    state: CharacterSession,
+    packet: DecodedPacket,
+    timestampMs: number
+  ): CharacterSession {
+    return reduce(state, { packet, timestampMs, keyName: CHARACTER })
+  }
+
+  /** Logged in, one necklace in slot 2, the bank read with a stick in it. */
+  const ready = (): CharacterSession => {
+    let state = at(newSession(1000), fullStatus, 1000)
+    state = at(state, item(2, 'Ceannlaidir Prayer Necklace'), 1100)
+    state = at(state, bankList([{ name: 'Stick', count: 4 }]), 1200)
+    return state
+  }
+
+  it('a deposit pick, confirmed by the slot leaving the inventory, adds the item to the bank', () => {
+    // The captured timing: the pick, then the remove 204 ms later.
+    let state = at(ready(), pick(0x53, [2]), 178_417)
+    expect(state.pendingMove?.kind).toBe('deposit')
+    state = at(state, remove(2), 178_621)
+    expect(state.pendingMove).toBeUndefined()
+    expect(state.record.inventory[2]).toBeUndefined()
+    expect(state.record.bank?.items).toEqual([
+      { name: 'Stick', sprite: 0x0134, color: 7, count: 4 },
+      { name: 'Ceannlaidir Prayer Necklace', sprite: 0x0134, color: 7, count: 1 }
+    ])
+    expect(state.record.bank?.readAtMs).toBe(178_621)
+    expect(state.record.bank?.npcName).toBe('Antonio')
+  })
+
+  it('a deposit of a stack the bank already holds adds to its count', () => {
+    let state = at(ready(), item(5, 'Stick', 3), 1300)
+    state = at(state, pick(0x53, [5]), 2000)
+    state = at(state, remove(5), 2100)
+    expect(state.record.bank?.items).toEqual([
+      { name: 'Stick', sprite: 0x0134, color: 7, count: 7 }
+    ])
+  })
+
+  it('a withdraw pick, confirmed by the item arriving, takes it out of the bank', () => {
+    let state = at(ready(), pick(0x56, str8('Stick')), 181_386)
+    expect(state.pendingMove?.kind).toBe('withdraw')
+    state = at(state, item(7, 'Stick', 1), 181_623)
+    expect(state.pendingMove).toBeUndefined()
+    expect(state.record.bank?.items).toEqual([
+      { name: 'Stick', sprite: 0x0134, color: 7, count: 3 }
+    ])
+    expect(state.record.inventory[7]?.name).toBe('Stick')
+    // The last one leaves the row behind.
+    state = at(state, pick(0x56, str8('Stick')), 190_000)
+    state = at(state, item(8, 'Stick', 3), 190_200)
+    expect(state.record.bank?.items).toEqual([])
+  })
+
+  it('a pick the server refuses moves nothing', () => {
+    let state = at(ready(), pick(0x53, [2]), 2000)
+    // The banker answers with its menu again and no remove: the item stayed.
+    state = at(
+      state,
+      {
+        kind: 'npcMenu',
+        sourceId: BANKER,
+        npcName: 'Antonio',
+        menuType: 0,
+        text: 'Hello.',
+        isTextInput: false,
+        options: []
+      },
+      2200
+    )
+    expect(state.pendingMove).toBeUndefined()
+    expect(state.record.inventory[2]?.name).toBe('Ceannlaidir Prayer Necklace')
+    expect(state.record.bank?.items).toHaveLength(1)
+  })
+
+  it('a remove of another slot, or one after the window, is not the confirmation', () => {
+    let state = at(ready(), item(3, 'Stick', 1), 1300)
+    state = at(state, pick(0x53, [2]), 2000)
+    state = at(state, remove(3), 2100)
+    expect(state.pendingMove?.kind).toBe('deposit')
+    expect(state.record.bank?.items).toHaveLength(1)
+    state = at(state, remove(2), 2000 + 2500)
+    expect(state.pendingMove).toBeUndefined()
+    expect(state.record.bank?.items).toHaveLength(1)
+  })
+
+  it('an unread bank stays unread: one deposit is not the whole bank', () => {
+    let state = at(newSession(1000), fullStatus, 1000)
+    state = at(state, item(2, 'Ceannlaidir Prayer Necklace'), 1100)
+    state = at(state, pick(0x53, [2]), 2000)
+    state = at(state, remove(2), 2100)
+    expect(state.record.bank).toBeUndefined()
+    expect(state.record.inventory[2]).toBeUndefined()
+  })
+
+  it('a pick with a tail of the wrong shape is not a pick', () => {
+    const state = at(ready(), pick(0x53, [2, 0]), 2000)
+    expect(state.pendingMove).toBeUndefined()
+    expect(at(ready(), pick(0x56, [9, 0x41]), 2000).pendingMove).toBeUndefined()
+  })
+})
