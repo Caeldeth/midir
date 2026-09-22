@@ -9,6 +9,7 @@ import {
   PROMOTION_OBSERVATIONS,
   promotedEdges,
   TRANSITIONS_FILE,
+  withCuration,
   withObservation
 } from '../transitionStore'
 import type { TransitionObservation } from '../../model/transitions'
@@ -123,6 +124,20 @@ describe('withObservation', () => {
     ).toEqual([3014, 449])
   })
 
+  it('a file from before the edit loads with no curations', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'midir-transitions-'))
+    await writeFile(
+      join(directory, TRANSITIONS_FILE),
+      JSON.stringify(withObservation(emptyTransitionFile(), crossing(1)), (k, v) =>
+        k === 'curations' ? undefined : v
+      )
+    )
+    const store = createTransitionStore(directory)
+    expect(Object.keys((await store.load()).edges)).toEqual(['3048:4,6>3049'])
+    expect((await store.load()).curations).toEqual({})
+    await rm(directory, { recursive: true, force: true })
+  })
+
   it('never changes the file it was given', () => {
     const file = withObservation(emptyTransitionFile(), crossing(1000))
     const frozen = JSON.stringify(file)
@@ -155,7 +170,50 @@ describe('createTransitionStore', () => {
     await writeFile(join(directory, TRANSITIONS_FILE), '{"edges": {"a": {"x": "no"}}}')
     const failures: string[] = []
     const store = createTransitionStore(directory, (failure) => failures.push(failure.stage))
-    expect(await store.load()).toEqual({ edges: {} })
+    expect(await store.load()).toEqual({ edges: {}, curations: {} })
     expect(failures).toContain('parse')
+  })
+})
+
+describe('withCuration (WP30)', () => {
+  const edge = { fromMapId: 3048, x: 4, y: 6, toMapId: 3049 }
+
+  it('accepts a candidate into the promoted set whatever its count, and a rejection takes one out', () => {
+    const one = withObservation(emptyTransitionFile(), crossing(1000))
+    expect(promotedEdges(one)).toEqual([])
+    const accepted = withCuration(one, { action: 'accept', ...edge }, 50)
+    expect(promotedEdges(accepted).map((e) => e.observations)).toEqual([1])
+    expect(accepted.curations['3048:4,6>3049']).toEqual({ ...edge, verdict: 'accepted', atMs: 50 })
+
+    const many = withObservation(withObservation(emptyTransitionFile(), crossing(1)), crossing(2))
+    const rejected = withCuration(many, { action: 'reject', ...edge }, 60)
+    expect(promotedEdges(rejected)).toEqual([])
+    expect(promotedEdges(withCuration(rejected, { action: 'restore', ...edge }, 70))).toHaveLength(
+      1
+    )
+  })
+
+  it('a placed warp is accepted, and the one it replaces rejected, keeping a hop', () => {
+    const via = { kind: 'fieldMap' as const, screenX: 306, screenY: 77 }
+    const moved = withCuration(
+      emptyTransitionFile(),
+      { action: 'place', ...edge, x: 5, replace: { x: 4, y: 6, toMapId: 3049 } },
+      80,
+      via
+    )
+    expect(moved.curations).toEqual({
+      '3048:4,6>3049': { ...edge, verdict: 'rejected', via, atMs: 80 },
+      '3048:5,6>3049': { ...edge, x: 5, verdict: 'accepted', via, atMs: 80 }
+    })
+    // Placed on its own tile again: only the acceptance.
+    const same = withCuration(
+      emptyTransitionFile(),
+      { action: 'place', ...edge, replace: { x: 4, y: 6, toMapId: 3049 } },
+      1
+    )
+    expect(Object.keys(same.curations)).toEqual(['3048:4,6>3049'])
+    // Placed fresh, replacing nothing.
+    const fresh = withCuration(emptyTransitionFile(), { action: 'place', ...edge }, 2)
+    expect(fresh.curations['3048:4,6>3049']?.verdict).toBe('accepted')
   })
 })

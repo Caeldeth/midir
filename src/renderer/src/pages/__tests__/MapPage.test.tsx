@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useMapStore } from '@renderer/store/mapStore'
 import type { MapView } from '@shared/map'
@@ -15,9 +15,34 @@ const TOWN: MapView = {
   height: 3,
   collision: [0, 0, 0, 0, 0, 0x0f, 0x08, 0, 0, 0, 0, 0],
   warps: [
-    { x: 3, y: 0, toMapId: 2, toMapName: 'Field', source: 'authored', observations: 3 },
-    { x: 0, y: 2, toMapId: 5, toMapName: '', via: 'dialog', source: 'authored' },
-    { x: 1, y: 0, toMapId: 2, toMapName: 'Field', source: 'learned', observations: 2 }
+    {
+      x: 3,
+      y: 0,
+      toMapId: 2,
+      toMapName: 'Field',
+      source: 'authored',
+      observations: 3,
+      state: 'active'
+    },
+    { x: 0, y: 2, toMapId: 5, toMapName: '', via: 'dialog', source: 'authored', state: 'active' },
+    {
+      x: 1,
+      y: 0,
+      toMapId: 2,
+      toMapName: 'Field',
+      source: 'learned',
+      observations: 2,
+      state: 'active'
+    },
+    {
+      x: 2,
+      y: 2,
+      toMapId: 3,
+      toMapName: 'Crypt',
+      source: 'learned',
+      observations: 1,
+      state: 'candidate'
+    }
   ],
   sizeSource: 'graph'
 }
@@ -58,10 +83,10 @@ describe('the Map page', () => {
     await useMapStore.getState().select(1)
     expect(await screen.findByTestId('map-view')).toBeInTheDocument()
     expect(screen.getByTestId('map-caption')).toHaveTextContent(
-      '4 × 3 tiles, size from the world map · 3 warps'
+      '4 × 3 tiles, size from the world map · 4 warps'
     )
     const warps = screen.getAllByTestId('map-warp')
-    expect(warps).toHaveLength(3)
+    expect(warps).toHaveLength(4)
     await userEvent.hover(warps[0]!)
     expect(
       await screen.findByText('→ Field · confirmed by the wire, seen 3 times')
@@ -72,6 +97,74 @@ describe('the Map page', () => {
     expect(
       await screen.findByText('→ Field · learned from the wire, seen 2 times')
     ).toBeInTheDocument()
+  })
+
+  it('a clicked warp opens the edit bar, and Accept, Reject, Edit, and Add warp write through main (WP30)', async () => {
+    const edits: unknown[] = []
+    window.api.map.editWarp = vi.fn(async (edit) => {
+      edits.push(edit)
+      return { ok: true as const, view: TOWN }
+    })
+    render(<MapPage />)
+    await useMapStore.getState().select(1)
+    const warps = await screen.findAllByTestId('map-warp')
+    expect(screen.queryByTestId('warp-edit')).not.toBeInTheDocument()
+
+    // The candidate: Accept is offered, Reject is not.
+    await userEvent.click(warps[3]!)
+    const bar = screen.getByTestId('warp-edit')
+    expect(bar).toHaveTextContent(
+      'Warp (2, 2) → Crypt · learned from the wire, seen 1 time · a candidate, not used yet'
+    )
+    expect(screen.queryByRole('button', { name: 'Reject' })).not.toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Accept' }))
+    expect(edits.at(-1)).toEqual({ action: 'accept', fromMapId: 1, x: 2, y: 2, toMapId: 3 })
+
+    // An active warp: Reject.
+    await userEvent.click(warps[0]!)
+    expect(screen.queryByRole('button', { name: 'Accept' })).not.toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Reject' }))
+    expect(edits.at(-1)).toEqual({ action: 'reject', fromMapId: 1, x: 3, y: 0, toMapId: 2 })
+
+    // Edit: the form holds the warp's tile and destination; a click on the
+    // map fills the tile; Save places it in place of the old one.
+    await userEvent.click(screen.getByRole('button', { name: 'Edit' }))
+    expect(screen.getByTestId('warp-x')).toHaveValue('3')
+    expect(screen.getByTestId('warp-y')).toHaveValue('0')
+    expect(screen.getByTestId('warp-destination')).toHaveValue('Field (2)')
+    const view = screen.getByTestId('map-view')
+    // Every tile is `scale` px square; the box is laid out at (0,0) in jsdom.
+    const scale = scaleFor(TOWN, { width: 800 - 16, height: 600 - 16 })
+    fireEvent.mouseMove(view, { clientX: 2 * scale + 1, clientY: 1 * scale + 1 })
+    fireEvent.click(view)
+    expect(screen.getByTestId('warp-x')).toHaveValue('2')
+    expect(screen.getByTestId('warp-y')).toHaveValue('1')
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }))
+    expect(edits.at(-1)).toEqual({
+      action: 'place',
+      fromMapId: 1,
+      x: 2,
+      y: 1,
+      toMapId: 2,
+      replace: { x: 3, y: 0, toMapId: 2 }
+    })
+    expect(screen.queryByTestId('warp-form')).not.toBeInTheDocument()
+
+    // Add warp: an empty form; Place is off until a tile and a destination are given.
+    await userEvent.click(screen.getByRole('button', { name: 'Add warp' }))
+    expect(screen.getByRole('button', { name: 'Place' })).toBeDisabled()
+    await userEvent.type(screen.getByTestId('warp-x'), '1')
+    await userEvent.type(screen.getByTestId('warp-y'), '2')
+    await userEvent.click(screen.getByTestId('warp-destination'))
+    await userEvent.click(await screen.findByRole('option', { name: 'Field (2)' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Place' }))
+    expect(edits.at(-1)).toEqual({ action: 'place', fromMapId: 1, x: 1, y: 2, toMapId: 2 })
+
+    // Done closes the bar.
+    await userEvent.click(warps[1]!)
+    expect(screen.getByTestId('warp-edit')).toHaveTextContent('Warp (0, 2) → map 5 (dialog)')
+    await userEvent.click(screen.getByRole('button', { name: 'Done' }))
+    expect(screen.queryByTestId('warp-edit')).not.toBeInTheDocument()
   })
 
   it('the picker opens its list, names every map, greys the undrawable, and picks one', async () => {

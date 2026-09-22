@@ -8,7 +8,7 @@ import {
   type RoutePlan,
   type WireMap
 } from './graph'
-import type { LearnedEdge } from '../store/transitionStore'
+import type { Curation, LearnedEdge } from '../store/transitionStore'
 
 /**
  * The route graph the app runs on: the imported nodes with the learned layer
@@ -22,8 +22,12 @@ import type { LearnedEdge } from '../store/transitionStore'
  * reads the new one.
  */
 export interface LiveGraph extends RouteGraph {
-  /** Rebuild from the imported nodes with these learned edges and wire names. */
-  update(learned: LearnedEdge[], wire: Record<string, WireMap>): void
+  /** Rebuild from the imported nodes with these learned edges, wire names, and hand edits. */
+  update(
+    learned: LearnedEdge[],
+    wire: Record<string, WireMap>,
+    curations?: Record<string, Curation>
+  ): void
 }
 
 export function createLiveGraph(base: RouteNode[]): LiveGraph {
@@ -36,8 +40,8 @@ export function createLiveGraph(base: RouteNode[]): LiveGraph {
       current.resolveDestination(destination),
     planRoute: (fromMapId: number, toMapId: number, options?: PlanOptions): RoutePlan | null =>
       current.planRoute(fromMapId, toMapId, options),
-    update(learned, wire): void {
-      current = createRouteGraph(mergeLearned(base, learned, wire))
+    update(learned, wire, curations = {}): void {
+      current = createRouteGraph(mergeLearned(base, learned, wire, curations))
     }
   }
 }

@@ -20,6 +20,7 @@ import type {
   MapPosition,
   MapSummary,
   MapViewResult,
+  WarpEdit,
   MidirApi,
   MidirSettings,
   RecordingInfo,
@@ -129,7 +130,8 @@ const api: MidirApi = {
   map: {
     list: (): Promise<MapSummary[]> => ipcRenderer.invoke('map:list'),
     view: (mapId: number): Promise<MapViewResult> => ipcRenderer.invoke('map:view', mapId),
-    positions: (): Promise<MapPosition[]> => ipcRenderer.invoke('map:positions')
+    positions: (): Promise<MapPosition[]> => ipcRenderer.invoke('map:positions'),
+    editWarp: (edit: WarpEdit): Promise<MapViewResult> => ipcRenderer.invoke('map:editWarp', edit)
   },
   characters: {
     list: (): Promise<CharacterRecord[]> => ipcRenderer.invoke('characters:list'),

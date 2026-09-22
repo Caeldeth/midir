@@ -1,6 +1,6 @@
 import worldmapData from './worldmap.json'
 import type { EdgeSource } from '../../shared/map'
-import type { LearnedEdge } from '../store/transitionStore'
+import { edgeKey, type Curation, type LearnedEdge } from '../store/transitionStore'
 
 /**
  * The between-maps planner: the graph of how the world connects, and a search
@@ -263,17 +263,25 @@ export interface WireMap {
  * lacks is added with `source: 'learned'`; when its origin map is not in the
  * file at all, the map is added as a node, named and sized by the wire. A
  * learned world-map hop carries the point the client clicked as its `via`.
- * The wire's name and size go on every node they are known for. The imported
+ * The wire's name and size go on every node they are known for. The hand
+ * edits (WP30) come last: a rejected edge leaves, whoever put it there, and
+ * an accepted edge no other source holds is added as `curated`. The imported
  * nodes are never changed; the result is a new list.
  */
 export function mergeLearned(
   nodes: RouteNode[],
   learned: LearnedEdge[],
-  wire: Record<string, WireMap> = {}
+  wire: Record<string, WireMap> = {},
+  curations: Record<string, Curation> = {}
 ): RouteNode[] {
+  const rejected = (exit: { toMapId: number; x: number; y: number }, mapId: number): boolean =>
+    curations[edgeKey({ fromMapId: mapId, ...exit })]?.verdict === 'rejected'
   const byId = new Map<number, RouteNode>()
   for (const node of nodes) {
-    byId.set(node.mapId, { ...node, exits: node.exits.map((e) => ({ ...e })) })
+    byId.set(node.mapId, {
+      ...node,
+      exits: node.exits.filter((e) => !rejected(e, node.mapId)).map((e) => ({ ...e }))
+    })
   }
 
   const ensure = (mapId: number): RouteNode => {
@@ -285,6 +293,7 @@ export function mergeLearned(
   }
 
   for (const edge of learned) {
+    if (rejected(edge, edge.fromMapId)) continue
     const node = ensure(edge.fromMapId)
     ensure(edge.toMapId)
     const known = node.exits.find(
@@ -301,6 +310,23 @@ export function mergeLearned(
       ...(edge.via !== undefined ? { via: edge.via } : {}),
       source: 'learned',
       observations: edge.observations
+    })
+  }
+
+  for (const curation of Object.values(curations)) {
+    if (curation.verdict !== 'accepted') continue
+    const node = ensure(curation.fromMapId)
+    ensure(curation.toMapId)
+    const held = node.exits.some(
+      (e) => e.toMapId === curation.toMapId && e.x === curation.x && e.y === curation.y
+    )
+    if (held) continue
+    node.exits.push({
+      toMapId: curation.toMapId,
+      x: curation.x,
+      y: curation.y,
+      ...(curation.via !== undefined ? { via: curation.via } : {}),
+      source: 'curated'
     })
   }
 

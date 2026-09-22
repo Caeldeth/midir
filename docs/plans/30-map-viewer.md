@@ -1,9 +1,9 @@
 # WP30 — the map viewer and route inspector
 
 **Size:** M. **Depends on:** WP15 (the grid and the graph), WP14 (the live position), and WP7 (the
-dalib-ts render path). Read `00-overview.md` first. **PART SHIPPED 2026-09-22: the viewer and the
-walker debugger (criteria 1 to 4). The edit (criterion 5) is open; WP29's layer is in.**
-**Card:** `HTOO-79`.
+dalib-ts render path). Read `00-overview.md` first. **COMPLETE 2026-09-22: the viewer and the
+walker debugger (criteria 1 to 4, PR #34), then the edit (criterion 5) once WP29 had built the
+layer.** **Card:** `HTOO-79`.
 **Trigger to start:** a walker stop the log cannot explain, or a want to see and curate the route
 graph on the map it belongs to. Sabrael, 2026-09-22: the low items, all of them.
 
@@ -22,8 +22,22 @@ where it has one. **The door overlay of WP31 is in:** the view takes the live co
 its map, one argument to `gridFor`, so an opened door is open in the picture too. **Waited for
 WP29:** decision 4, the edit, needs the editable graph layer with provenance; WP29 shipped it on
 2026-09-22 (`transitions.json`, `mergeLearned`, `source` on every warp), and the view now draws a
-learned warp in its own colour with its count. The edit itself is still to build. The art layer (decision 1's second half) is still optional and not
-started.
+learned warp in its own colour with its count.
+
+**The edit (criterion 5), shipped the same day.** Click a warp and a bar names it and offers what
+can be done: **Accept** turns a candidate on (a learned edge the wire has not seen twice, drawn as
+an outline), **Reject** turns a warp off (drawn faint, whoever put it there), **Restore** withdraws
+either, **Edit** opens a form for the warp's tile and destination, and **Add warp** opens the same
+form for a new one; a click on the map fills the tile while the form is open (Sabrael, 2026-09-22:
+a warp is a tile and a destination, so the edit is that, not a nudge). Every edit is a `curation`
+record in `transitions.json`, keyed like an edge: accepted enters the graph whatever its count,
+rejected leaves it, and a placed warp is an acceptance plus, when it replaces one, that one's
+rejection, which keeps a hop's gesture. `mergeLearned` reads the curations last, so a hand edit wins over the wire and the
+imported file alike, and an accepted edge no other source holds is `source: 'curated'`. Main
+applies the edit (`map:editWarp`, validated), rebuilds the live graph, and answers with the map as
+it now stands, so the walker plans on the edit at once. The imported `WorldMap.dat` and the
+client's files are never written. The art layer (decision 1's second half) is still optional and
+not started.
 
 ## Goal
 
@@ -105,7 +119,8 @@ export interface MapView {
 3. The live position shows as a dot with its confidence, and follows the character.
 4. While a walker runs, its planned path and its stop tile show, with the stop reason.
 5. An accepted or nudged warp persists to the editable graph layer, and never to the imported file or
-   a client file. **Open.** WP29 shipped the layer (2026-09-22); the edit is still to build.
+   a client file. **Done:** `withCuration` in `store/transitionStore.ts`; the handler test proves the
+   imported nodes unchanged after a reject and a nudge.
 
 ## Verification
 

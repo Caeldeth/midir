@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { MapPosition, MapSummary, MapView, MapViewFailure } from '@shared/map'
+import type { MapPosition, MapSummary, MapView, MapViewFailure, WarpEdit } from '@shared/map'
 import type { WalkerState } from '@shared/types'
 
 /**
@@ -28,6 +28,8 @@ interface MapState {
   /** Pick a map and load its view. */
   select: (mapId: number | null) => Promise<void>
   setFollow: (value: boolean) => void
+  /** Accept, reject, restore, or nudge a warp on the picked map (WP30). The view follows. */
+  editWarp: (edit: WarpEdit) => Promise<void>
   /** Read the positions once, and follow the live map when asked to. */
   pollPositions: () => Promise<void>
   /** Poll the positions and mirror the walker while the page is open. The result stops both. */
@@ -66,6 +68,13 @@ export const useMapStore = create<MapState>((set, get) => ({
   },
 
   setFollow: (value) => set({ follow: value }),
+
+  editWarp: async (edit) => {
+    const result = await window.api.map.editWarp(edit)
+    if (get().selected !== edit.fromMapId) return
+    if (result.ok) set({ view: result.view, failure: null })
+    else set({ view: null, failure: result.failure })
+  },
 
   pollPositions: async () => {
     const positions = await window.api.map.positions()
