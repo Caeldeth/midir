@@ -6,6 +6,7 @@ import type { DialogAnswer, DialogState } from './model/dialog'
 import type { ExchangeState } from './model/exchange'
 import type { FieldMapState } from './model/fieldMap'
 import type { Position } from './model/position'
+import type { BoardState } from './model/board'
 import { centreFromClick, tileAtPoint, type Tile } from './laborer/view'
 
 /**
@@ -49,6 +50,8 @@ export interface PaneWatcherOptions {
   exchangeFor?: (connectionId: string) => ExchangeState | null
   /** The NPC tiles the errands know, to turn a hand click on an NPC into the view centre. */
   knownNpcs?: () => { npcName: string; mapId: number; tile: Tile }[]
+  /** The boards as the client shows them, from the capture service. Absent in older tests (WP36). */
+  boardFor?: (connectionId: string) => BoardState | null
   log: Logger
   /** The clock. Injected by tests. */
   now?: () => number
@@ -90,6 +93,10 @@ interface WatchedDialog {
    * the projection the walker's own right-click uses (WP35).
    */
   rightWalk?: { aim: Tile; gameX: number; gameY: number; own: Tile; last: Position; atMs: number }
+  /** The last hand click with a board pane up, for pairing with the client's next 0x3B (WP36). */
+  boardClick?: { gameX: number; gameY: number; atMs: number; view: string }
+  /** Capture time of the last board request written to the log. */
+  lastBoardRequestAt?: number
   /** Capture time of the dialog last seen, to notice a new one. */
   lastDialogAt?: number
 }
@@ -98,6 +105,12 @@ interface WatchedDialog {
 const OPEN_WINDOW_MS = 2500
 /** How long the character may stand still after a hand right-click before its walk is over. */
 const RIGHT_WALK_SETTLE_MS = 2500
+/**
+ * How long after its last packet a board pane is taken to be up. The client
+ * sends nothing when the pane is closed with Quit, so a hand click is logged
+ * as a board click while the board state is this fresh.
+ */
+const BOARD_PANE_FRESH_MS = 5 * 60 * 1000
 
 /** Name the row a client answer chose, from the dialog it answered. */
 function describeAnswer(answered: DialogAnswer): string {
@@ -129,6 +142,7 @@ export function createPaneWatcher(options: PaneWatcherOptions): PaneWatcher {
   const positionFor = options.positionFor ?? ((): null => null)
   const exchangeFor = options.exchangeFor ?? ((): null => null)
   const knownNpcs = options.knownNpcs ?? ((): [] => [])
+  const boardFor = options.boardFor ?? ((): null => null)
   const now = options.now ?? Date.now
   const watched = new Map<string, Watched>()
   const watchedDialogs = new Map<string, WatchedDialog>()
@@ -235,6 +249,11 @@ export function createPaneWatcher(options: PaneWatcherOptions): PaneWatcher {
       return
     }
 
+    if (dialog === null && watchBoard(connectionId, state, pointer)) {
+      state.leftDown = pointer.leftDown
+      return
+    }
+
     if (dialog === null) {
       watchRightWalk(connectionId, state, pointer)
       // No dialog up: a release on the world is remembered, in case a dialog
@@ -267,6 +286,73 @@ export function createPaneWatcher(options: PaneWatcherOptions): PaneWatcher {
       )
     }
     state.leftDown = pointer.leftDown
+  }
+
+  /** A short name for what the board pane shows, for the log. */
+  function boardView(board: BoardState): string {
+    const { request, post, open } = board
+    const newest = Math.max(request?.asOfMs ?? 0, post?.asOfMs ?? 0, open?.asOfMs ?? 0)
+    if (post !== undefined && post.asOfMs === newest) {
+      return `${post.mail ? 'mail' : 'post'} ${post.postId} of board ${post.boardId}`
+    }
+    if (open !== undefined && open.asOfMs === newest) {
+      return `${open.mail ? 'the mailbox' : `board ${open.boardId} (${open.boardName})`}, ${open.rows.length} rows held`
+    }
+    return 'the board list'
+  }
+
+  /** One 0x3B, in a line. */
+  function describeRequest(request: NonNullable<BoardState['request']>): string {
+    switch (request.action) {
+      case 'listBoards':
+        return 'list boards'
+      case 'listPosts':
+        return `list board ${request.boardId} from ${request.startPostId} by ${request.navOffset}`
+      case 'readPost':
+        return `read post ${request.postId} of board ${request.boardId} (offset ${request.navOffset})`
+      default:
+        return `${request.action} on board ${request.boardId}`
+    }
+  }
+
+  /**
+   * The board side (WP36): while a board pane is up, a hand click is logged
+   * in game coordinates with what the pane showed, and the client's next
+   * 0x3B is paired with it. That pair is where the row or the button is,
+   * which the layouts do not say (the pane's own place on screen is not in
+   * them), and it is what the poll clicks. Returns true when a board pane
+   * is up, so the click is not read as one on the world.
+   */
+  function watchBoard(connectionId: string, state: WatchedDialog, pointer: PointerState): boolean {
+    const board = boardFor(connectionId)
+    if (board === null || now() - board.asOfMs > BOARD_PANE_FRESH_MS) return false
+
+    const request = board.request
+    if (request !== undefined && request.asOfMs !== state.lastBoardRequestAt) {
+      state.lastBoardRequestAt = request.asOfMs
+      const hand = state.boardClick
+      if (hand !== undefined && Math.abs(request.asOfMs - hand.atMs) <= PAIR_WINDOW_MS) {
+        log.info(
+          'pane',
+          `The client sent ${describeRequest(request)}, ${request.asOfMs - hand.atMs} ms after the hand click at game (${hand.gameX}, ${hand.gameY}) on ${hand.view}.`
+        )
+        state.boardClick = undefined
+      } else {
+        log.info(
+          'pane',
+          `The client sent ${describeRequest(request)} with no hand click before it.`
+        )
+      }
+    }
+
+    if (state.leftDown && !pointer.leftDown && pointer.inside) {
+      const gameX = Math.round((pointer.x * GAME_WIDTH) / Math.max(1, pointer.width))
+      const gameY = Math.round((pointer.y * GAME_HEIGHT) / Math.max(1, pointer.height))
+      const view = boardView(board)
+      state.boardClick = { gameX, gameY, atMs: now(), view }
+      log.info('pane', `Hand click released at game (${gameX}, ${gameY}) on ${view}.`)
+    }
+    return true
   }
 
   /**

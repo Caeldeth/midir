@@ -40,6 +40,11 @@ function postDate(post: PostRecord): string {
   return `${post.month}/${post.day}`
 }
 
+/** A body's line breaks as the client typed them: CR, CR LF, or LF (live, 2026-09-22). */
+function bodyLines(body: string): string {
+  return body.replace(/\r\n?/g, '\n')
+}
+
 function Boards(): React.JSX.Element {
   const boards = useBoardStore((s) => s.boards)
   const selected = useBoardStore((s) => s.selected)
@@ -179,7 +184,7 @@ function BoardView({ board, exportedTo, error, onExport }: BoardViewProps): Reac
               </Typography>
             ) : (
               <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
-                {post.body}
+                {bodyLines(post.body)}
               </Typography>
             )}
           </AccordionDetails>

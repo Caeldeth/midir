@@ -1,7 +1,7 @@
 import { join } from 'node:path'
 import { z } from 'zod'
 import { boardKey, type BoardRecord, type BoardSummary, type PostRecord } from '../../shared/boards'
-import type { PostHeader } from '../protocol/decode/board'
+import { MAILBOX_ID, type PostHeader } from '../protocol/decode/board'
 import { createJsonStore, type JsonStore, type JsonStoreFailure } from '../jsonStore'
 
 /**
@@ -103,7 +103,9 @@ function boardIn(
 
 /**
  * Put the boards the server listed into `file`, so a board is known by name
- * before any of its posts are. The mailbox is not in the server's list.
+ * before any of its posts are. Retail lists the mailbox as board 0 "Mail"
+ * (live, 2026-09-22); it is every character's own and is kept per
+ * character, so the list's entry for it is not a board of the archive.
  */
 export function withBoardList(
   file: BoardFile,
@@ -112,6 +114,7 @@ export function withBoardList(
 ): BoardFile {
   const next = { ...file.boards }
   for (const board of boards) {
+    if (board.id === MAILBOX_ID) continue
     const key = boardKey(board.id, false, '')
     next[key] = boardIn(file, key, board.id, board.name, false, '', seenAtMs)
   }

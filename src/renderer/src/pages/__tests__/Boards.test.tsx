@@ -22,7 +22,7 @@ const PUBLIC: BoardRecord = {
       day: 15,
       subject: 'Hello',
       highlighted: false,
-      body: 'Welcome!',
+      body: 'Welcome!\r\rSigned,\rAri',
       seenAtMs: Date.now(),
       bodyAtMs: Date.now(),
       seenBy: 'Sabrael'
@@ -91,6 +91,16 @@ describe('the Boards page', () => {
     expect(posts[1]).toHaveTextContent('Older')
     expect(posts[1]).toHaveTextContent('not opened')
     expect(screen.getByText(/2 posts seen, 1 with the body read/)).toBeInTheDocument()
+  })
+
+  it("shows a body's carriage returns as line breaks", async () => {
+    window.api.boards.list = vi.fn(async () => [SUMMARY])
+    window.api.boards.get = vi.fn(async () => PUBLIC)
+    render(<Boards />)
+    await screen.findByTestId('board-view')
+    await userEvent.click(screen.getAllByTestId('board-post')[0]!)
+    const body = await screen.findByText(/Signed,/)
+    expect(body.textContent).toBe('Welcome!\n\nSigned,\nAri')
   })
 
   it('exports the shown board and says where it went', async () => {

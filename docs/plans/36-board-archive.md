@@ -10,8 +10,37 @@ index with every page seen and what the newest page added, the post on screen, t
 request); `store/boardStore.ts` is `boards.json`, with a header never replacing a body and the
 mailbox keyed `mail:<name>`; the capture service attributes a post to the board the client's read
 asked for and queues the archive's writes with the characters'; the **Boards** tab lists the
-archive and exports a board in the prototype's shape. The decoders are proven by the first live
-browse (verification 3), which is what is left of PR1. PR2 is the poll.
+archive and exports a board in the prototype's shape.
+
+**The live browse of 2026-09-22 03:31Z proved the decoders** — Sabrael read Mileth Political
+Discourse (board 188) on retail: 80 headers over five pages and seven bodies, no `0x31` or `0x3B`
+unreadable. What it settled, beyond the plan:
+
+- **The post's `u16` is the post id.** `readPost 80` was answered with `postId 80`; the document
+  repo was right and darkages-741-re's `board_id` is wrong.
+- **Retail lists the mailbox as board 0 "Mail"** in the board list (heading empty), so a board
+  list does put a "Mail" entry on the wire; the archive leaves it out, since the mailbox is per
+  character.
+- **The client's page cursor is the oldest held id minus one**, so retail's pages do not overlap
+  (80–65, then 64–49, 48–33 …): the prototype's "inclusive" overlap was its own cursor. Sixteen
+  rows a page. The dedupe stays, and costs nothing.
+- **The client's repeat trap is real.** One scroll at the bottom sent the same `listPosts 32,-16`
+  91 times in 100 ms and the server answered every one. The poll drives that client, so it must
+  count a page by what it adds (the reducer's `lastPageAdded`) and never by the number of replies,
+  and it must wait for one reply before it scrolls again.
+- **Next is `navOffset −1`** (79 after 80) **and Prev is `+1`**, and the reply carries the post's
+  real id. Not used by the poll (decision 4), but known.
+- **A body's line breaks are `
+`, `
+`, and `
+`**, as each player typed them; the tab shows
+  them as breaks and the export keeps them as sent.
+- A post arrives with `subType 3` and an index with `subType 2` when opened from the board list;
+  the plan's "0 normal" is Hybrasyl's value.
+
+PR2 is the poll. The pane watcher's board side (this PR) logs every hand click on a board pane
+with what the pane showed and pairs it with the client's next `0x3B`; the poll's positions come
+from one more browse read through that log.
 
 **Trigger:** Sabrael, 2026-09-21: retail's boards hold years of player-written content that exists
 nowhere else, and no tool in the house reads them. The Brigid prototype (`feat/board-capture-debug`,

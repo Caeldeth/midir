@@ -67,6 +67,19 @@ describe('the board archive', () => {
     })
   })
 
+  it("leaves the list's Mail entry out: the mailbox is kept per character", () => {
+    // Retail lists Mail as board 0 (live, 2026-09-22).
+    const file = withBoardList(
+      emptyBoardFile(),
+      [
+        { id: 0, name: 'Mail' },
+        { id: 1, name: 'Events of Temuair' }
+      ],
+      500
+    )
+    expect(Object.keys(file.boards)).toEqual(['1'])
+  })
+
   it('keeps every header a page lists, and a body once a post is opened', () => {
     let file = page(emptyBoardFile(), [row(50), row(49)])
     expect(Object.keys(file.boards['10']!.posts).sort()).toEqual(['49', '50'])

@@ -335,6 +335,8 @@ const paneWatcher = createPaneWatcher({
   answerFor: (connectionId) => captureService.answerFor(connectionId),
   positionFor: (connectionId) => captureService.positionFor(connectionId),
   exchangeFor: (connectionId) => captureService.exchangeFor(connectionId),
+  // A hand click on a board pane, paired with the client's request (WP36).
+  boardFor: (connectionId) => captureService.boardFor(connectionId),
   // The NPC tiles the errands know, so a hand click on one measures the view.
   knownNpcs: () =>
     builtinErrands().flatMap((e) => {
