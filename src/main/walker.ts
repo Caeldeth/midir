@@ -13,8 +13,11 @@ import type { Logger } from './log'
 import type { DialogState } from './model/dialog'
 import type { ExchangeState } from './model/exchange'
 import type { FieldMapState } from './model/fieldMap'
+import type { NoticeState } from './model/notice'
+import { gateFromNotice } from './model/access'
+import { gateBars, gateBarText, type Gate, type Passport } from './route/access'
 import type { Position } from './model/position'
-import type { RouteGraph, RouteHop, RouteLeg, RouteWarp } from './route/graph'
+import type { RouteGraph, RouteHop, RouteLeg, RoutePlan, RouteWarp } from './route/graph'
 import type { MapProvider } from './route/mapSource'
 import type { MapGrid } from './route/mapGrid'
 import { findPath, type PathStep } from './route/pathfind'
@@ -146,6 +149,15 @@ export interface WalkerOptions {
    * like a dialog, and it opens when another player drags an item onto them.
    */
   exchangeFor?: (connectionId: string) => ExchangeState | null
+  /** The newest server notice, from the capture service. Absent means never. A gate refuses with one (WP32). */
+  noticeFor?: (connectionId: string) => NoticeState | null
+  /**
+   * What the character carries to a gate: registration and citizenship as the
+   * record knows them. Absent means unknown, which bars nothing.
+   */
+  passportFor?: (connectionId: string) => Passport | null
+  /** The maps that admit only a registered citizen of one town. Absent means none. */
+  gates?: Gate[]
   /** The source of a map's passability. */
   maps: MapProvider
   /** The between-maps route graph. */
@@ -189,6 +201,8 @@ interface Run {
   loggedPaneAt?: number
   /** Popups already clicked, keyed by kind and capture time, so none is clicked twice. */
   dismissed: Set<string>
+  /** The one line that says why the walk stopped, when the reason alone does not. */
+  stopDetail?: string
 }
 
 /** What a stall turned out to be, once the dialog on screen was read. */
@@ -270,6 +284,14 @@ export function createWalker(options: WalkerOptions): Walker {
   const fieldMapFor = options.fieldMapFor ?? ((): FieldMapState | null => null)
   const dialogFor = options.dialogFor ?? ((): DialogState | null => null)
   const exchangeFor = options.exchangeFor ?? ((): ExchangeState | null => null)
+  const noticeFor = options.noticeFor ?? ((): NoticeState | null => null)
+  const passportFor = options.passportFor ?? ((): Passport | null => null)
+  // The gated maps: the seed, plus what a gate's own refusal taught this
+  // process. The maps whose gates refused each character are kept per
+  // connection, so a stale citizenship byte never sends it back to a gate
+  // that said no.
+  const gates = new Map<number, Gate>((options.gates ?? []).map((g) => [g.mapId, g]))
+  const refusedMaps = new Map<string, Set<number>>()
   const now = options.now ?? Date.now
   const sleep = options.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)))
 
@@ -446,6 +468,89 @@ export function createWalker(options: WalkerOptions): Walker {
         : `The exchange is still open after ${DISMISS_WAIT_MS} ms; retrying the step.`
     )
     return { kind: 'dismissed' }
+  }
+
+  /**
+   * Which gate on the character's way bars it, and why (WP32). The gate list
+   * and the passport are read fresh for every plan, so a registration line or
+   * a refusal that arrived mid-walk counts at the next step.
+   */
+  function barrierFor(
+    connectionId: string
+  ): (mapId: number) => { gate: Gate; text: string } | null {
+    const passport: Passport = {
+      ...(passportFor(connectionId) ?? {}),
+      refusedMaps: refusedMaps.get(connectionId)
+    }
+    return (mapId) => {
+      const gate = gates.get(mapId)
+      if (gate === undefined) return null
+      const bar = gateBars(gate, passport)
+      return bar === null ? null : { gate, text: gateBarText(gate, bar) }
+    }
+  }
+
+  /**
+   * Plan from `fromMapId` around the gates the character cannot pass, or say
+   * which gate is in the way. A route that exists only through a barred gate
+   * is `gated`, with the gate named; no route at all is `noRoute`.
+   */
+  function planAround(
+    run: Run,
+    fromMapId: number,
+    toMapId: number
+  ): { kind: 'plan'; plan: RoutePlan } | { kind: 'stopped'; reason: WalkStopReason } {
+    const barrier = barrierFor(run.connectionId)
+    const plan = graph.planRoute(fromMapId, toMapId, {
+      passable: (mapId) => barrier(mapId) === null
+    })
+    if (plan !== null) return { kind: 'plan', plan }
+    const open = graph.planRoute(fromMapId, toMapId)
+    if (open === null) return { kind: 'stopped', reason: 'noRoute' }
+    // The only way through is a gate: name the first one on it.
+    for (const leg of open.legs) {
+      const bar = barrier(leg.toMapId)
+      if (bar !== null) {
+        run.stopDetail = bar.text
+        log.warn('walker', `The route to map ${toMapId} needs map ${bar.gate.mapId}: ${bar.text}.`)
+        return { kind: 'stopped', reason: 'gated' }
+      }
+    }
+    return { kind: 'stopped', reason: 'noRoute' }
+  }
+
+  /**
+   * A gate's own refusal after a warp that did not fire (WP32): "Only a
+   * <Town> citizen may enter here", newer than the step. The map is learned
+   * as that town's gate for the rest of the process, and as one that refused
+   * this character for the rest of the session, and the walk stops with the
+   * gate named. The register line that may follow is the record's business
+   * (`model/character.ts`).
+   */
+  function gateRefusal(run: Run, sinceMs: number, mapId: number): boolean {
+    const notice = noticeFor(run.connectionId)
+    if (notice === null || notice.asOfMs <= sinceMs) return false
+    const refusal = gateFromNotice(notice.packet.text)
+    if (refusal === null) return false
+    const known = gates.get(mapId)
+    const gate: Gate = known ?? {
+      mapId,
+      town: refusal.town,
+      name: graph.node(mapId)?.name ?? undefined
+    }
+    if (known === undefined) {
+      gates.set(mapId, gate)
+      log.info(
+        'walker',
+        `Learned map ${mapId} (${gate.name ?? 'unnamed'}) as ${refusal.town}'s gate, from its refusal.`
+      )
+    }
+    const maps = refusedMaps.get(run.connectionId) ?? new Set<number>()
+    maps.add(mapId)
+    refusedMaps.set(run.connectionId, maps)
+    run.stopDetail = `${gate.name ?? `map ${mapId}`} refused the character: "${notice.packet.text.trim()}"`
+    log.warn('walker', `${run.stopDetail}. Stopping.`)
+    return true
   }
 
   /** Wait for a known position, so the walker never plans on a gap or a fresh map. */
@@ -673,9 +778,11 @@ export function createWalker(options: WalkerOptions): Walker {
         return { kind: 'stopped', reason: 'lostPosition' }
       }
 
-      // Plan the route from where the character is now.
-      const plan = graph.planRoute(position.mapId, destMapId)
-      if (plan === null) return { kind: 'stopped', reason: 'noRoute' }
+      // Plan the route from where the character is now, around the gates the
+      // character cannot pass.
+      const planned = planAround(run, position.mapId, destMapId)
+      if (planned.kind === 'stopped') return planned
+      const { plan } = planned
       if (plan.legs.length === 0) {
         // Same map as the destination is handled above; an empty plan here means
         // the graph put us on the destination without a warp, so we are there.
@@ -755,6 +862,8 @@ export function createWalker(options: WalkerOptions): Walker {
             continue
           }
         }
+        // The gate's own word, when the warp is a gate that refused.
+        if (gateRefusal(run, beforeAt, leg.toMapId)) return { kind: 'stopped', reason: 'gated' }
         // The warp did not take. After a few tries give up on this warp tile so
         // A* routes to another warp for the same leg, or stops if there is none.
         const key = tileKey(before.mapId, before.x, before.y)
@@ -848,6 +957,10 @@ export function createWalker(options: WalkerOptions): Walker {
         const popup = await checkPopup(run, target)
         if (popup.kind === 'dismissed') continue
         if (popup.kind === 'stop') return { kind: 'stopped', reason: popup.reason }
+        // A step onto a gate's warp tile that the gate refused.
+        if (isWarpStep && gateRefusal(run, beforeAt, leg.toMapId)) {
+          return { kind: 'stopped', reason: 'gated' }
+        }
         ;({ stalls, stallKey } = bumpStall(stalls, stallKey, before))
         run.lastPosition = positionFor(run.connectionId) ?? before
         log.info(
@@ -1207,7 +1320,9 @@ export function createWalker(options: WalkerOptions): Walker {
     runs.delete(run.connectionId)
     actionLayer.disarm(run.connectionId)
     const reason =
-      outcome.kind === 'arrived' ? 'the character arrived' : walkStopReasonText(outcome.reason)
+      outcome.kind === 'arrived'
+        ? 'the character arrived'
+        : (run.stopDetail ?? walkStopReasonText(outcome.reason))
     publish(run, reason)
     log.info('walker', `Walker on ${run.connectionId} ended: ${reason}.`)
   }
@@ -1340,6 +1455,8 @@ function walkStopReasonText(reason: WalkStopReason): string {
       return 'there is no route there'
     case 'dialog':
       return 'a dialog is on screen that it could not close'
+    case 'gated':
+      return 'a map on the way admits only a registered citizen of its town'
     case 'protected':
       return 'a login or password dialog is on screen'
   }

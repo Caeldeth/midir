@@ -4,6 +4,7 @@ import type { ActionLayer, LiveConnection } from '../actionLayer'
 import type { ActionRefusal, ActionTarget, Errand, WalkOutcome } from '../../shared/types'
 import type { DialogState } from '../model/dialog'
 import type { Position } from '../model/position'
+import type { Passport } from '../route/access'
 import { creaturePoint } from '../laborer/view'
 import type { NoticeState } from '../model/notice'
 import type { NpcMenu } from '../protocol/decode/dialog'
@@ -189,6 +190,8 @@ interface Options {
   position?: Position
   /** The errand's map id, as the graph would resolve it. */
   destinationMapId?: number
+  /** Registration and citizenship as the record knows them. Absent: no record. */
+  passport?: Passport
 }
 
 function make(opts: Options): {
@@ -217,6 +220,7 @@ function make(opts: Options): {
     },
     positionFor: (id: string): Position | null => (id === CID ? (opts.position ?? null) : null),
     resolveDestination: () => opts.destinationMapId ?? null,
+    passportFor: (id: string): Passport | null => (id === CID ? (opts.passport ?? null) : null),
     noticeFor: (id: string): NoticeState | null =>
       id === CID ? (opts.feed.noticeAt?.[opts.feed.index] ?? null) : null,
     log: noop,
@@ -762,6 +766,77 @@ describe('opening the conversation', () => {
     const outcome = await laborer.run(request)
     expect(outcome).toEqual({ kind: 'stopped', reason: 'timeout' })
     expect(fake.clicks).toEqual([npcClick, npcClick, npcClick])
+  })
+})
+
+describe('what the record refuses before the walk (WP32)', () => {
+  // Clout at Rucesion is for a registered Rucesion citizen (nation 6); labor
+  // needs a registered character.
+  const clout = builtinErrands().find((e) => e.npcName === 'Eduardo')!
+  const labor = builtinErrands().find((e) => e.name.startsWith('Labor — Antonio'))!
+  const feed = { list: [], index: 0 }
+
+  it('refuses clout to a citizen of another town, before any walk', async () => {
+    const { laborer, walkerStops, states } = make({
+      errand: clout,
+      feed,
+      passport: { registered: true, citizenship: 4 }
+    })
+    const outcome = await laborer.run({
+      connectionId: CID,
+      errand: clout.name,
+      params: { citizen: 'Pandsala' }
+    })
+    expect(outcome).toEqual({ kind: 'stopped', reason: 'notCitizen' })
+    expect(walkerStops).toEqual([])
+    expect(states.some((s) => s.reason === 'walking to the NPC')).toBe(false)
+  })
+
+  it('refuses clout and labor to an unregistered character', async () => {
+    for (const errand of [clout, labor]) {
+      const { laborer } = make({ errand, feed, passport: { registered: false, citizenship: 6 } })
+      const outcome = await laborer.run({
+        connectionId: CID,
+        errand: errand.name,
+        params: { citizen: 'Pandsala', aisling: 'Pandsala' }
+      })
+      expect(outcome).toEqual({ kind: 'stopped', reason: 'unregistered' })
+    }
+  })
+
+  it('lets the right citizen, and a character the record does not know, go on', async () => {
+    // Unknown refuses nothing: the server's own refusal is then the verdict.
+    for (const passport of [{ registered: true, citizenship: 6 }, {}, undefined]) {
+      const { laborer, walkerStops } = make({
+        errand: clout,
+        feed,
+        walkOutcome: { kind: 'stopped', reason: 'blocked' },
+        ...(passport !== undefined ? { passport } : {})
+      })
+      const outcome = await laborer.run({
+        connectionId: CID,
+        errand: clout.name,
+        params: { citizen: 'Pandsala' }
+      })
+      // The walk was attempted (and, in this fake, refused as blocked).
+      expect(outcome).toEqual({ kind: 'stopped', reason: 'walker' })
+      expect(walkerStops.length).toBe(0)
+    }
+  })
+
+  it('does not ask citizenship of a labor errand', async () => {
+    const { laborer } = make({
+      errand: labor,
+      feed,
+      walkOutcome: { kind: 'stopped', reason: 'blocked' },
+      passport: { registered: true, citizenship: 0 }
+    })
+    const outcome = await laborer.run({
+      connectionId: CID,
+      errand: labor.name,
+      params: { aisling: 'Pandsala' }
+    })
+    expect(outcome).toEqual({ kind: 'stopped', reason: 'walker' })
   })
 })
 

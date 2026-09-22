@@ -88,6 +88,12 @@ export interface CaptureService {
    */
   positionFor(connectionId: string): Position | null
   /**
+   * The record of the character on `connectionId` as the session holds it
+   * now, or null while none is identified. The walker reads registration and
+   * citizenship from it (WP32).
+   */
+  recordFor(connectionId: string): CharacterRecord | null
+  /**
    * The NPC dialog on screen on `connectionId` now, or null while there is
    * none. Like the position, it is a live fact and is never saved. The Laborer
    * reads it to choose an option and wait for the next step.
@@ -487,6 +493,10 @@ export function createCaptureService(options: CaptureServiceOptions): CaptureSer
     },
     positionFor(connectionId: string): Position | null {
       return positions.get(connectionId) ?? null
+    },
+    recordFor(connectionId: string): CharacterRecord | null {
+      const session = sessions.get(connectionId)
+      return session !== undefined && isIdentified(session) ? session.record : null
     },
     dialogFor(connectionId: string): DialogState | null {
       return dialogs.get(connectionId) ?? null

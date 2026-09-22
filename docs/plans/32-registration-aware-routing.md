@@ -1,7 +1,14 @@
 # WP32 — registration-aware routing
 
 **Size:** M. **Depends on:** WP15 (the walker and the graph) and WP4/WP5 (the character record and
-its legend). Read `00-overview.md` first. **PLANNED.** **Card:** `HTOO-81`.
+its legend). Read `00-overview.md` first. **IN PROGRESS.** **Card:** `HTOO-81`.
+
+**Built 2026-09-21; the live check is what is left.** The walker plans around the gates its
+character cannot pass (`planAround` in `walker.ts`), stops before it moves with the gate named when
+the only way is through one (`gated`), and learns a gate from the gate's own refusal mid-walk. The
+record carries `registered` from the wire's positive signals, and citizenship is the `nation` byte
+already on it. The facts are in `model/access.ts`; the gates and the passport are `route/access.ts`
+and `route/access.json`.
 **Trigger to start:** the walker is used with unregistered characters, or a route through a Commons
 is wanted for one. **Fired 2026-09-21**: Gabrael, unregistered, walked to the Mileth Commons gate
 and was refused, twice (10:15Z and 10:17Z, in the recording). Registered afterwards, he entered.
@@ -50,17 +57,30 @@ Two positive signals, from opposite ends:
    refusal: a registered character who is not a citizen of that town gets it with no register hint
    ("Only a Rucesion citizen may enter here" on its own, 2026-07-23 and 2026-09-21 10:00Z).
 
-**The gate is on citizenship as well as registration.** The Commons admits a registered citizen of
-its own town, and no one else; the two lines above say which condition failed. So the overlay
-(decision 3) needs the town beside the map id, and the planner needs the character's citizenship
-beside its registration. Citizenship is on the record already, from the legend ("Citizen of
-Mileth" is a legend mark) — confirm the exact mark text against a live character, as for the
-unregistered mark — and a route for a non-citizen avoids the other towns' Commons the same way an
-unregistered one avoids them all.
+**The gate is on citizenship as well as registration.** Sabrael, 2026-09-21: the Mileth Commons
+admits a registered citizen of Mileth or Loures, the Rucesion Commons one of Rucesion or Loures,
+and no other map is gated on citizenship; the two lines above say which condition failed. So the
+overlay (decision 3) carries the towns each gate admits beside the map id, and the planner reads
+the character's citizenship beside its registration.
+
+**Citizenship is the `nation` byte, not the legend.** Sabrael's facts, 2026-09-21: the legend mark
+"<Town> Citizen by oath of <Name> - <Date>" is given only by Mileth and Rucesion (Loures gives none,
+Suomi's and Tagor's differ, Medenia has none), Medenia does not remove the marks of other towns,
+and a character can hold no citizenship. So a mark can be stale. The `nation` byte of SSelfLook
+`0x39`, on the record as `citizenship`, tracks the change: every recording agrees with its legend
+where the legend speaks (Gabrael 4 = Mileth with the Mileth mark; every Rucesion mark on 6), and
+Sylphid, Medenian, is nation 7 with an old Rucesion mark. The Nation table is darkages-741-re's
+(`NATION_OF_TOWN` in `model/access.ts`). Value 0 is "None", a citizenship of nowhere, and it is a
+fact once SelfLook has been seen: it bars both Commons, and clout at Mileth and Rucesion (Sabrael).
+That is why the record carries `citizenship` beside `appearance.nation`: the latter defaults to 0,
+and only the former says whether the byte has been seen. Not yet seen bars nothing.
 
 The rule: an unregistered legend mark or either refusal (signal 3 or the second line of signal 4)
 makes the character unregistered; else a seen expiration message makes it registered; else
-registered by default. Citizenship is read from the legend, and unknown citizenship gates nothing.
+registered by default, and the newest signal wins because a registration expires. Citizenship is
+the `nation` byte; a gate admits the towns it lists; not yet seen gates nothing, and 0 gates
+everything. A map whose gate refused this character is barred for the rest of the session whatever
+the byte says: the gate's word is the authority.
 
 ## Decisions
 
@@ -71,7 +91,10 @@ registered by default. Citizenship is read from the legend, and unknown citizens
 2. **Registration is a positive fact on the record.** Add `registered?: boolean` to
    `CharacterRecord`, set `false` when the unregistered legend mark is seen and `true` when the
    expiration message is seen. `undefined` means unknown, which the planner treats as registered.
-   Name the field in `characterSchema`, or it is dropped on load (WP11's rule).
+   Name the field in `characterSchema`, or it is dropped on load (WP11's rule). **Taken**: the
+   character reducer reads SelfLook's legend and every type-3 `0x0A` (`registrationFromNotice`);
+   `mergeCharacter` keeps the last known value across a login that showed no signal, and a newer
+   signal replaces it; the schema names it.
 3. **Gated maps are a small overlay, seeded and learned** (the chosen source). A hand-kept
    `route/access.json` lists the gated map ids with the town each admits, seeded with the known
    ones (Rucesion Commons `3048`, Mileth Commons `3025`, and any others). It is separate from the
@@ -79,17 +102,35 @@ registered by default. Citizenship is read from the legend, and unknown citizens
    warp into a map beside the gate's own notice (signal 4, either line) learns the map as gated,
    with the town from the notice's text — a WP29-style learned fact, with the same provenance and
    observation-count honesty. The notice is the proof; a stall alone is a creature or a wall.
-4. **The planner is registration-aware.** `planRoute(from, to, { registered })` excludes edges into a
-   gated map when `registered` is false. A destination reachable only through a gate returns null,
-   which the walker reports as `noRoute`.
-5. **The walker says why.** An unregistered character sent to a gated place stops with `noRoute` and
-   a message that names the cause — "that place needs a registered character" — not the bare "no
-   route". The destination picker may also mark or hide gated places for an unregistered character.
+   **Taken, for the process**: `gateRefusal` in the walker reads the newest notice after a warp
+   that did not fire, learns the map as that town's gate for the life of the process, and marks
+   the town as one that refused this character for the session. Persisting a learned gate with its
+   provenance is WP29's store, not built yet; the log line names the map and the town so the seed
+   can be extended by hand.
+4. **The planner is registration-aware.** **Taken as** `planRoute(from, to, { passable })`: the
+   graph takes a predicate and knows nothing of gates; the walker builds it from the gates and the
+   character's passport (`gateBars` in `route/access.ts`). A route that exists only through a
+   barred gate is `gated`; no route at all is `noRoute`.
+5. **The walker says why.** **Taken**: a new `WalkStopReason` `gated`, and the run's reason line
+   names the gate and the condition — "Mileth Commons admits only a registered character", "…
+   admits only a citizen of Mileth or Loures", or the gate's own words when it refused mid-walk. The
+   destination picker is unchanged.
+
+## The Laborer's pre-checks (added 2026-09-21)
+
+The same two facts refuse an errand before any walk. Sabrael: clout at Mileth is for a Mileth
+citizen and at Rucesion for a Rucesion citizen (nation 0 is refused at both), and clout and labor
+both need a registered character (the "(( Register first … ))" refusal was captured for both). So
+an errand may declare `needsCitizenship` (a town) and `needsRegistration`, the clout errands
+declare both and the labor errands the second, and the Laborer's `preCheck` stops the run with
+`notCitizen` or `unregistered` when the record's fact says so. Unknown refuses nothing; the server's
+own refusal (`serverNotice`) is then the verdict, as before. Labor fix declares nothing, because its
+refusal has not been seen.
 
 ## Non-goals (stop-lines)
 
-- **No guessing registration from class or nation.** Those are not the signal; the legend mark and
-  the login message are.
+- **No guessing registration from class or nation.** Those are not the signal; the notices and the
+  legend mark are. (Nation is the citizenship, a different fact.)
 - **No reading a credential or an account state beyond registration.** The expiration message is read
   for its presence, not to store a date or any account detail.
 - **No forcing a gated warp.** The walker plans around a gate; it never tries to push through one.
@@ -130,14 +171,21 @@ export interface AccessOverlay {
 
 ## Acceptance criteria
 
-1. An unregistered character (the legend mark present) sent to a place behind a gated map stops with
-   `noRoute` and a message that names registration as the cause, before it moves.
-2. A registered character (the expiration message seen) walks the same route normally.
-3. A character with no signal is treated as registered.
-4. The gated-map overlay survives a re-import of `WorldMap.dat`.
-5. A learned gate needs an unregistered character to have hit it, and a creature-block is not
-   mistaken for a gate.
+1. An unregistered character sent to a place behind a gated map stops with `gated` and a message
+   that names the gate and the cause, before it moves. **Unit test passes** (`walker.test.ts`,
+   "a gated map"): zero presses; a citizen of another town the same.
+2. A registered character of the gate's town walks the same route normally. **Unit test passes.**
+3. A character with no signal is treated as one that may pass. **Unit test passes**: an empty
+   passport and a record not yet identified both walk.
+4. The gated-map overlay survives a re-import of `WorldMap.dat`. **Holds by construction**:
+   `access.json` is a separate hand-kept file.
+5. A learned gate needs the gate's own refusal, and a creature-block is not mistaken for a gate.
+   **Unit test passes**: the refusal at the warp stops the walk as `gated` with no three-stall
+   grind, and the next walk stops before moving; a stale citizenship byte does not send the
+   character back. A stall with no notice is the walker's ordinary `blocked` path, unchanged.
 6. `0x0A` decodes to the right type and text against wire bytes (done in WP17 PR3).
+7. The record's `registered` follows the newest signal and survives a restart. **Unit tests pass**
+   (`character.test.ts`, `characterStore.test.ts`).
 
 ## Verification
 
@@ -145,12 +193,19 @@ export interface AccessOverlay {
 2. Unit tests: the `0x0A` decode; the registration reducer over a legend with and without the mark
    and over an expiration message; the planner's gated-map exclusion for a registered and an
    unregistered character.
-3. GUI (hand to Sabrael): an unregistered character asked for Rucesion Town Hall (behind Commons)
-   gets the clear refusal; a registered one walks it.
+3. GUI (hand to Sabrael): a character whose record says unregistered (a Labor refusal or the
+   gate's register line this session, or the unregistered mark) asked for a place behind a Commons
+   stops before moving with "… admits only a registered character"; a registered citizen of the
+   other town stops with "… admits only a citizen of …"; a registered citizen of the town walks
+   it. And a character the record knows nothing about, sent at a Commons that refuses it, stops on
+   the refusal with the gate's own words and does not walk back into it on the next Run.
 
 ## Needed input
 
 - The **map ids** to seed the overlay: Rucesion Commons `3048` and Mileth Commons `3025` are known;
   add any others as they are found.
 - The **exact unregistered legend mark** text or key to match, confirmed against a live unregistered
-  character.
+  character. Matched on the word "Unregistered" for now; no recording holds the mark, and Sabrael
+  says it is inconsistent, which is correct.
+- The **citizenship marks of Suomi and Tagor**, if they are ever wanted: not needed for the planner,
+  which reads the byte, but useful for the record's legend view.

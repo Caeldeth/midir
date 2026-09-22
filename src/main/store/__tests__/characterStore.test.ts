@@ -61,6 +61,18 @@ describe('withCharacter', () => {
     expect(file.characters['Sabrael']?.bank).toEqual({ readAtMs: 1900, items: [] })
   })
 
+  it('keeps a registration a later login showed no signal for, and lets a newer signal replace it', () => {
+    // WP32: registration is a positive fact. A login with no signal keeps the
+    // last known value; a refusal after an expiry replaces it.
+    const known = { ...emptyCharacter('Sabrael', 1000), registered: true }
+    const silent = emptyCharacter('Sabrael', 90000)
+    let file = withCharacter(withCharacter(emptyCharacterFile(), known), silent)
+    expect(file.characters['Sabrael']?.registered).toBe(true)
+    const lapsed = { ...emptyCharacter('Sabrael', 95000), registered: false }
+    file = withCharacter(file, lapsed)
+    expect(file.characters['Sabrael']?.registered).toBe(false)
+  })
+
   it('does not change the file it was given', () => {
     const file = emptyCharacterFile()
     withCharacter(file, emptyCharacter('Sabrael', 1))
@@ -120,6 +132,15 @@ describe('createCharacterStore', () => {
 
     const reopened = createCharacterStore(directory)
     expect((await reopened.load()).characters['Sabrael']?.title).toBe('Grand Master')
+  })
+
+  it('keeps a registration across a restart', async () => {
+    // A field the schema does not name is dropped on load, silently.
+    const record = { ...emptyCharacter('Sabrael', 1000), registered: true }
+    const store = createCharacterStore(directory)
+    await store.update((file) => withCharacter(file, record))
+    const reopened = createCharacterStore(directory)
+    expect((await reopened.load()).characters['Sabrael']?.registered).toBe(true)
   })
 
   it('keeps a bank across a restart', async () => {

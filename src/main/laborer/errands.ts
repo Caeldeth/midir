@@ -90,7 +90,9 @@ const RUCESION: CivicIds = { town: 'Rucesion', civicsRow: 1612, pursuit: 588 }
 /** "Mileth Civics" on Riona, and the civic pursuit behind it. */
 const MILETH: CivicIds = { town: 'Mileth', civicsRow: 1603, pursuit: 579 }
 
-function cloutSteps(ids: CivicIds): Pick<Errand, 'params' | 'steps' | 'branches'> {
+function cloutSteps(
+  ids: CivicIds
+): Pick<Errand, 'params' | 'steps' | 'branches' | 'needsCitizenship' | 'needsRegistration'> {
   const { town, civicsRow, pursuit } = ids
   const branches: DialogStep[] = [
     {
@@ -102,6 +104,10 @@ function cloutSteps(ids: CivicIds): Pick<Errand, 'params' | 'steps' | 'branches'
     { pursuit, when: 'is in Temuair now', choose: 'Withdraw support', then: 'restart' }
   ]
   return {
+    // Clout is for the town's own citizen, and for a registered one (Sabrael,
+    // 2026-09-21; the unregistered refusal is in the capture of the same day).
+    needsCitizenship: town,
+    needsRegistration: true,
     params: [CITIZEN],
     steps: [
       { pursuit: civicsRow, choose: `${town} Civics` },
@@ -150,8 +156,9 @@ const LABOR_ROW = 1335
 const LABOR_PURSUIT = 311
 const AISLING: ErrandParam = { name: 'aisling', label: 'Aisling to work for' }
 
-function laborSteps(): Pick<Errand, 'params' | 'steps'> {
+function laborSteps(): Pick<Errand, 'params' | 'steps' | 'needsRegistration'> {
   return {
+    needsRegistration: true,
     params: [AISLING],
     steps: [
       { pursuit: LABOR_ROW, choose: 'Labor' },

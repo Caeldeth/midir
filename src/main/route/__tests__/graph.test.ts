@@ -84,6 +84,17 @@ describe('planRoute', () => {
     expect(plan).toEqual({ fromMapId: 2, toMapId: 2, legs: [] })
   })
 
+  it('leaves out a map the caller says is not passable, and fails when it was the only way', () => {
+    // WP32: the walker passes the gated maps its character cannot enter.
+    // Town -> Field -> Cave has no way round Field.
+    expect(graph.planRoute(1, 3, { passable: (mapId) => mapId !== 2 })).toBeNull()
+    // The destination itself may be the gated map.
+    expect(graph.planRoute(1, 2, { passable: (mapId) => mapId !== 2 })).toBeNull()
+    // The start map is never asked, and an open route is unchanged.
+    const plan = graph.planRoute(2, 3, { passable: (mapId) => mapId !== 2 })
+    expect(plan?.legs.map((l) => l.toMapId)).toEqual([3])
+  })
+
   it('plans a single warp to an adjacent map', () => {
     const plan = graph.planRoute(1, 2)
     expect(plan?.legs).toHaveLength(1)

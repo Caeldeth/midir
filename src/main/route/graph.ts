@@ -101,7 +101,17 @@ export interface RouteGraph {
    * that needs an NPC dialog (`via.kind === 'dialog'`) is not a walk, so the
    * search never uses it.
    */
-  planRoute(fromMapId: number, toMapId: number): RoutePlan | null
+  planRoute(fromMapId: number, toMapId: number, options?: PlanOptions): RoutePlan | null
+}
+
+/** What a plan may leave out. */
+export interface PlanOptions {
+  /**
+   * Whether the walk may enter a map. A map this returns false for is never
+   * crossed and never arrived at; the start map is not asked. The walker
+   * passes the gated maps its character cannot enter (WP32).
+   */
+  passable?: (mapId: number) => boolean
 }
 
 /** True for an exit the walker can take: a step, a world-map click, or a prompt. */
@@ -141,9 +151,10 @@ export function createRouteGraph(nodes: RouteNode[]): RouteGraph {
     return partial.length === 1 ? partial[0].mapId : null
   }
 
-  function planRoute(fromMapId: number, toMapId: number): RoutePlan | null {
+  function planRoute(fromMapId: number, toMapId: number, options?: PlanOptions): RoutePlan | null {
     if (!byId.has(fromMapId) || !byId.has(toMapId)) return null
     if (fromMapId === toMapId) return { fromMapId, toMapId, legs: [] }
+    const passable = options?.passable ?? ((): boolean => true)
 
     // Breadth-first search, keeping each map's predecessor so the path can be
     // walked back once the goal is reached.
@@ -156,6 +167,7 @@ export function createRouteGraph(nodes: RouteNode[]): RouteGraph {
       for (const exit of byId.get(current)!.exits) {
         if (!walkable(exit)) continue
         if (visited.has(exit.toMapId) || !byId.has(exit.toMapId)) continue
+        if (!passable(exit.toMapId)) continue
         visited.add(exit.toMapId)
         predecessor.set(exit.toMapId, current)
         if (exit.toMapId === toMapId) {

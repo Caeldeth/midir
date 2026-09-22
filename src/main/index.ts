@@ -12,6 +12,7 @@ import { builtinErrands } from './laborer/errands'
 import { createPaneWatcher } from './paneWatcher'
 import { createMapSource } from './route/mapSource'
 import { worldGraph } from './route/graph'
+import { seededGates, type Passport } from './route/access'
 import { createIconService } from './icons/iconService'
 import { registerIconProtocol } from './icons/protocol'
 import { createRecorder, type Recorder } from './capture/recorder'
@@ -267,6 +268,14 @@ const iconService = createIconService({ getDarkAgesPath: () => darkAgesPath, log
 // source resolves the folder per request, so a folder chosen in Settings takes
 // effect without a restart.
 const mapSource = createMapSource({ gameFolder: () => darkAgesPath, log })
+// Registration and citizenship as the record knows them, for the walker's
+// gates and the Laborer's pre-checks (WP32). Null while no character is
+// identified on the connection; unknown fields bar nothing.
+const passportFor = (connectionId: string): Passport | null => {
+  const record = captureService.recordFor(connectionId)
+  return record === null ? null : { registered: record.registered, citizenship: record.citizenship }
+}
+
 const walker = createWalker({
   actionLayer,
   liveConnections: () => captureService.liveCharacterEntries(),
@@ -275,6 +284,10 @@ const walker = createWalker({
   // A popup mid-walk is cleared, not counted as a stall (WP34).
   dialogFor: (connectionId) => captureService.dialogFor(connectionId),
   exchangeFor: (connectionId) => captureService.exchangeFor(connectionId),
+  // A gate's refusal, and what the character carries to a gate (WP32).
+  noticeFor: (connectionId) => captureService.noticeFor(connectionId),
+  passportFor,
+  gates: seededGates(),
   // The errands' stand tiles, offered as `Place @ x,y` beside the map names.
   spots: () =>
     builtinErrands()
@@ -297,6 +310,7 @@ const laborer = createLaborer({
   noticeFor: (connectionId) => captureService.noticeFor(connectionId),
   positionFor: (connectionId) => captureService.positionFor(connectionId),
   resolveDestination: (destination) => worldGraph.resolveDestination(destination),
+  passportFor,
   log,
   onState: (state) => pushToRenderer(LABORER_STATE_CHANNEL, state)
 })
