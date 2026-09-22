@@ -553,6 +553,86 @@ describe('the reducer as a whole', () => {
   })
 })
 
+describe('the gold in the bank', () => {
+  // Eolathe at Antonio, 2026-09-22 03:20Z, packet for packet.
+  const gold = (amount: number): DecodedPacket => ({
+    kind: 'status',
+    fields: 0x0c,
+    privilege: 0,
+    mailActive: false,
+    currency: {
+      totalExperience: 14016499,
+      toNextLevel: 704878,
+      totalAbility: 0,
+      toNextAbility: 0,
+      gamePoints: 0,
+      gold: amount
+    }
+  })
+  const prompt = (text: string, pursuit: number): DecodedPacket => ({
+    kind: 'npcMenu',
+    sourceId: 7982,
+    npcName: 'Antonio',
+    menuType: 2,
+    text,
+    pursuit,
+    isTextInput: true,
+    options: []
+  })
+  const typed = (pursuit: number, text: string): DecodedPacket => ({
+    kind: 'merchantResponse',
+    objectType: 1,
+    objectId: 7982,
+    pursuit,
+    tail: Uint8Array.from([text.length, ...[...text].map((c) => c.charCodeAt(0))])
+  })
+  const DEPOSIT = "Lessee... I've got 0 coins of yours. How much more you going to put in today?"
+  const WITHDRAW = 'You have 10 coins. How much will you be taking out?'
+
+  it("reads the balance from the banker's deposit prompt, and moves it once the gold went", () => {
+    const state = run([gold(1150114), prompt(DEPOSIT, 82), typed(82, '10'), gold(1150104)], {
+      keyName: CHARACTER
+    })
+    expect(state.record.bankGold).toEqual({ amount: 10, readAtMs: 1040 })
+    expect(state.pendingGold).toBeUndefined()
+  })
+
+  it('reads the balance from the withdraw prompt, and moves it once the gold came', () => {
+    const state = run([gold(1150104), prompt(WITHDRAW, 85), typed(85, '10'), gold(1150114)], {
+      keyName: CHARACTER
+    })
+    expect(state.record.bankGold).toEqual({ amount: 0, readAtMs: 1040 })
+  })
+
+  it("keeps the prompt's figure when the server refused, or the gold moved by something else", () => {
+    // The prompt is the reading; the answer moves nothing until the gold does.
+    let state = run([gold(1150104), prompt(WITHDRAW, 85), typed(85, '10')], { keyName: CHARACTER })
+    expect(state.record.bankGold).toEqual({ amount: 10, readAtMs: 1020 })
+    expect(state.pendingGold?.amount).toBe(10)
+    // A currency block with the wrong delta ends the wait and moves nothing.
+    state = run([gold(1150204)], { from: state })
+    expect(state.record.bankGold?.amount).toBe(10)
+    expect(state.pendingGold).toBeUndefined()
+    // Another menu ends the wait too.
+    state = run([gold(0), prompt(WITHDRAW, 85), prompt('Hello.  What can I do for you?', 12)], {
+      keyName: CHARACTER
+    })
+    expect(state.pendingGold).toBeUndefined()
+  })
+
+  it('reads a balance with separators', () => {
+    const state = run([prompt("Lessee... I've got 1,150,104 coins of yours. How much more?", 82)], {
+      keyName: CHARACTER
+    })
+    expect(state.record.bankGold?.amount).toBe(1150104)
+  })
+
+  it('ignores every other text-entry prompt', () => {
+    const state = run([fullStatus, prompt('What is your name?', 7)], { keyName: CHARACTER })
+    expect(state.record.bankGold).toBeUndefined()
+  })
+})
+
 describe('the bank', () => {
   const bankPacket = (
     items: { name: string; count: number }[],

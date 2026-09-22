@@ -6,6 +6,7 @@ import {
 import { FIRST_EQUIPMENT_SLOT, INVENTORY_SLOT_COUNT, LAST_EQUIPMENT_SLOT } from '../protocol/types'
 import { emptyCharacter, type CharacterRecord, type ItemRef } from '../../shared/character'
 import { hasUnregisteredMark, registrationFromNotice } from './access'
+import { applyGold, type PendingGold } from './bankGold'
 import { SYSTEM_NOTICE } from '../protocol/decode/message'
 
 /**
@@ -60,6 +61,8 @@ export interface CharacterSession {
   hasCharacterData: boolean
   /** A bank list asked for but not yet answered. */
   pendingBank?: PendingBank
+  /** A banker's money prompt answered, waiting for the server's word on the gold. */
+  pendingGold?: PendingGold
   record: CharacterRecord
 }
 
@@ -97,14 +100,28 @@ export function newSession(startedAtMs: number): CharacterSession {
 export function reduce(state: CharacterSession, input: ReducerInput): CharacterSession {
   const named = applyName(state, input)
   const wait = applyBankWait(named, input)
-  const record = applyPacket(wait.record, input, named)
-  const session = withPendingBank(named, wait.pendingBank)
+  const gold = applyGold(named.pendingGold, wait.record, input.packet, input.timestampMs)
+  const record = applyPacket(gold.record, input, named)
+  const session = withPendingGold(withPendingBank(named, wait.pendingBank), gold.pending)
   if (record === named.record) return session
   return {
     ...session,
     hasCharacterData: true,
     record: { ...record, lastSeenMs: input.timestampMs }
   }
+}
+
+function withPendingGold(
+  state: CharacterSession,
+  pending: PendingGold | undefined
+): CharacterSession {
+  if (pending === state.pendingGold) return state
+  if (pending === undefined) {
+    const next = { ...state }
+    delete next.pendingGold
+    return next
+  }
+  return { ...state, pendingGold: pending }
 }
 
 /**

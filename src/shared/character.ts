@@ -110,6 +110,12 @@ export interface CharacterRecord {
   /** Whether the character had unread mail when last seen. */
   hasMail: boolean
   /**
+   * The gold in the bank, from the banker's own prompt when the player
+   * deposits or withdraws money, moved by the amount once the server's gold
+   * change confirms it (`model/bankGold.ts`). Absent until a banker has said.
+   */
+  bankGold?: { amount: number; readAtMs: number }
+  /**
    * Whether the account is registered, from positive signals only: the login
    * line "Your expiration date is …" (true), a register-first refusal or the
    * unregistered legend mark (false). `undefined` is unknown, which the
