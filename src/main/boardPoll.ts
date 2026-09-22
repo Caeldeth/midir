@@ -7,7 +7,7 @@ import {
   type BoardPollState,
   type BoardPollStopReason
 } from '../shared/boards'
-import { VK_DOWN, VK_UP, VK_W, type ActionLayer, type LiveConnection } from './actionLayer'
+import { VK_DOWN, VK_UP, type ActionLayer, type LiveConnection } from './actionLayer'
 import type { BoardState, OpenBoard } from './model/board'
 import type { DialogState } from './model/dialog'
 import type { Logger } from './log'
@@ -18,8 +18,9 @@ import { MAILBOX_ID, PAGE_SIZE } from './protocol/decode/board'
  * through the client's own board pane.
  *
  * The passive archive keeps what the player reads; this reads it all. It
- * presses `W` for the board list, and for each board in the list it selects
- * the row, clicks View, walks the list to its oldest post with the Down key
+ * clicks the client's board button for the board list (a posted `W`, the
+ * hotkey, opened nothing on the first live run), and for each board in the
+ * list it selects the row, clicks View, walks the list to its oldest post with the Down key
  * (a press past the last row is what asks the client for the next page),
  * then opens every post from its row and goes back Up. Every gesture waits
  * for the packet that answers it, and the post id in that packet is the check
@@ -27,8 +28,8 @@ import { MAILBOX_ID, PAGE_SIZE } from './protocol/decode/board'
  * proves it or corrects it, and a count that is wrong too often stops the
  * poll rather than let it guess.
  *
- * The gestures are a closed set: `W`, the arrow keys, one click on the top
- * row, View, Up, and Quit. New, Reply, Delete, and Hilight are never clicked,
+ * The gestures are a closed set: the board button, the arrow keys, one click
+ * on the top row, View, Up, and Quit. New, Reply, Delete, and Hilight are never clicked,
  * by construction: no button below View on a list is a point this file
  * knows. Delete has no confirm.
  *
@@ -106,6 +107,15 @@ const BUTTON_Y = {
   /** Up on the mail list, Quit on the board list, Close on a post list (245 to 267). */
   upMail: 256
 } as const
+
+/**
+ * The client's own board button, outside the pane, which opens the board
+ * list from nothing. Measured from two hand clicks that the watcher paired
+ * with `listBoards`: game (621, 246) on 2026-09-22 04:33Z and (630, 249) at
+ * 05:06Z. A posted `W` with its character was not answered (05:06Z, five
+ * tries), so the button is the opener.
+ */
+export const BOARD_BUTTON = { x: 626, y: 248 }
 
 /** A point on the pane, as a game coordinate. */
 export function panePoint(x: number, y: number): { x: number; y: number } {
@@ -493,17 +503,20 @@ export function createBoardPoll(options: BoardPollOptions): BoardPoll {
     const startMs = now()
     const owner = liveConnections().find((c) => c.connectionId === run.connectionId)?.name ?? ''
 
-    // W: the board list. The client answers with the list of every board it
-    // may read, the mailbox first as board 0.
+    // The board button: the board list. The client answers with the list of
+    // every board it may read, the mailbox first as board 0.
     doing(run, 'opening the board list')
     const listAt = boardFor(run.connectionId)?.boardsAtMs ?? 0
-    log.info('boards', 'Pressing W for the board list.')
-    refused(run, await actionLayer.pressKey(target, VK_W))
+    log.info(
+      'boards',
+      `Clicking the board button at game (${BOARD_BUTTON.x}, ${BOARD_BUTTON.y}) for the board list.`
+    )
+    refused(run, await actionLayer.click(target, BOARD_BUTTON.x, BOARD_BUTTON.y, { once: true }))
     const boards = await waitFor(run, startMs, REPLY_WAIT_MS, (b) =>
       b?.boards !== undefined && (b.boardsAtMs ?? 0) > listAt ? b.boards : null
     )
     if (boards === null) {
-      log.warn('boards', 'No board list came after W.')
+      log.warn('boards', 'No board list came after the board button.')
       throw new Stop('timeout')
     }
     run.boardsTotal = boards.length

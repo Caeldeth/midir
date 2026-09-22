@@ -31,7 +31,7 @@ import React, { useEffect, useMemo } from 'react'
  * The archive fills as the player browses. A post seen only in a list has a
  * header and no body; opening it in the game fills the body in. The poll at
  * the top reads every board and the mailbox end to end through the client's
- * own board pane (WP36 PR2): it presses W and the arrow keys, clicks rows,
+ * own board pane (WP36 PR2): it clicks the board button, presses the arrow keys, clicks rows,
  * View, and Up, and nothing that writes.
  */
 
@@ -128,9 +128,9 @@ function PollPanel(): React.JSX.Element {
   return (
     <Paper sx={{ m: 2.5, mb: 0, p: 2, flexShrink: 0 }} data-testid="board-poll">
       <Typography variant="body2" sx={{ color: 'text.secondary', mb: 1.5 }}>
-        Read everything opens the board list with W and reads every board and the mailbox to the
-        oldest post, through the game's own pane: the arrow keys, View, and Up, and nothing that
-        writes. It stops on any dialog it did not open. A character must be logged in on the window.
+        Read everything opens the board list and reads every board and the mailbox to the oldest
+        post, through the game's own pane: the arrow keys, View, and Up, and nothing that writes. It
+        stops on any dialog it did not open. A character must be logged in on the window.
       </Typography>
       {pollError !== null ? (
         <Alert severity="error" sx={{ mb: 1.5 }}>

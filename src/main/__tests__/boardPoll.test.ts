@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  BOARD_BUTTON,
   BUTTONS,
   createBoardPoll,
   MAX_MISSES,
@@ -9,7 +10,7 @@ import {
   type BoardPollOptions,
   type Sleeper
 } from '../boardPoll'
-import { VK_DOWN, VK_UP, VK_W, type ActionLayer } from '../actionLayer'
+import { VK_DOWN, VK_UP, type ActionLayer } from '../actionLayer'
 import type { ActionRefusal, ActionTarget } from '../../shared/types'
 import type { BoardPollState } from '../../shared/boards'
 import { reduceBoard, type BoardState } from '../model/board'
@@ -22,7 +23,7 @@ import type { Logger } from '../log'
  * The board poll (WP36 PR2), run whole against a fake client with no game.
  *
  * The fake client is the retail client as the live browses of 2026-09-22
- * showed it: W lists the boards, a row and View open a board with its first
+ * showed it: the board button lists the boards, a row and View open a board with its first
  * page and, when that was full, a second page on its own; Down walks the
  * selection and a press past the last row asks for the next page (the same
  * cursor again for every press until the reply); View on a post list reads
@@ -167,6 +168,7 @@ function fakeClient(boards: FakeBoard[], clock: { now: () => number }): FakeClie
 
   const buttonName = (x: number, y: number): string => {
     if (x === rowPoint(0).x && y === rowPoint(0).y) return 'row0'
+    if (x === BOARD_BUTTON.x && y === BOARD_BUTTON.y) return 'boardButton'
     const at = (p: { x: number; y: number }): boolean => p.x === x && p.y === y
     if (at(BUTTONS.view(false))) return 'view'
     if (at(BUTTONS.view(true))) return 'viewMail'
@@ -185,6 +187,7 @@ function fakeClient(boards: FakeBoard[], clock: { now: () => number }): FakeClie
     const name = buttonName(x, y)
     clicked.push(name + (options?.once === true ? '' : '×2'))
     if (refusal !== null) return refusal
+    if (name === 'boardButton' && pane.kind === 'closed') listBoards()
     switch (pane.kind) {
       case 'boardList':
         if (name === 'row0') pane.selected = 0
@@ -233,7 +236,6 @@ function fakeClient(boards: FakeBoard[], clock: { now: () => number }): FakeClie
   const pressKey = async (_t: ActionTarget, key: number): Promise<ActionRefusal | null> => {
     keys.push(key)
     if (refusal !== null) return refusal
-    if (key === VK_W && pane.kind === 'closed') listBoards()
     if (pane.kind === 'boardList') {
       if (key === VK_DOWN) pane.selected = Math.min(pane.selected + 1, boards.length - 1)
       if (key === VK_UP) pane.selected = Math.max(pane.selected - 1, 0)
@@ -352,9 +354,9 @@ describe('the board poll (WP36 PR2)', () => {
     expect(h.client.clicked).toContain('upMail')
     // Nothing but the closed set was clicked, and every click was a single one.
     expect(new Set(h.client.clicked)).toEqual(
-      new Set(['row0', 'view', 'viewMail', 'up', 'upMail', 'quit'])
+      new Set(['boardButton', 'row0', 'view', 'viewMail', 'up', 'upMail', 'quit'])
     )
-    expect(h.client.keys.every((k) => k === VK_W || k === VK_DOWN || k === VK_UP)).toBe(true)
+    expect(h.client.keys.every((k) => k === VK_DOWN || k === VK_UP)).toBe(true)
     // The pane is closed at the end.
     expect(h.client.pane().kind).toBe('closed')
     const last = h.states[h.states.length - 1]
@@ -501,9 +503,9 @@ describe('the board poll (WP36 PR2)', () => {
     expect(h.client.clicked.filter((c) => c.startsWith('?'))).toEqual([])
   })
 
-  it('stops with a timeout when W brings no board list', async () => {
+  it('stops with a timeout when the board button brings no board list', async () => {
     const h = harness([PUBLIC])
-    h.client.layer.pressKey = async () => null
+    h.client.layer.click = async () => null
     const outcome = await h.poll.run({ connectionId: CID, onlyUnread: true })
     expect(outcome).toMatchObject({ kind: 'stopped', reason: 'timeout' })
   })
@@ -525,6 +527,7 @@ describe('the board poll (WP36 PR2)', () => {
 
   it('names the pane where the hand browse measured it', () => {
     expect(PANE).toEqual({ x: 30, y: 0 })
+    expect(BOARD_BUTTON).toEqual({ x: 626, y: 248 })
     expect(rowPoint(0)).toEqual({ x: 290, y: 27 })
     expect(BUTTONS.view(false)).toEqual({ x: 567, y: 46 })
     expect(BUTTONS.view(true)).toEqual({ x: 567, y: 72 })

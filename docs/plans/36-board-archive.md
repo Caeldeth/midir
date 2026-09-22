@@ -42,7 +42,7 @@ Demagoguery, the Rangers board; 352 requests and 355 replies, none unreadable) a
   boards, the Cura board at Vaillaire) is clicked as an object, `CClick 0x43`, and the server
   pushes the first page (`subType 2`) as the reply to that click. Only the pages after it are
   `listPosts`. The passive archive needs nothing for this, since a page is stored whichever
-  request brought it, and the poll reads every board through the `W` list, where each has a row.
+  request brought it, and the poll reads every board through the board list, where each has a row.
 - **The client fetches a second page on its own** as soon as a full first page arrives: `32767`,
   the reply, then `oldest − 1` within 2 ms, every time a board opens. A board of 16 posts or
   fewer needs one page and gets one request. The poll counts pages by what they add, so the
@@ -84,14 +84,16 @@ watcher's board side)** gave the poll its positions and its gestures:
   clicked the board list's Up on the mailbox would close the whole pane.
 
 **PR2, the poll, built 2026-09-22** from the measuring browse: `boardPoll.ts` is the driver
-(`W`, the top row once, the arrow keys, View, Up, Quit; every gesture waits for its packet, and
+(the board button, the top row once, the arrow keys, View, Up, Quit; every gesture waits for its packet, and
 the post id in every reply checks the selection count), `handlers/boards.ts` gains `boards:poll`,
 `boards:poll-stop`, and `boards:poll-state`, and the Boards tab has the window picker, the
 button, the "skip posts already read" box, and the line that says what the poll is on. Proven
 against a retail-shaped fake client through the real reducer (`__tests__/boardPoll.test.ts`).
-**Not yet proven live**: the first run on retail is the check on the arrow keys as posted keys,
-on the selection after Up, and on `W` as a posted key with its character. The profile click for
-the legend is not in it: the profile button's place is not measured.
+**First live run, 05:06Z: a posted `W` with its character opened nothing** (five tries, the
+same key a hand press opens the list with), so the opener is the client's own board button,
+measured at game (626, 248) from two hand clicks the watcher paired with `listBoards`. **Not
+yet proven live**: the arrow keys as posted keys and the selection after Up. The profile click
+for the legend is not in it: the profile button's place is not measured.
 
 **Trigger:** Sabrael, 2026-09-21: retail's boards hold years of player-written content that exists
 nowhere else, and no tool in the house reads them. The Brigid prototype (`feat/board-capture-debug`,
@@ -192,7 +194,8 @@ never right of the Content pane on a post.
 3. **The poll is a driving assistant on a tab of its own, "Boards".** The tab lists the boards the
    archive knows with post counts and read counts, an export button per board (JSON, the shape the
    prototype wrote: `boardId`, `boardName`, `capturedUtc`, `posts[]`), and one button: **Read
-   everything**. The poll then, on the selected window: opens the mailbox (`W`), which lists the
+   everything**. The poll then, on the selected window: opens the board list (the client's board
+   button; a posted `W` opened nothing live), which lists the
    boards; for each board in the list, clicks its row and View, reads the list page off the wire,
    pages older by scrolling to the bottom until a page adds no new id, then opens every post the
    list holds from its own row (row and View, newest first; a post already in the archive with a
@@ -252,8 +255,8 @@ never right of the Content pane on a post.
   and the schema as the law of what survives a restart.
 - `laborer.ts` is the driving assistant to copy: `waitForDialog`, `chooseRow`, the stop reasons,
   the tab with a window picker and a status line. `paneWatcher.ts` is where the measuring goes.
-- `actionLayer.pressKey` posts a key with its scan code and character (`W` needs both, as Escape
-  did); `click` posts a left click in game coordinates.
+- `actionLayer.pressKey` posts a key with its scan code and, for Escape, its character; `click`
+  posts a left click in game coordinates, once when asked.
 
 ## Contracts
 
@@ -291,8 +294,8 @@ a changed board.
 2. A hand browse of one board fills `boards.json` with every header seen and every body opened,
    and a restart shows the same. A header never replaces a body.
 3. The mailbox is stored under the character's key and never under another character's.
-4. The poll reads a whole board with no key pressed but `W` and the arrow keys, and no button
-   clicked but the top row, View, Up, and Quit; the log states every click's game position and
+4. The poll reads a whole board with no key pressed but the arrow keys, and no button clicked
+   but the board button, the top row, View, Up, and Quit; the log states every click's game position and
    the `0x3B` that followed it; every post the list holds has a body at the end, or is named in
    the log as one the walk missed.
 5. The poll stops on a compose dialog, a result alert, the credential pane, and a stop; it never

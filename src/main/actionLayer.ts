@@ -172,7 +172,6 @@ export const VK_ESCAPE = 0x1b
 export const VK_SPACE = 0x20
 export const VK_UP = 0x26
 export const VK_DOWN = 0x28
-export const VK_W = 0x57
 // lParam for a key message: repeat count 1 for key-down, the transition and
 // previous-state bits set for key-up. Only the low 32 bits are read by a window
 // procedure, so the value is portable to 64-bit.
@@ -204,8 +203,7 @@ const EXTENDED_KEY_BIT = 0x01000000
  * stayed up, while Sabrael's own Escape cancelled the exchange at once.
  */
 const CHAR_OF_KEY: Record<number, number> = {
-  0x1b: 0x1b, // VK_ESCAPE
-  0x57: 0x77 // VK_W: the board list's key, delivered as 'w' (WP36)
+  0x1b: 0x1b // VK_ESCAPE
 }
 
 /** How long a driver holds a movement key down, in milliseconds. */
