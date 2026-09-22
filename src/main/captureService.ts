@@ -17,6 +17,7 @@ import { reduceAnswer, reduceDialog, type DialogAnswer, type DialogState } from 
 import { reduceNotice, type NoticeState } from './model/notice'
 import { reduceExchange, type ExchangeState } from './model/exchange'
 import { reduceFieldMap, type FieldMapState } from './model/fieldMap'
+import { reduceEntities, type EntityState } from './model/entities'
 import { mergeCharacter, withCharacter, type CharacterStore } from './store/characterStore'
 
 /**
@@ -124,6 +125,12 @@ export interface CaptureService {
    * a cross-town hop and wait for the map change.
    */
   fieldMapFor(connectionId: string): FieldMapState | null
+  /**
+   * What stands on the map around the character on `connectionId`, or null
+   * while nothing is drawn. A live fact, never saved. The walker reads it so a
+   * right-click never aims at a tile a creature or a player stands on (WP35).
+   */
+  entitiesFor(connectionId: string): EntityState | null
 }
 
 export function createCaptureService(options: CaptureServiceOptions): CaptureService {
@@ -156,6 +163,8 @@ export function createCaptureService(options: CaptureServiceOptions): CaptureSer
   const exchanges = new Map<string, ExchangeState>()
   /** The world map on screen for each connection. A live fact, like the dialog. */
   const fieldMaps = new Map<string, FieldMapState>()
+  /** What the client draws around each character, keyed by connection id. */
+  const entities = new Map<string, EntityState>()
   /** Records changed but not yet written, by character name. */
   const unsaved = new Map<string, CharacterRecord>()
   /**
@@ -357,6 +366,15 @@ export function createCaptureService(options: CaptureServiceOptions): CaptureSer
     if (fieldMapAfter === null) fieldMaps.delete(id)
     else fieldMaps.set(id, fieldMapAfter)
 
+    const entitiesAfter = reduceEntities(entities.get(id) ?? null, {
+      packet: tracked.event.packet,
+      timestampMs: tracked.timestampMs,
+      sawLoss,
+      ownName: tracked.keyName
+    })
+    if (entitiesAfter === null) entities.delete(id)
+    else entities.set(id, entitiesAfter)
+
     const before = sessions.get(id) ?? newSession(tracked.connection.openedAtMs)
     const after = reduce(before, {
       packet: tracked.event.packet,
@@ -399,6 +417,7 @@ export function createCaptureService(options: CaptureServiceOptions): CaptureSer
       notices.clear()
       exchanges.clear()
       fieldMaps.clear()
+      entities.clear()
       lossy.clear()
       tracker.clear()
 
@@ -431,6 +450,7 @@ export function createCaptureService(options: CaptureServiceOptions): CaptureSer
           notices.delete(connection.id)
           exchanges.delete(connection.id)
           fieldMaps.delete(connection.id)
+          entities.delete(connection.id)
           connectionCount = tracker.activeConnections().length
           publishStatus()
         },
@@ -482,6 +502,7 @@ export function createCaptureService(options: CaptureServiceOptions): CaptureSer
       notices.clear()
       exchanges.clear()
       fieldMaps.clear()
+      entities.clear()
       await flush()
       publishStatus()
     },
@@ -512,6 +533,9 @@ export function createCaptureService(options: CaptureServiceOptions): CaptureSer
     },
     fieldMapFor(connectionId: string): FieldMapState | null {
       return fieldMaps.get(connectionId) ?? null
+    },
+    entitiesFor(connectionId: string): EntityState | null {
+      return entities.get(connectionId) ?? null
     }
   }
 }

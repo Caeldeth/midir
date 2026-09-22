@@ -79,6 +79,12 @@ export const ServerOpcode = {
   Exchange: 0x42,
   /** The player's own confirmed step. See decode/movement.ts. */
   Move: 0x0b,
+  /** Creatures, NPCs, and items put on the map. See decode/world.ts. */
+  AddWorldObjects: 0x07,
+  /** Another creature's or player's step. See decode/world.ts. */
+  CreatureMove: 0x0c,
+  /** One thing taken off the map. See decode/world.ts. */
+  RemoveWorldObject: 0x0e,
   Status: 0x08,
   /** The map's identity, size, and name. The one true map-change signal. */
   MapInfo: 0x15,
