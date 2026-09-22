@@ -1469,33 +1469,40 @@ function solidAt(...tiles: { x: number; y: number }[]): EntityState {
 }
 
 describe('walker by right-click (WP35)', () => {
-  it('walks eight tiles on one right-click, confirmed tile by tile, with no key pressed for them', async () => {
+  it('walks eight tiles on one right-click, confirmed tile by tile, with no key pressed at all', async () => {
     // Acceptance criterion 1. A corridor of twelve: the click aims eight
-    // steps ahead at (8,0), the client walks there, and the keys take only
-    // the step onto the warp, which a click never aims at.
+    // steps ahead at (8,0), the client walks there, and the second click
+    // aims at the warp itself, the leg's own.
     const world = corridorWorld(12)
     const { walker } = harness(world, corridorGraph(12), [], 'rightClick')
     const outcome = await walker.go({ connectionId: CID, destination: 2 })
     expect(outcome).toEqual({ kind: 'arrived' })
     expect(world.rightClicks.map((c) => c.tile)).toEqual([
       { x: 8, y: 0 },
-      { x: 10, y: 0 }
+      { x: 11, y: 0 }
     ])
     // The click is posted at the tile's ground, in game coordinates.
     expect(world.rightClicks[0]).toMatchObject(groundPoint({ x: 0, y: 0 }, { x: 8, y: 0 }))
-    // From (10,0) the warp at (11,0) is one step: a key.
-    expect(world.presses).toBe(1)
+    expect(world.presses).toBe(0)
     expect(world.position.mapId).toBe(2)
   })
 
-  it('never aims at a warp tile, and leaves a single step to the keys', async () => {
-    // A corridor of five: the path is four steps and the warp is the last,
-    // so the click aims at (3,0) and the key steps onto the warp.
-    const world = corridorWorld(5)
-    const { walker } = harness(world, corridorGraph(5), [], 'rightClick')
+  it("aims at the leg's own warp tile, and clicks even a single step", async () => {
+    // A corridor of five: one click to the warp at (4,0). A corridor of two:
+    // the one step is a click too, because a key would need a turn first
+    // (Sabrael, 2026-09-22: turn, step, turn, step to the Town Hall).
+    const five = corridorWorld(5)
+    const { walker } = harness(five, corridorGraph(5), [], 'rightClick')
     expect(await walker.go({ connectionId: CID, destination: 2 })).toEqual({ kind: 'arrived' })
-    expect(world.rightClicks.map((c) => c.tile)).toEqual([{ x: 3, y: 0 }])
-    expect(world.presses).toBe(1)
+    expect(five.rightClicks.map((c) => c.tile)).toEqual([{ x: 4, y: 0 }])
+    expect(five.presses).toBe(0)
+    const two = corridorWorld(2)
+    const short = harness(two, corridorGraph(2), [], 'rightClick')
+    expect(await short.walker.go({ connectionId: CID, destination: 2 })).toEqual({
+      kind: 'arrived'
+    })
+    expect(two.rightClicks.map((c) => c.tile)).toEqual([{ x: 1, y: 0 }])
+    expect(two.presses).toBe(0)
   })
 
   it('does not aim at a tile a player or a creature stands on', async () => {
@@ -1527,11 +1534,11 @@ describe('walker by right-click (WP35)', () => {
     expect(await walker.go({ connectionId: CID, destination: 2 })).toEqual({ kind: 'arrived' })
     const tiles = world.rightClicks.map((c) => c.tile)
     expect(tiles[0]).toEqual({ x: 8, y: 0 })
-    // Two strands at (3,0), aiming as far as the tile before the warp, then the keys.
+    // Two strands at (3,0), aiming as far as the warp, then the keys.
     expect(tiles.slice(0, 3)).toEqual([
       { x: 8, y: 0 },
-      { x: 10, y: 0 },
-      { x: 10, y: 0 }
+      { x: 11, y: 0 },
+      { x: 11, y: 0 }
     ])
     expect(world.presses).toBeGreaterThan(0)
     // Once moved off (3,0), the click is used again.
@@ -1625,11 +1632,20 @@ describe('walker by right-click (WP35)', () => {
     expect(world.presses).toBe(11)
   })
 
-  it('keeps the approach beside an NPC on the keys', async () => {
-    // Decision 5: the last tiles to a tile are one key each, whatever the mode.
-    const maps = new Map<number, FakeMap>([[1, fakeMap(['..........'])]])
+  it('approaches a tile by right-click too, short of every warp on the map', async () => {
+    // The approach beside an NPC clicks like the map walk (2026-09-22). A
+    // room with a warp at (9,0) past the spot: the click aims at the spot
+    // and never at the warp.
+    const maps = new Map<number, FakeMap>([
+      [1, fakeMap(['..........'], new Map([['9,0', { toMap: 2, ax: 0, ay: 0 }]]))],
+      [2, fakeMap(['.....'])]
+    ])
     const world = new World(maps, { mapId: 1, x: 0, y: 0 })
-    const { walker } = harness(world, [{ mapId: 1, name: 'Room', exits: [] }], [], 'rightClick')
+    const graph: RouteNode[] = [
+      { mapId: 1, name: 'Room', exits: [{ toMapId: 2, x: 9, y: 0 }] },
+      { mapId: 2, name: 'Beyond', exits: [] }
+    ]
+    const { walker } = harness(world, graph, [], 'rightClick')
     const outcome = await walker.go({
       connectionId: CID,
       destination: 1,
@@ -1637,7 +1653,14 @@ describe('walker by right-click (WP35)', () => {
       arrive: 'on'
     })
     expect(outcome).toEqual({ kind: 'arrived' })
-    expect(world.rightClicks).toEqual([])
-    expect(world.presses).toBe(6)
+    expect(world.rightClicks.map((c) => c.tile)).toEqual([{ x: 6, y: 0 }])
+    expect(world.presses).toBe(0)
+    expect(world.position).toMatchObject({ mapId: 1, x: 6, y: 0 })
+    // Beside the tile: the aim is a neighbour, never the tile itself.
+    const beside = new World(maps, { mapId: 1, x: 0, y: 0 })
+    const other = harness(beside, graph, [], 'rightClick')
+    await other.walker.go({ connectionId: CID, destination: 1, tile: { x: 8, y: 0 } })
+    expect(beside.rightClicks.map((c) => c.tile)).toEqual([{ x: 7, y: 0 }])
+    expect(beside.presses).toBe(0)
   })
 })
