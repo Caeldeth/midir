@@ -1,4 +1,5 @@
-import { Box, Button, Paper, Typography } from '@mui/material'
+import { Box, Button, Paper, Stack, Typography } from '@mui/material'
+import ReportIssueDialog from '@renderer/components/ReportIssueDialog'
 import React from 'react'
 
 /**
@@ -16,15 +17,16 @@ interface ErrorBoundaryProps {
 
 interface ErrorBoundaryState {
   message: string | null
+  reportOpen: boolean
 }
 
 class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
   constructor(props: ErrorBoundaryProps) {
     super(props)
-    this.state = { message: null }
+    this.state = { message: null, reportOpen: false }
   }
 
-  static getDerivedStateFromError(error: unknown): ErrorBoundaryState {
+  static getDerivedStateFromError(error: unknown): Partial<ErrorBoundaryState> {
     return { message: error instanceof Error ? error.message : String(error) }
   }
 
@@ -49,13 +51,24 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
             Something in this view failed
           </Typography>
           <Typography variant="body1" sx={{ color: 'text.secondary', mb: 3 }}>
-            The failure is written to the log. Open Diagnostics to read it, or restart Midir.
-            Capture and your character records are not affected.
+            The failure is written to the log. Report it, open Diagnostics to read it, or restart
+            Midir. Capture and your character records are not affected.
           </Typography>
-          <Button variant="contained" onClick={() => this.setState({ message: null })}>
-            Try again
-          </Button>
+          <Stack direction="row" sx={{ justifyContent: 'center', gap: 1.5 }}>
+            <Button variant="contained" onClick={() => this.setState({ message: null })}>
+              Try again
+            </Button>
+            <Button variant="outlined" onClick={() => this.setState({ reportOpen: true })}>
+              Report an issue…
+            </Button>
+          </Stack>
         </Paper>
+        {/* Its own instance with its own flag: the tree the report store lives
+            beside may be the thing that broke. */}
+        <ReportIssueDialog
+          open={this.state.reportOpen}
+          onClose={() => this.setState({ reportOpen: false })}
+        />
       </Box>
     )
   }

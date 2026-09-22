@@ -15,6 +15,8 @@ import { useSettingsStore } from '@renderer/store/settingsStore'
 import { useCaptureStore } from '@renderer/store/captureStore'
 import { useCharacterStore } from '@renderer/store/characterStore'
 import { useBoardStore } from '@renderer/store/boardStore'
+import { useReportStore } from '@renderer/store/reportStore'
+import ReportIssueDialog from '@renderer/components/ReportIssueDialog'
 import { useDiagnosticsStore } from '@renderer/store/diagnosticsStore'
 import { useSpeakerStore } from '@renderer/store/speakerStore'
 import { useWalkerStore } from '@renderer/store/walkerStore'
@@ -59,6 +61,8 @@ function App(): React.JSX.Element {
   // re-rendering with the persisted theme. Once hydrated, signal main so it
   // reveals the window and tears down the startup splash.
   const [hydrated, setHydrated] = useState(false)
+  const reportOpen = useReportStore((s) => s.open)
+  const setReportOpen = useReportStore((s) => s.setOpen)
   useEffect(() => {
     let cancelled = false
     ;(async () => {
@@ -129,6 +133,9 @@ function App(): React.JSX.Element {
         }}
       >
         <TitleBar />
+        {/* Mounted once, closed, for both openers (the title bar and the About
+            card). The error boundary's fallback mounts its own instance. */}
+        <ReportIssueDialog open={reportOpen} onClose={() => setReportOpen(false)} />
         {hydrated ? (
           <>
             <NavBar value={view} onChange={setView} showDiagnostics={showDiagnostics} />

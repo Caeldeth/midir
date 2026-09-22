@@ -127,6 +127,7 @@ Aliases: `@renderer` to `src/renderer/src`, `@shared` to `src/shared`.
   Pass the `Logger` in (`createSettingsManager`, `createSplashWindow`, `HandlerContext.log`) rather
   than importing a singleton. The renderer reports its own failures over `diagnostics.report`, so
   one file answers "why did it fail" whichever process broke.
+- **Report an issue is the house module** (`docs/architecture/report-issue-module.md`, balor's port) **over Midir's own log**: `main/diagnostics.ts` builds the block from the logger's newest warnings and errors and scrubs it there, the one scrub site, because the log is the Diagnostics tab's record on the player's machine and is not scrubbed at capture. The dialog is opened from the title bar, the About card, and the error boundary; every send copies the full report to the clipboard first. `appIdentity.ts` is the one per-app file; the intake is `hybrasyl/cernunnos` under `app:midir`.
 - **The recordings cap never deletes the file capture is writing.** `pruneRecordings` and every
   delete path take the path from `captureService.status().recordingPath` and skip it. Removing a
   file under the recorder would corrupt the running session.

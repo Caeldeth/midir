@@ -2,6 +2,7 @@ import { electronApp, is, optimizer } from '@electron-toolkit/utils'
 import {
   app,
   BrowserWindow,
+  clipboard,
   dialog,
   globalShortcut,
   ipcMain,
@@ -45,6 +46,8 @@ import { createLogger, messageOf } from './log'
 import { pruneRecordings } from './recordings'
 import { createSettingsManager } from './settingsManager'
 import { createSplashWindow, type SplashController } from './splash'
+import { installGlobalErrorHandlers } from './errorHandlers'
+import { formatErrorLine } from '../shared/diagnostics'
 import { REMOTE_SESSION_CSS, shouldDisableHardwareAcceleration } from './remoteSession'
 import {
   cspForEnvironment,
@@ -176,6 +179,12 @@ const log = createLogger(logsPath, {
   onEntry: (entry) => pushToRenderer(LOG_APPENDED_CHANNEL, entry)
 })
 log.info('app', 'Midir started.')
+
+// The main process's own error nets, into the same log (the house Report Issue
+// module). An uncaught exception or a rejection nobody caught is the line a bug
+// report most needs, and without this it went to a console a packaged build
+// does not have.
+installGlobalErrorHandlers((entry) => log.error(entry.source ?? 'error', formatErrorLine(entry)))
 
 const settingsManager = createSettingsManager(settingsPath, log)
 
@@ -450,6 +459,12 @@ const ctx: HandlerContext = {
   laborer,
   log,
   logsPath,
+  // The report's two side effects, injected so the handler module stays free of
+  // electron at test time.
+  diagnosticsIo: {
+    writeClipboard: (text) => clipboard.writeText(text),
+    openExternal: (url) => void shell.openExternal(url)
+  },
   recordingsPath,
   onSettingsSaved: (settings) => {
     darkAgesPath = settings.darkAgesPath

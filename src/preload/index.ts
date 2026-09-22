@@ -15,6 +15,7 @@ import type {
   ErrandRequest,
   LaborerState,
   LogEntry,
+  OpenIssueResult,
   LogFileInfo,
   MidirApi,
   MidirSettings,
@@ -142,6 +143,11 @@ const api: MidirApi = {
       ipcRenderer.invoke('logs:report', error),
     onLogEntry: (handler: (entry: LogEntry) => void): (() => void) =>
       subscribe('logs:appended', handler),
+    buildReport: (): Promise<string> => ipcRenderer.invoke('diagnostics:build'),
+    openIssue: (title: string, body: string): Promise<OpenIssueResult> =>
+      ipcRenderer.invoke('diagnostics:openIssue', title, body),
+    copyReport: (body: string): Promise<{ ok: true }> =>
+      ipcRenderer.invoke('diagnostics:copyReport', body),
 
     listRecordings: (): Promise<RecordingInfo[]> => ipcRenderer.invoke('recordings:list'),
     deleteRecording: (name: string): Promise<void> => ipcRenderer.invoke('recordings:delete', name),

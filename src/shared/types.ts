@@ -31,6 +31,9 @@ export * from './log'
 export * from './actionLayer'
 export * from './boards'
 
+/** How **Open GitHub issue** ended. The copy to the clipboard happened in both cases. */
+export type OpenIssueResult = { ok: true; truncated: boolean } | { ok: false; reason: 'unsafe-url' }
+
 export type ThemeName = 'hybrasyl' | 'chadul' | 'danaan' | 'grinneal' | 'mundanes' | 'dubhaimid'
 
 export const THEME_NAMES: ThemeName[] = [
@@ -331,6 +334,20 @@ export interface MidirApi {
     report: (error: { source: string; message: string; stack?: string }) => Promise<void>
     /** Watch the log as it is written. Call the result to stop watching. */
     onLogEntry: (handler: (entry: LogEntry) => void) => () => void
+    /**
+     * Report an issue (the house module): the scrubbed diagnostics block, for
+     * the dialog to show EDITABLE. Main assembles it from its own version and
+     * its own log, so the bundle the user reviews is one main built.
+     */
+    buildReport: () => Promise<string>
+    /**
+     * Copy the full report to the clipboard, then open a prefilled issue on
+     * `hybrasyl/cernunnos` in the system browser. The copy always happens
+     * first: a URL trimmed to fit is completed by paste.
+     */
+    openIssue: (title: string, body: string) => Promise<OpenIssueResult>
+    /** The clipboard alone. No account, no browser, no budget. */
+    copyReport: (body: string) => Promise<{ ok: true }>
 
     /** Every session recording, newest first. */
     listRecordings: () => Promise<RecordingInfo[]>

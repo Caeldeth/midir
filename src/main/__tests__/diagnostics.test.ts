@@ -12,6 +12,9 @@ import {
   readLog,
   removeRecording,
   reportRendererError,
+  buildReport,
+  copyReport,
+  openIssue,
   type DiagnosticsHandlerContext
 } from '../handlers/diagnostics'
 import { logFileName } from '../log'
@@ -65,7 +68,9 @@ function context(
     log: fakeLogger(currentLogFile),
     logsPath,
     recordingsPath,
-    captureService: service
+    captureService: service,
+    appGetVersion: () => '0.1.0',
+    diagnosticsIo: { writeClipboard: () => undefined, openExternal: () => undefined }
   }
 }
 
@@ -171,6 +176,73 @@ describe('reportRendererError', () => {
     const ctx = context()
     reportRendererError(ctx, null)
     expect(ctx.log.entries[0]).toMatchObject({ level: 'error', scope: 'renderer:renderer' })
+  })
+})
+
+describe('the report (the house Report Issue module)', () => {
+  it('builds the block from the version and the newest warnings and errors, scrubbed', () => {
+    const ctx = context()
+    ctx.log.info('capture', 'Capture started on adapter 3.')
+    ctx.log.warn(
+      'settings',
+      [
+        'Could not read C:',
+        'Users',
+        'alice',
+        'AppData',
+        'Local',
+        'Erisco',
+        'Midir',
+        'settings.json'
+      ].join(String.fromCharCode(92))
+    )
+    ctx.log.error('renderer:react', 'boom at one')
+    const block = buildReport(ctx)
+    expect(block).toContain('App: Midir 0.1.0')
+    expect(block).toMatch(/^OS: /m)
+    expect(block).toContain('[warn] settings :: Could not read')
+    expect(block).toContain('[error] renderer:react :: boom at one')
+    // The info line is not an error, and the path lost its account name.
+    expect(block).not.toContain('Capture started')
+    expect(block).not.toContain('alice')
+    expect(block).toContain('settings.json')
+  })
+
+  it('says so when the session had no error', () => {
+    const ctx = context()
+    ctx.log.info('app', 'Midir started.')
+    expect(buildReport(ctx)).toContain('No errors captured this session.')
+  })
+
+  it('copies the full body before it opens the issue, with the app label', () => {
+    const calls: string[] = []
+    const ctx = context()
+    ctx.diagnosticsIo = {
+      writeClipboard: (text) => calls.push(`copy:${text.length}`),
+      openExternal: (url) => calls.push(`open:${url}`)
+    }
+    const body = ['What happened', '', '```', 'App: Midir 0.1.0', '```'].join(
+      String.fromCharCode(10)
+    )
+    const result = openIssue(ctx, 'It broke', body)
+    expect(result).toEqual({ ok: true, truncated: false })
+    expect(calls[0]).toBe(`copy:${body.length}`)
+    expect(calls[1]).toMatch(/^open:https:\/\/github\.com\/hybrasyl\/cernunnos\/issues\/new\?/)
+    expect(calls[1]).toContain('labels=app%3Amidir')
+  })
+
+  it('refuses an invalid payload before it touches the clipboard', () => {
+    const calls: string[] = []
+    const ctx = context()
+    ctx.diagnosticsIo = {
+      writeClipboard: () => calls.push('copy'),
+      openExternal: () => calls.push('open')
+    }
+    expect(() => openIssue(ctx, 42, 'body')).toThrow('Invalid issue payload')
+    expect(() => copyReport(ctx, null)).toThrow('Invalid report payload')
+    expect(calls).toEqual([])
+    expect(copyReport(ctx, 'the report')).toEqual({ ok: true })
+    expect(calls).toEqual(['copy'])
   })
 })
 

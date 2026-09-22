@@ -1,8 +1,16 @@
 import type { IpcMain, Shell } from 'electron'
 import { promises as fs } from 'node:fs'
 import { join } from 'node:path'
+import { z } from 'zod'
 import { parseLogLine, type LogEntry, type LogFileInfo, type RecordingInfo } from '../../shared/log'
+import type { OpenIssueResult } from '../../shared/types'
 import type { CaptureService } from '../captureService'
+import {
+  buildDiagnostics,
+  copyReport as copyDiagnosticsReport,
+  openIssue as openDiagnosticsIssue,
+  type DiagnosticsIo
+} from '../diagnostics'
 import { LOG_FILE_PATTERN, messageOf, type Logger } from '../log'
 import { assertInsideDir } from '../paths'
 import { deleteAllRecordings, deleteRecording, listRecordings } from '../recordings'
@@ -21,6 +29,43 @@ export interface DiagnosticsHandlerContext {
   logsPath: string
   recordingsPath: string
   captureService: CaptureService
+  /** The app version, for the report's first line. */
+  appGetVersion: () => string
+  /** The clipboard and the browser, injected so this module needs no electron at test time. */
+  diagnosticsIo: DiagnosticsIo
+}
+
+// The report's two inputs. A title is one line; a body is the description and
+// the diagnostics the user reviewed. The lengths only stop an absurd payload.
+const issueTitleSchema = z.string().max(300)
+const issueBodySchema = z.string().max(200_000)
+
+/** The scrubbed diagnostics block, for the report dialog to show EDITABLE. */
+export function buildReport(ctx: DiagnosticsHandlerContext): string {
+  return buildDiagnostics(ctx.appGetVersion(), ctx.log.recent())
+}
+
+/**
+ * Copy the full report, then open the prefilled issue. Throws on an invalid
+ * payload: an invoke has somewhere to put the rejection, and a renderer that
+ * sent the wrong shape is a bug rather than a user error to word politely.
+ */
+export function openIssue(
+  ctx: DiagnosticsHandlerContext,
+  title: unknown,
+  body: unknown
+): OpenIssueResult {
+  const parsedTitle = issueTitleSchema.safeParse(title)
+  const parsedBody = issueBodySchema.safeParse(body)
+  if (!parsedTitle.success || !parsedBody.success) throw new Error('Invalid issue payload')
+  return openDiagnosticsIssue(ctx.diagnosticsIo, { title: parsedTitle.data, body: parsedBody.data })
+}
+
+/** The clipboard alone: for no GitHub account, no browser, or a chat window. */
+export function copyReport(ctx: DiagnosticsHandlerContext, body: unknown): { ok: true } {
+  const parsed = issueBodySchema.safeParse(body)
+  if (!parsed.success) throw new Error('Invalid report payload')
+  return copyDiagnosticsReport(ctx.diagnosticsIo, { body: parsed.data })
 }
 
 /** How many entries a read returns. The newest are kept. */
@@ -146,6 +191,9 @@ export function registerDiagnosticsHandlers(
     }
   })
   ipcMain.handle('logs:openFolder', () => openFolder(shell, ctx.log, ctx.logsPath))
+  ipcMain.handle('diagnostics:build', () => buildReport(ctx))
+  ipcMain.handle('diagnostics:openIssue', (_, title, body) => openIssue(ctx, title, body))
+  ipcMain.handle('diagnostics:copyReport', (_, body) => copyReport(ctx, body))
 
   ipcMain.handle('recordings:list', () => listAllRecordings(ctx))
   ipcMain.handle('recordings:delete', (_, name) => removeRecording(ctx, name))
