@@ -165,11 +165,6 @@ export interface WalkerOptions {
   log: Logger
   /** Called whenever a walker changes, so main can push it. */
   onState?: (state: WalkerState) => void
-  /**
-   * Named spots on maps, offered beside the map names in the destination
-   * picker as `Place @ x,y`: an errand's stand tile, for example.
-   */
-  spots?: () => { destination: string | number; tile: { x: number; y: number } }[]
   /** The clock. Injected by tests. */
   now?: () => number
   /** Sleep for a number of milliseconds. Injected by tests. */
@@ -1401,21 +1396,7 @@ export function createWalker(options: WalkerOptions): Walker {
 
   return {
     destinations(): WalkerDestination[] {
-      const named = graph.destinations()
-      // A spot is a map name with a tile, in the form the destination box
-      // parses. It is offered once, even when several errands share it.
-      const seen = new Set<string>()
-      const spots: WalkerDestination[] = []
-      for (const spot of options.spots?.() ?? []) {
-        const mapId = graph.resolveDestination(spot.destination)
-        if (mapId === null) continue
-        const place = named.find((d) => d.mapId === mapId)?.name ?? String(spot.destination)
-        const name = `${place} @ ${spot.tile.x},${spot.tile.y}`
-        if (seen.has(name)) continue
-        seen.add(name)
-        spots.push({ mapId, name })
-      }
-      return [...named, ...spots].sort((a, b) => a.name.localeCompare(b.name))
+      return graph.destinations()
     },
     go,
     stop,

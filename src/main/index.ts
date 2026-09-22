@@ -288,11 +288,6 @@ const walker = createWalker({
   noticeFor: (connectionId) => captureService.noticeFor(connectionId),
   passportFor,
   gates: seededGates(),
-  // The errands' stand tiles, offered as `Place @ x,y` beside the map names.
-  spots: () =>
-    builtinErrands()
-      .filter((e) => e.standTile !== undefined)
-      .map((e) => ({ destination: e.destination, tile: e.standTile! })),
   maps: mapSource,
   graph: worldGraph,
   log,

@@ -22,6 +22,12 @@ interface WalkerStoreState {
   selected: string
   /** The place the user asked to walk to. */
   destination: string
+  /**
+   * The tile to end on, as typed: two fields, each empty or a number. Empty
+   * means the walk ends wherever the route reaches the place.
+   */
+  endX: string
+  endY: string
   /** True while a stop is in force. */
   stopped: boolean
   stopReason?: string
@@ -33,9 +39,11 @@ interface WalkerStoreState {
   error: string | null
   setSelected: (connectionId: string) => void
   setDestination: (destination: string) => void
+  setEndTile: (x: string, y: string) => void
   refreshWindows: () => Promise<void>
   refresh: () => Promise<void>
-  go: (connectionId: string, destination: string) => void
+  /** Walk to a place, and to `tile` on it when one is given. */
+  go: (connectionId: string, destination: string, tile?: { x: number; y: number }) => void
   stop: (connectionId: string) => Promise<void>
   stopAll: () => Promise<void>
   clearStop: () => Promise<void>
@@ -61,6 +69,8 @@ export const useWalkerStore = create<WalkerStoreState>((set, get) => ({
   destinations: [],
   selected: '',
   destination: '',
+  endX: '',
+  endY: '',
   stopped: false,
   running: {},
   busy: false,
@@ -68,6 +78,7 @@ export const useWalkerStore = create<WalkerStoreState>((set, get) => ({
 
   setSelected: (connectionId) => set({ selected: connectionId }),
   setDestination: (destination) => set({ destination }),
+  setEndTile: (x, y) => set({ endX: x, endY: y }),
 
   refreshWindows: async () => {
     set({ windows: await window.api.assist.windows() })
@@ -85,18 +96,20 @@ export const useWalkerStore = create<WalkerStoreState>((set, get) => ({
     set({ windows, stopped: assist.stopped, stopReason: assist.reason, running, destinations })
   },
 
-  go: (connectionId, destination) => {
+  go: (connectionId, destination, tile) => {
     if (connectionId === '' || destination.trim() === '') return
     set({ error: null, lastOutcome: undefined })
     // The walk resolves when it ends, which may be minutes. Do not await it: the
     // running state arrives on a push, and the outcome is kept for the status.
-    // `Place @ x,y` names a tile to stand on once the place is reached.
+    // The end tile comes from the fields; a pinned `Place @ x,y` carries its
+    // own, and the text form still works for one typed by hand.
     const parsed = parseDestination(destination)
+    const end = tile ?? parsed.tile
     window.api.walker
       .go({
         connectionId,
         destination: parsed.destination,
-        ...(parsed.tile !== undefined ? { tile: parsed.tile, arrive: 'on' as const } : {})
+        ...(end !== undefined ? { tile: end, arrive: 'on' as const } : {})
       })
       .then((outcome) => set({ lastOutcome: outcome }))
       .catch((error) => set({ error: messageOf(error) }))

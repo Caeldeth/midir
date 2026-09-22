@@ -19,7 +19,12 @@ import InfoTip from '@renderer/components/InfoTip'
 import { useCaptureStore } from '@renderer/store/captureStore'
 import { useSettingsStore } from '@renderer/store/settingsStore'
 import { outcomeMessage, useWalkerStore } from '@renderer/store/walkerStore'
-import { formatHotkey, type WalkerPosition, type WalkOutcome } from '@shared/types'
+import {
+  formatHotkey,
+  parseDestination,
+  type WalkerPosition,
+  type WalkOutcome
+} from '@shared/types'
 import React, { useEffect } from 'react'
 
 /**
@@ -49,6 +54,9 @@ function Walker(): React.JSX.Element {
   const setSelected = useWalkerStore((s) => s.setSelected)
   const destination = useWalkerStore((s) => s.destination)
   const setDestination = useWalkerStore((s) => s.setDestination)
+  const endX = useWalkerStore((s) => s.endX)
+  const endY = useWalkerStore((s) => s.endY)
+  const setEndTile = useWalkerStore((s) => s.setEndTile)
   const refresh = useWalkerStore((s) => s.refresh)
   const refreshWindows = useWalkerStore((s) => s.refreshWindows)
   const go = useWalkerStore((s) => s.go)
@@ -80,21 +88,43 @@ function Walker(): React.JSX.Element {
   const windowLabel = (w: (typeof windows)[number]): string =>
     w.characterName !== undefined ? w.characterName : w.title || 'A game window'
 
+  // The end tile: both fields filled and whole numbers, or none. One field
+  // alone is half a tile, and Go stays off until it is whole or empty.
+  const tileOf = (x: string, y: string): { x: number; y: number } | undefined =>
+    /^\d{1,3}$/.test(x.trim()) && /^\d{1,3}$/.test(y.trim())
+      ? { x: Number(x.trim()), y: Number(y.trim()) }
+      : undefined
+  const endTile = tileOf(endX, endY)
+  const endEmpty = endX.trim() === '' && endY.trim() === ''
+  const endValid = endEmpty || endTile !== undefined
+
   const onGo = (): void => {
-    if (selectedValue === '' || destination.trim() === '') return
-    go(selectedValue, destination.trim())
+    if (selectedValue === '' || destination.trim() === '' || !endValid) return
+    go(selectedValue, destination.trim(), endTile)
   }
 
   const trimmed = destination.trim()
-  const alreadyPinned = pinned.some((d) => d.toLowerCase() === trimmed.toLowerCase())
+  // A pin keeps the end tile with the place, as `Place @ x,y`.
+  const pinText = endTile !== undefined ? `${trimmed} @ ${endTile.x},${endTile.y}` : trimmed
+  const alreadyPinned = pinned.some((d) => d.toLowerCase() === pinText.toLowerCase())
 
   const onPin = (): void => {
-    if (trimmed === '' || alreadyPinned) return
-    setPinned([...pinned, trimmed])
+    if (trimmed === '' || !endValid || alreadyPinned) return
+    setPinned([...pinned, pinText])
   }
 
   const onUnpin = (value: string): void => {
     setPinned(pinned.filter((d) => d !== value))
+  }
+
+  /** A pin fills the place and the end tile it carries, if any. */
+  const onPick = (place: string): void => {
+    const parsed = parseDestination(place)
+    setDestination(parsed.destination)
+    setEndTile(
+      parsed.tile !== undefined ? String(parsed.tile.x) : '',
+      parsed.tile !== undefined ? String(parsed.tile.y) : ''
+    )
   }
 
   return (
@@ -170,17 +200,39 @@ function Walker(): React.JSX.Element {
                 {...params}
                 size="small"
                 label="Destination"
-                placeholder="A place name or map id, then @ x,y to stand on a tile"
-                helperText="Pick a known place, or type a map name or number. Add @ x,y to walk to a tile on it."
+                placeholder="A place name or map id"
+                helperText="Pick a known place, or type a map name or number."
               />
             )}
+          />
+          <TextField
+            size="small"
+            label="End x"
+            value={endX}
+            onChange={(event) => setEndTile(event.target.value, endY)}
+            disabled={isRunning}
+            error={!endValid}
+            helperText={endValid ? 'Optional' : 'Both, or neither'}
+            slotProps={{ htmlInput: { inputMode: 'numeric', 'data-testid': 'walker-end-x' } }}
+            sx={{ width: 96 }}
+          />
+          <TextField
+            size="small"
+            label="End y"
+            value={endY}
+            onChange={(event) => setEndTile(endX, event.target.value)}
+            disabled={isRunning}
+            error={!endValid}
+            helperText={endValid ? 'Tile to stand on' : 'Both, or neither'}
+            slotProps={{ htmlInput: { inputMode: 'numeric', 'data-testid': 'walker-end-y' } }}
+            sx={{ width: 96 }}
           />
           <Tooltip title={alreadyPinned ? 'Already pinned' : 'Pin this destination'}>
             <span>
               <IconButton
                 aria-label="Pin this destination"
                 onClick={onPin}
-                disabled={trimmed === '' || alreadyPinned}
+                disabled={trimmed === '' || !endValid || alreadyPinned}
                 sx={{ mt: 0.25 }}
               >
                 <PushPinOutlined />
@@ -199,7 +251,7 @@ function Walker(): React.JSX.Element {
                 key={place}
                 label={place}
                 variant="outlined"
-                onClick={() => setDestination(place)}
+                onClick={() => onPick(place)}
                 onDelete={() => onUnpin(place)}
                 icon={<PushPinOutlined fontSize="small" />}
                 data-testid="walker-pin"
