@@ -3,7 +3,8 @@
 **Size:** M. **Depends on:** WP15 (the walker and the graph) and WP4/WP5 (the character record and
 its legend). Read `00-overview.md` first. **PLANNED.** **Card:** `HTOO-81`.
 **Trigger to start:** the walker is used with unregistered characters, or a route through a Commons
-is wanted for one.
+is wanted for one. **Fired 2026-09-21**: Gabrael, unregistered, walked to the Mileth Commons gate
+and was refused, twice (10:15Z and 10:17Z, in the recording). Registered afterwards, he entered.
 
 ## Goal
 
@@ -30,18 +31,36 @@ Two positive signals, from opposite ends:
    "Fragile Chrysalis ((Unregistered))". Midir already decodes the legend (`CharacterRecord.legend`),
    so this is available now with no new decode. Its **presence** means unregistered. It is only
    "sometimes" there, so its absence proves nothing.
-2. **The login message (registered).** `SSystemMessage 0x0A` carries "Your expiration date is …" at
-   login for a registered character. Its **presence** means registered. `0x0A` is decoded since WP17
-   PR3 (`decode/message.ts`), and `captureService.noticeFor` holds the newest one; this WP reads it.
+2. **The login message (registered).** `SSystemMessage 0x0A` type 3 carries "Your expiration date
+   is 8-22" at login for a registered character (recording of 2026-07-24 10:14Z; the date is
+   month-day with no padding). Its **presence** means registered. `0x0A` is decoded since WP17 PR3
+   (`decode/message.ts`), and `captureService.noticeFor` holds the newest one; this WP reads it.
+   Sabrael, 2026-09-21: an unregistered account never gets this line.
 3. **The refusal (unregistered).** An unregistered character that asks a bank NPC for Labor, or a
    civic NPC for a civic action, gets the notice "(( Register first: www.darkages.com -> Click
    'Register' ))" and a dialog close (Sabrael's capture of 2026-09-21). Its **presence** means
    unregistered, and it arrives in the middle of play, not only at login. The civic menu shows the
    same thing one step earlier: an unregistered character's "What is your civil action?" offers
    only "Renounce Citizenship", with no "Support a Citizen" (Gabrael at Riona, the same night).
+4. **The gate's own refusal (unregistered).** The Commons gate refuses with a **pair** of type-3
+   notices: "Only a Mileth citizen may enter here", then two seconds later "((Register at
+   www.DarkAges.com for full benefits))" (Gabrael, a Mileth citizen and unregistered, 2026-09-21
+   10:15Z and 10:17Z; the same pair both times). The second line is the registration tell, in a
+   different wording from signal 3, so both texts are matched. The first line alone is a different
+   refusal: a registered character who is not a citizen of that town gets it with no register hint
+   ("Only a Rucesion citizen may enter here" on its own, 2026-07-23 and 2026-09-21 10:00Z).
 
-The rule: an unregistered legend mark or the refusal makes the character unregistered; else a seen
-expiration message makes it registered; else registered by default.
+**The gate is on citizenship as well as registration.** The Commons admits a registered citizen of
+its own town, and no one else; the two lines above say which condition failed. So the overlay
+(decision 3) needs the town beside the map id, and the planner needs the character's citizenship
+beside its registration. Citizenship is on the record already, from the legend ("Citizen of
+Mileth" is a legend mark) — confirm the exact mark text against a live character, as for the
+unregistered mark — and a route for a non-citizen avoids the other towns' Commons the same way an
+unregistered one avoids them all.
+
+The rule: an unregistered legend mark or either refusal (signal 3 or the second line of signal 4)
+makes the character unregistered; else a seen expiration message makes it registered; else
+registered by default. Citizenship is read from the legend, and unknown citizenship gates nothing.
 
 ## Decisions
 
@@ -54,12 +73,12 @@ expiration message makes it registered; else registered by default.
    expiration message is seen. `undefined` means unknown, which the planner treats as registered.
    Name the field in `characterSchema`, or it is dropped on load (WP11's rule).
 3. **Gated maps are a small overlay, seeded and learned** (the chosen source). A hand-kept
-   `route/access.json` lists the registration-gated map ids, seeded with the known ones (Rucesion
-   Commons `3048`, Mileth Commons `3025`, and any others). It is separate from the generated
-   `worldmap.json`, so a re-import never clobbers it. The wire refines it: when an **unregistered**
-   character stalls at a
-   warp into a map and no creature explains it, the map is learned as gated (a WP29-style learned
-   fact, with the same provenance and observation-count honesty).
+   `route/access.json` lists the gated map ids with the town each admits, seeded with the known
+   ones (Rucesion Commons `3048`, Mileth Commons `3025`, and any others). It is separate from the
+   generated `worldmap.json`, so a re-import never clobbers it. The wire refines it: a stall at a
+   warp into a map beside the gate's own notice (signal 4, either line) learns the map as gated,
+   with the town from the notice's text — a WP29-style learned fact, with the same provenance and
+   observation-count honesty. The notice is the proof; a stall alone is a creature or a wall.
 4. **The planner is registration-aware.** `planRoute(from, to, { registered })` excludes edges into a
    gated map when `registered` is false. A destination reachable only through a gate returns null,
    which the walker reports as `noRoute`.
