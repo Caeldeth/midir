@@ -446,6 +446,56 @@ describe('profile and appearance', () => {
   })
 })
 
+describe('registration (WP32)', () => {
+  const notice = (text: string): DecodedPacket => ({ kind: 'systemMessage', messageType: 3, text })
+  const identified = (): CharacterSession => run([fullStatus, selfLook], { keyName: 'Gabrael' })
+
+  it('is unknown until a signal arrives', () => {
+    expect(identified().record.registered).toBeUndefined()
+  })
+
+  it('reads the login line as registered', () => {
+    const state = run([notice('Your expiration date is 8-22')], { from: identified() })
+    expect(state.record.registered).toBe(true)
+  })
+
+  it('reads either register-first refusal as unregistered, the newest signal winning', () => {
+    const registered = run([notice('Your expiration date is 8-22')], { from: identified() })
+    const refused = run([notice('((Register at www.DarkAges.com for full benefits))')], {
+      from: registered
+    })
+    expect(refused.record.registered).toBe(false)
+    const laborRefused = run(
+      [notice("(( Register first: www.darkages.com -> Click 'Register' ))")],
+      { from: identified() }
+    )
+    expect(laborRefused.record.registered).toBe(false)
+  })
+
+  it('reads the unregistered legend mark, and nothing from a legend without it', () => {
+    const marked: DecodedPacket = {
+      ...selfLook,
+      kind: 'selfLook',
+      legend: [{ icon: 0, color: 16, key: 'x', text: 'Fragile Chrysalis ((Unregistered))' }]
+    }
+    expect(run([fullStatus, marked], { keyName: 'Gabrael' }).record.registered).toBe(false)
+    expect(identified().record.registered).toBeUndefined()
+  })
+
+  it('leaves the record alone for a notice that says nothing, and for a settings row', () => {
+    const before = identified()
+    expect(run([notice('Only a Mileth citizen may enter here')], { from: before }).record).toBe(
+      before.record
+    )
+    const settings: DecodedPacket = { kind: 'systemMessage', messageType: 7, text: '1Listen:ON' }
+    expect(run([settings], { from: before }).record).toBe(before.record)
+  })
+
+  it('keeps the citizenship byte from SelfLook on the record', () => {
+    expect(identified().record.appearance.nation).toBe(4)
+  })
+})
+
 describe('the reducer as a whole', () => {
   it('never changes the state it was given', () => {
     const before = run([fullStatus, item(1, 'Stick')], { keyName: CHARACTER })

@@ -116,7 +116,8 @@ const characterSchema = z.object({
   hasMail: z.boolean(),
   // A field missing from this schema is dropped on load, silently. The bank
   // was missing here, so every bank Midir read was lost at the next start.
-  bank: bankSchema.optional()
+  bank: bankSchema.optional(),
+  registered: z.boolean().optional()
 })
 
 /** The whole file: characters by name. */
@@ -208,13 +209,17 @@ export function mergeCharacter(
   record: CharacterRecord
 ): CharacterRecord {
   const bank = record.bank ?? existing?.bank
+  // Registration is known only from a signal, and a fresh login may have
+  // shown none; the last known value stays until a newer signal replaces it.
+  const registered = record.registered ?? existing?.registered
   return {
     ...record,
     firstSeenMs:
       existing === undefined
         ? record.firstSeenMs
         : Math.min(existing.firstSeenMs, record.firstSeenMs),
-    ...(bank !== undefined ? { bank } : {})
+    ...(bank !== undefined ? { bank } : {}),
+    ...(registered !== undefined ? { registered } : {})
   }
 }
 

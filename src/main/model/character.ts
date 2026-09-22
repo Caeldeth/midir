@@ -5,6 +5,8 @@ import {
 } from '../protocol/decode'
 import { FIRST_EQUIPMENT_SLOT, INVENTORY_SLOT_COUNT, LAST_EQUIPMENT_SLOT } from '../protocol/types'
 import { emptyCharacter, type CharacterRecord, type ItemRef } from '../../shared/character'
+import { hasUnregisteredMark, registrationFromNotice } from './access'
+import { SYSTEM_NOTICE } from '../protocol/decode/message'
 
 /**
  * Turn a stream of decoded packets into one character record.
@@ -285,8 +287,16 @@ function applyPacket(
           ...record.appearance,
           nation: packet.nation,
           characterClass: packet.characterClass
-        }
+        },
+        // The unregistered mark is a positive signal; its absence is not.
+        ...(hasUnregisteredMark(packet.legend) ? { registered: false } : {})
       }
+    case 'systemMessage': {
+      if (packet.messageType !== SYSTEM_NOTICE) return record
+      const registered = registrationFromNotice(packet.text)
+      if (registered === undefined || registered === record.registered) return record
+      return { ...record, registered }
+    }
     case 'userAppearance':
       return {
         ...record,

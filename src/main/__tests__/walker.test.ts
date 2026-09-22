@@ -9,6 +9,8 @@ import type { Position } from '../model/position'
 import type { FieldMapState } from '../model/fieldMap'
 import type { DialogState } from '../model/dialog'
 import type { ExchangeState } from '../model/exchange'
+import type { NoticeState } from '../model/notice'
+import type { Gate, Passport } from '../route/access'
 import type { FieldMap } from '../protocol/decode/fieldMap'
 import type { PursuitMessage } from '../protocol/decode/pursuit'
 import type { Logger } from '../log'
@@ -92,6 +94,15 @@ class World {
   pendingHop: { mapId: number; x: number; y: number } | null = null
   /** The dialog on screen. A dialog up holds the character still, as in the game. */
   dialog: DialogState | null = null
+  /**
+   * Maps that admit only a registered citizen of a town (WP32): a step onto a
+   * warp into one does not fire, and the gate's own refusal arrives instead.
+   */
+  gatedMaps = new Map<number, string>()
+  /** The newest server notice, as the capture service would report it. */
+  notice: NoticeState | null = null
+  /** What the character carries to a gate. Null models a record not yet identified. */
+  passport: Passport | null = null
   /**
    * The exchange window, or the alert it left. An open window holds the
    * character still, and so does the alert until it is dismissed.
@@ -183,6 +194,19 @@ class World {
       if (blocks(nx, ny)) break
       const warp = map.warps.get(`${nx},${ny}`)
       if (warp !== undefined) {
+        const town = this.gatedMaps.get(warp.toMap)
+        if (town !== undefined) {
+          // The gate refuses: the character stays, and the notice says why.
+          this.notice = {
+            packet: {
+              kind: 'systemMessage',
+              messageType: 3,
+              text: `Only a ${town} citizen may enter here`
+            },
+            asOfMs: ++this.clock
+          }
+          return
+        }
         const dest = this.maps.get(warp.toMap)!
         this.position = {
           mapId: warp.toMap,
@@ -274,7 +298,7 @@ interface Harness {
   layer: { stopped: boolean; disarmed: string[]; armed: string[] }
 }
 
-function harness(world: World, graphNodes: RouteNode[]): Harness {
+function harness(world: World, graphNodes: RouteNode[], seedGates: Gate[] = []): Harness {
   const layerState = { stopped: false, disarmed: [] as string[], armed: [] as string[] }
 
   const actionLayer = {
@@ -331,6 +355,9 @@ function harness(world: World, graphNodes: RouteNode[]): Harness {
     fieldMapFor: (id: string): FieldMapState | null => (id === CID ? world.fieldMap : null),
     dialogFor: (id: string): DialogState | null => (id === CID ? world.dialog : null),
     exchangeFor: (id: string): ExchangeState | null => (id === CID ? world.exchange : null),
+    noticeFor: (id: string): NoticeState | null => (id === CID ? world.notice : null),
+    passportFor: (id: string): Passport | null => (id === CID ? world.passport : null),
+    gates: seedGates,
     maps,
     graph: createRouteGraph(graphNodes),
     log: noop,
@@ -877,6 +904,101 @@ describe('walker and a popup mid-walk (WP34)', () => {
     const outcome = await walker.go({ connectionId: CID, destination: 1, tile: { x: 4, y: 4 } })
     expect(outcome).toEqual({ kind: 'arrived' })
     expect(world.closeClicks).toBe(1)
+  })
+})
+
+// --- WP32: gated maps ---------------------------------------------------------
+
+describe('walker and a gated map (WP32)', () => {
+  // Town(1) -> Field(2) -> Cave(3): Field is the Mileth Commons of this world.
+  const FIELD_GATE: Gate = { mapId: 2, town: 'Mileth', name: 'Field' }
+
+  it('stops an unregistered character before it moves, and says which gate', async () => {
+    // Acceptance criterion 1.
+    const world = lineWorld()
+    world.passport = { registered: false, nation: 4 }
+    const { walker } = harness(world, lineGraph(), [FIELD_GATE])
+    const outcome = await walker.go({ connectionId: CID, destination: 'Cave' })
+    expect(outcome).toEqual({ kind: 'stopped', reason: 'gated' })
+    expect(world.presses).toBe(0)
+  })
+
+  it('stops a citizen of another town the same way', async () => {
+    const world = lineWorld()
+    world.passport = { registered: true, nation: 6 }
+    const { walker } = harness(world, lineGraph(), [FIELD_GATE])
+    const outcome = await walker.go({ connectionId: CID, destination: 'Cave' })
+    expect(outcome).toEqual({ kind: 'stopped', reason: 'gated' })
+    expect(world.presses).toBe(0)
+  })
+
+  it('walks a registered citizen of the gate town through', async () => {
+    // Acceptance criterion 2.
+    const world = lineWorld()
+    world.passport = { registered: true, nation: 4 }
+    const { walker } = harness(world, lineGraph(), [FIELD_GATE])
+    const outcome = await walker.go({ connectionId: CID, destination: 'Cave' })
+    expect(outcome).toEqual({ kind: 'arrived' })
+  })
+
+  it('treats a character with no signal as one that may pass', async () => {
+    // Acceptance criterion 3: silence proves nothing, and a wrong "may pass"
+    // costs one refused walk at most.
+    const world = lineWorld()
+    world.passport = {}
+    const { walker } = harness(world, lineGraph(), [FIELD_GATE])
+    expect(await walker.go({ connectionId: CID, destination: 'Cave' })).toEqual({
+      kind: 'arrived'
+    })
+    world.position = { ...world.position, mapId: 1, x: 0, y: 0 }
+    world.passport = null
+    expect(await walker.go({ connectionId: CID, destination: 'Cave' })).toEqual({
+      kind: 'arrived'
+    })
+  })
+
+  it('learns a gate from its own refusal, and does not walk into it again', async () => {
+    // Acceptance criterion 5: the refusal, not the stall, is the proof. No
+    // seed here; the world's gate refuses at the warp.
+    const world = lineWorld()
+    world.gatedMaps.set(2, 'Mileth')
+    world.passport = { registered: true, nation: 6 }
+    const { walker } = harness(world, lineGraph())
+    const first = await walker.go({ connectionId: CID, destination: 'Cave' })
+    expect(first).toEqual({ kind: 'stopped', reason: 'gated' })
+    // It reached the warp and was refused there: no three-stall grind.
+    const pressesToTheGate = world.presses
+    expect(world.position).toMatchObject({ mapId: 1 })
+
+    const second = await walker.go({ connectionId: CID, destination: 'Cave' })
+    expect(second).toEqual({ kind: 'stopped', reason: 'gated' })
+    expect(world.presses).toBe(pressesToTheGate)
+  })
+
+  it('learns the gate even for a character whose byte says it is a citizen', async () => {
+    // A stale citizenship byte: the gate's word wins for the session.
+    const world = lineWorld()
+    world.gatedMaps.set(2, 'Mileth')
+    world.passport = { registered: true, nation: 4 }
+    const { walker } = harness(world, lineGraph())
+    expect(await walker.go({ connectionId: CID, destination: 'Cave' })).toEqual({
+      kind: 'stopped',
+      reason: 'gated'
+    })
+    const presses = world.presses
+    expect(await walker.go({ connectionId: CID, destination: 'Cave' })).toEqual({
+      kind: 'stopped',
+      reason: 'gated'
+    })
+    expect(world.presses).toBe(presses)
+  })
+
+  it('reports noRoute, not gated, when no route exists at all', async () => {
+    const world = lineWorld()
+    world.passport = { registered: false }
+    const { walker } = harness(world, lineGraph(), [FIELD_GATE])
+    const outcome = await walker.go({ connectionId: CID, destination: 99 })
+    expect(outcome).toEqual({ kind: 'stopped', reason: 'noRoute' })
   })
 })
 

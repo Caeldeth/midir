@@ -126,6 +126,8 @@ export type WalkStopReason =
   | 'noRoute'
   /** A dialog or an exchange stayed on screen through every close gesture. */
   | 'dialog'
+  /** The route needs a map that admits only a registered citizen of its town, and this character is not one. */
+  | 'gated'
   /** A login or password dialog is on screen. The walker posts nothing to it. */
   | 'protected'
 
@@ -178,6 +180,8 @@ export function walkStopMessage(reason: WalkStopReason): string {
       return 'There is no route to that place.'
     case 'dialog':
       return 'A dialog is on screen that the walker could not close. Close it, then try again.'
+    case 'gated':
+      return 'The route needs a map that admits only a registered citizen of its town, and this character is not one.'
     case 'protected':
       return 'A login or password dialog is on screen. The walker does not touch it.'
   }

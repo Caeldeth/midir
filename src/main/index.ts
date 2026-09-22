@@ -12,6 +12,7 @@ import { builtinErrands } from './laborer/errands'
 import { createPaneWatcher } from './paneWatcher'
 import { createMapSource } from './route/mapSource'
 import { worldGraph } from './route/graph'
+import { seededGates } from './route/access'
 import { createIconService } from './icons/iconService'
 import { registerIconProtocol } from './icons/protocol'
 import { createRecorder, type Recorder } from './capture/recorder'
@@ -275,6 +276,15 @@ const walker = createWalker({
   // A popup mid-walk is cleared, not counted as a stall (WP34).
   dialogFor: (connectionId) => captureService.dialogFor(connectionId),
   exchangeFor: (connectionId) => captureService.exchangeFor(connectionId),
+  // A gate's refusal, and what the character carries to a gate (WP32).
+  noticeFor: (connectionId) => captureService.noticeFor(connectionId),
+  passportFor: (connectionId) => {
+    const record = captureService.recordFor(connectionId)
+    return record === null
+      ? null
+      : { registered: record.registered, nation: record.appearance.nation }
+  },
+  gates: seededGates(),
   // The errands' stand tiles, offered as `Place @ x,y` beside the map names.
   spots: () =>
     builtinErrands()
