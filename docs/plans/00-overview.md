@@ -143,7 +143,7 @@ WP13 (the action layer: window, keys, the stop)   COMPLETE — complete/13-actio
            ├── WP33 (world-map coverage for errand nodes)   COMPLETE — complete/33-errand-map-coverage.md — every errand routes
            ├── WP34 (dismiss blocking popups)   COMPLETE — complete/34-dismiss-blocking-popups.md — three popups, proven live
            └── WP35 (right-click walking)   COMPLETE — complete/35-right-click-walking.md — one right-click per stretch, proven live
-      └── WP36 (the board archive)   IN PROGRESS — 36-board-archive.md — PR1 (passive) built 2026-09-22; the poll is PR2
+      └── WP36 (the board archive)   COMPLETE — complete/36-board-archive.md — passive archive, the poll (clicks only), reused ids kept
 WP14 (position and map, off the wire)   COMPLETE — complete/14-position-and-map.md — what WP15 steers by
 WP18 (the packet-send spike)   PLANNED — gates every forged packet; WP17 is the only caller waiting
 
@@ -165,6 +165,7 @@ WP32 (registration-aware routing)   COMPLETE — complete/32-registration-aware-
 WP33 (world-map coverage for errands)   COMPLETE — complete/33-errand-map-coverage.md
 WP34 (dismiss blocking popups)   COMPLETE — 2026-09-21; a dialog, an exchange, and its confirm
 WP35 (right-click walking)   COMPLETE — complete/35-right-click-walking.md — the client walks a stretch; every tile confirmed
+WP36 (the board archive)   COMPLETE — complete/36-board-archive.md — every board and mail off the wire; the poll reads them all
 ```
 
 WP7 was the one gap in the shipped run. It was specified, deferred for the protocol work that kept
@@ -231,7 +232,7 @@ trigger is in each doc's header.
 | WP33 | S    | Map coverage for errand nodes   | HTOO-82  | COMPLETE — `complete/33-errand-map-coverage.md`            |
 | WP34 | S    | Dismiss blocking popups         | HTOO-83  | COMPLETE — `complete/34-dismiss-blocking-popups.md`        |
 | WP35 | M    | Right-click walking             | HTOO-468 | COMPLETE 2026-09-21 — `complete/35-right-click-walking.md` |
-| WP36 | L    | The board archive               | HTOO-395 | IN PROGRESS — `36-board-archive.md`                        |
+| WP36 | L    | The board archive               | HTOO-395 | COMPLETE 2026-09-22 — `complete/36-board-archive.md`       |
 
 `00a-backlog.md` now holds only what is not a WP: the non-goals, the debts owed to another repo, and
 the one conditional rule.

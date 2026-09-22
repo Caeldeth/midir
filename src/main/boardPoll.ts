@@ -40,7 +40,7 @@ import { MAILBOX_ID, PAGE_SIZE } from './protocol/decode/board'
  *
  * The positions are measured, not taken from the layouts alone: the pane
  * watcher paired Sabrael's hand clicks with the client's requests on
- * 2026-09-22 (see `docs/plans/36-board-archive.md`), and every point here
+ * 2026-09-22 (see `docs/plans/complete/36-board-archive.md`), and every point here
  * fits a 581 x 290 pane at game (30, 0).
  */
 

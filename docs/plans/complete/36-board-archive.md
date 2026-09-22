@@ -1,8 +1,16 @@
 # WP36 — the board archive: bulletin boards and mail off the wire
 
 **Size:** L. **Depends on:** WP11 (the store), WP13 (the action layer), WP17 (the pane watcher and
-the click gestures), WP34 (the popup rule). Read `00-overview.md` first. **IN PROGRESS.** **Card:**
-`HTOO-395`.
+the click gestures), WP34 (the popup rule). Read `00-overview.md` first. **COMPLETE 2026-09-22
+(#27, #28's neighbour #29).** **Card:** `HTOO-395`.
+
+**What shipped:** the passive archive (every `0x31` type and `0x3B` action decoded, `boards.json`
+with a header never replacing a body and a reused id never overwriting a post), the Boards tab
+with export, and the poll: Read everything, Read the open board, and Read in the game per board,
+clicks only at measured positions, proven live on the mailbox and a board on 2026-09-22 ("the
+other functions are working as expected"). **Not shipped:** the profile click for the legend
+(the profile button's place is not measured; the legend is read when the player opens the
+profile, #25), and the Search button, a stop-line.
 
 **PR1, the passive half, built 2026-09-22.** `decode/board.ts` reads every `0x31` type and every
 `0x3B` action; `model/board.ts` keeps what the client shows per connection (the list, the open
