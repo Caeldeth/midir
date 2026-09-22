@@ -2,10 +2,17 @@ import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { listMaps, mapPositions, mapView, type MapHandlerContext } from '../handlers/map'
-import { createRouteGraph } from '../route/graph'
+import { editWarp, listMaps, mapPositions, mapView, type MapHandlerContext } from '../handlers/map'
+import { createRouteGraph, type RouteNode } from '../route/graph'
+import { createLiveGraph } from '../route/liveGraph'
 import { buildMapGrid, type Collision, type MapGrid } from '../route/mapGrid'
 import { createMapStore, withMapSize, type MapStore } from '../store/mapStore'
+import {
+  createTransitionStore,
+  promotedEdges,
+  withObservation,
+  type TransitionStore
+} from '../store/transitionStore'
 import type { Position } from '../model/position'
 import { doorKey, type DoorState } from '../model/doors'
 
@@ -21,11 +28,12 @@ function grid(): MapGrid {
   return buildMapGrid(bytes, 4, 3, COLLISION)
 }
 
-const graph = createRouteGraph([
+const NODES: RouteNode[] = [
   { mapId: 1, name: 'Town', width: 4, height: 3, exits: [{ toMapId: 2, x: 3, y: 0 }] },
   { mapId: 2, name: 'Field', exits: [{ toMapId: 1, x: 0, y: 0, via: { kind: 'prompt' } }] },
   { mapId: 3, name: '', exits: [] }
-])
+]
+const graph = createRouteGraph(NODES)
 
 const position = (mapId: number, x: number, y: number): Position => ({
   mapId,
@@ -41,6 +49,7 @@ const position = (mapId: number, x: number, y: number): Position => ({
 describe('the map viewer handlers', () => {
   let directory: string
   let mapStore: MapStore
+  let transitionStore: TransitionStore
   let requested: { mapId: number; width: number; height: number; doors: number }[]
   let ctx: MapHandlerContext
   let positions: Record<string, Position>
@@ -49,12 +58,15 @@ describe('the map viewer handlers', () => {
   beforeEach(async () => {
     directory = await mkdtemp(join(tmpdir(), 'midir-maps-'))
     mapStore = createMapStore(directory)
+    transitionStore = createTransitionStore(directory)
     requested = []
     positions = {}
     doors = {}
     ctx = {
       graph,
       mapStore,
+      transitionStore,
+      graphChanged: async () => undefined,
       gameFolder: () => 'E:/Games/Dark Ages',
       liveConnections: () =>
         Object.keys(positions).map((id) => ({ connectionId: id, name: 'Fintan' })),
@@ -97,7 +109,7 @@ describe('the map viewer handlers', () => {
     expect(result.view.collision).toHaveLength(12)
     expect(result.view.collision[1 * 4 + 1]).toBe(0x0f)
     expect(result.view.warps).toEqual([
-      { x: 3, y: 0, toMapId: 2, toMapName: 'Field', source: 'authored' }
+      { x: 3, y: 0, toMapId: 2, toMapName: 'Field', source: 'authored', state: 'active' }
     ])
   })
 
@@ -165,5 +177,108 @@ describe('the map size store', () => {
       200
     )
     expect(renamed.maps['505']?.name).toBe('Rucesion Village')
+  })
+})
+
+describe('the warp edit (WP30)', () => {
+  let directory: string
+  let transitionStore: TransitionStore
+  let live: ReturnType<typeof createLiveGraph>
+  let ctx: MapHandlerContext
+
+  /** The graph the app holds, rebuilt from the store the way main does. */
+  async function rebuild(): Promise<void> {
+    const file = await transitionStore.load()
+    live.update(promotedEdges(file), {}, file.curations)
+  }
+
+  beforeEach(async () => {
+    directory = await mkdtemp(join(tmpdir(), 'midir-maps-'))
+    transitionStore = createTransitionStore(directory)
+    live = createLiveGraph(NODES)
+    ctx = {
+      graph: live,
+      mapStore: createMapStore(directory),
+      transitionStore,
+      graphChanged: rebuild,
+      gameFolder: () => 'E:/Games/Dark Ages',
+      liveConnections: () => [],
+      positionFor: () => null,
+      doorsFor: () => null,
+      maps: { gridFor: async () => grid() }
+    }
+  })
+
+  afterEach(async () => {
+    await rm(directory, { recursive: true, force: true })
+  })
+
+  const warpsOf = async (mapId: number): Promise<unknown[]> => {
+    const result = await mapView(ctx, mapId)
+    if (!result.ok) throw new Error(result.failure.kind)
+    return result.view.warps.map((w) => ({
+      x: w.x,
+      y: w.y,
+      to: w.toMapId,
+      state: w.state,
+      source: w.source
+    }))
+  }
+
+  it('shows a learned candidate the graph does not use yet, and accepts it into the graph', async () => {
+    await transitionStore.update((file) =>
+      withObservation(file, { fromMapId: 1, x: 2, y: 2, toMapId: 3, atMs: 5 })
+    )
+    expect(await warpsOf(1)).toEqual([
+      { x: 3, y: 0, to: 2, state: 'active', source: 'authored' },
+      { x: 2, y: 2, to: 3, state: 'candidate', source: 'learned' }
+    ])
+    expect(live.planRoute(1, 3)).toBeNull()
+
+    const result = await editWarp(
+      ctx,
+      { action: 'accept', fromMapId: 1, x: 2, y: 2, toMapId: 3 },
+      () => 99
+    )
+    expect(result.ok && result.view.warps.map((w) => w.state)).toEqual(['active', 'active'])
+    expect(live.planRoute(1, 3)?.legs[0]?.warps).toEqual([{ x: 2, y: 2 }])
+    expect((await transitionStore.load()).curations['1:2,2>3']).toMatchObject({
+      verdict: 'accepted',
+      atMs: 99
+    })
+  })
+
+  it('rejects an authored warp out of the graph, shows it rejected, and restores it', async () => {
+    await editWarp(ctx, { action: 'reject', fromMapId: 1, x: 3, y: 0, toMapId: 2 })
+    expect(await warpsOf(1)).toEqual([{ x: 3, y: 0, to: 2, state: 'rejected', source: 'authored' }])
+    expect(live.planRoute(1, 2)).toBeNull()
+    // The imported nodes are untouched.
+    expect(NODES[0]!.exits).toEqual([{ toMapId: 2, x: 3, y: 0 }])
+
+    await editWarp(ctx, { action: 'restore', fromMapId: 1, x: 3, y: 0, toMapId: 2 })
+    expect(await warpsOf(1)).toEqual([{ x: 3, y: 0, to: 2, state: 'active', source: 'authored' }])
+    expect((await transitionStore.load()).curations).toEqual({})
+  })
+
+  it('nudges a warp to another tile: the old one rejected, the new one curated', async () => {
+    await editWarp(ctx, { action: 'nudge', fromMapId: 1, x: 3, y: 0, toMapId: 2, toX: 3, toY: 1 })
+    expect(await warpsOf(1)).toEqual([
+      { x: 3, y: 1, to: 2, state: 'active', source: 'curated' },
+      { x: 3, y: 0, to: 2, state: 'rejected', source: 'authored' }
+    ])
+    expect(live.planRoute(1, 2)?.legs[0]?.warps).toEqual([{ x: 3, y: 1 }])
+  })
+
+  it('a nudged hop keeps its click', async () => {
+    await editWarp(ctx, { action: 'nudge', fromMapId: 2, x: 0, y: 0, toMapId: 1, toX: 1, toY: 0 })
+    expect(live.node(2)?.exits).toEqual([
+      { toMapId: 1, x: 1, y: 0, via: { kind: 'prompt' }, source: 'curated' }
+    ])
+  })
+
+  it('refuses an edit that is not one', async () => {
+    const result = await editWarp(ctx, { action: 'delete', fromMapId: 1 })
+    expect(result).toEqual({ ok: false, failure: { kind: 'unknownMap' } })
+    expect((await transitionStore.load()).curations).toEqual({})
   })
 })

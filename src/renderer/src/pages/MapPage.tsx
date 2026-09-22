@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Autocomplete,
   Box,
+  Button,
   Chip,
   FormControlLabel,
   Stack,
@@ -13,7 +14,13 @@ import {
 } from '@mui/material'
 import Guidance from '@renderer/components/Guidance'
 import { useMapStore } from '@renderer/store/mapStore'
-import { mapViewFailureMessage, type MapSummary, type MapView, type MapWarp } from '@shared/map'
+import {
+  mapViewFailureMessage,
+  type MapSummary,
+  type MapView,
+  type MapWarp,
+  type WarpEdit
+} from '@shared/map'
 import type { WalkerState } from '@shared/actionLayer'
 
 /**
@@ -28,19 +35,42 @@ import type { WalkerState } from '@shared/actionLayer'
  * tiles a side; everything that moves or is few (warps, dots, the path) is a
  * positioned element over it, so a test can find it. A warp the wire proved
  * (WP29) is drawn in its own colour, and its hover says how often; one the
- * imported file holds and the wire has confirmed says so too. The view is
- * read-only: the edit that accepts or nudges a warp waits for WP30's second
- * half.
+ * imported file holds and the wire has confirmed says so too. A candidate the
+ * wire has not seen often enough is outlined, and a rejected one is faint.
+ *
+ * The edit is light and explicit (decision 4): click a warp and a bar names
+ * it with what can be done to it. Accept turns a candidate on, Reject turns
+ * a warp off, Restore withdraws either, and Nudge moves it to the next tile
+ * clicked. Every edit writes to the learned layer through main, never to the
+ * imported file or a client file, and the view redraws from main's answer.
  */
 
 /** Where a warp came from, for its hover: the wire's word, when it has one. */
 function warpProvenance(warp: MapWarp): string {
   const times = (n: number): string => `${n} time${n === 1 ? '' : 's'}`
+  const state =
+    warp.state === 'candidate'
+      ? ' · a candidate, not used yet'
+      : warp.state === 'rejected'
+        ? ' · rejected by hand'
+        : ''
+  if (warp.source === 'curated') return ` · placed by hand${state}`
   if (warp.source === 'learned')
-    return ` · learned from the wire, seen ${times(warp.observations ?? 0)}`
+    return ` · learned from the wire, seen ${times(warp.observations ?? 0)}${state}`
   if (warp.observations !== undefined)
-    return ` · confirmed by the wire, seen ${times(warp.observations)}`
-  return ''
+    return ` · confirmed by the wire, seen ${times(warp.observations)}${state}`
+  return state
+}
+
+/** The destination as the bar and the hover name it. */
+function warpTarget(warp: MapWarp): string {
+  return `→ ${warp.toMapName !== '' ? warp.toMapName : `map ${warp.toMapId}`}${
+    warp.via !== undefined ? ` (${warp.via})` : ''
+  }`
+}
+
+function warpKey(warp: MapWarp): string {
+  return `${warp.x}:${warp.y}:${warp.toMapId}`
 }
 
 /** The SOTP nibble: 0x08 North, 0x04 East, 0x02 South, 0x01 West. */
@@ -187,6 +217,46 @@ function MapPage(): React.JSX.Element {
   const boxRef = useRef<HTMLDivElement | null>(null)
   const [box, setBox] = useState({ width: 800, height: 600 })
   const [hover, setHover] = useState<{ x: number; y: number } | null>(null)
+  const editWarp = useMapStore((s) => s.editWarp)
+  const [pickedWarp, setPickedWarp] = useState<string | null>(null)
+  const [nudging, setNudging] = useState(false)
+  const chosen = view?.warps.find((w) => warpKey(w) === pickedWarp) ?? null
+
+  // A new map, or a warp that left the view, ends the edit.
+  useEffect(() => {
+    if (chosen === null) {
+      setPickedWarp(null)
+      setNudging(false)
+    }
+  }, [chosen])
+
+  const edit = (action: 'accept' | 'reject' | 'restore'): void => {
+    if (view === null || chosen === null) return
+    const request: WarpEdit = {
+      action,
+      fromMapId: view.mapId,
+      x: chosen.x,
+      y: chosen.y,
+      toMapId: chosen.toMapId
+    }
+    setNudging(false)
+    void editWarp(request)
+  }
+
+  const nudgeTo = (tile: { x: number; y: number }): void => {
+    if (view === null || chosen === null) return
+    setNudging(false)
+    setPickedWarp(`${tile.x}:${tile.y}:${chosen.toMapId}`)
+    void editWarp({
+      action: 'nudge',
+      fromMapId: view.mapId,
+      x: chosen.x,
+      y: chosen.y,
+      toMapId: chosen.toMapId,
+      toX: tile.x,
+      toY: tile.y
+    })
+  }
 
   useEffect(() => {
     void refresh()
@@ -273,6 +343,46 @@ function MapPage(): React.JSX.Element {
         ) : null}
       </Stack>
 
+      {view !== null && chosen !== null ? (
+        <Stack
+          direction="row"
+          sx={{ gap: 1, alignItems: 'center', flexWrap: 'wrap' }}
+          data-testid="warp-edit"
+        >
+          <Typography variant="body2">
+            Warp ({chosen.x}, {chosen.y}) {warpTarget(chosen)}
+            {warpProvenance(chosen)}
+          </Typography>
+          {chosen.state === 'candidate' ? (
+            <Button size="small" variant="outlined" onClick={() => edit('accept')}>
+              Accept
+            </Button>
+          ) : null}
+          {chosen.state === 'active' ? (
+            <Button size="small" variant="outlined" onClick={() => edit('reject')}>
+              Reject
+            </Button>
+          ) : null}
+          {chosen.state === 'rejected' || chosen.source === 'curated' ? (
+            <Button size="small" variant="outlined" onClick={() => edit('restore')}>
+              Restore
+            </Button>
+          ) : null}
+          {chosen.state !== 'rejected' ? (
+            <Button
+              size="small"
+              variant={nudging ? 'contained' : 'outlined'}
+              onClick={() => setNudging((n) => !n)}
+            >
+              {nudging ? 'Click a tile…' : 'Nudge'}
+            </Button>
+          ) : null}
+          <Button size="small" onClick={() => setPickedWarp(null)}>
+            Done
+          </Button>
+        </Stack>
+      ) : null}
+
       <Box
         ref={boxRef}
         sx={{
@@ -309,37 +419,49 @@ function MapPage(): React.JSX.Element {
             }}
             onMouseMove={onMove}
             onMouseLeave={() => setHover(null)}
+            onClick={() => {
+              if (nudging && hover !== null) nudgeTo(hover)
+            }}
             data-testid="map-view"
+            style={{ cursor: nudging ? 'crosshair' : undefined }}
           >
             <TileCanvas view={view} scale={scale} />
 
-            {view.warps.map((warp) => (
-              <Tooltip
-                key={`${warp.x}:${warp.y}:${warp.toMapId}`}
-                title={`→ ${warp.toMapName !== '' ? warp.toMapName : `map ${warp.toMapId}`}${
-                  warp.via !== undefined ? ` (${warp.via})` : ''
-                }${warpProvenance(warp)}`}
-              >
-                <Box
-                  data-testid="map-warp"
-                  sx={{
-                    position: 'absolute',
-                    left: warp.x * scale,
-                    top: warp.y * scale,
-                    width: scale,
-                    height: scale,
-                    bgcolor:
-                      warp.via === 'dialog'
-                        ? 'warning.main'
-                        : warp.source === 'learned'
-                          ? 'success.main'
-                          : 'secondary.main',
-                    opacity: 0.85,
-                    cursor: 'help'
-                  }}
-                />
-              </Tooltip>
-            ))}
+            {view.warps.map((warp) => {
+              const color =
+                warp.via === 'dialog'
+                  ? 'warning.main'
+                  : warp.source === 'learned' || warp.source === 'curated'
+                    ? 'success.main'
+                    : 'secondary.main'
+              const picked = warpKey(warp) === pickedWarp
+              return (
+                <Tooltip key={warpKey(warp)} title={`${warpTarget(warp)}${warpProvenance(warp)}`}>
+                  <Box
+                    data-testid="map-warp"
+                    data-state={warp.state}
+                    onClick={(event) => {
+                      if (nudging) return
+                      event.stopPropagation()
+                      setPickedWarp(picked ? null : warpKey(warp))
+                    }}
+                    sx={{
+                      position: 'absolute',
+                      left: warp.x * scale,
+                      top: warp.y * scale,
+                      width: scale,
+                      height: scale,
+                      boxSizing: 'border-box',
+                      bgcolor: warp.state === 'candidate' ? 'transparent' : color,
+                      border: warp.state === 'candidate' || picked ? 2 : 0,
+                      borderColor: picked ? 'text.primary' : color,
+                      opacity: warp.state === 'rejected' ? 0.3 : 0.85,
+                      cursor: 'pointer'
+                    }}
+                  />
+                </Tooltip>
+              )
+            })}
 
             {walkersHere.map((walker) => (
               <PathLayer key={walker.connectionId} walker={walker} scale={scale} />

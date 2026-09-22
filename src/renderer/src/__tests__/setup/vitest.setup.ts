@@ -67,7 +67,8 @@ export function createMockApi(): MidirApi {
     map: {
       list: vi.fn(async () => []),
       view: vi.fn(async () => ({ ok: false as const, failure: { kind: 'noFolder' as const } })),
-      positions: vi.fn(async () => [])
+      positions: vi.fn(async () => []),
+      editWarp: vi.fn(async () => ({ ok: false as const, failure: { kind: 'noFolder' as const } }))
     },
     characters: {
       list: vi.fn(async () => []),

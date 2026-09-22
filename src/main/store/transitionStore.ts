@@ -2,6 +2,8 @@ import { join } from 'node:path'
 import { z } from 'zod'
 import { createJsonStore, type JsonStore, type JsonStoreFailure } from '../jsonStore'
 import type { TransitionObservation } from '../model/transitions'
+import type { WarpEdit } from '../../shared/map'
+import type { RouteHop } from '../route/graph'
 
 /**
  * The edges learned from the wire: `transitions.json` (WP29).
@@ -20,6 +22,12 @@ import type { TransitionObservation } from '../model/transitions'
  * cannot rule out, and a second crossing of the same tile to the same map is
  * not something a death repeats. The count and the times ride on the record,
  * the same "seen N times, as of" the bank keeps.
+ *
+ * The file is also the editable layer the Map tab writes (WP30): a
+ * `curation` per edge key says the user accepted the edge (it enters the
+ * graph whatever its count) or rejected it (it leaves the graph, whether the
+ * wire or the imported file put it there). A nudge is a rejection of the old
+ * tile and an acceptance of the new one. The imported file is never written.
  */
 export const TRANSITIONS_FILE = 'transitions.json'
 
@@ -44,8 +52,22 @@ export interface LearnedEdge {
   lastSeenMs: number
 }
 
+/** One hand edit, keyed like an edge. */
+export interface Curation {
+  fromMapId: number
+  x: number
+  y: number
+  toMapId: number
+  verdict: 'accepted' | 'rejected'
+  /** Kept for a hop the user moved, so the new tile keeps its gesture. */
+  via?: RouteHop
+  /** Wall-clock time of the edit. */
+  atMs: number
+}
+
 export interface TransitionFile {
   edges: Record<string, LearnedEdge>
+  curations: Record<string, Curation>
 }
 
 // A field missing from this schema is dropped on load, silently (WP11's rule).
@@ -64,14 +86,32 @@ const edgeSchema = z.object({
   lastSeenMs: z.number()
 })
 
+const curationSchema = z.object({
+  fromMapId: z.number().int().nonnegative(),
+  x: z.number().int(),
+  y: z.number().int(),
+  toMapId: z.number().int().nonnegative(),
+  verdict: z.enum(['accepted', 'rejected']),
+  via: z
+    .discriminatedUnion('kind', [
+      z.object({ kind: z.literal('fieldMap'), screenX: z.number(), screenY: z.number() }),
+      z.object({ kind: z.literal('prompt') }),
+      z.object({ kind: z.literal('dialog') })
+    ])
+    .optional(),
+  atMs: z.number()
+})
+
 const fileSchema = z.object({
-  edges: z.record(z.string(), edgeSchema)
+  edges: z.record(z.string(), edgeSchema),
+  // Absent in a file written before WP30's edit.
+  curations: z.record(z.string(), curationSchema).default({})
 })
 
 export type TransitionStore = JsonStore<TransitionFile>
 
 export function emptyTransitionFile(): TransitionFile {
-  return { edges: {} }
+  return { edges: {}, curations: {} }
 }
 
 export function createTransitionStore(
@@ -128,7 +168,7 @@ export function withObservation(file: TransitionFile, seen: TransitionObservatio
       firstSeenMs: seen.atMs,
       lastSeenMs: seen.atMs
     }
-    return { edges: { ...file.edges, [key]: edge } }
+    return { ...file, edges: { ...file.edges, [key]: edge } }
   }
   const newer = seen.atMs >= existing.lastSeenMs
   const edge: LearnedEdge = {
@@ -139,11 +179,54 @@ export function withObservation(file: TransitionFile, seen: TransitionObservatio
     firstSeenMs: Math.min(existing.firstSeenMs, seen.atMs),
     lastSeenMs: Math.max(existing.lastSeenMs, seen.atMs)
   }
-  return { edges: { ...file.edges, [key]: edge } }
+  return { ...file, edges: { ...file.edges, [key]: edge } }
 }
 
 /**
- * The edges seen often enough to enter the graph.
+ * `file` with one hand edit applied (WP30). `via` is the hop of the warp
+ * being edited, when it is a hop, so a nudged hop keeps its click.
+ */
+export function withCuration(
+  file: TransitionFile,
+  edit: WarpEdit,
+  atMs: number,
+  via?: Curation['via']
+): TransitionFile {
+  const curations = { ...file.curations }
+  const key = edgeKey(edit)
+  const record = (x: number, y: number, verdict: Curation['verdict']): Curation => ({
+    fromMapId: edit.fromMapId,
+    x,
+    y,
+    toMapId: edit.toMapId,
+    verdict,
+    ...(via !== undefined ? { via } : {}),
+    atMs
+  })
+  switch (edit.action) {
+    case 'accept':
+      curations[key] = record(edit.x, edit.y, 'accepted')
+      break
+    case 'reject':
+      curations[key] = record(edit.x, edit.y, 'rejected')
+      break
+    case 'restore':
+      delete curations[key]
+      break
+    case 'nudge': {
+      const moved = edgeKey({ ...edit, x: edit.toX, y: edit.toY })
+      if (moved === key) break
+      curations[key] = record(edit.x, edit.y, 'rejected')
+      curations[moved] = record(edit.toX, edit.toY, 'accepted')
+      break
+    }
+  }
+  return { ...file, curations }
+}
+
+/**
+ * The edges seen often enough to enter the graph, and the ones the user
+ * accepted whatever their count, less the ones the user rejected.
  *
  * A plain warp tile leads to one map, so when the wire has seen a tile lead
  * to two, only the destination it saw most often is promoted: the Rucesion
@@ -166,6 +249,8 @@ export function promotedEdges(
     if (held === undefined || edge.observations > held.observations) strongest.set(tile, edge)
   }
   return Object.values(file.edges).filter((edge) => {
+    const verdict = file.curations[edgeKey(edge)]?.verdict
+    if (verdict !== undefined) return verdict === 'accepted'
     if (edge.observations < threshold) return false
     return edge.via !== undefined || strongest.get(`${edge.fromMapId}:${edge.x},${edge.y}`) === edge
   })

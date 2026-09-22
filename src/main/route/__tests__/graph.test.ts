@@ -311,6 +311,36 @@ describe('the learned layer (WP29)', () => {
     expect(JSON.stringify(NODES)).toBe(frozen)
   })
 
+  it('a rejected edge leaves whoever put it there; an accepted one no source holds is curated', () => {
+    const at = 1
+    const nodes = mergeLearned(
+      NODES,
+      [learned(1, 4, 4, 2)],
+      {},
+      {
+        '1:3,4>2': { fromMapId: 1, x: 3, y: 4, toMapId: 2, verdict: 'rejected', atMs: at },
+        '1:4,4>2': { fromMapId: 1, x: 4, y: 4, toMapId: 2, verdict: 'rejected', atMs: at },
+        '1:2,4>2': { fromMapId: 1, x: 2, y: 4, toMapId: 2, verdict: 'accepted', atMs: at },
+        '5:0,0>1': {
+          fromMapId: 5,
+          x: 0,
+          y: 0,
+          toMapId: 1,
+          verdict: 'accepted',
+          via: { kind: 'prompt' },
+          atMs: at
+        }
+      }
+    )
+    expect(nodes.find((n) => n.mapId === 1)?.exits).toEqual([
+      { toMapId: 2, x: 5, y: 4 },
+      { toMapId: 2, x: 2, y: 4, source: 'curated' }
+    ])
+    expect(nodes.find((n) => n.mapId === 5)?.exits).toEqual([
+      { toMapId: 1, x: 0, y: 0, via: { kind: 'prompt' }, source: 'curated' }
+    ])
+  })
+
   it('the live graph answers from the newest merge', () => {
     const live = createLiveGraph(NODES)
     expect(live.planRoute(1, 5)).toBeNull()

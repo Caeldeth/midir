@@ -314,7 +314,7 @@ const transitionStore = createTransitionStore(settingsPath, (failure) => {
 const worldGraph = createLiveGraph(worldNodes)
 async function rebuildGraph(): Promise<void> {
   const [transitions, maps] = await Promise.all([transitionStore.load(), mapStore.load()])
-  worldGraph.update(promotedEdges(transitions), maps.maps)
+  worldGraph.update(promotedEdges(transitions), maps.maps, transitions.curations)
 }
 rebuildGraph().catch((error: unknown) => {
   log.error('transitions', `The learned graph would not build: ${String(error)}`)
@@ -509,6 +509,8 @@ const ctx: HandlerContext = {
   boardStore,
   boardPoll,
   mapStore,
+  transitionStore,
+  graphChanged: rebuildGraph,
   graph: worldGraph,
   maps: mapSource,
   gameFolder: () => darkAgesPath,

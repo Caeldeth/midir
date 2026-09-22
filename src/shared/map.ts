@@ -6,9 +6,17 @@ export type MapHopKind = 'fieldMap' | 'prompt' | 'dialog'
 
 /**
  * Where an edge of the route graph came from (WP29): the imported
- * `WorldMap.dat`, the wire, or a later world import.
+ * `WorldMap.dat`, the wire, a hand edit on the Map tab (WP30), or a later
+ * world import.
  */
-export type EdgeSource = 'authored' | 'learned' | 'ceridwen'
+export type EdgeSource = 'authored' | 'learned' | 'curated' | 'ceridwen'
+
+/**
+ * Whether the walker uses a warp now. A `candidate` is a learned edge the
+ * wire has not seen often enough; a `rejected` one was turned off by hand
+ * and can be restored.
+ */
+export type WarpState = 'active' | 'candidate' | 'rejected'
 
 /** One map the viewer can list. */
 export interface MapSummary {
@@ -30,7 +38,33 @@ export interface MapWarp {
   source: EdgeSource
   /** How many clean walk-warps the wire saw cross it, when any did. */
   observations?: number
+  state: WarpState
 }
+
+/**
+ * One hand edit to a warp (WP30). `accept` turns a candidate on, `reject`
+ * turns a warp off, `restore` withdraws either, and `nudge` moves a warp to
+ * another tile of the same map: the old tile is rejected and the new one
+ * accepted. Every edit writes to the learned layer, never to the imported
+ * file.
+ */
+export type WarpEdit =
+  | {
+      action: 'accept' | 'reject' | 'restore'
+      fromMapId: number
+      x: number
+      y: number
+      toMapId: number
+    }
+  | {
+      action: 'nudge'
+      fromMapId: number
+      x: number
+      y: number
+      toMapId: number
+      toX: number
+      toY: number
+    }
 
 /**
  * A map's passability and warps, sent to the renderer to draw.
@@ -70,6 +104,7 @@ export interface MapPosition {
 export const MAP_LIST_CHANNEL = 'map:list'
 export const MAP_VIEW_CHANNEL = 'map:view'
 export const MAP_POSITIONS_CHANNEL = 'map:positions'
+export const MAP_EDIT_WARP_CHANNEL = 'map:editWarp'
 
 export function mapViewFailureMessage(failure: MapViewFailure): string {
   switch (failure.kind) {
