@@ -93,10 +93,10 @@ function Laborer(): React.JSX.Element {
     <Box sx={{ p: 2.5, overflow: 'auto' }}>
       <Paper sx={cardSx} data-testid="laborer-panel">
         <Typography variant="h6" sx={headingSx}>
-          Laborer
+          Errands
         </Typography>
         <Typography variant="body2" sx={descriptionSx}>
-          Choose an errand, and the Laborer walks to the NPC and works the dialog. It reads the
+          Choose an errand, and the character walks to the NPC and works the dialog. Midir reads the
           conversation off the wire and posts the keys to choose each option by what the option
           says, not by where it is on the screen. It stops on any dialog it does not expect, and it
           never works a login or password dialog. It sends no packet and reads no memory. A
