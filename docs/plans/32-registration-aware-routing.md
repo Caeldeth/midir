@@ -116,6 +116,17 @@ the byte says: the gate's word is the authority.
    admits only a citizen of Mileth or Loures", or the gate's own words when it refused mid-walk. The
    destination picker is unchanged.
 
+## The Laborer's pre-checks (added 2026-09-21)
+
+The same two facts refuse an errand before any walk. Sabrael: clout at Mileth is for a Mileth
+citizen and at Rucesion for a Rucesion citizen (nation 0 is refused at both), and clout and labor
+both need a registered character (the "(( Register first … ))" refusal was captured for both). So
+an errand may declare `needsCitizenship` (a town) and `needsRegistration`, the clout errands
+declare both and the labor errands the second, and the Laborer's `preCheck` stops the run with
+`notCitizen` or `unregistered` when the record's fact says so. Unknown refuses nothing; the server's
+own refusal (`serverNotice`) is then the verdict, as before. Labor fix declares nothing, because its
+refusal has not been seen.
+
 ## Non-goals (stop-lines)
 
 - **No guessing registration from class or nation.** Those are not the signal; the notices and the
