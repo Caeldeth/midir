@@ -65,6 +65,19 @@ describe('the Map page', () => {
     expect(await screen.findByText('→ Field')).toBeInTheDocument()
   })
 
+  it('the picker opens its list, names every map, greys the undrawable, and picks one', async () => {
+    // The renderInput override once replaced the Autocomplete's slot props
+    // and dropped the input slot's ref, so the list never opened.
+    render(<MapPage />)
+    await userEvent.click(screen.getByRole('combobox', { name: 'Map' }))
+    const options = await screen.findAllByRole('option')
+    expect(options.map((o) => o.textContent)).toEqual(['Town (1)', 'Field (2)'])
+    expect(options[1]).toHaveAttribute('aria-disabled', 'true')
+    await userEvent.click(options[0]!)
+    expect(await screen.findByTestId('map-view')).toBeInTheDocument()
+    expect(useMapStore.getState().follow).toBe(false)
+  })
+
   it('says why a map cannot be drawn', async () => {
     render(<MapPage />)
     await useMapStore.getState().select(2)

@@ -232,7 +232,11 @@ function MapPage(): React.JSX.Element {
               size="small"
               label="Map"
               placeholder="A map name or id"
+              // Merge, never replace: `params.slotProps.input` carries the ref
+              // the listbox anchors to and the arrow and clear adornments.
+              // Replacing the object dropped them and the picker did not open.
               slotProps={{
+                ...params.slotProps,
                 htmlInput: { ...params.slotProps.htmlInput, 'data-testid': 'map-picker' }
               }}
             />
