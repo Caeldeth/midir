@@ -203,7 +203,12 @@ function Walker(): React.JSX.Element {
                 size="small"
                 label="Destination"
                 placeholder="A place name or map id"
-                helperText="Pick a known place, or type a map name or number."
+                error={!endValid}
+                helperText={
+                  endValid
+                    ? 'Pick a known place, or type a map name or number. End x and y are optional: a tile to stand on.'
+                    : 'Give both End x and End y, or neither.'
+                }
               />
             )}
           />
@@ -214,7 +219,6 @@ function Walker(): React.JSX.Element {
             onChange={(event) => setEndTile(event.target.value, endY)}
             disabled={isRunning}
             error={!endValid}
-            helperText={endValid ? 'Optional' : 'Both, or neither'}
             slotProps={{ htmlInput: { inputMode: 'numeric', 'data-testid': 'walker-end-x' } }}
             sx={{ width: 96 }}
           />
@@ -225,7 +229,6 @@ function Walker(): React.JSX.Element {
             onChange={(event) => setEndTile(endX, event.target.value)}
             disabled={isRunning}
             error={!endValid}
-            helperText={endValid ? 'Tile to stand on' : 'Both, or neither'}
             slotProps={{ htmlInput: { inputMode: 'numeric', 'data-testid': 'walker-end-y' } }}
             sx={{ width: 96 }}
           />
