@@ -46,6 +46,9 @@ export interface RouteNode {
   mapId: number
   /** The map name, or an empty string when WorldMap.dat had none. */
   name: string
+  /** The map size from WorldMap.dat's header, when it had one (47 maps do). */
+  width?: number
+  height?: number
   /** Where this map warps to, and the tile that does it. */
   exits: RouteExit[]
 }
@@ -87,6 +90,8 @@ export interface RouteGraph {
   node(mapId: number): RouteNode | null
   /** Every named map, sorted by name, for the destination picker. */
   destinations(): RouteDestination[]
+  /** Every node, named or not, sorted by map id. The map viewer lists them (WP30). */
+  nodes(): RouteNode[]
   /**
    * Resolve a destination given as a name or a map id to a map id in the graph,
    * or null when nothing matches. A name match is case-insensitive: an exact
@@ -201,7 +206,9 @@ export function createRouteGraph(nodes: RouteNode[]): RouteGraph {
     return { fromMapId, toMapId, legs }
   }
 
-  return { node, destinations, resolveDestination, planRoute }
+  const sortedNodes = [...nodes].sort((a, b) => a.mapId - b.mapId)
+
+  return { node, nodes: () => sortedNodes, destinations, resolveDestination, planRoute }
 }
 
 /** The world graph, built from the imported WorldMap.dat. */

@@ -33,6 +33,7 @@ const PAGES = [
   { name: 'Boards', testId: 'page-boards' },
   { name: 'Speaker', testId: 'page-speaker' },
   { name: 'Walker', testId: 'page-walker' },
+  { name: 'Map', testId: 'page-map' },
   { name: 'Errands', testId: 'page-laborer' },
   { name: 'Diagnostics', testId: 'page-diagnostics' },
   { name: 'Settings', testId: 'page-settings' }

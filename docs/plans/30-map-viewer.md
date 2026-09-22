@@ -1,9 +1,28 @@
 # WP30 — the map viewer and route inspector
 
 **Size:** M. **Depends on:** WP15 (the grid and the graph), WP14 (the live position), and WP7 (the
-dalib-ts render path). Read `00-overview.md` first. **PLANNED.** **Card:** `HTOO-79`.
+dalib-ts render path). Read `00-overview.md` first. **PART SHIPPED 2026-09-22: the viewer and the
+walker debugger (criteria 1 to 4). The edit (criterion 5) waits for WP29's editable graph layer.**
+**Card:** `HTOO-79`.
 **Trigger to start:** a walker stop the log cannot explain, or a want to see and curate the route
-graph on the map it belongs to.
+graph on the map it belongs to. Sabrael, 2026-09-22: the low items, all of them.
+
+**What shipped.** A Map tab: pick a map, or let it follow the character. The tiles come off the
+walker's own grid (`MapGrid.collision`, the SOTP nibbles, drawn top-down on a canvas: a full wall
+filled, a part wall as lines on its blocked sides), the warps from the graph's exits with their
+destination on hover, one dot per live character with its confidence (polled at 500 ms, the
+walker's own pace), and while a walker runs its planned path as a line (`WalkerState.path`, new)
+and its stop as a chip with the reason. **The size problem the plan did not see:** the map cache
+has no header and the imported graph knows the size of 47 maps in 385, so a map the character is
+not standing on could not be read. Every cache file is a map the player visited, and every visit
+sends `SMapSize 0x15`, so `store/mapStore.ts` keeps `maps.json` (id, name, width, height, newest
+reading wins) from the capture service, and the viewer takes the size from the wire first, the
+graph second, a live position third. `scripts/import-worldmap.mjs` now keeps the header's size
+where it has one. **The door overlay of WP31 is in:** the view takes the live connection's overlay for
+its map, one argument to `gridFor`, so an opened door is open in the picture too. **Waits for
+WP29:** decision 4, the edit, needs the editable graph layer with provenance that WP29 defines; the
+view is read-only and says so. The art layer (decision 1's second half) is still optional and not
+started.
 
 ## Goal
 
@@ -85,7 +104,7 @@ export interface MapView {
 3. The live position shows as a dot with its confidence, and follows the character.
 4. While a walker runs, its planned path and its stop tile show, with the stop reason.
 5. An accepted or nudged warp persists to the editable graph layer, and never to the imported file or
-   a client file.
+   a client file. **Open: waits for WP29.**
 
 ## Verification
 

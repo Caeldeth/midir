@@ -20,6 +20,7 @@ import { reduceExchange, type ExchangeState } from './model/exchange'
 import { reduceFieldMap, type FieldMapState } from './model/fieldMap'
 import { reduceEntities, type EntityState } from './model/entities'
 import { reduceDoors, type DoorState } from './model/doors'
+import { withMapSize, type MapFile, type MapStore } from './store/mapStore'
 import { reduceBoard, type BoardState } from './model/board'
 import {
   withBoardList,
@@ -49,6 +50,8 @@ export interface CaptureServiceOptions {
   boardStore?: BoardStore
   /** Called whenever the board archive changes. */
   onBoards?: () => void
+  /** The map sizes the wire names (WP30). Absent means none are kept. */
+  mapStore?: MapStore
   /** Build the source for a device. Injected so a recording can stand in. */
   createSource: (device: string) => PacketSource
   /** Called whenever the status changes. */
@@ -196,6 +199,7 @@ export function createCaptureService(options: CaptureServiceOptions): CaptureSer
   const boards = new Map<string, BoardState>()
   /** Changes to the board archive waiting for the next write, in order. */
   let boardWrites: ((file: BoardFile) => BoardFile)[] = []
+  let mapWrites: ((file: MapFile) => MapFile)[] = []
   /** Records changed but not yet written, by character name. */
   const unsaved = new Map<string, CharacterRecord>()
   /**
@@ -269,6 +273,11 @@ export function createCaptureService(options: CaptureServiceOptions): CaptureSer
   }
 
   async function flush(): Promise<void> {
+    if (mapWrites.length > 0 && options.mapStore !== undefined) {
+      const writes = mapWrites
+      mapWrites = []
+      await options.mapStore.update((file) => writes.reduce((acc, write) => write(acc), file))
+    }
     if (boardWrites.length > 0 && boardStore !== null) {
       const writes = boardWrites
       boardWrites = []
@@ -469,6 +478,13 @@ export function createCaptureService(options: CaptureServiceOptions): CaptureSer
       if (boardAfter === null) boards.delete(id)
       else boards.set(id, boardAfter)
       archive(id, boardPacket, boardAfter, tracked.timestampMs)
+    }
+
+    if (tracked.event.packet.kind === 'mapInfo' && options.mapStore !== undefined) {
+      const { mapId, name, width, height } = tracked.event.packet
+      const at = tracked.timestampMs
+      mapWrites.push((file) => withMapSize(file, mapId, { name, width, height }, at))
+      scheduleSave()
     }
 
     const entitiesAfter = reduceEntities(entities.get(id) ?? null, {

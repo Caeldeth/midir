@@ -30,6 +30,7 @@ import Characters from '@renderer/pages/Characters'
 import Boards from '@renderer/pages/Boards'
 import Speaker from '@renderer/pages/Speaker'
 import Walker from '@renderer/pages/Walker'
+import MapPage from '@renderer/pages/MapPage'
 import Laborer from '@renderer/pages/Laborer'
 import Diagnostics from '@renderer/pages/Diagnostics'
 import Settings from '@renderer/pages/Settings'
@@ -154,6 +155,7 @@ function App(): React.JSX.Element {
                 {view === 'boards' ? <Boards /> : null}
                 {view === 'speaker' ? <Speaker /> : null}
                 {view === 'walker' ? <Walker /> : null}
+                {view === 'map' ? <MapPage /> : null}
                 {view === 'laborer' ? <Laborer /> : null}
                 {view === 'diagnostics' && showDiagnostics ? <Diagnostics /> : null}
                 {view === 'settings' ? <Settings /> : null}
