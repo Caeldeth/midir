@@ -24,11 +24,16 @@ turns that into a versioned, downloadable build.
 6. **App standards are in place first (WP28).** The single-instance lock, the taskbar identity, and
    the icon are correct before a build goes to anyone. A release with two instances writing one store
    is not shippable.
+7. **The update check comes with the first release (HTOO-65).** WP28 deferred it here because a
+   check needs a version to compare against. The template's copy (`updateCheck.ts`,
+   `UpdateSnackbar.tsx`, landed 2026-09-20) is a lift: Midir is a public repository, so the
+   releases-API read works without HTOO-382. It notifies; it does not install (non-goal below).
 
 ## Non-goals (stop-lines)
 
 - **No code signing** in this WP. It is named as a gap, not closed.
-- **No auto-update.** A first release is a download, not a channel.
+- **No auto-update.** A first release is a download, not a channel. The check (decision 7) says a
+  newer one exists; the player downloads it.
 - **No non-Windows build.** Retail is Windows; the addon is Windows-only with a stub elsewhere.
 
 ## Current state when you start
