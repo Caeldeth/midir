@@ -160,7 +160,7 @@ WP27 (cut the first release)   PLANNED — needs the quality gate and WP28
 WP29 (learn map transitions from the wire)   PLANNED — needs WP14; feeds WP15's graph and WP24
 WP30 (map viewer / route inspector)   PLANNED — needs WP15, WP14, WP7
 WP31 (dynamic door collision 0x32)   PLANNED — needs WP15; feeds WP17
-WP32 (registration-aware routing)   PLANNED — needs WP15, WP4/WP5; adds a 0x0A decoder
+WP32 (registration-aware routing)   IN PROGRESS — built 2026-09-21; the live check is left
 WP33 (world-map coverage for errands)   COMPLETE — complete/33-errand-map-coverage.md
 WP34 (dismiss blocking popups)   COMPLETE — 2026-09-21; a dialog, an exchange, and its confirm
 WP35 (right-click walking)   PLANNED — needs WP15, WP13, WP33's click gesture
@@ -226,7 +226,7 @@ trigger is in each doc's header.
 | WP29 | M    | Learn map transitions from wire | HTOO-78  | PLANNED — `29-learn-transitions.md`                 |
 | WP30 | M    | Map viewer / route inspector    | HTOO-79  | PLANNED — `30-map-viewer.md`                        |
 | WP31 | S    | Dynamic door collision (`0x32`) | HTOO-80  | PLANNED — `31-door-collision.md`                    |
-| WP32 | M    | Registration-aware routing      | HTOO-81  | PLANNED — `32-registration-aware-routing.md`        |
+| WP32 | M    | Registration-aware routing      | HTOO-81  | IN PROGRESS — `32-registration-aware-routing.md`    |
 | WP33 | S    | Map coverage for errand nodes   | HTOO-82  | COMPLETE — `complete/33-errand-map-coverage.md`     |
 | WP34 | S    | Dismiss blocking popups         | HTOO-83  | COMPLETE — `complete/34-dismiss-blocking-popups.md` |
 | WP35 | M    | Right-click walking             | HTOO-468 | PLANNED — `35-right-click-walking.md`               |
