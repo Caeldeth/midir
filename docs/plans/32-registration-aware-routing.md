@@ -57,26 +57,30 @@ Two positive signals, from opposite ends:
    refusal: a registered character who is not a citizen of that town gets it with no register hint
    ("Only a Rucesion citizen may enter here" on its own, 2026-07-23 and 2026-09-21 10:00Z).
 
-**The gate is on citizenship as well as registration.** The Commons admits a registered citizen of
-its own town, and no one else; the two lines above say which condition failed. So the overlay
-(decision 3) carries the town beside the map id, and the planner reads the character's citizenship
-beside its registration.
+**The gate is on citizenship as well as registration.** Sabrael, 2026-09-21: the Mileth Commons
+admits a registered citizen of Mileth or Loures, the Rucesion Commons one of Rucesion or Loures,
+and no other map is gated on citizenship; the two lines above say which condition failed. So the
+overlay (decision 3) carries the towns each gate admits beside the map id, and the planner reads
+the character's citizenship beside its registration.
 
 **Citizenship is the `nation` byte, not the legend.** Sabrael's facts, 2026-09-21: the legend mark
 "<Town> Citizen by oath of <Name> - <Date>" is given only by Mileth and Rucesion (Loures gives none,
 Suomi's and Tagor's differ, Medenia has none), Medenia does not remove the marks of other towns,
 and a character can hold no citizenship. So a mark can be stale. The `nation` byte of SSelfLook
-`0x39`, on the record as `appearance.nation`, tracks the change: every recording agrees with its
-legend where the legend speaks (Gabrael 4 = Mileth with the Mileth mark; every Rucesion mark on 6),
-and Sylphid, Medenian, is nation 7 with an old Rucesion mark. The Nation table is darkages-741-re's
-(`NATION_OF_TOWN` in `model/access.ts`). Value 0 is "None" and the empty record's default, so it
-bars nothing.
+`0x39`, on the record as `citizenship`, tracks the change: every recording agrees with its legend
+where the legend speaks (Gabrael 4 = Mileth with the Mileth mark; every Rucesion mark on 6), and
+Sylphid, Medenian, is nation 7 with an old Rucesion mark. The Nation table is darkages-741-re's
+(`NATION_OF_TOWN` in `model/access.ts`). Value 0 is "None", a citizenship of nowhere, and it is a
+fact once SelfLook has been seen: it bars both Commons, and clout at Mileth and Rucesion (Sabrael).
+That is why the record carries `citizenship` beside `appearance.nation`: the latter defaults to 0,
+and only the former says whether the byte has been seen. Not yet seen bars nothing.
 
 The rule: an unregistered legend mark or either refusal (signal 3 or the second line of signal 4)
 makes the character unregistered; else a seen expiration message makes it registered; else
 registered by default, and the newest signal wins because a registration expires. Citizenship is
-the `nation` byte; 0 or absent gates nothing. A town whose gate refused this character is barred for
-the rest of the session whatever the byte says: the gate's word is the authority.
+the `nation` byte; a gate admits the towns it lists; not yet seen gates nothing, and 0 gates
+everything. A map whose gate refused this character is barred for the rest of the session whatever
+the byte says: the gate's word is the authority.
 
 ## Decisions
 
@@ -109,7 +113,7 @@ the rest of the session whatever the byte says: the gate's word is the authority
    barred gate is `gated`; no route at all is `noRoute`.
 5. **The walker says why.** **Taken**: a new `WalkStopReason` `gated`, and the run's reason line
    names the gate and the condition — "Mileth Commons admits only a registered character", "…
-   admits only a citizen of Mileth", or the gate's own words when it refused mid-walk. The
+   admits only a citizen of Mileth or Loures", or the gate's own words when it refused mid-walk. The
    destination picker is unchanged.
 
 ## Non-goals (stop-lines)
