@@ -122,6 +122,18 @@ describe('CharacterSheet', () => {
     expect(screen.getByText(/0 marks · read/)).toBeInTheDocument()
   })
 
+  it('shows the gold in the bank when a banker has said, with the items unread', () => {
+    const record = {
+      ...emptyCharacter('Sabrael', Date.now()),
+      bankGold: { amount: 1150104, readAtMs: Date.now() - 60_000 }
+    }
+    render(<CharacterSheet record={record} />)
+    expect(screen.getByTestId('bank-gold')).toHaveTextContent('1,150,104 gold in the bank')
+    expect(
+      screen.getByText(/Not read yet\. Midir fills this when you visit a banker/)
+    ).toBeInTheDocument()
+  })
+
   it('never calls an unread bank an empty one', () => {
     // An empty bank sends no reply at all, so silence and an empty bank are
     // the same on the wire. Saying "empty" here would be a claim Midir cannot

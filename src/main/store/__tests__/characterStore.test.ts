@@ -107,6 +107,15 @@ describe('withCharacter', () => {
     expect(file.characters['Sabrael']?.profileReadAtMs).toBeUndefined()
   })
 
+  it('keeps the gold in the bank a later login did not read, and lets a newer reading replace it', () => {
+    const read = { ...emptyCharacter('Sabrael', 1000), bankGold: { amount: 10, readAtMs: 900 } }
+    const later = emptyCharacter('Sabrael', 90000)
+    let file = withCharacter(withCharacter(emptyCharacterFile(), read), later)
+    expect(file.characters['Sabrael']?.bankGold).toEqual({ amount: 10, readAtMs: 900 })
+    file = withCharacter(file, { ...later, bankGold: { amount: 0, readAtMs: 95000 } })
+    expect(file.characters['Sabrael']?.bankGold).toEqual({ amount: 0, readAtMs: 95000 })
+  })
+
   it('keeps a registration a later login showed no signal for, and lets a newer signal replace it', () => {
     // WP32: registration is a positive fact. A login with no signal keeps the
     // last known value; a refusal after an expiry replaces it.
@@ -187,6 +196,17 @@ describe('createCharacterStore', () => {
     await store.update((file) => withCharacter(file, record))
     const reopened = createCharacterStore(directory)
     expect((await reopened.load()).characters['Sabrael']?.registered).toBe(true)
+  })
+
+  it('keeps the gold in the bank across a restart', async () => {
+    const record = { ...emptyCharacter('Sabrael', 1000), bankGold: { amount: 10, readAtMs: 900 } }
+    const store = createCharacterStore(directory)
+    await store.update((file) => withCharacter(file, record))
+    const reopened = createCharacterStore(directory)
+    expect((await reopened.load()).characters['Sabrael']?.bankGold).toEqual({
+      amount: 10,
+      readAtMs: 900
+    })
   })
 
   it('keeps the profile stamp across a restart', async () => {

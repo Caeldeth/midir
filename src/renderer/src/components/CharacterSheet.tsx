@@ -277,6 +277,16 @@ function CharacterSheet({ record }: { record: CharacterRecord }): React.JSX.Elem
       </Section>
 
       <Section title="Bank">
+        {record.bankGold !== undefined ? (
+          // The banker states the balance when the player deposits or
+          // withdraws money; that prompt is the only place it is on the wire.
+          <Typography variant="body2" sx={{ mb: 1 }} data-testid="bank-gold">
+            {formatNumber(record.bankGold.amount)} gold in the bank ·{' '}
+            <Box component="span" sx={{ color: 'text.secondary' }}>
+              read {formatAgo(record.bankGold.readAtMs)}
+            </Box>
+          </Typography>
+        ) : null}
         {record.bank === undefined ? (
           // An unread bank is never called empty. An empty bank sends no reply
           // at all, so only the player's own request tells the two apart, and a
