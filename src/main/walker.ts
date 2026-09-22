@@ -609,7 +609,7 @@ export function createWalker(options: WalkerOptions): Walker {
     const gate: Gate = known ?? {
       mapId,
       town: refusal.town,
-      name: graph.node(mapId)?.name ?? undefined
+      name: graph.node(mapId)?.gameName ?? graph.node(mapId)?.name ?? undefined
     }
     if (known === undefined) {
       gates.set(mapId, gate)

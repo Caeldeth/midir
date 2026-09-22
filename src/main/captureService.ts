@@ -20,7 +20,9 @@ import { reduceExchange, type ExchangeState } from './model/exchange'
 import { reduceFieldMap, type FieldMapState } from './model/fieldMap'
 import { reduceEntities, type EntityState } from './model/entities'
 import { reduceDoors, type DoorState } from './model/doors'
+import { reduceTransitions, type TransitionState } from './model/transitions'
 import { withMapSize, type MapFile, type MapStore } from './store/mapStore'
+import { withObservation, type TransitionFile, type TransitionStore } from './store/transitionStore'
 import { reduceBoard, type BoardState } from './model/board'
 import {
   withBoardList,
@@ -52,6 +54,13 @@ export interface CaptureServiceOptions {
   onBoards?: () => void
   /** The map sizes the wire names (WP30). Absent means none are kept. */
   mapStore?: MapStore
+  /** The edges the wire proves (WP29). Absent means none are kept. */
+  transitionStore?: TransitionStore
+  /**
+   * Called after a write to the map store or the transition store: what the
+   * route graph is built from has changed.
+   */
+  onGraphLearned?: () => void
   /** Build the source for a device. Injected so a recording can stand in. */
   createSource: (device: string) => PacketSource
   /** Called whenever the status changes. */
@@ -195,11 +204,18 @@ export function createCaptureService(options: CaptureServiceOptions): CaptureSer
   /** What the client draws around each character, keyed by connection id. */
   const entities = new Map<string, EntityState>()
   const doors = new Map<string, DoorState>()
+  /**
+   * The transition learner's state for each connection (WP29): the last
+   * confirmed tile and the steps in flight, which say at a map change
+   * whether a walk caused it. A live fact, never saved; what it proves is.
+   */
+  const transitions = new Map<string, TransitionState>()
   /** The boards as each client shows them, keyed by connection id. */
   const boards = new Map<string, BoardState>()
   /** Changes to the board archive waiting for the next write, in order. */
   let boardWrites: ((file: BoardFile) => BoardFile)[] = []
   let mapWrites: ((file: MapFile) => MapFile)[] = []
+  let transitionWrites: ((file: TransitionFile) => TransitionFile)[] = []
   /** Records changed but not yet written, by character name. */
   const unsaved = new Map<string, CharacterRecord>()
   /**
@@ -291,11 +307,22 @@ export function createCaptureService(options: CaptureServiceOptions): CaptureSer
   }
 
   async function writeAll(): Promise<void> {
+    let graphChanged = false
     if (mapWrites.length > 0 && options.mapStore !== undefined) {
       const writes = mapWrites
       mapWrites = []
       await options.mapStore.update((file) => writes.reduce((acc, write) => write(acc), file))
+      graphChanged = true
     }
+    if (transitionWrites.length > 0 && options.transitionStore !== undefined) {
+      const writes = transitionWrites
+      transitionWrites = []
+      await options.transitionStore.update((file) =>
+        writes.reduce((acc, write) => write(acc), file)
+      )
+      graphChanged = true
+    }
+    if (graphChanged) options.onGraphLearned?.()
     if (boardWrites.length > 0 && boardStore !== null) {
       const writes = boardWrites
       boardWrites = []
@@ -522,6 +549,21 @@ export function createCaptureService(options: CaptureServiceOptions): CaptureSer
     if (doorsAfter === null) doors.delete(id)
     else doors.set(id, doorsAfter)
 
+    // The transition learner (WP29): what it proves goes to the store, on the
+    // same debounce as everything else; its state stays with the connection.
+    const learned = reduceTransitions(transitions.get(id) ?? null, {
+      packet: tracked.event.packet,
+      timestampMs: tracked.timestampMs,
+      sawLoss
+    })
+    if (learned.state === null) transitions.delete(id)
+    else transitions.set(id, learned.state)
+    if (learned.observed !== undefined && options.transitionStore !== undefined) {
+      const seen = learned.observed
+      transitionWrites.push((file) => withObservation(file, seen))
+      scheduleSave()
+    }
+
     const before = sessions.get(id) ?? newSession(tracked.connection.openedAtMs)
     const after = reduce(before, {
       packet: tracked.event.packet,
@@ -566,6 +608,7 @@ export function createCaptureService(options: CaptureServiceOptions): CaptureSer
       fieldMaps.clear()
       entities.clear()
       doors.clear()
+      transitions.clear()
       boards.clear()
       lossy.clear()
       tracker.clear()
@@ -601,6 +644,7 @@ export function createCaptureService(options: CaptureServiceOptions): CaptureSer
           fieldMaps.delete(connection.id)
           entities.delete(connection.id)
           doors.delete(connection.id)
+          transitions.delete(connection.id)
           boards.delete(connection.id)
           connectionCount = tracker.activeConnections().length
           publishStatus()
@@ -655,6 +699,7 @@ export function createCaptureService(options: CaptureServiceOptions): CaptureSer
       fieldMaps.clear()
       entities.clear()
       doors.clear()
+      transitions.clear()
       await flush()
       publishStatus()
     },

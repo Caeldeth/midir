@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { createRouteGraph, worldGraph, type RouteNode } from '../graph'
+import { createRouteGraph, mergeLearned, worldGraph, type RouteNode } from '../graph'
+import { createLiveGraph } from '../liveGraph'
+import type { LearnedEdge } from '../../store/transitionStore'
 import { builtinErrands } from '../../laborer/errands'
 
 /**
@@ -223,5 +225,100 @@ describe('hops', () => {
     expect(graph.planRoute(1, 3)!.legs.map((l) => l.toMapId)).toEqual([3])
     expect(graph.planRoute(2, 3)).toBeNull()
     expect(graph.planRoute(4, 3)).toBeNull()
+  })
+})
+
+describe('the learned layer (WP29)', () => {
+  const learned = (
+    fromMapId: number,
+    x: number,
+    y: number,
+    toMapId: number,
+    over: Partial<LearnedEdge> = {}
+  ): LearnedEdge => ({
+    fromMapId,
+    x,
+    y,
+    toMapId,
+    observations: 2,
+    firstSeenMs: 1,
+    lastSeenMs: 2,
+    ...over
+  })
+
+  it('confirms an authored edge with its count and adds one the file lacks as learned', () => {
+    const nodes = mergeLearned(NODES, [
+      learned(1, 3, 4, 2),
+      learned(1, 4, 4, 2, { observations: 3 })
+    ])
+    const town = nodes.find((n) => n.mapId === 1)!
+    expect(town.exits).toEqual([
+      { toMapId: 2, x: 3, y: 4, observations: 2 },
+      { toMapId: 2, x: 5, y: 4 },
+      { toMapId: 2, x: 4, y: 4, source: 'learned', observations: 3 }
+    ])
+  })
+
+  it('adds a map the file does not know, named and sized by the wire', () => {
+    const nodes = mergeLearned(NODES, [learned(1, 0, 9, 1978), learned(1978, 10, 8, 1)], {
+      '1978': { name: 'Tagor Pet Store', width: 12, height: 10 }
+    })
+    const shop = nodes.find((n) => n.mapId === 1978)!
+    expect(shop).toEqual({
+      mapId: 1978,
+      name: '',
+      gameName: 'Tagor Pet Store',
+      width: 12,
+      height: 10,
+      exits: [{ toMapId: 1, x: 10, y: 8, source: 'learned', observations: 2 }]
+    })
+    const graph = createRouteGraph(nodes)
+    expect(graph.planRoute(2, 1978)?.legs.map((l) => l.toMapId)).toEqual([1, 1978])
+    expect(graph.resolveDestination('tagor pet')).toBe(1978)
+    expect(graph.destinations().find((d) => d.mapId === 1978)).toEqual({
+      mapId: 1978,
+      name: '',
+      gameName: 'Tagor Pet Store'
+    })
+  })
+
+  it('lays the game name over a node and keeps the .dat name for resolving', () => {
+    const nodes = mergeLearned(NODES, [], { '2': { name: 'Green Field', width: 9, height: 9 } })
+    const graph = createRouteGraph(nodes)
+    expect(graph.node(2)).toMatchObject({ name: 'Field', gameName: 'Green Field', width: 9 })
+    expect(graph.resolveDestination('Field')).toBe(2)
+    expect(graph.resolveDestination('Green Field')).toBe(2)
+    expect(graph.resolveDestination('green')).toBe(2)
+    // The .dat's size wins over the wire's for a map it has.
+    const sized = mergeLearned([{ mapId: 7, name: 'Sized', width: 3, height: 3, exits: [] }], [], {
+      '7': { name: 'Sized', width: 30, height: 30 }
+    })
+    expect(sized[0]).toMatchObject({ width: 3, height: 3 })
+  })
+
+  it('carries a learned world-map hop with its click', () => {
+    const via = { kind: 'fieldMap' as const, screenX: 306, screenY: 77 }
+    const nodes = mergeLearned(NODES, [learned(5, 0, 0, 1, { via })])
+    const graph = createRouteGraph(nodes)
+    expect(graph.planRoute(5, 1)?.legs[0]?.warps).toEqual([{ x: 0, y: 0, via }])
+  })
+
+  it('never changes the imported nodes', () => {
+    const frozen = JSON.stringify(NODES)
+    mergeLearned(NODES, [learned(1, 4, 4, 2), learned(1, 3, 4, 2)], {
+      '1': { name: 'Town Square', width: 5, height: 5 }
+    })
+    expect(JSON.stringify(NODES)).toBe(frozen)
+  })
+
+  it('the live graph answers from the newest merge', () => {
+    const live = createLiveGraph(NODES)
+    expect(live.planRoute(1, 5)).toBeNull()
+    live.update([learned(2, 8, 8, 5)], { '5': { name: 'The Island', width: 4, height: 4 } })
+    expect(live.planRoute(1, 5)?.legs.map((l) => l.toMapId)).toEqual([2, 5])
+    expect(live.resolveDestination('the island')).toBe(5)
+    expect(live.nodes().find((n) => n.mapId === 5)?.gameName).toBe('The Island')
+    live.update([], {})
+    expect(live.planRoute(1, 5)).toBeNull()
   })
 })

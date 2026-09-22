@@ -14,8 +14,11 @@
     {
       "fromMapId": 3048,
       "toMapId": 3049,
-      "tiles": [[4, 6]],
-      "seen": "2026-09-21 live check: the warp fired on the step from (3,6) onto (4,6), one tile short of the .dat's (5,6)."
+      "tiles": [
+        [4, 6],
+        [5, 6]
+      ],
+      "seen": "2026-09-21 live check: the warp fired on the step from (3,6) onto (4,6), one tile short of the .dat's (5,6). 2026-09-22, the transition learner over every recording: the door is both tiles; (5,6) fired 14 times from the south and the east (arrival 7,14) and (4,6) from the west (arrival 6,14)."
     },
     {
       "fromMapId": 3010,

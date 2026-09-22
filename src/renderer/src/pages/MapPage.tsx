@@ -13,7 +13,7 @@ import {
 } from '@mui/material'
 import Guidance from '@renderer/components/Guidance'
 import { useMapStore } from '@renderer/store/mapStore'
-import { mapViewFailureMessage, type MapSummary, type MapView } from '@shared/map'
+import { mapViewFailureMessage, type MapSummary, type MapView, type MapWarp } from '@shared/map'
 import type { WalkerState } from '@shared/actionLayer'
 
 /**
@@ -26,10 +26,22 @@ import type { WalkerState } from '@shared/actionLayer'
  * isometric view: this is the walker's picture of the map, and the walker
  * plans on a grid. The tiles go on a canvas, because a map is up to a hundred
  * tiles a side; everything that moves or is few (warps, dots, the path) is a
- * positioned element over it, so a test can find it. The view is read-only:
- * the edit that accepts or nudges a warp writes to the editable graph layer
- * WP29 adds, and waits for it.
+ * positioned element over it, so a test can find it. A warp the wire proved
+ * (WP29) is drawn in its own colour, and its hover says how often; one the
+ * imported file holds and the wire has confirmed says so too. The view is
+ * read-only: the edit that accepts or nudges a warp waits for WP30's second
+ * half.
  */
+
+/** Where a warp came from, for its hover: the wire's word, when it has one. */
+function warpProvenance(warp: MapWarp): string {
+  const times = (n: number): string => `${n} time${n === 1 ? '' : 's'}`
+  if (warp.source === 'learned')
+    return ` · learned from the wire, seen ${times(warp.observations ?? 0)}`
+  if (warp.observations !== undefined)
+    return ` · confirmed by the wire, seen ${times(warp.observations)}`
+  return ''
+}
 
 /** The SOTP nibble: 0x08 North, 0x04 East, 0x02 South, 0x01 West. */
 const NORTH = 0x08
@@ -306,7 +318,7 @@ function MapPage(): React.JSX.Element {
                 key={`${warp.x}:${warp.y}:${warp.toMapId}`}
                 title={`→ ${warp.toMapName !== '' ? warp.toMapName : `map ${warp.toMapId}`}${
                   warp.via !== undefined ? ` (${warp.via})` : ''
-                }`}
+                }${warpProvenance(warp)}`}
               >
                 <Box
                   data-testid="map-warp"
@@ -316,7 +328,12 @@ function MapPage(): React.JSX.Element {
                     top: warp.y * scale,
                     width: scale,
                     height: scale,
-                    bgcolor: warp.via === 'dialog' ? 'warning.main' : 'secondary.main',
+                    bgcolor:
+                      warp.via === 'dialog'
+                        ? 'warning.main'
+                        : warp.source === 'learned'
+                          ? 'success.main'
+                          : 'secondary.main',
                     opacity: 0.85,
                     cursor: 'help'
                   }}

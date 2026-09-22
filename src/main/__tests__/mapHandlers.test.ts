@@ -96,7 +96,9 @@ describe('the map viewer handlers', () => {
     expect(result.view.sizeSource).toBe('graph')
     expect(result.view.collision).toHaveLength(12)
     expect(result.view.collision[1 * 4 + 1]).toBe(0x0f)
-    expect(result.view.warps).toEqual([{ x: 3, y: 0, toMapId: 2, toMapName: 'Field' }])
+    expect(result.view.warps).toEqual([
+      { x: 3, y: 0, toMapId: 2, toMapName: 'Field', source: 'authored' }
+    ])
   })
 
   it('prefers the wire size, and carries a warp hop kind', async () => {

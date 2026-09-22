@@ -194,7 +194,7 @@ function Walker(): React.JSX.Element {
           <Autocomplete
             freeSolo
             fullWidth
-            options={destinations.map((d) => d.name)}
+            options={destinations.map((d) => d.gameName ?? d.name)}
             value={destination}
             onInputChange={(_event, value) => setDestination(value)}
             disabled={isRunning}

@@ -2,7 +2,7 @@
 
 **Size:** M. **Depends on:** WP15 (the grid and the graph), WP14 (the live position), and WP7 (the
 dalib-ts render path). Read `00-overview.md` first. **PART SHIPPED 2026-09-22: the viewer and the
-walker debugger (criteria 1 to 4). The edit (criterion 5) waits for WP29's editable graph layer.**
+walker debugger (criteria 1 to 4). The edit (criterion 5) is open; WP29's layer is in.**
 **Card:** `HTOO-79`.
 **Trigger to start:** a walker stop the log cannot explain, or a want to see and curate the route
 graph on the map it belongs to. Sabrael, 2026-09-22: the low items, all of them.
@@ -19,9 +19,10 @@ sends `SMapSize 0x15`, so `store/mapStore.ts` keeps `maps.json` (id, name, width
 reading wins) from the capture service, and the viewer takes the size from the wire first, the
 graph second, a live position third. `scripts/import-worldmap.mjs` now keeps the header's size
 where it has one. **The door overlay of WP31 is in:** the view takes the live connection's overlay for
-its map, one argument to `gridFor`, so an opened door is open in the picture too. **Waits for
-WP29:** decision 4, the edit, needs the editable graph layer with provenance that WP29 defines; the
-view is read-only and says so. The art layer (decision 1's second half) is still optional and not
+its map, one argument to `gridFor`, so an opened door is open in the picture too. **Waited for
+WP29:** decision 4, the edit, needs the editable graph layer with provenance; WP29 shipped it on
+2026-09-22 (`transitions.json`, `mergeLearned`, `source` on every warp), and the view now draws a
+learned warp in its own colour with its count. The edit itself is still to build. The art layer (decision 1's second half) is still optional and not
 started.
 
 ## Goal
@@ -104,7 +105,7 @@ export interface MapView {
 3. The live position shows as a dot with its confidence, and follows the character.
 4. While a walker runs, its planned path and its stop tile show, with the stop reason.
 5. An accepted or nudged warp persists to the editable graph layer, and never to the imported file or
-   a client file. **Open: waits for WP29.**
+   a client file. **Open.** WP29 shipped the layer (2026-09-22); the edit is still to build.
 
 ## Verification
 

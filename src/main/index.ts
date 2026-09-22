@@ -24,7 +24,8 @@ import { createBoardPoll } from './boardPoll'
 import { builtinErrands } from './laborer/errands'
 import { createPaneWatcher } from './paneWatcher'
 import { createMapSource } from './route/mapSource'
-import { worldGraph } from './route/graph'
+import { worldNodes } from './route/graph'
+import { createLiveGraph } from './route/liveGraph'
 import { seededGates, type Passport } from './route/access'
 import { createIconService } from './icons/iconService'
 import { createDollService } from './icons/dollService'
@@ -63,6 +64,7 @@ import {
 import { createCharacterStore } from './store/characterStore'
 import { createBoardStore, readPostIds } from './store/boardStore'
 import { createMapStore } from './store/mapStore'
+import { createTransitionStore, promotedEdges } from './store/transitionStore'
 
 // Settings + cache both under %LOCALAPPDATA%/Erisco/Midir (local). On Windows,
 // Electron's appData path is the ROAMING dir, so we resolve %LOCALAPPDATA%
@@ -303,11 +305,31 @@ if (replayPath !== undefined) {
 const mapStore = createMapStore(settingsPath, (failure) => {
   log.error('maps', `${failure.stage}: ${failure.path} — ${failure.message}`)
 })
+// The edges the wire proves (WP29), and the graph that carries them over the
+// imported one. The graph is rebuilt from both stores at start and after
+// every write, so a warp learned this session is on the next plan.
+const transitionStore = createTransitionStore(settingsPath, (failure) => {
+  log.error('transitions', `${failure.stage}: ${failure.path} — ${failure.message}`)
+})
+const worldGraph = createLiveGraph(worldNodes)
+async function rebuildGraph(): Promise<void> {
+  const [transitions, maps] = await Promise.all([transitionStore.load(), mapStore.load()])
+  worldGraph.update(promotedEdges(transitions), maps.maps)
+}
+rebuildGraph().catch((error: unknown) => {
+  log.error('transitions', `The learned graph would not build: ${String(error)}`)
+})
 
 const captureService = createCaptureService({
   store: characterStore,
   boardStore,
   mapStore,
+  transitionStore,
+  onGraphLearned: () => {
+    rebuildGraph().catch((error: unknown) => {
+      log.error('transitions', `The learned graph would not rebuild: ${String(error)}`)
+    })
+  },
   onBoards: () => pushToRenderer(BOARDS_CHANGED_CHANNEL, undefined),
   createSource: (device) => {
     if (replayLines !== null) return createReplaySource(replayLines)
