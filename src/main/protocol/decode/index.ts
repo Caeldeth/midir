@@ -33,6 +33,7 @@ import {
   type ExchangeRequest
 } from './exchange'
 import { decodePursuitMessage, type PursuitMessage } from './pursuit'
+import { decodeBulletin, decodeBulletinRequest, type Bulletin, type BulletinRequest } from './board'
 import {
   decodeAddWorldObjects,
   decodeCreatureMove,
@@ -70,6 +71,7 @@ import {
   type RemoveInventory
 } from './items'
 
+export * from './board'
 export * from './character'
 export * from './client'
 export * from './dialog'
@@ -109,6 +111,8 @@ export type DecodedPacket =
   | PursuitMessage
   | FieldMap
   | FieldMapClick
+  | Bulletin
+  | BulletinRequest
   | SystemMessage
   | Exchange
   | ExchangeRequest
@@ -143,6 +147,7 @@ const DECODERS = new Map<number, Decoder>([
   [ServerOpcode.ScreenMenu, decodeScreenMenu],
   [ServerOpcode.PursuitMessage, decodePursuitMessage],
   [ServerOpcode.FieldMap, decodeFieldMap],
+  [ServerOpcode.Bulletin, decodeBulletin],
   [ServerOpcode.SystemMessage, decodeSystemMessage],
   [ServerOpcode.Exchange, decodeExchange]
 ])
@@ -156,6 +161,7 @@ const CLIENT_DECODERS = new Map<number, Decoder>([
   [ClientOpcode.MerchantResponse, decodeMerchantResponse],
   [ClientOpcode.PursuitResponse, decodePursuitResponse],
   [ClientOpcode.FieldMapClick, decodeFieldMapClick],
+  [ClientOpcode.Bulletin, decodeBulletinRequest],
   [ClientOpcode.Exchange, decodeExchangeRequest]
 ])
 

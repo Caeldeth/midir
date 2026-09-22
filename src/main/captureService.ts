@@ -5,6 +5,7 @@ import { teeSink } from './capture/recorder'
 import type { CaptureSink, PacketSource } from './capture/source'
 import { createSessionTracker, type TrackedEvent } from './capture/tracker'
 import type { UnreadableReason } from './protocol/session'
+import type { DecodedPacket } from './protocol/decode'
 import {
   isIdentified,
   newSession,
@@ -18,6 +19,14 @@ import { reduceNotice, type NoticeState } from './model/notice'
 import { reduceExchange, type ExchangeState } from './model/exchange'
 import { reduceFieldMap, type FieldMapState } from './model/fieldMap'
 import { reduceEntities, type EntityState } from './model/entities'
+import { reduceBoard, type BoardState } from './model/board'
+import {
+  withBoardList,
+  withPost,
+  withPostList,
+  type BoardFile,
+  type BoardStore
+} from './store/boardStore'
 import { mergeCharacter, withCharacter, type CharacterStore } from './store/characterStore'
 
 /**
@@ -32,6 +41,13 @@ import { mergeCharacter, withCharacter, type CharacterStore } from './store/char
 
 export interface CaptureServiceOptions {
   store: CharacterStore
+  /**
+   * The board archive (WP36). Absent means boards are read for the live
+   * state and kept nowhere, which older tests rely on.
+   */
+  boardStore?: BoardStore
+  /** Called whenever the board archive changes. */
+  onBoards?: () => void
   /** Build the source for a device. Injected so a recording can stand in. */
   createSource: (device: string) => PacketSource
   /** Called whenever the status changes. */
@@ -131,10 +147,17 @@ export interface CaptureService {
    * right-click never aims at a tile a creature or a player stands on (WP35).
    */
   entitiesFor(connectionId: string): EntityState | null
+  /**
+   * The boards as the client shows them on `connectionId` now: the list, the
+   * open index with every page seen, the post on screen, and the client's
+   * newest request. A live fact, never saved; the archive is the store (WP36).
+   */
+  boardFor(connectionId: string): BoardState | null
 }
 
 export function createCaptureService(options: CaptureServiceOptions): CaptureService {
   const { store, createSource, onStatus, onCharacter } = options
+  const boardStore = options.boardStore ?? null
   const now = options.now ?? Date.now
   const saveDebounceMs = options.saveDebounceMs ?? DEFAULT_SAVE_DEBOUNCE_MS
 
@@ -165,6 +188,10 @@ export function createCaptureService(options: CaptureServiceOptions): CaptureSer
   const fieldMaps = new Map<string, FieldMapState>()
   /** What the client draws around each character, keyed by connection id. */
   const entities = new Map<string, EntityState>()
+  /** The boards as each client shows them, keyed by connection id. */
+  const boards = new Map<string, BoardState>()
+  /** Changes to the board archive waiting for the next write, in order. */
+  let boardWrites: ((file: BoardFile) => BoardFile)[] = []
   /** Records changed but not yet written, by character name. */
   const unsaved = new Map<string, CharacterRecord>()
   /**
@@ -238,10 +265,67 @@ export function createCaptureService(options: CaptureServiceOptions): CaptureSer
   }
 
   async function flush(): Promise<void> {
+    if (boardWrites.length > 0 && boardStore !== null) {
+      const writes = boardWrites
+      boardWrites = []
+      await boardStore.update((file) => writes.reduce((acc, write) => write(acc), file))
+      options.onBoards?.()
+    }
     if (unsaved.size === 0) return
     const pending = [...unsaved.values()]
     unsaved.clear()
     await store.update((file) => pending.reduce(withCharacter, file))
+  }
+
+  /**
+   * Queue a change to the board archive (WP36). A board is attributed to the
+   * character logged in on the connection, which the mailbox is keyed by;
+   * a board seen with no character known yet is kept for the live state and
+   * not for the archive.
+   */
+  function archive(
+    id: string,
+    packet: DecodedPacket,
+    state: BoardState | null,
+    timestampMs: number
+  ): void {
+    if (boardStore === null || state === null) return
+    const seenBy = liveCharacters.get(id)
+    if (packet.kind === 'boardList') {
+      const listed = packet.boards
+      boardWrites.push((file) => withBoardList(file, listed, timestampMs))
+    } else if (packet.kind === 'postList') {
+      if (seenBy === undefined) return
+      const seen = {
+        boardId: packet.boardId,
+        boardName: packet.boardName,
+        mail: packet.mail,
+        rows: packet.rows,
+        seenAtMs: timestampMs,
+        seenBy
+      }
+      boardWrites.push((file) => withPostList(file, seen))
+    } else if (packet.kind === 'post') {
+      const post = state.post
+      if (seenBy === undefined || post === undefined || post.postId === 0 || post.boardId < 0)
+        return
+      const seen = {
+        boardId: post.boardId,
+        mail: post.mail,
+        postId: post.postId,
+        author: post.author,
+        month: post.month,
+        day: post.day,
+        subject: post.subject,
+        body: post.body,
+        seenAtMs: timestampMs,
+        seenBy
+      }
+      boardWrites.push((file) => withPost(file, seen))
+    } else {
+      return
+    }
+    scheduleSave()
   }
 
   /** Save a record that changed outside the packet path, such as on close. */
@@ -366,6 +450,23 @@ export function createCaptureService(options: CaptureServiceOptions): CaptureSer
     if (fieldMapAfter === null) fieldMaps.delete(id)
     else fieldMaps.set(id, fieldMapAfter)
 
+    const boardPacket = tracked.event.packet
+    if (
+      boardPacket.kind === 'boardList' ||
+      boardPacket.kind === 'postList' ||
+      boardPacket.kind === 'post' ||
+      boardPacket.kind === 'boardResult' ||
+      boardPacket.kind === 'bulletinRequest'
+    ) {
+      const boardAfter = reduceBoard(boards.get(id) ?? null, {
+        packet: boardPacket,
+        timestampMs: tracked.timestampMs
+      })
+      if (boardAfter === null) boards.delete(id)
+      else boards.set(id, boardAfter)
+      archive(id, boardPacket, boardAfter, tracked.timestampMs)
+    }
+
     const entitiesAfter = reduceEntities(entities.get(id) ?? null, {
       packet: tracked.event.packet,
       timestampMs: tracked.timestampMs,
@@ -418,6 +519,7 @@ export function createCaptureService(options: CaptureServiceOptions): CaptureSer
       exchanges.clear()
       fieldMaps.clear()
       entities.clear()
+      boards.clear()
       lossy.clear()
       tracker.clear()
 
@@ -451,6 +553,7 @@ export function createCaptureService(options: CaptureServiceOptions): CaptureSer
           exchanges.delete(connection.id)
           fieldMaps.delete(connection.id)
           entities.delete(connection.id)
+          boards.delete(connection.id)
           connectionCount = tracker.activeConnections().length
           publishStatus()
         },
@@ -536,6 +639,9 @@ export function createCaptureService(options: CaptureServiceOptions): CaptureSer
     },
     entitiesFor(connectionId: string): EntityState | null {
       return entities.get(connectionId) ?? null
+    },
+    boardFor(connectionId: string): BoardState | null {
+      return boards.get(connectionId) ?? null
     }
   }
 }

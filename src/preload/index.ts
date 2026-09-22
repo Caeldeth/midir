@@ -3,6 +3,8 @@ import { contextBridge, ipcRenderer } from 'electron'
 import type {
   AssistState,
   AssistWindow,
+  BoardRecord,
+  BoardSummary,
   CaptureAvailability,
   CaptureStatus,
   CharacterRecord,
@@ -102,6 +104,13 @@ const api: MidirApi = {
     state: (): Promise<LaborerState[]> => ipcRenderer.invoke('errand:state'),
     onState: (handler: (state: LaborerState) => void): (() => void) =>
       subscribe('laborer:state-changed', handler)
+  },
+
+  boards: {
+    list: (): Promise<BoardSummary[]> => ipcRenderer.invoke('boards:list'),
+    get: (key: string): Promise<BoardRecord | null> => ipcRenderer.invoke('boards:get', key),
+    exportJson: (key: string): Promise<string | null> => ipcRenderer.invoke('boards:export', key),
+    onChanged: (handler: () => void): (() => void) => subscribe('boards:changed', handler)
   },
 
   characters: {

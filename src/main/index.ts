@@ -20,6 +20,7 @@ import { createCaptureService } from './captureService'
 import {
   ASSIST_STATE_CHANNEL,
   CAPTURE_STATUS_CHANNEL,
+  BOARDS_CHANGED_CHANNEL,
   CHARACTER_CHANGED_CHANNEL,
   LOG_APPENDED_CHANNEL,
   LABORER_STATE_CHANNEL,
@@ -34,6 +35,7 @@ import { pruneRecordings } from './recordings'
 import { createSettingsManager } from './settingsManager'
 import { createSplashWindow } from './splash'
 import { createCharacterStore } from './store/characterStore'
+import { createBoardStore } from './store/boardStore'
 
 // Settings + cache both under %LOCALAPPDATA%/Erisco/Midir (local). On Windows,
 // Electron's appData path is the ROAMING dir, so we resolve %LOCALAPPDATA%
@@ -154,6 +156,10 @@ function captureAvailability(): CaptureAvailability {
 const characterStore = createCharacterStore(settingsPath, (failure) => {
   log.error('characters', `${failure.stage}: ${failure.path} — ${failure.message}`)
 })
+// The board archive (WP36): every post and mail seen on the wire.
+const boardStore = createBoardStore(settingsPath, (failure) => {
+  log.error('boards', `${failure.stage}: ${failure.path} — ${failure.message}`)
+})
 
 /**
  * Start a recording, but only when the user asked for one. The setting is read
@@ -192,6 +198,8 @@ async function startRecordingIfWanted(startedAtMs: number): Promise<Recorder | n
 
 const captureService = createCaptureService({
   store: characterStore,
+  boardStore,
+  onBoards: () => pushToRenderer(BOARDS_CHANGED_CHANNEL, undefined),
   createSource: (device) => {
     if (pcap === null) throw new Error(pcapLoadError ?? 'Packet capture is unavailable.')
     return createPcapSource({ device, api: pcap })
@@ -345,6 +353,7 @@ const ctx: HandlerContext = {
   captureAvailability,
   captureService,
   characterStore,
+  boardStore,
   actionLayer,
   speaker,
   walker,

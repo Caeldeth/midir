@@ -1,6 +1,7 @@
 // Pure types + defaults shared between main, preload, and renderer. No runtime
 // imports from electron or node so this file is safe to pull from any process.
 
+import type { BoardRecord, BoardSummary } from './boards'
 import type { CharacterRecord } from './character'
 import type { LogEntry, LogFileInfo, RecordingInfo } from './log'
 import type {
@@ -22,6 +23,7 @@ export * from './character'
 export * from './items'
 export * from './log'
 export * from './actionLayer'
+export * from './boards'
 
 export type ThemeName = 'hybrasyl' | 'chadul' | 'danaan' | 'grinneal' | 'mundanes' | 'dubhaimid'
 
@@ -279,6 +281,16 @@ export interface MidirApi {
     onState: (handler: (state: LaborerState) => void) => () => void
   }
 
+  boards: {
+    /** Every board and mailbox the archive knows, most recently seen first (WP36). */
+    list: () => Promise<BoardSummary[]>
+    /** One board with every post it holds. */
+    get: (key: string) => Promise<BoardRecord | null>
+    /** Export one board to a file the user picks. Resolves with the path, or null when cancelled. */
+    exportJson: (key: string) => Promise<string | null>
+    /** Watch for the archive changing. Call the result to stop watching. */
+    onChanged: (handler: () => void) => () => void
+  }
   characters: {
     /** Every character Midir has recorded, newest first. */
     list: () => Promise<CharacterRecord[]>

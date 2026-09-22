@@ -98,6 +98,8 @@ export const ServerOpcode = {
   FieldMap: 0x2e,
   ScreenMenu: 0x2f,
   PursuitMessage: 0x30,
+  /** The bulletin boards and the mailbox: every view the server sends. See decode/board.ts. */
+  Bulletin: 0x31,
   DrawHumanObjects: 0x33,
   ObjectInfo: 0x34,
   AddEquip: 0x37,
@@ -130,6 +132,8 @@ export const ClientOpcode = {
   PursuitResponse: 0x3a,
   /** Submits a replacement password. Wire format unknown. See scrub.ts. */
   NewPassword: 0x27,
+  /** Asks the boards or the mailbox for a view, or writes to them. See decode/board.ts. */
+  Bulletin: 0x3b,
   /** Picks a point on the world map. See decode/fieldMap.ts. */
   FieldMapClick: 0x3f,
   /** An action in the exchange window. See decode/exchange.ts. */

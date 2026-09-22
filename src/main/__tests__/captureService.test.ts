@@ -16,6 +16,7 @@ import type { ConnectionInfo, PacketSource, StreamChunk } from '../capture/sourc
 import { createCaptureService } from '../captureService'
 import { ClientOpcode, ServerOpcode } from '../protocol/opcodes'
 import { createCharacterStore } from '../store/characterStore'
+import { createBoardStore } from '../store/boardStore'
 import {
   clientSessionBody,
   frameOf,
@@ -775,6 +776,163 @@ describe('createCaptureService', () => {
       expect(saved).toBeDefined()
       expect(saved && 'position' in saved).toBe(false)
       await service.stop()
+    })
+  })
+  describe('the board archive (WP36)', () => {
+    const worldChunk = (body: number[], sequence: number, timestampMs: number): RecordingLine =>
+      encodeChunk(
+        chunk(
+          WORLD,
+          sessionBody({ plaintext: body, keyName: CHARACTER, saltSelector: 3, sequence }),
+          timestampMs
+        )
+      )
+    const request = (body: number[], timestampMs: number): RecordingLine =>
+      encodeChunk({
+        connectionId: WORLD.id,
+        direction: 'clientToServer',
+        bytes: Uint8Array.from(
+          frameOf(clientSessionBody({ plaintext: body, keyName: CHARACTER, saltSelector: 3 }))
+        ),
+        timestampMs,
+        gap: false
+      })
+    const s16 = (text: string): number[] => [
+      text.length >> 8,
+      text.length & 0xff,
+      ...[...text].map((c) => c.charCodeAt(0))
+    ]
+    const row = (postId: number, subject: string): number[] => [
+      0x00,
+      ...u16(postId),
+      ...str8('Ari'),
+      7,
+      15,
+      ...str8(subject)
+    ]
+
+    function buildWithBoards(lines: RecordingLine[]): {
+      service: ReturnType<typeof createCaptureService>
+      boardStore: ReturnType<typeof createBoardStore>
+      changes: number
+    } {
+      const boardStore = createBoardStore(directory)
+      const counter = { changes: 0 }
+      const service = createCaptureService({
+        store: createCharacterStore(directory),
+        boardStore,
+        onBoards: () => {
+          counter.changes++
+        },
+        createSource: (): PacketSource => createReplaySource(lines),
+        now: () => 7000,
+        saveDebounceMs: 0
+      })
+      return {
+        service,
+        boardStore,
+        get changes() {
+          return counter.changes
+        }
+      }
+    }
+
+    it('keeps a browse of a board, and attributes an opened post by the read that asked for it', async () => {
+      const built = buildWithBoards([
+        ...loginRecording(),
+        worldChunk([0x31, 0x01, ...str8('Boards'), 0x01, ...u16(10), ...str8('Public')], 3, 2300),
+        request([0x3b, 0x02, ...u16(10), 0x7f, 0xff, 0xf0], 2400),
+        worldChunk(
+          [
+            0x31,
+            0x02,
+            0x01,
+            ...u16(10),
+            ...str8('Public'),
+            0x02,
+            ...row(42, 'Hello'),
+            ...row(41, 'Older')
+          ],
+          4,
+          2500
+        ),
+        request([0x3b, 0x03, ...u16(10), ...u16(42), 0x00], 2600),
+        worldChunk(
+          [
+            0x31,
+            0x03,
+            0x00,
+            0x00,
+            ...u16(42),
+            ...str8('Ari'),
+            7,
+            15,
+            ...str8('Hello'),
+            ...s16('Welcome!')
+          ],
+          5,
+          2700
+        )
+      ])
+      await built.service.start('adapter')
+      await built.service.flush()
+
+      const board = (await built.boardStore.load()).boards['10']
+      expect(board).toMatchObject({ id: 10, name: 'Public', mail: false })
+      expect(board?.posts['42']).toMatchObject({
+        subject: 'Hello',
+        body: 'Welcome!',
+        seenBy: CHARACTER,
+        seenAtMs: 2700,
+        bodyAtMs: 2700
+      })
+      expect(board?.posts['41']).toMatchObject({ subject: 'Older', seenAtMs: 2500 })
+      expect(board?.posts['41']?.body).toBeUndefined()
+      expect(built.changes).toBeGreaterThan(0)
+      expect(built.service.boardFor(WORLD.id)?.open?.rows.map((r) => r.postId)).toEqual([42, 41])
+      await built.service.stop()
+    })
+
+    it('keeps the mailbox under the character logged in', async () => {
+      const built = buildWithBoards([
+        ...loginRecording(),
+        worldChunk([0x31, 0x04, 0x01, ...u16(0), ...str8('Mail'), 0x01, ...row(3, 'Hi')], 3, 2300),
+        worldChunk(
+          [
+            0x31,
+            0x05,
+            0x00,
+            0x00,
+            ...u16(3),
+            ...str8('Bran'),
+            7,
+            15,
+            ...str8('Hi'),
+            ...s16('Hello Sabrael')
+          ],
+          4,
+          2400
+        )
+      ])
+      await built.service.start('adapter')
+      await built.service.flush()
+
+      const file = await built.boardStore.load()
+      expect(Object.keys(file.boards)).toEqual([`mail:${CHARACTER}`])
+      expect(file.boards[`mail:${CHARACTER}`]?.posts['3']?.body).toBe('Hello Sabrael')
+      await built.service.stop()
+    })
+
+    it("keeps nothing for the server's no-such-post answer", async () => {
+      const built = buildWithBoards([
+        ...loginRecording(),
+        request([0x3b, 0x03, ...u16(10), ...u16(99), 0x00], 2300),
+        worldChunk([0x31, 0x03, 0x00, 0x00, ...u16(0)], 3, 2400)
+      ])
+      await built.service.start('adapter')
+      await built.service.flush()
+      expect((await built.boardStore.load()).boards).toEqual({})
+      await built.service.stop()
     })
   })
 })

@@ -10,6 +10,7 @@ import type { CaptureService } from '../captureService'
 import type { CharacterStore } from '../store/characterStore'
 import type { createSettingsManager } from '../settingsManager'
 import { registerAssistHandlers, type AssistHandlerContext } from './assist'
+import { registerBoardHandlers, type BoardHandlerContext } from './boards'
 import { registerCaptureHandlers, type CaptureHandlerContext } from './capture'
 import { registerCharacterHandlers, type CharacterHandlerContext } from './characters'
 import { registerDiagnosticsHandlers, type DiagnosticsHandlerContext } from './diagnostics'
@@ -17,6 +18,7 @@ import { registerIconsHandlers } from './icons'
 import { registerSettingsHandlers, type SettingsHandlerContext } from './settings'
 
 export * from './assist'
+export * from './boards'
 export * from './capture'
 export * from './characters'
 export * from './diagnostics'
@@ -29,7 +31,8 @@ export interface HandlerContext
     CaptureHandlerContext,
     CharacterHandlerContext,
     DiagnosticsHandlerContext,
-    AssistHandlerContext {
+    AssistHandlerContext,
+    BoardHandlerContext {
   settingsPath: string
   settingsManager: ReturnType<typeof createSettingsManager>
   appGetVersion: () => string
@@ -88,4 +91,5 @@ export function registerHandlers(deps: RegisterDeps, ctx: HandlerContext): void 
   registerDiagnosticsHandlers(ipcMain, shell, ctx)
   registerIconsHandlers(ipcMain, dialog, BrowserWindow, ctx.updateDarkAgesPath)
   registerAssistHandlers(ipcMain, ctx)
+  registerBoardHandlers(ipcMain, dialog, BrowserWindow, ctx)
 }
