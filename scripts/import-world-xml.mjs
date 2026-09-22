@@ -18,6 +18,15 @@
 // user accepts it on the Map tab (route/graph.ts, mergeLearned). The walker
 // gains nothing from this file on its own.
 //
+// Two sets of maps are Hybrasyl's own and are left out, with every warp to
+// them (Sabrael, 2026-09-22). A map id of 30000 or more is not a retail map
+// at all, whatever its name. And a map whose name starts with `Old` or holds
+// `Undercroft` is Hybrasyl's authoring of a retail map, so the map-name list
+// (route/mapnames.json, WP38) is the test: a map the list names is retail's
+// and is imported, and a map it does not name is Hybrasyl's invention. The
+// name the list gives wins over the XML's at merge time, so the node keeps
+// the XML's name here.
+//
 // A `<Warp>` names its destination map, not its id. Names are resolved
 // against every map in the world repo: the referring map's own folder first,
 // then `.ignore`, then any map with that name if there is exactly one. A
@@ -27,6 +36,7 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const DEFAULT_WORLD = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', 'world')
+const NAMES = resolve(dirname(fileURLToPath(import.meta.url)), '..', 'src/main/route/mapnames.json')
 const OUTPUT = resolve(
   dirname(fileURLToPath(import.meta.url)),
   '..',
@@ -84,6 +94,19 @@ async function readMaps(root) {
   }
   await walk(root, '')
   return out
+}
+
+/** The first map id retail does not use. Everything above is Hybrasyl's. */
+export const RETAIL_MAP_IDS_END = 30000
+
+/**
+ * True for a map Hybrasyl wrote that retail does not have: a map id of
+ * 30000 or more, or an `Old` or `Undercroft` map the seed list does not name.
+ */
+export function hybrasylOnly(map, names) {
+  if (map.mapId >= RETAIL_MAP_IDS_END) return true
+  if (!/^old\b/i.test(map.name) && !/undercroft/i.test(map.name)) return false
+  return names[map.mapId] === undefined
 }
 
 /**
@@ -154,7 +177,13 @@ async function main() {
   const production = all.filter((m) => PRODUCTION_AREAS.includes(m.area))
   const ignoredIds = new Set(ignored.map((m) => m.mapId))
   const chosen = [...ignored, ...production.filter((m) => !ignoredIds.has(m.mapId))]
-  const { nodes, unresolved } = buildNodes(chosen, all)
+  const names = JSON.parse(await readFile(NAMES, 'utf8')).names
+  const droppedIds = new Set(all.filter((m) => hybrasylOnly(m, names)).map((m) => m.mapId))
+  const keep = (m) => !droppedIds.has(m.mapId)
+  const dropped = chosen.filter((m) => !keep(m))
+  const overId = dropped.filter((m) => m.mapId >= RETAIL_MAP_IDS_END).length
+  const kept = chosen.filter(keep)
+  const { nodes, unresolved } = buildNodes(kept, all.filter(keep))
   const differ = disagreements(ignored, production)
 
   const exits = nodes.reduce((n, node) => n + node.exits.length, 0)
@@ -164,7 +193,7 @@ async function main() {
       {
         source:
           'the world repo: xml/maps/.ignore/Old*.xml and the retail-unchanged production areas, by scripts/import-world-xml.mjs',
-        note: 'Provisional: every exit is a candidate until the wire crosses it once or the user accepts it. Never used by the walker on its own.',
+        note: 'Provisional: every exit is a candidate until the wire crosses it once or the user accepts it. Never used by the walker on its own. A map id of 30000 or more is not a retail map and is left out, and so is an Old or Undercroft map the seed name list does not name.',
         areas: PRODUCTION_AREAS,
         nodes
       },
@@ -173,7 +202,7 @@ async function main() {
     ) + '\n'
   )
   console.log(
-    `Wrote ${nodes.length} nodes, ${exits} exits to ${OUTPUT} (${ignored.length} from .ignore, ${chosen.length - ignored.length} from ${PRODUCTION_AREAS.length} production areas; ${unresolved} warp targets unresolved and skipped).`
+    `Wrote ${nodes.length} nodes, ${exits} exits to ${OUTPUT} (${kept.filter((m) => m.area === '.ignore').length} from .ignore, ${kept.filter((m) => m.area !== '.ignore').length} from ${PRODUCTION_AREAS.length} production areas; ${dropped.length} Hybrasyl-only maps left out, ${overId} of them over ${RETAIL_MAP_IDS_END}; ${unresolved} warp targets unresolved).`
   )
   for (const d of differ) {
     console.log(

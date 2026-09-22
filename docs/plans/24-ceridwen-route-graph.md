@@ -18,9 +18,17 @@ the blocker is only the choice to switch the whole graph over, not the data.
 Mehadi, Pravat, New Crypt, East and West Woods, Dubhaim Castle, CR, Astrid, Oren Ruins and Sewer,
 Shinewood Forest, Suomi, Undine); a map in both sets is read from `.ignore` and the production copy
 compared against it, differences printed and never merged. Targets resolve by name — the referring
-map's area first, then `.ignore`, then any unique match. The result, `route/xmlworld.json`, is 542
-maps and 4074 warps: 436 maps the `.dat` does not know, and of 434 warps on pairs it does, 319
-tile for tile, 66 within two tiles, 49 elsewhere. **Why provisional, in one example:** the XML
+map's area first, then `.ignore`, then any unique match. The result, `route/xmlworld.json`, is 437
+maps and 3475 warps (of 434 warps on pairs the `.dat` also holds, 319 agree tile for tile, 66 sit
+within two tiles, 49 elsewhere).
+
+**Revised 2026-09-22 (WP38):** the import leaves out the maps retail does not have. A map id of
+30000 or more is Hybrasyl's, whatever the map is called, which is 105 of the 542 the import first
+took (Undine 30400 up, the Undercroft set); and a map whose name starts with `Old` or holds
+`Undercroft` stands or falls by the seed name list, because those are Hybrasyl's authoring of a
+retail map. Every warp into a map left out goes with it (15 of them). The seed list also outranks
+the XML on a name, so "Old Mileth Alchemist" shows as "Mileth Magic Shop" (`hybrasylOnly` in the
+importer, and the seed pass in `mergeLearned`). **Why provisional, in one example:** the XML
 puts the Rucesion Town Hall door at (4,5) and (5,5); the wire, 57 crossings, at (4,6) and (5,6).
 So every XML edge enters the graph as a **candidate** (`RouteNode.candidates`, `source: 'xml'`,
 outlined on the Map tab) and becomes an exit only when the wire crosses it once

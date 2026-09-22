@@ -467,16 +467,18 @@ describe('the learned layer (WP29, WP30, WP24)', () => {
     const nodeOf = (list: RouteNode[], mapId: number): RouteNode =>
       list.find((n) => n.mapId === mapId)!
 
-    // The .dat's name stands, and a seed for a map with no node adds nothing.
-    expect(nodeOf(seeded, 1)).toMatchObject({ name: 'Town' })
+    // The .dat's name is shown, the seed's is answered to, and a seed for a
+    // map with no node adds nothing.
+    expect(nodeOf(seeded, 1)).toMatchObject({ name: 'Town', seedName: 'Old Town' })
     expect(nodeOf(seeded, 1).gameName).toBeUndefined()
+    expect(createRouteGraph(seeded).resolveDestination('old town')).toBe(1)
     expect(seeded.some((n) => n.mapId === 99)).toBe(false)
     // The nameless maps take the seed, and it resolves like any other name.
     expect(nodeOf(seeded, 6).gameName).toBe('Mileth Storage')
     expect(nodeOf(seeded, 7).gameName).toBe('Suomi Way')
     expect(createRouteGraph(seeded).resolveDestination('suomi way')).toBe(7)
 
-    // The XML names a map before the seed does, and the wire after it.
+    // The seed outranks the XML's Hybrasyl name, and the wire outranks both.
     const over = mergeLearned(
       nameless,
       layer([], {
@@ -486,7 +488,13 @@ describe('the learned layer (WP29, WP30, WP24)', () => {
       })
     )
     expect(nodeOf(over, 6).gameName).toBe('Mileth Bank')
-    expect(nodeOf(over, 7).gameName).toBe('Old Suomi Way')
+    expect(nodeOf(over, 7).gameName).toBe('Suomi Way')
+    // The XML still names a map the list does not.
+    const xmlOnly = mergeLearned(
+      nameless,
+      layer([], { names, xml: [{ mapId: 8, name: 'Old Cellar', width: 4, height: 4, exits: [] }] })
+    )
+    expect(nodeOf(xmlOnly, 8).gameName).toBe('Old Cellar')
   })
 
   it('the live graph answers from the newest merge', () => {
