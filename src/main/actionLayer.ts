@@ -106,6 +106,15 @@ export interface ActionLayer {
    * walker uses it to pick a point on the world map.
    */
   click(target: ActionTarget, x: number, y: number): Promise<ActionRefusal | null>
+  /**
+   * Press and release the right button once at a position in the game's own
+   * 640 x 480 coordinates. On empty ground the client walks there by its own
+   * pathfinder (WP35). Two right presses close together on a creature are
+   * pursue-and-attack, so this never posts a second press within
+   * `RIGHT_CLICK_GAP_MS` of the last: it waits out the rest of the gap first,
+   * whatever the caller asks. Refuses, never throws.
+   */
+  rightClick(target: ActionTarget, x: number, y: number): Promise<ActionRefusal | null>
   /** True while any stop is in force. Drivers poll this between steps. */
   readonly stopped: boolean
   /** Halt every driver now. Idempotent, and safe to call from anywhere. */
@@ -134,8 +143,23 @@ const WM_CHAR = 0x0102
 const WM_MOUSEMOVE = 0x0200
 const WM_LBUTTONDOWN = 0x0201
 const WM_LBUTTONUP = 0x0202
+const WM_RBUTTONDOWN = 0x0204
+const WM_RBUTTONUP = 0x0205
 /** The wParam of a left-button message while the left button is down. */
 const MK_LBUTTON = 0x0001
+/** The wParam of a right-button message while the right button is down. */
+const MK_RBUTTON = 0x0002
+/**
+ * The least time between two posted right presses, in milliseconds.
+ *
+ * The client makes a double right-click of its own: a second right press
+ * under 1000 ms after the last, within 2 px of it, is its pointer event 5
+ * (darkages-741-re, `systems/events.md`), and on a creature or a player that
+ * is pursue-and-attack. The gap is enforced in the one place that posts the
+ * button, so no caller can make a double by mistake. Half a second of margin
+ * over the client's own window covers a message queue that delivers late.
+ */
+export const RIGHT_CLICK_GAP_MS = 1500
 export const VK_RETURN = 0x0d
 export const VK_ESCAPE = 0x1b
 export const VK_SPACE = 0x20
@@ -271,6 +295,8 @@ export function createActionLayer(options: ActionLayerOptions): ActionLayer {
   let stopReason: string | undefined
   let lastActionMs = Number.NEGATIVE_INFINITY
   let lastGapMs = -1
+  /** When the last right press was posted, to any window. */
+  let lastRightClickMs = Number.NEGATIVE_INFINITY
 
   const armed = new Map<string, ArmedDriver>()
   let watch: NodeJS.Timeout | undefined
@@ -455,6 +481,47 @@ export function createActionLayer(options: ActionLayerOptions): ActionLayer {
         : ` in a ${size.width} x ${size.height}${size.dpiAware ? '' : ' DPI-unaware'} window`
     const where = point.scaled ? `(${point.x}, ${point.y}) for game (${x}, ${y})` : `(${x}, ${y})`
     log.info('assist', `Clicked ${where}${window}, handle ${handle}.`)
+    return null
+  }
+
+  /**
+   * Move the pointer to a client-area position and press the right button
+   * there, once.
+   *
+   * One press and one release, never two: the double is the client's attack
+   * gesture. The gap since the last right press is waited out here, before
+   * the guard, so a caller that clicks again after a strand cannot make a
+   * double however fast it asks; the guard then runs after the wait, so a
+   * stop during it is honoured.
+   */
+  async function rightClick(
+    target: ActionTarget,
+    x: number,
+    y: number
+  ): Promise<ActionRefusal | null> {
+    const due = lastRightClickMs + RIGHT_CLICK_GAP_MS
+    if (now() < due) {
+      log.info('assist', `Waiting ${due - now()} ms so the right press is not a double.`)
+      await wait(due - now())
+    }
+    const refusal = guard(target) ?? rateGate()
+    if (refusal !== null) return refusal
+    const handle = target.windowHandle
+    const size = windows.clientSize(handle)
+    const point = toClientPoint(x, y, size)
+    const lparam = mouseLparam(point.x, point.y)
+    const sinceLast = now() - lastRightClickMs
+    lastRightClickMs = now()
+    windows.postMessageToWindow(handle, WM_MOUSEMOVE, 0, lparam)
+    windows.postMessageToWindow(handle, WM_RBUTTONDOWN, MK_RBUTTON, lparam)
+    windows.postMessageToWindow(handle, WM_RBUTTONUP, 0, lparam)
+    const window =
+      size === null
+        ? ''
+        : ` in a ${size.width} x ${size.height}${size.dpiAware ? '' : ' DPI-unaware'} window`
+    const where = point.scaled ? `(${point.x}, ${point.y}) for game (${x}, ${y})` : `(${x}, ${y})`
+    const gap = Number.isFinite(sinceLast) ? `, ${sinceLast} ms after the last` : ''
+    log.info('assist', `Right-clicked ${where}${window}${gap}, handle ${handle}.`)
     return null
   }
 
@@ -647,6 +714,7 @@ export function createActionLayer(options: ActionLayerOptions): ActionLayer {
     typeLine,
     typeText,
     click,
+    rightClick,
     get stopped(): boolean {
       return stopped
     },

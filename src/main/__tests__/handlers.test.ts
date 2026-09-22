@@ -77,7 +77,8 @@ function fakeService(status: CaptureStatus = STOPPED): CaptureService & {
     answerFor: () => null,
     fieldMapFor: () => null,
     exchangeFor: () => null,
-    recordFor: () => null
+    recordFor: () => null,
+    entitiesFor: () => null
   }
 }
 

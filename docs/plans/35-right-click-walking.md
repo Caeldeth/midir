@@ -1,7 +1,15 @@
 # WP35 — right-click walking
 
 **Size:** M. **Depends on:** WP15 (the walker), WP13 (the action layer), WP33 (the click gesture).
-Read `00-overview.md` first. **PLANNED.** **Card:** `HTOO-468`.
+Read `00-overview.md` first. **IN PROGRESS.** **Card:** `HTOO-468`.
+
+**Built 2026-09-21; the live check is what is left.** The walker hands a stretch of up to eight
+tiles to the client with one right-click (`clickStretch` in `walker.ts`), confirms each tile off
+the wire, and re-plans from wherever the client stops. The action layer's `rightClick` posts one
+press and waits out the client's double-click window before a second, so the double is impossible
+by construction. What stands on the map comes from three new decodes (`decode/world.ts`) and a
+reducer (`model/entities.ts`), so a click never aims at a taken tile. The setting is
+`walkerRightClick`, off by default, on the Walker page.
 
 **Trigger:** Sabrael's observation in the WP33 live check of 2026-09-21: the arrow-key walk is
 choppy. One held key per tile, with a turn-then-move press before each change of direction and a
@@ -63,26 +71,53 @@ the `0x06` the client sends.
 1. **Never two right presses close together.** The action layer's right-click gesture posts one
    press and release, and the walker never posts a second right-click within the system
    double-click time plus a margin (`GetDoubleClickTime()` defaults to 500 ms; use 700). This makes
-   pursue-and-attack impossible by construction, whatever is under the pointer.
+   pursue-and-attack impossible by construction, whatever is under the pointer. **Taken, with the
+   client's own number:** the client synthesises its double itself, from a second right press under
+   1000 ms after the last and within 2 px (darkages-741-re `systems/events.md`), not from
+   Windows' double-click time. `RIGHT_CLICK_GAP_MS` is 1500, and the gap is enforced inside
+   `actionLayer.rightClick`, which waits out the rest of it before posting, so no caller can make a
+   double however fast it asks.
 2. **Aim only at a tile known to be empty.** A tile with a player or an NPC on it (from
    `SDrawHumanObjects 0x33`, which Midir decodes) is never a target. Creatures arrive as
    `SAddWorldObject 0x07`, which Midir does not decode yet; the spike adds that decode, or the walker
    aims one tile short of any unknown occupant. Aiming at empty ground is what makes the single
-   right-click a walk and nothing else.
+   right-click a walk and nothing else. **Taken, with the decode:** `decode/world.ts` reads `0x07`
+   (the document repo's binary-verified layout, run over every recording on disk with no failure:
+   3760 packets, batches of up to 152 objects), `0x0C` (another creature's step) and `0x0E` (a
+   remove); `model/entities.ts` keeps what stands where, cleared on a new map and on a loss, with
+   the character's own `0x33` kept apart by name. A player, an NPC, and a type-0 monster are solid;
+   a type-1 monster and an item are not. The click's prefix stops before the first solid tile.
 3. **Short stretches, inside the view.** A click aims at most `RIGHT_CLICK_RANGE` tiles along the
    A* path (start at 8), and never past a tile A* cannot see as open, so the client's unseen-wall
    problem does not arise: everything the walker asks for is on screen and in the walker's own
-   collision view from the map file.
+   collision view from the map file. **Taken.** The prefix also stops before every warp tile the
+   graph knows on the map, so a click never changes the map and the step onto a warp keeps the key
+   walk's own handling (the gate refusal, the one-tile-beyond probe, the hop). Fewer than two steps
+   is left to the keys.
 4. **Confirm as now.** After a click the walker watches the position. Progress along the path is
    the client walking; no progress within a confirm window is a strand, and the walker clicks again
    from the current tile, then falls back to the keys after a few strands at the same tile. The
-   existing stall, block, and unexpected-map rules stay as they are.
+   existing stall, block, and unexpected-map rules stay as they are. **Taken, with one change:**
+   the client's route is its own, so progress is any move on the same map, not a move in a
+   direction the walker chose (the client may take another shortest way, and under lag several of
+   its steps confirm at once). A stretch that stops short re-plans from where it is. A click that
+   moves nothing within 2 s is a strand; after two in a row the keys take the next three landed
+   steps, because the client's planner does not see the creature the walker learned to route
+   around and its first choice of route can cross that tile from every nearby start. A popup is
+   checked before a miss counts as a strand, as for a stall. A map change under the walk to the
+   leg's own destination is arrival; to any other map it stops as `lostPosition`.
 5. **Keys for the last tiles.** The approach to the tile beside an NPC (`approachTile`) stays on the
    arrow keys, one tile at a time. It is short, and it is where a stray click would matter most.
 6. **The projection is data, checked live.** The view centre per layout and the tile size are
    constants in one place, with the spike's measured values and how they were measured.
 7. **A setting, off by default,** like every driving feature. The keys remain the shipped default
-   until the live check proves the click on more than one map.
+   until the live check proves the click on more than one map. **Taken:** `walkerRightClick`, a
+   switch on the Walker page. The walker reads it at every step.
+
+8. **A stop halts Midir at once; the client finishes the stretch.** A right-click hands the client
+   a route, and Midir posts nothing to cancel it: the stop is a promise about Midir, and the
+   character walks the rest of the stretch it was given, at most eight tiles, on empty ground short
+   of every warp. The setting's own help text says so.
 
 ## Non-goals
 
@@ -95,18 +130,20 @@ the `0x06` the client sends.
 ## Contracts
 
 ```ts
-/** Post one right press and release at a client-area position. */
+/** Post one right press and release at a game-coordinate position, never within the gap of the last. */
 rightClick(target: ActionTarget, x: number, y: number): Promise<ActionRefusal | null>
 
-/** The screen position of a tile, given the player's tile and the UI layout. */
-function tileToScreen(
-  player: { x: number; y: number },
-  tile: { x: number; y: number },
-  layout: 'normal' | 'minimal'
-): { x: number; y: number }
+/** The screen point of a tile's ground, seen from the player's tile (laborer/view.ts). */
+function groundPoint(own: Tile, tile: Tile): Point
+/** The inverse, for reading a hand right-click. */
+function tileAtPoint(own: Tile, point: Point): Tile
 ```
 
-`WalkerOptions` gains `mode: 'keys' | 'rightClick'`, from a setting.
+`WalkerOptions` gains `mode: () => 'keys' | 'rightClick'`, from the setting, and `entitiesFor`.
+The projection is WP17's `VIEW_CENTRE` (312, 199), measured from a hand click on Eduardo, and not
+a per-layout table: the minimal layout is unmeasured and the walker does not detect it. The pane
+watcher logs every hand right-click on the world with the tile the projection names and the tile
+the character then stops on, so a drift or the other layout shows up in the log.
 
 ## Current state when you start
 
@@ -121,18 +158,29 @@ function tileToScreen(
 ## Acceptance criteria
 
 1. A right-click at a tile eight steps along an open corridor walks the character there, confirmed
-   tile by tile off the wire, with no key pressed.
+   tile by tile off the wire, with no key pressed. **Unit test passes** (`walker.test.ts`, "walker
+   by right-click"): one click at (8,0), one key for the warp step.
 2. A route through a door or a creature strands, and the walker recovers by clicking again or by
-   falling back to the keys, and arrives.
+   falling back to the keys, and arrives. **Unit test passes**: a creature the map does not know
+   strands the stretch, two re-clicks strand, the keys learn the tile, and the click resumes.
 3. No two right presses are ever posted within the double-click time, in the tests and in the log.
-4. The walker never aims at a tile with a player or an NPC on it.
-5. The mode is off by default and the arrow-key walk is unchanged when it is off.
+   **Unit tests pass** (`actionLayer.test.ts`: the gap is waited out, and a stop during the wait is
+   honoured; `walker.test.ts`: every gap in a strand-heavy walk clears it). The log line for each
+   right press states the gap since the last.
+4. The walker never aims at a tile with a player or an NPC on it. **Unit test passes.**
+5. The mode is off by default and the arrow-key walk is unchanged when it is off. **Unit tests
+   pass**, and the whole walker suite runs unchanged with the mode off.
 
 ## Verification
 
-1. `npm run typecheck && npm run lint:check && npm test && npm run build`.
+1. `npm run typecheck && npm run lint:check && npm test && npm run build`. **Passes** (1013 tests).
 2. The walker tests gain a right-click mode against the fake world: the stretch, the strand and
    re-click, the fallback, the occupied-tile refusal, and the minimum gap between right presses.
-3. **The spike (hand to Sabrael):** with the setting on and one character standing still, click a
-   tile at a known offset and read the `0x06` steps in the log to fix the view centre and the axes.
-   Then one walk across Rucesion.
+   **Done**, plus the popup mid-stretch, the stop mid-stretch, the unexpected map, and the approach
+   beside an NPC staying on the keys.
+3. **The spike (hand to Sabrael):** with the game running and Midir capturing, right-click a tile
+   by hand a few tiles from the character and read the pane watcher's two lines in the log: the
+   tile the projection names for the click, and the tile the character stopped on. They agree when
+   the projection is right. Then turn the setting on and walk one route across Rucesion, and read
+   the walker's lines: each right-click names its aim and its game coordinates, each stretch says
+   how many tiles it walked, and each right press states the gap since the last.

@@ -16,6 +16,7 @@ interface SettingsActions {
   setSpeakerIntervalMs: (value: number) => void
   setSpeakerRepeat: (value: boolean) => void
   setWalkerPinnedDestinations: (value: string[]) => void
+  setWalkerRightClick: (value: boolean) => void
   hydrate: () => Promise<void>
 }
 
@@ -53,6 +54,7 @@ export const useSettingsStore = create<SettingsStore>((set) => ({
   setSpeakerIntervalMs: (value) => set({ speakerIntervalMs: value }),
   setSpeakerRepeat: (value) => set({ speakerRepeat: value }),
   setWalkerPinnedDestinations: (value) => set({ walkerPinnedDestinations: value }),
+  setWalkerRightClick: (value) => set({ walkerRightClick: value }),
 
   hydrate: async () => {
     const loaded = await window.api.settings.load()
@@ -96,7 +98,8 @@ useSettingsStore.subscribe((state) => {
       speakerLines,
       speakerIntervalMs,
       speakerRepeat,
-      walkerPinnedDestinations
+      walkerPinnedDestinations,
+      walkerRightClick
     } = state
     window.api.settings
       .save({
@@ -113,7 +116,8 @@ useSettingsStore.subscribe((state) => {
         speakerLines,
         speakerIntervalMs,
         speakerRepeat,
-        walkerPinnedDestinations
+        walkerPinnedDestinations,
+        walkerRightClick
       })
       .catch((err) =>
         // Main owns the log. A failure here is exactly the one a packaged

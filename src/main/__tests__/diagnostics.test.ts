@@ -57,7 +57,8 @@ function context(
     answerFor: () => null,
     fieldMapFor: () => null,
     exchangeFor: () => null,
-    recordFor: () => null
+    recordFor: () => null,
+    entitiesFor: () => null
   }
   return {
     log: fakeLogger(currentLogFile),

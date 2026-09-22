@@ -69,6 +69,8 @@ function Walker(): React.JSX.Element {
   const setAssistStopOnFocusLoss = useSettingsStore((s) => s.setAssistStopOnFocusLoss)
   const pinned = useSettingsStore((s) => s.walkerPinnedDestinations)
   const setPinned = useSettingsStore((s) => s.setWalkerPinnedDestinations)
+  const rightClick = useSettingsStore((s) => s.walkerRightClick)
+  const setRightClick = useSettingsStore((s) => s.setWalkerRightClick)
 
   const captureStatus = useCaptureStore((s) => s.status)
 
@@ -311,6 +313,26 @@ function Walker(): React.JSX.Element {
                 <InfoTip
                   label="About stop on focus loss"
                   title="With this on, an assistant stops the moment you click away from the game window."
+                />
+              </Box>
+            }
+          />
+
+          <FormControlLabel
+            sx={{ ml: 1 }}
+            control={
+              <Switch
+                checked={rightClick}
+                onChange={(event) => setRightClick(event.target.checked)}
+                data-testid="walker-right-click"
+              />
+            }
+            label={
+              <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
+                Walk by right-click
+                <InfoTip
+                  label="About walking by right-click"
+                  title="With this on, the walker right-clicks a tile up to eight steps ahead and the game walks there by itself, which is smoother than one arrow key per tile. Every tile is still confirmed from the wire. A stop halts Midir at once; the game finishes the stretch it was given, at most eight tiles."
                 />
               </Box>
             }

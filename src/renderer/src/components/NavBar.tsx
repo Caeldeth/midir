@@ -11,7 +11,7 @@ export const VIEWS: readonly { name: ViewName; label: string }[] = [
   { name: 'characters', label: 'Characters' },
   { name: 'speaker', label: 'Speaker' },
   { name: 'walker', label: 'Walker' },
-  { name: 'laborer', label: 'Laborer' },
+  { name: 'laborer', label: 'Errands' },
   { name: 'diagnostics', label: 'Diagnostics' },
   { name: 'settings', label: 'Settings' }
 ]

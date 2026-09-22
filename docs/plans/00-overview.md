@@ -142,7 +142,7 @@ WP13 (the action layer: window, keys, the stop)   COMPLETE — complete/13-actio
       └── WP17 (Laborer)   COMPLETE — complete/17-clout-assistant.md — sixteen errands, proven live
            ├── WP33 (world-map coverage for errand nodes)   COMPLETE — complete/33-errand-map-coverage.md — every errand routes
            ├── WP34 (dismiss blocking popups)   COMPLETE — complete/34-dismiss-blocking-popups.md — three popups, proven live
-           └── WP35 (right-click walking)   PLANNED — the client's own pathfinder for a smoother walk
+           └── WP35 (right-click walking)   IN PROGRESS — built 2026-09-21; the live check is left
 WP14 (position and map, off the wire)   COMPLETE — complete/14-position-and-map.md — what WP15 steers by
 WP18 (the packet-send spike)   PLANNED — gates every forged packet; WP17 is the only caller waiting
 
@@ -163,7 +163,7 @@ WP31 (dynamic door collision 0x32)   PLANNED — needs WP15; feeds WP17
 WP32 (registration-aware routing)   COMPLETE — complete/32-registration-aware-routing.md — gates, citizenship, the Laborer's pre-checks
 WP33 (world-map coverage for errands)   COMPLETE — complete/33-errand-map-coverage.md
 WP34 (dismiss blocking popups)   COMPLETE — 2026-09-21; a dialog, an exchange, and its confirm
-WP35 (right-click walking)   PLANNED — needs WP15, WP13, WP33's click gesture
+WP35 (right-click walking)   IN PROGRESS — built 2026-09-21; the live check is left
 ```
 
 WP7 was the one gap in the shipped run. It was specified, deferred for the protocol work that kept
@@ -229,7 +229,7 @@ trigger is in each doc's header.
 | WP32 | M    | Registration-aware routing      | HTOO-81  | COMPLETE — `complete/32-registration-aware-routing.md` |
 | WP33 | S    | Map coverage for errand nodes   | HTOO-82  | COMPLETE — `complete/33-errand-map-coverage.md`        |
 | WP34 | S    | Dismiss blocking popups         | HTOO-83  | COMPLETE — `complete/34-dismiss-blocking-popups.md`    |
-| WP35 | M    | Right-click walking             | HTOO-468 | PLANNED — `35-right-click-walking.md`                  |
+| WP35 | M    | Right-click walking             | HTOO-468 | IN PROGRESS — `35-right-click-walking.md`              |
 
 `00a-backlog.md` now holds only what is not a WP: the non-goals, the debts owed to another repo, and
 the one conditional rule.

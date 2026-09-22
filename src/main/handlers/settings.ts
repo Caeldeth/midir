@@ -34,7 +34,8 @@ export const settingsSchema = z.object({
   speakerIntervalMs: z.number().int().min(0),
   speakerRepeat: z.boolean(),
   // The Walker destinations the user pinned.
-  walkerPinnedDestinations: z.array(z.string())
+  walkerPinnedDestinations: z.array(z.string()),
+  walkerRightClick: z.boolean()
 })
 
 export async function loadSettings(ctx: SettingsHandlerContext): Promise<MidirSettings> {
