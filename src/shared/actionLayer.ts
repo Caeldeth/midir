@@ -344,17 +344,17 @@ export interface LaborerState {
 export function errandStopMessage(reason: ErrandStopReason): string {
   switch (reason) {
     case 'user':
-      return 'You stopped the Laborer.'
+      return 'You stopped the errand.'
     case 'unmatchedDialog':
-      return 'The Laborer saw a dialog it did not expect and stopped.'
+      return 'The errand met a dialog it did not expect and stopped.'
     case 'timeout':
-      return 'The Laborer waited for the next dialog and none came.'
+      return 'The errand waited for the next dialog and none came.'
     case 'lostCharacter':
       return 'The character logged off or the window closed.'
     case 'walker':
-      return 'The Laborer could not walk to the NPC.'
+      return 'The errand could not walk to the NPC.'
     case 'protected':
-      return 'The Laborer saw a login or password dialog and stopped.'
+      return 'The errand met a login or password dialog and stopped.'
     case 'serverNotice':
       return 'The server refused the step with a notice.'
     case 'notCitizen':
