@@ -283,6 +283,7 @@ function applyPacket(
         guildRank: packet.guildRank,
         displayClass: packet.displayClass,
         legend: packet.legend.map((mark) => ({ ...mark })),
+        profileReadAtMs: input.timestampMs,
         appearance: {
           ...record.appearance,
           nation: packet.nation,

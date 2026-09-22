@@ -117,6 +117,7 @@ const characterSchema = z.object({
   // A field missing from this schema is dropped on load, silently. The bank
   // was missing here, so every bank Midir read was lost at the next start.
   bank: bankSchema.optional(),
+  profileReadAtMs: z.number().optional(),
   registered: z.boolean().optional(),
   citizenship: z.number().optional()
 })
@@ -214,8 +215,12 @@ export function mergeCharacter(
   // shown none; the last known value stays until a newer signal replaces it.
   const registered = record.registered ?? existing?.registered
   const citizenship = record.citizenship ?? existing?.citizenship
+  // The profile arrives only when the player opens it, so a login that showed
+  // none must not wipe the legend the last one read. The newer reading wins.
+  const profile = newerProfile(existing, record)
   return {
     ...record,
+    ...profile,
     firstSeenMs:
       existing === undefined
         ? record.firstSeenMs
@@ -223,6 +228,31 @@ export function mergeCharacter(
     ...(bank !== undefined ? { bank } : {}),
     ...(registered !== undefined ? { registered } : {}),
     ...(citizenship !== undefined ? { citizenship } : {})
+  }
+}
+
+/** The profile fields SSelfLook carries, from whichever record read them more recently. */
+function newerProfile(
+  existing: CharacterRecord | undefined,
+  record: CharacterRecord
+): Pick<CharacterRecord, 'legend' | 'title' | 'guild' | 'guildRank' | 'displayClass'> &
+  Partial<Pick<CharacterRecord, 'profileReadAtMs'>> {
+  // A legend stored before the stamp existed has no time on it; it still
+  // beats a login that read nothing.
+  const existingRead =
+    existing !== undefined && (existing.profileReadAtMs !== undefined || existing.legend.length > 0)
+  const keepExisting =
+    existingRead &&
+    (record.profileReadAtMs === undefined ||
+      (existing.profileReadAtMs !== undefined && record.profileReadAtMs < existing.profileReadAtMs))
+  const source = keepExisting ? existing : record
+  return {
+    legend: source.legend,
+    title: source.title,
+    guild: source.guild,
+    guildRank: source.guildRank,
+    displayClass: source.displayClass,
+    ...(source.profileReadAtMs !== undefined ? { profileReadAtMs: source.profileReadAtMs } : {})
   }
 }
 

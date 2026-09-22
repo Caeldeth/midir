@@ -45,7 +45,8 @@ function build(): CharacterRecord {
     appearance: { ...record.appearance, characterClass: 3, nation: 4, hairColor: 9 },
     equipment: { 1: item('Staff of Ages'), 2: item('Bardocle') },
     inventory: { 1: item('Raw Fish', { count: 65, canStack: true }), 5: item('Stick') },
-    legend: [{ icon: 3, color: 1, key: 'mark_wiz', text: 'Became a Wizard' }]
+    legend: [{ icon: 3, color: 1, key: 'mark_wiz', text: 'Became a Wizard' }],
+    profileReadAtMs: Date.now() - 60_000
   }
 }
 
@@ -109,7 +110,16 @@ describe('CharacterSheet', () => {
     const bare = emptyCharacter('Newborn', Date.now())
     render(<CharacterSheet record={bare} />)
     expect(screen.getByText('No items seen yet.')).toBeInTheDocument()
-    expect(screen.getByText('No legend marks seen yet.')).toBeInTheDocument()
+    // The legend arrives only when the profile is opened, so unread is not empty.
+    expect(
+      screen.getByText('Not read yet. Midir fills this when you open your profile.')
+    ).toBeInTheDocument()
+  })
+
+  it('says when the legend was read, and shows an empty one as empty', () => {
+    const fresh = { ...emptyCharacter('Newborn', Date.now()), profileReadAtMs: Date.now() }
+    render(<CharacterSheet record={fresh} />)
+    expect(screen.getByText(/0 marks · read/)).toBeInTheDocument()
   })
 
   it('never calls an unread bank an empty one', () => {
@@ -119,7 +129,9 @@ describe('CharacterSheet', () => {
     const bare = emptyCharacter('Newborn', Date.now())
     render(<CharacterSheet record={bare} />)
 
-    expect(screen.getByText(/Not read yet/)).toBeInTheDocument()
+    expect(
+      screen.getByText(/Not read yet\. Midir fills this when you visit a banker/)
+    ).toBeInTheDocument()
     expect(screen.queryByText(/bank is empty/i)).not.toBeInTheDocument()
     expect(screen.queryByText(/No items in the bank/i)).not.toBeInTheDocument()
   })
@@ -134,7 +146,9 @@ describe('CharacterSheet', () => {
     render(<CharacterSheet record={record} />)
 
     expect(screen.getByText(/Empty when you last looked/)).toBeInTheDocument()
-    expect(screen.queryByText(/Not read yet/)).not.toBeInTheDocument()
+    expect(
+      screen.queryByText(/Not read yet\. Midir fills this when you visit/)
+    ).not.toBeInTheDocument()
   })
 
   it('shows the bank with the banker and how old the reading is', () => {
