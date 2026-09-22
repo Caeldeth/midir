@@ -27,12 +27,16 @@ export interface OpenBoard {
   rows: PostHeader[]
   /** How many rows the newest page added. Zero means the oldest post is reached. */
   lastPageAdded: number
+  /** How many rows the newest page carried. Fewer than a full page means the oldest post is on it. */
+  lastPageRows: number
   asOfMs: number
 }
 
 export interface BoardState {
   /** The boards the server listed last, in its order. */
   boards?: { id: number; name: string }[]
+  /** When the board list arrived. The poll waits for a list newer than its key press. */
+  boardsAtMs?: number
   /** The board or mailbox whose index is open. */
   open?: OpenBoard
   /** The post on screen. `postId` 0 is the server's "no such post". */
@@ -67,7 +71,12 @@ export function reduceBoard(state: BoardState | null, input: BoardInput): BoardS
   }
   switch (packet.kind) {
     case 'boardList':
-      return { ...(state ?? {}), boards: packet.boards, asOfMs: timestampMs }
+      return {
+        ...(state ?? {}),
+        boards: packet.boards,
+        boardsAtMs: timestampMs,
+        asOfMs: timestampMs
+      }
     case 'postList': {
       const open = state?.open
       const sameBoard =
@@ -90,6 +99,7 @@ export function reduceBoard(state: BoardState | null, input: BoardInput): BoardS
           mail: packet.mail,
           rows,
           lastPageAdded: added.length,
+          lastPageRows: packet.rows.length,
           asOfMs: timestampMs
         },
         asOfMs: timestampMs

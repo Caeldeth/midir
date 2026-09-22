@@ -8,6 +8,7 @@ import { createActionLayer, type HotkeyRegistrar, type WindowApi } from './actio
 import { createSpeaker } from './speaker'
 import { createWalker } from './walker'
 import { createLaborer } from './laborer'
+import { createBoardPoll } from './boardPoll'
 import { builtinErrands } from './laborer/errands'
 import { createPaneWatcher } from './paneWatcher'
 import { createMapSource } from './route/mapSource'
@@ -21,6 +22,7 @@ import {
   ASSIST_STATE_CHANNEL,
   CAPTURE_STATUS_CHANNEL,
   BOARDS_CHANGED_CHANNEL,
+  BOARD_POLL_STATE_CHANNEL,
   CHARACTER_CHANGED_CHANNEL,
   LOG_APPENDED_CHANNEL,
   LABORER_STATE_CHANNEL,
@@ -323,6 +325,29 @@ const laborer = createLaborer({
   onState: (state) => pushToRenderer(LABORER_STATE_CHANNEL, state)
 })
 
+// The board poll reads every board and the mailbox through the client's own
+// board pane (WP36 PR2): the arrow keys walk the list, View opens a row, and
+// every reply off the wire is the check on where the selection is.
+const boardPoll = createBoardPoll({
+  actionLayer,
+  liveConnections: () => captureService.liveCharacterEntries(),
+  boardFor: (connectionId) => captureService.boardFor(connectionId),
+  dialogFor: (connectionId) => captureService.dialogFor(connectionId),
+  readBodies: async (key) => {
+    await captureService.flush()
+    const board = (await boardStore.load()).boards[key]
+    return new Set(
+      board === undefined
+        ? []
+        : Object.values(board.posts)
+            .filter((p) => p.body !== undefined)
+            .map((p) => p.postId)
+    )
+  },
+  log,
+  onState: (state) => pushToRenderer(BOARD_POLL_STATE_CHANNEL, state)
+})
+
 // While a world map is open, the pane watcher logs where the user clicks by
 // hand and pairs it with the point the client sends (WP33). A diagnostic: it
 // reads the pointer through the operating system and drives nothing.
@@ -356,6 +381,7 @@ const ctx: HandlerContext = {
   captureService,
   characterStore,
   boardStore,
+  boardPoll,
   actionLayer,
   speaker,
   walker,
@@ -494,6 +520,7 @@ app.on('window-all-closed', () => {
 app.on('will-quit', () => {
   paneWatcher.stop()
   laborer.dispose()
+  boardPoll.dispose()
   walker.dispose()
   speaker.dispose()
   actionLayer.dispose()

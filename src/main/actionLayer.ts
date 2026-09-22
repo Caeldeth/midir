@@ -103,9 +103,16 @@ export interface ActionLayer {
   /**
    * Click the left button at a position in the game's own 640 x 480
    * coordinates, scaled to the window as it is. Refuses, never throws. The
-   * walker uses it to pick a point on the world map.
+   * walker uses it to pick a point on the world map. The click is posted
+   * twice unless `once` is set: a list row opens on a double click, and the
+   * board poll selects a row without opening it (WP36).
    */
-  click(target: ActionTarget, x: number, y: number): Promise<ActionRefusal | null>
+  click(
+    target: ActionTarget,
+    x: number,
+    y: number,
+    options?: { once?: boolean }
+  ): Promise<ActionRefusal | null>
   /**
    * Press and release the right button once at a position in the game's own
    * 640 x 480 coordinates. On empty ground the client walks there by its own
@@ -163,6 +170,9 @@ export const RIGHT_CLICK_GAP_MS = 1500
 export const VK_RETURN = 0x0d
 export const VK_ESCAPE = 0x1b
 export const VK_SPACE = 0x20
+export const VK_UP = 0x26
+export const VK_DOWN = 0x28
+export const VK_W = 0x57
 // lParam for a key message: repeat count 1 for key-down, the transition and
 // previous-state bits set for key-up. Only the low 32 bits are read by a window
 // procedure, so the value is portable to 64-bit.
@@ -194,7 +204,8 @@ const EXTENDED_KEY_BIT = 0x01000000
  * stayed up, while Sabrael's own Escape cancelled the exchange at once.
  */
 const CHAR_OF_KEY: Record<number, number> = {
-  0x1b: 0x1b // VK_ESCAPE
+  0x1b: 0x1b, // VK_ESCAPE
+  0x57: 0x77 // VK_W: the board list's key, delivered as 'w' (WP36)
 }
 
 /** How long a driver holds a movement key down, in milliseconds. */
@@ -460,9 +471,16 @@ export function createActionLayer(options: ActionLayerOptions): ActionLayer {
    * click is a message, and needs no hold. The click is posted twice because
    * that is what DA Walker does for the world map, and it is the proven
    * gesture: a second release on the same point selects the same point again,
-   * so the repeat costs nothing.
+   * so the repeat costs nothing. A list row is the exception: the client opens
+   * a row on a double click (the hand browse of 2026-09-22 did so), and a
+   * caller that means to select a row and not open it asks for `once`.
    */
-  async function click(target: ActionTarget, x: number, y: number): Promise<ActionRefusal | null> {
+  async function click(
+    target: ActionTarget,
+    x: number,
+    y: number,
+    options: { once?: boolean } = {}
+  ): Promise<ActionRefusal | null> {
     const refusal = guard(target) ?? rateGate()
     if (refusal !== null) return refusal
     const handle = target.windowHandle
@@ -470,17 +488,21 @@ export function createActionLayer(options: ActionLayerOptions): ActionLayer {
     const point = toClientPoint(x, y, size)
     const lparam = mouseLparam(point.x, point.y)
     windows.postMessageToWindow(handle, WM_MOUSEMOVE, 0, lparam)
-    for (let i = 0; i < 2; i++) {
+    const presses = options.once === true ? 1 : 2
+    for (let i = 0; i < presses; i++) {
       windows.postMessageToWindow(handle, WM_LBUTTONDOWN, MK_LBUTTON, lparam)
       windows.postMessageToWindow(handle, WM_LBUTTONUP, 0, lparam)
-      if (i === 0) await wait(keyHoldMs())
+      if (i === 0 && presses === 2) await wait(keyHoldMs())
     }
     const window =
       size === null
         ? ''
         : ` in a ${size.width} x ${size.height}${size.dpiAware ? '' : ' DPI-unaware'} window`
     const where = point.scaled ? `(${point.x}, ${point.y}) for game (${x}, ${y})` : `(${x}, ${y})`
-    log.info('assist', `Clicked ${where}${window}, handle ${handle}.`)
+    log.info(
+      'assist',
+      `Clicked ${where}${window}${presses === 1 ? ' once' : ''}, handle ${handle}.`
+    )
     return null
   }
 

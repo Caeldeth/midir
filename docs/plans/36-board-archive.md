@@ -52,11 +52,46 @@ Demagoguery, the Rangers board; 352 requests and 355 replies, none unreadable) a
 - **The client's own post decodes.** Angelique's "Jailed - Micus - Botting" went out as action
   `post` with the subject and the body as typed, and the reply was type 6 "Your letter was sent."
   The poll never sends this, and the decoder now has a live sample.
-- Prev is `+1` again (269 after 268), read from the post pane.
+- Prev is `+1` again (269 after 268), read from the post pane. The id in a Prev or Next request
+  is the shown id plus or minus one, and the server answers with the nearest post that exists:
+  `read 74 by -1` on a board with no 74 came back as 71.
 
-PR2 is the poll. The pane watcher's board side (this PR) logs every hand click on a board pane
-with what the pane showed and pairs it with the client's next `0x3B`; the poll's positions come
-from one more browse read through that log.
+**The measuring browse (Evenue at the Vaillaire Cura board, 04:33Z to 04:42Z, through the pane
+watcher's board side)** gave the poll its positions and its gestures:
+
+- **The pane sits at x 30, y 0** in the game's 640 x 480 space: a 581-wide pane centred across the
+  width and flush with the top. Every measured button fits that offset and no other: View at game
+  (562, 51) sent a read, Next at (562, 96) and (573, 95), Prev at (570, 69), Up at (573, 228)
+  went back to the list with no packet, Close at (555, 259) and (562, 258).
+- **Rows are 18 px from pane y 18, and 14 are visible.** The top row's centre is game y 27
+  (a click at (319, 29) then View read the newest post); a click at y 208 after a scroll to the
+  bottom of a 72-row list opened the 69th newest post, which is row 10 of the last 14.
+- **A single click on a row selects it, and View opens it.** A double click on a row opens it
+  too (the hand browse did that on the board list), which the poll does not rely on: `click` is
+  posted once for a row, and the client's request after the row click, when the double landed
+  anyway, is what tells the poll to skip View.
+- **The arrow keys walk the selection, and Down past the last row asks for the next page.**
+  Sabrael's arrow-key run sent `listPosts 56` and `40` with no click at all, one request per
+  press past the end (and one per repeat while held). The scrollbar's arrows do the same: it
+  sits at game x 529 to 532, its up arrow at y 26 and its down arrow at y 265, one row per click
+  and a page request when clicked at the bottom. The mouse wheel pages too. The poll uses the
+  keys: the selection is then a count the poll keeps, the post id the server answers with is the
+  check on that count, and no scroll position has to be modelled.
+- **Up from a post goes back to the list with no packet; Up from a list sends `listBoards`.**
+- **The mail panes differ from the board panes in two buttons.** The mail list's View is at pane
+  y 61 to 83 (the board list's is 35 to 57), and the mail list has Quit at 218 to 240 and Up at
+  245 to 267, the reverse of the post list's Up (218 to 240) and Close (245 to 267). A poll that
+  clicked the board list's Up on the mailbox would close the whole pane.
+
+**PR2, the poll, built 2026-09-22** from the measuring browse: `boardPoll.ts` is the driver
+(`W`, the top row once, the arrow keys, View, Up, Quit; every gesture waits for its packet, and
+the post id in every reply checks the selection count), `handlers/boards.ts` gains `boards:poll`,
+`boards:poll-stop`, and `boards:poll-state`, and the Boards tab has the window picker, the
+button, the "skip posts already read" box, and the line that says what the poll is on. Proven
+against a retail-shaped fake client through the real reducer (`__tests__/boardPoll.test.ts`).
+**Not yet proven live**: the first run on retail is the check on the arrow keys as posted keys,
+on the selection after Up, and on `W` as a posted key with its character. The profile click for
+the legend is not in it: the profile button's place is not measured.
 
 **Trigger:** Sabrael, 2026-09-21: retail's boards hold years of player-written content that exists
 nowhere else, and no tool in the house reads them. The Brigid prototype (`feat/board-capture-debug`,
@@ -177,10 +212,12 @@ never right of the Content pane on a post.
    id ±1 itself rather than trust them, and a poll that leaned on them would depend on the
    server's sibling rule and would have no proof it saw every post. The list is the proof: a
    post in the list with no body after the walk is logged as one the walk missed, and the poll
-   opens it again once before it moves on. The list dialog shows a page of rows at a time, so the
-   poll scrolls: the gesture that pages the client's list (the scroll bar, or the keys the dialog
-   consumes) is measured on the first live run by the pane watcher, like every other position,
-   and a row is clicked only while it is on screen.
+   opens it again once before it moves on. The list dialog shows a page of rows at a time, and
+   the poll never clicks a row it cannot see: it clicks the top row once, walks the selection
+   with the arrow keys (Down past the last row is what asks the client for the next page), and
+   clicks View. The selection is a count the poll keeps; the post id in every reply is the check
+   on it, and a reply that names another post re-syncs the count from the list and tries again,
+   at most `MAX_MISSES` times per board before the poll stops as lost.
 5. **The pane positions are measured before they are used.** The layouts (`_nbdlist.txt`,
    `_narlist.txt`, `_narti.txt`, `_nmaill.txt`, `_nmailr.txt` in `setoa.dat`) give a 581 × 290 pane
    with View at 507–568 × 35–57 (board list), the list rows in 19–499 × 18–273, Prev/Next at
@@ -239,11 +276,13 @@ interface BoardRecord { id: number; name: string; posts: Record<number, PostReco
 interface PostRecord { author: string; month: number; day: number; subject: string; highlighted: boolean; body?: string; seenAtMs: number; seenBy: string }
 
 // boardPoll.ts
-interface BoardPoll { start(connectionId: string, options: { fillGapsOnly: boolean }): Promise<PollOutcome>; stop(connectionId: string): void; states(): PollState[] }
+interface BoardPoll { run(request: BoardPollRequest): Promise<BoardPollOutcome>; stop(connectionId: string): void; states(): BoardPollState[] }
+interface BoardPollRequest { connectionId: string; onlyUnread: boolean }
 ```
 
-`window.api.boards`: `list()`, `posts(boardKey)`, `exportJson(boardKey)`, `poll.start/stop/state`,
-and a push channel for the poll's state and for a changed board.
+`window.api.boards`: `list()`, `get(boardKey)`, `exportJson(boardKey)`, `poll(request)`,
+`stopPoll(connectionId)`, `pollState()`, `onPollState(handler)`, and `onChanged(handler)` for
+a changed board.
 
 ## Acceptance criteria
 
@@ -252,10 +291,10 @@ and a push channel for the poll's state and for a changed board.
 2. A hand browse of one board fills `boards.json` with every header seen and every body opened,
    and a restart shows the same. A header never replaces a body.
 3. The mailbox is stored under the character's key and never under another character's.
-4. The poll reads a whole board with no key pressed but `W` and the list's own scroll, and no
-   button clicked but rows, View, and Up; the log states every click's pane position and the `0x3B`
-   that followed it; every post the list holds has a body at the end, or is named in the log as one
-   the walk missed twice.
+4. The poll reads a whole board with no key pressed but `W` and the arrow keys, and no button
+   clicked but the top row, View, Up, and Quit; the log states every click's game position and
+   the `0x3B` that followed it; every post the list holds has a body at the end, or is named in
+   the log as one the walk missed.
 5. The poll stops on a compose dialog, a result alert, the credential pane, and a stop; it never
    sends `0x3B` action 4, 5, 6, or 7 (asserted in the tests and grep-able in the log).
 6. The export is the prototype's shape, and a board of 200 posts exports in one file.

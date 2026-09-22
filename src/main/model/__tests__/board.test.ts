@@ -52,11 +52,13 @@ describe('the boards on screen (WP36)', () => {
       boards: [{ id: 10, name: 'Public' }]
     })
     expect(state?.boards).toEqual([{ id: 10, name: 'Public' }])
+    expect(state?.boardsAtMs).toBe(clock)
   })
 
   it('accumulates the pages of one board, deduped, newest first, and says what each page added', () => {
     let state = feed(null, list(10, [row(50), row(49), row(48)]))
     expect(state?.open?.lastPageAdded).toBe(3)
+    expect(state?.open?.lastPageRows).toBe(3)
     // The scroll-back page includes the cursor post: the overlap adds nothing.
     state = feed(state, list(10, [row(48), row(47)]))
     expect(state?.open?.rows.map((r) => r.postId)).toEqual([50, 49, 48, 47])
@@ -64,6 +66,7 @@ describe('the boards on screen (WP36)', () => {
     // The same page again adds nothing: the oldest post is reached.
     state = feed(state, list(10, [row(48), row(47)]))
     expect(state?.open?.lastPageAdded).toBe(0)
+    expect(state?.open?.lastPageRows).toBe(2)
     // A row seen again carries the newer subject.
     state = feed(state, list(10, [row(50, 'Edited')]))
     expect(state?.open?.rows[0]?.subject).toBe('Edited')

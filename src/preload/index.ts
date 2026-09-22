@@ -3,6 +3,9 @@ import { contextBridge, ipcRenderer } from 'electron'
 import type {
   AssistState,
   AssistWindow,
+  BoardPollOutcome,
+  BoardPollRequest,
+  BoardPollState,
   BoardRecord,
   BoardSummary,
   CaptureAvailability,
@@ -110,7 +113,14 @@ const api: MidirApi = {
     list: (): Promise<BoardSummary[]> => ipcRenderer.invoke('boards:list'),
     get: (key: string): Promise<BoardRecord | null> => ipcRenderer.invoke('boards:get', key),
     exportJson: (key: string): Promise<string | null> => ipcRenderer.invoke('boards:export', key),
-    onChanged: (handler: () => void): (() => void) => subscribe('boards:changed', handler)
+    onChanged: (handler: () => void): (() => void) => subscribe('boards:changed', handler),
+    poll: (request: BoardPollRequest): Promise<BoardPollOutcome> =>
+      ipcRenderer.invoke('boards:poll', request),
+    stopPoll: (connectionId: string): Promise<void> =>
+      ipcRenderer.invoke('boards:poll-stop', connectionId),
+    pollState: (): Promise<BoardPollState[]> => ipcRenderer.invoke('boards:poll-state'),
+    onPollState: (handler: (state: BoardPollState) => void): (() => void) =>
+      subscribe('boards:poll-changed', handler)
   },
 
   characters: {

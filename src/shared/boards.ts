@@ -79,3 +79,62 @@ export interface BoardExport {
     highlighted: boolean
   }[]
 }
+
+/** What the poll is asked to do (WP36 PR2). */
+export interface BoardPollRequest {
+  connectionId: string
+  /**
+   * Skip every post whose body the archive already holds. On by default: a
+   * post never changes once written, so a second poll of the same board only
+   * needs the posts it has not read.
+   */
+  onlyUnread: boolean
+}
+
+/** Why the poll stopped short of the end. */
+export type BoardPollStopReason =
+  /** The user stopped it, with the button or the global stop. */
+  | 'user'
+  /** The character logged off, or the game window closed. */
+  | 'lostCharacter'
+  /** A gesture got no reply within its wait. */
+  | 'timeout'
+  /** The client showed another board or post than the poll asked for, too many times. */
+  | 'lost'
+  /** A dialog the poll did not open came up. The poll touches no dialog. */
+  | 'dialog'
+
+export type BoardPollOutcome =
+  | { kind: 'done'; boardsRead: number; postsRead: number }
+  | { kind: 'stopped'; reason: BoardPollStopReason; boardsRead: number; postsRead: number }
+
+/** What one poll is doing now. Pushed on every change. */
+export interface BoardPollState {
+  connectionId: string
+  running: boolean
+  /** What the poll is on now, ready to show the user. */
+  doing?: string
+  /** The board being read, once one is. */
+  boardName?: string
+  boardsDone: number
+  boardsTotal: number
+  postsRead: number
+  /** Why the poll ended, when it ended for a reason worth showing. */
+  reason?: string
+}
+
+/** A message worth showing the user for each stop reason. */
+export function boardPollStopMessage(reason: BoardPollStopReason): string {
+  switch (reason) {
+    case 'user':
+      return 'You stopped the poll.'
+    case 'lostCharacter':
+      return 'The character logged off or the window closed.'
+    case 'timeout':
+      return 'The poll waited for the client and nothing came.'
+    case 'lost':
+      return 'The client showed a different board or post than the poll asked for, and the poll stopped rather than guess.'
+    case 'dialog':
+      return 'A dialog came up that the poll did not open, and the poll stopped.'
+  }
+}

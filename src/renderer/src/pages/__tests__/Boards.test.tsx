@@ -68,9 +68,17 @@ beforeEach(() => {
     board: null,
     loading: false,
     exportedTo: null,
-    error: null
+    error: null,
+    windows: [],
+    pollWindow: '',
+    onlyUnread: true,
+    polls: {},
+    lastPoll: undefined,
+    pollError: null
   })
 })
+
+const WINDOW = { connectionId: 'c1', windowHandle: 7, title: 'Darkages', characterName: 'Evenue' }
 
 describe('the Boards page', () => {
   it('tells the user what to do when nothing is archived', async () => {
@@ -112,5 +120,43 @@ describe('the Boards page', () => {
     await userEvent.click(screen.getByTestId('board-export'))
     expect(window.api.boards.exportJson).toHaveBeenCalledWith('10')
     expect(await screen.findByText('Exported to C:/exports/Public.json.')).toBeInTheDocument()
+  })
+})
+
+describe('the poll on the Boards page (WP36 PR2)', () => {
+  it('offers the poll with no archive, and starts it on the picked window', async () => {
+    window.api.boards.list = vi.fn(async () => [])
+    window.api.assist.windows = vi.fn(async () => [WINDOW])
+    render(<Boards />)
+    expect(await screen.findByText('No boards yet')).toBeInTheDocument()
+    expect(screen.getByTestId('poll-start')).toBeDisabled()
+    useBoardStore.getState().setPollWindow('c1')
+    await userEvent.click(screen.getByTestId('poll-start'))
+    expect(window.api.boards.poll).toHaveBeenCalledWith({ connectionId: 'c1', onlyUnread: true })
+    expect(await screen.findByTestId('poll-outcome')).toHaveTextContent('read 0 boards and 0 posts')
+  })
+
+  it('shows what a running poll is on, and stops it', async () => {
+    window.api.boards.list = vi.fn(async () => [])
+    window.api.assist.windows = vi.fn(async () => [WINDOW])
+    render(<Boards />)
+    await screen.findByText('No boards yet')
+    useBoardStore.setState({
+      pollWindow: 'c1',
+      polls: {
+        c1: {
+          connectionId: 'c1',
+          running: true,
+          doing: 'reading Rangers, post 3 of 48',
+          boardsDone: 1,
+          boardsTotal: 21,
+          postsRead: 14
+        }
+      }
+    })
+    expect(await screen.findByTestId('poll-status')).toHaveTextContent('Board 2 of 21')
+    expect(screen.getByTestId('poll-status')).toHaveTextContent('reading Rangers, post 3 of 48')
+    await userEvent.click(screen.getByTestId('poll-stop'))
+    expect(window.api.boards.stopPoll).toHaveBeenCalledWith('c1')
   })
 })

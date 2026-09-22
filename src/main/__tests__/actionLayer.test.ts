@@ -5,6 +5,7 @@ import {
   RIGHT_CLICK_GAP_MS,
   VK_ESCAPE,
   VK_RETURN,
+  VK_W,
   type ActionLayer,
   type HotkeyRegistrar,
   type LiveConnection,
@@ -199,6 +200,31 @@ describe('the action layer', () => {
       [0x0202, 0, lparam],
       [0x0201, 1, lparam],
       [0x0202, 0, lparam]
+    ])
+  })
+
+  it('clicks once when asked, so a list row is selected and not opened (WP36)', async () => {
+    const windows = fakeWindows([CLIENT_A])
+    const { layer } = build(windows, () => [{ connectionId: idOf(CLIENT_A.local), name: 'Alice' }])
+    const target = layer.resolveTarget(idOf(CLIENT_A.local))!
+    expect(await layer.click(target, 290, 27, { once: true })).toBeNull()
+    const lparam = (27 << 16) | 290
+    expect(windows.posted.map((p) => [p.message, p.wParam, p.lParam])).toEqual([
+      [0x0200, 0, lparam],
+      [0x0201, 1, lparam],
+      [0x0202, 0, lparam]
+    ])
+  })
+
+  it('posts W with its character, as the board list key is a letter (WP36)', async () => {
+    const windows = fakeWindows([CLIENT_A])
+    const { layer } = build(windows, () => [{ connectionId: idOf(CLIENT_A.local), name: 'Alice' }])
+    const target = layer.resolveTarget(idOf(CLIENT_A.local))!
+    expect(await layer.pressKey(target, VK_W)).toBeNull()
+    expect(windows.posted.map((p) => [p.message, p.wParam])).toEqual([
+      [0x0100, 0x57],
+      [0x0102, 0x77],
+      [0x0101, 0x57]
     ])
   })
 

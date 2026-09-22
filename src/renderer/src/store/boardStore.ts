@@ -1,4 +1,11 @@
-import type { BoardRecord, BoardSummary } from '@shared/types'
+import type {
+  AssistWindow,
+  BoardPollOutcome,
+  BoardPollState,
+  BoardRecord,
+  BoardSummary
+} from '@shared/types'
+import { boardPollStopMessage } from '@shared/types'
 import { create } from 'zustand'
 
 /**
@@ -6,7 +13,8 @@ import { create } from 'zustand'
  *
  * Main owns the file. The renderer asks for the list and for one board, and
  * asks again when main says the archive changed, so a board fills while the
- * player browses it.
+ * player browses it. The poll (WP36 PR2) runs in main; its state arrives on
+ * a push, and the outcome is kept for the line under the button.
  */
 
 interface BoardStoreState {
@@ -19,7 +27,23 @@ interface BoardStoreState {
   /** The path of the last export, for the confirmation line. */
   exportedTo: string | null
   error: string | null
+  /** The open game windows the poll can drive. */
+  windows: AssistWindow[]
+  /** The window picked for the poll. */
+  pollWindow: string
+  onlyUnread: boolean
+  /** The poll on each window, by connection id, while one runs. */
+  polls: Record<string, BoardPollState>
+  /** How the last poll ended, for the line under the button. */
+  lastPoll?: BoardPollOutcome
+  pollError: string | null
   refresh: () => Promise<void>
+  refreshWindows: () => Promise<void>
+  setPollWindow: (connectionId: string) => void
+  setOnlyUnread: (onlyUnread: boolean) => void
+  /** Start the poll on the picked window. */
+  poll: () => void
+  stopPoll: (connectionId: string) => Promise<void>
   select: (key: string | null) => Promise<void>
   exportSelected: () => Promise<void>
   /** Begin mirroring pushes from main. The result stops mirroring. */
@@ -37,6 +61,48 @@ export const useBoardStore = create<BoardStoreState>((set, get) => ({
   loading: false,
   exportedTo: null,
   error: null,
+  windows: [],
+  pollWindow: '',
+  onlyUnread: true,
+  polls: {},
+  pollError: null,
+
+  refreshWindows: async () => {
+    try {
+      const [windows, polls] = await Promise.all([
+        window.api.assist.windows(),
+        window.api.boards.pollState()
+      ])
+      const running: Record<string, BoardPollState> = {}
+      for (const state of polls) if (state.running) running[state.connectionId] = state
+      set({ windows, polls: running })
+    } catch (error) {
+      set({ pollError: messageOf(error) })
+    }
+  },
+
+  setPollWindow: (connectionId) => set({ pollWindow: connectionId }),
+  setOnlyUnread: (onlyUnread) => set({ onlyUnread }),
+
+  poll: () => {
+    const { pollWindow, onlyUnread } = get()
+    if (pollWindow === '') return
+    set({ pollError: null, lastPoll: undefined })
+    // The poll resolves when it ends, which may be many minutes. Do not await
+    // it: the running state arrives on a push, and the outcome is kept.
+    window.api.boards
+      .poll({ connectionId: pollWindow, onlyUnread })
+      .then((outcome) => set({ lastPoll: outcome }))
+      .catch((error) => set({ pollError: messageOf(error) }))
+  },
+
+  stopPoll: async (connectionId) => {
+    try {
+      await window.api.boards.stopPoll(connectionId)
+    } catch (error) {
+      set({ pollError: messageOf(error) })
+    }
+  },
 
   refresh: async () => {
     set({ loading: true })
@@ -76,8 +142,26 @@ export const useBoardStore = create<BoardStoreState>((set, get) => ({
     }
   },
 
-  subscribe: () =>
-    window.api.boards.onChanged(() => {
+  subscribe: () => {
+    const stopChanged = window.api.boards.onChanged(() => {
       void get().refresh()
     })
+    const stopPolls = window.api.boards.onPollState((state) => {
+      const polls = { ...get().polls }
+      if (state.running) polls[state.connectionId] = state
+      else delete polls[state.connectionId]
+      set({ polls })
+    })
+    return () => {
+      stopChanged()
+      stopPolls()
+    }
+  }
 }))
+
+/** The line under the button for a poll that ended. */
+export function boardPollOutcomeMessage(outcome: BoardPollOutcome): string {
+  const read = `${outcome.boardsRead} ${outcome.boardsRead === 1 ? 'board' : 'boards'} and ${outcome.postsRead} ${outcome.postsRead === 1 ? 'post' : 'posts'}`
+  if (outcome.kind === 'done') return `The poll read ${read}.`
+  return `${boardPollStopMessage(outcome.reason)} It had read ${read}.`
+}

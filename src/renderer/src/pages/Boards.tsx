@@ -2,19 +2,26 @@ import {
   Accordion,
   AccordionDetails,
   AccordionSummary,
+  Alert,
   Box,
   Button,
+  Checkbox,
+  FormControlLabel,
   List,
   ListItemButton,
   ListItemText,
+  MenuItem,
+  Paper,
   Stack,
+  TextField,
   Typography
 } from '@mui/material'
 import ExpandMoreOutlined from '@mui/icons-material/ExpandMoreOutlined'
 import Guidance from '@renderer/components/Guidance'
 import { formatAgo, plural } from '@renderer/lib/format'
-import { useBoardStore } from '@renderer/store/boardStore'
-import type { BoardRecord, PostRecord } from '@shared/types'
+import { boardPollOutcomeMessage, useBoardStore } from '@renderer/store/boardStore'
+import { useCaptureStore } from '@renderer/store/captureStore'
+import type { BoardRecord, BoardSummary, PostRecord } from '@shared/types'
 import React, { useEffect, useMemo } from 'react'
 
 /**
@@ -22,9 +29,10 @@ import React, { useEffect, useMemo } from 'react'
  * player has seen, off the wire.
  *
  * The archive fills as the player browses. A post seen only in a list has a
- * header and no body; opening it in the game fills the body in. Nothing here
- * drives the game: the poll that reads a whole board is the next part of
- * WP36, and it lives on this tab when it lands.
+ * header and no body; opening it in the game fills the body in. The poll at
+ * the top reads every board and the mailbox end to end through the client's
+ * own board pane (WP36 PR2): it presses W and the arrow keys, clicks rows,
+ * View, and Up, and nothing that writes.
  */
 
 const LIST_WIDTH = 300
@@ -64,15 +72,165 @@ function Boards(): React.JSX.Element {
     if (selected === null && boards.length > 0) void select(boards[0]!.key)
   }, [selected, boards, select])
 
-  if (boards.length === 0) {
-    return (
-      <Guidance
-        title="No boards yet"
-        detail="With capture on, open the mailbox or a board in the game. Every post and mail you see is kept here."
-      />
-    )
-  }
+  return (
+    <Box sx={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+      <PollPanel />
+      {boards.length === 0 ? (
+        <Guidance
+          title="No boards yet"
+          detail="With capture on, open the mailbox or a board in the game. Every post and mail you see is kept here. Or press Read everything above, and Midir reads them all."
+        />
+      ) : (
+        <Archive
+          boards={boards}
+          selected={selected}
+          board={board}
+          exportedTo={exportedTo}
+          error={error}
+          onSelect={(key) => void select(key)}
+          onRefresh={() => void refresh()}
+          onExport={() => void exportSelected()}
+        />
+      )}
+    </Box>
+  )
+}
 
+/**
+ * The poll: one window, one button, and the line that says what it is on.
+ * It ships off; nothing runs until the button is pressed.
+ */
+function PollPanel(): React.JSX.Element {
+  const windows = useBoardStore((s) => s.windows)
+  const pollWindow = useBoardStore((s) => s.pollWindow)
+  const onlyUnread = useBoardStore((s) => s.onlyUnread)
+  const polls = useBoardStore((s) => s.polls)
+  const lastPoll = useBoardStore((s) => s.lastPoll)
+  const pollError = useBoardStore((s) => s.pollError)
+  const refreshWindows = useBoardStore((s) => s.refreshWindows)
+  const setPollWindow = useBoardStore((s) => s.setPollWindow)
+  const setOnlyUnread = useBoardStore((s) => s.setOnlyUnread)
+  const poll = useBoardStore((s) => s.poll)
+  const stopPoll = useBoardStore((s) => s.stopPoll)
+  const captureStatus = useCaptureStore((s) => s.status)
+
+  useEffect(() => {
+    void refreshWindows()
+  }, [refreshWindows, captureStatus])
+
+  // A selection that names a window that is gone collapses to empty.
+  const selectedValue = windows.some((w) => w.connectionId === pollWindow) ? pollWindow : ''
+  const running = selectedValue !== '' ? polls[selectedValue] : undefined
+
+  const windowLabel = (w: (typeof windows)[number]): string =>
+    w.characterName !== undefined ? w.characterName : w.title || 'A game window'
+
+  return (
+    <Paper sx={{ m: 2.5, mb: 0, p: 2, flexShrink: 0 }} data-testid="board-poll">
+      <Typography variant="body2" sx={{ color: 'text.secondary', mb: 1.5 }}>
+        Read everything opens the board list with W and reads every board and the mailbox to the
+        oldest post, through the game's own pane: the arrow keys, View, and Up, and nothing that
+        writes. It stops on any dialog it did not open. A character must be logged in on the window.
+      </Typography>
+      {pollError !== null ? (
+        <Alert severity="error" sx={{ mb: 1.5 }}>
+          {pollError}
+        </Alert>
+      ) : null}
+      <Stack direction="row" sx={{ gap: 1.5, alignItems: 'center', flexWrap: 'wrap' }}>
+        <TextField
+          select
+          size="small"
+          label="Game window"
+          value={selectedValue}
+          onChange={(event) => setPollWindow(event.target.value)}
+          disabled={running !== undefined}
+          sx={{ minWidth: 220 }}
+        >
+          {windows.map((w) => (
+            <MenuItem key={w.connectionId} value={w.connectionId}>
+              {windowLabel(w)}
+            </MenuItem>
+          ))}
+        </TextField>
+        <Button size="small" onClick={() => void refreshWindows()}>
+          Refresh
+        </Button>
+        <FormControlLabel
+          control={
+            <Checkbox
+              size="small"
+              checked={onlyUnread}
+              onChange={(event) => setOnlyUnread(event.target.checked)}
+              disabled={running !== undefined}
+            />
+          }
+          label="Skip posts already read"
+        />
+        {running === undefined ? (
+          <Button
+            variant="contained"
+            size="small"
+            disabled={selectedValue === ''}
+            onClick={poll}
+            data-testid="poll-start"
+          >
+            Read everything
+          </Button>
+        ) : (
+          <Button
+            variant="outlined"
+            color="warning"
+            size="small"
+            onClick={() => void stopPoll(selectedValue)}
+            data-testid="poll-stop"
+          >
+            Stop
+          </Button>
+        )}
+      </Stack>
+      {running !== undefined ? (
+        <Typography variant="body2" sx={{ mt: 1.5 }} data-testid="poll-status">
+          {running.boardsTotal > 0
+            ? `Board ${Math.min(running.boardsDone + 1, running.boardsTotal)} of ${running.boardsTotal}`
+            : 'Starting'}
+          {running.doing !== undefined ? ` - ${running.doing}` : ''} - {running.postsRead} posts
+          read
+        </Typography>
+      ) : lastPoll !== undefined ? (
+        <Typography
+          variant="body2"
+          sx={{ mt: 1.5, color: 'text.secondary' }}
+          data-testid="poll-outcome"
+        >
+          {boardPollOutcomeMessage(lastPoll)}
+        </Typography>
+      ) : null}
+    </Paper>
+  )
+}
+
+interface ArchiveProps {
+  boards: BoardSummary[]
+  selected: string | null
+  board: BoardRecord | null
+  exportedTo: string | null
+  error: string | null
+  onSelect: (key: string) => void
+  onRefresh: () => void
+  onExport: () => void
+}
+
+function Archive({
+  boards,
+  selected,
+  board,
+  exportedTo,
+  error,
+  onSelect,
+  onRefresh,
+  onExport
+}: ArchiveProps): React.JSX.Element {
   return (
     <Box sx={{ display: 'flex', flex: 1, minHeight: 0 }}>
       <Box
@@ -89,7 +247,7 @@ function Boards(): React.JSX.Element {
             <ListItemButton
               key={summary.key}
               selected={summary.key === selected}
-              onClick={() => void select(summary.key)}
+              onClick={() => onSelect(summary.key)}
             >
               <ListItemText
                 primary={boardLabel(summary)}
@@ -103,14 +261,9 @@ function Boards(): React.JSX.Element {
 
       <Box sx={{ flex: 1, minWidth: 0, overflow: 'auto', p: 2.5 }}>
         {board === null ? (
-          <Button onClick={() => void refresh()}>Reload</Button>
+          <Button onClick={onRefresh}>Reload</Button>
         ) : (
-          <BoardView
-            board={board}
-            exportedTo={exportedTo}
-            error={error}
-            onExport={() => void exportSelected()}
-          />
+          <BoardView board={board} exportedTo={exportedTo} error={error} onExport={onExport} />
         )}
       </Box>
     </Box>

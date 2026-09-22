@@ -72,6 +72,7 @@ function harness() {
           mail: false,
           rows: [],
           lastPageAdded: 16,
+          lastPageRows: 16,
           asOfMs: clock
         },
         asOfMs: clock
