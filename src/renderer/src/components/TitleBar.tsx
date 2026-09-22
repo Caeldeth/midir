@@ -7,6 +7,10 @@ import CloseIcon from '@mui/icons-material/Close'
 import { PLAIN_CHROME_THEMES } from '@shared/types'
 import CaptureIndicator from '@renderer/components/CaptureIndicator'
 import { useSettingsStore } from '@renderer/store/settingsStore'
+// A 128px webp, not the icon master: this draws at 24px, and vite hashes it
+// into the bundle. Regenerate with:
+//   magick build/icon.png -resize 128x128 -strip -quality 90 //     src/renderer/src/assets/midir.webp
+import appIcon from '@renderer/assets/midir.webp'
 
 // Shared shadow vocabulary for the title bar. KEYLINE is the crisp four-way
 // #000 outline; DEPTH is the soft layer that lifts the glyph off the bar.
@@ -82,6 +86,22 @@ function TitleBar(): React.JSX.Element {
         flexShrink: 0
       }}
     >
+      <Box
+        component="img"
+        src={appIcon}
+        alt=""
+        aria-hidden
+        sx={{
+          height: 24,
+          width: 24,
+          mr: 1,
+          objectFit: 'contain',
+          // Match the wordmark's lift on the gamified themes; the plain themes
+          // drop the shadow vocabulary entirely.
+          filter: plain ? 'none' : `drop-shadow(${DEPTH})`
+        }}
+      />
+
       <Typography
         variant="h6"
         sx={{

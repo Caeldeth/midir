@@ -119,8 +119,8 @@ Aliases: `@renderer` to `src/renderer/src`, `@shared` to `src/shared`.
 - **`shared/` stays free of Electron and Node imports** so both processes and the vitest node project can import it.
 - **The protocol layer is pure and testable.** Decoders take a `Uint8Array` and return a typed object. Keep disk, sockets, and Electron out of `src/main/protocol/`.
 - **`PacketSource` is the test seam.** Anything above it must run from a recorded session with no adapter, no driver, and no game.
-- **Frameless window and custom title bar**, `contextIsolation: true`, `sandbox: false`.
-- **Splash and `app:ready` reveal handshake**. The main window stays hidden until the renderer hydrates settings, with a 15 s backstop.
+- **Frameless window and custom title bar**, `contextIsolation: true`, `nodeIntegration: false`, `sandbox: true`. The preload imports `electron` and nothing else at run time; `scripts/verify-preload-sandbox.mjs` reads the built preload, because a package import there breaks the sandboxed loader only in the packaged app. `windowSecurity.ts` guards navigation, child windows, external links, and every IPC's sender (a proxy over `ipcMain` at the one `registerHandlers` call), and puts the CSP on the response. The single-instance lock, the remote-session predicate, and hide-on-close sit at module scope in `index.ts` in an order `bootOrder.test.ts` pins (WP28).
+- **Splash and `app:ready` reveal handshake**. The main window stays hidden until the renderer hydrates settings, with a 15 s backstop. The splash is the template's controller: `dismiss(onDone)` shows it if it never painted, holds it for its 600 ms floor, then destroys it and reveals the main window from the callback; it destroys itself after 20 s and with the main window.
 - **Main-process diagnostics go through the logger, never `console.*`.** `main/log.ts` writes one
   `session-<stamp>.log` for each launch under `%LOCALAPPDATA%\Erisco\Midir\logs` and keeps the
   newest ten. A packaged build has no console, so a `console.error` is a message nobody can read.

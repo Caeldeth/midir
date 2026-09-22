@@ -1,4 +1,3 @@
-import { electronAPI } from '@electron-toolkit/preload'
 import { contextBridge, ipcRenderer } from 'electron'
 import type {
   AssistState,
@@ -153,5 +152,4 @@ const api: MidirApi = {
 
 // Midir always runs with contextIsolation on, which is the BrowserWindow
 // default, so the non-isolated fallback some scaffolds ship with is dead code.
-contextBridge.exposeInMainWorld('electron', electronAPI)
 contextBridge.exposeInMainWorld('api', api)

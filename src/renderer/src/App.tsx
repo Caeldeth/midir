@@ -132,7 +132,12 @@ function App(): React.JSX.Element {
         {hydrated ? (
           <>
             <NavBar value={view} onChange={setView} showDiagnostics={showDiagnostics} />
-            <Box sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+            <Box
+              sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}
+              // The page-level marker the nav e2e spec asserts on (HTOO-393):
+              // one per view, so a page that crashed or never mounted is named.
+              data-testid={`page-${view}`}
+            >
               {/* One view failing must not blank the window. The boundary is
                   keyed on the view, so leaving a broken view clears it. */}
               <ErrorBoundary key={view}>

@@ -1,6 +1,6 @@
 # WP26 — the bug report to cernunnos
 
-**Size:** M. **Depends on:** WP20, WP8. Read `00-overview.md` first. **PLANNED.** **Card:** `HTOO-75`.
+**Size:** M. **Depends on:** WP8. Read `00-overview.md` first. **PLANNED.** **Card:** `HTOO-75`.
 **Trigger to start:** the first bug a user cannot describe without one.
 
 ## Goal
@@ -9,16 +9,19 @@ Turn the Diagnostics ring buffer into a bug report. WP8 built the ring buffer to
 This WP is the workflow that gathers the diagnostic state — the log, the recent packets, the app
 version — into a report a user can send.
 
-## Why it waits for WP20
+## Why it does not wait for WP20
 
-The report wants the packet inspector more than it wants another button. A bug that needs a report is
-usually a protocol or capture bug, and the packet view (WP20) is what makes the recent packets
-legible in the report. So WP20 comes first, and this WP packages what WP20 renders.
+It used to: the packet view (WP20) was to make the recent packets legible in the report. Sabrael,
+2026-09-22: it should not depend on WP20. A bug report needs the packets as data, not as a view,
+and Midir already has that: the session log (WP8) and the session recording, which is the scrubbed
+`.ndjson` the capture writes for every launch. The report packages what exists; a later WP20 makes
+the same packets readable on screen, and neither needs the other.
 
 ## Decisions
 
-1. **The report is the ring buffer plus context.** The recent log, the recent packets (WP20), the
-   app version, the adapter, and the capture state. Nothing the scrub did not already clear.
+1. **The report is the log plus context.** The session log, the session recording (already
+   scrubbed), the app version, the adapter, and the capture state. Nothing the scrub did not
+   already clear.
 2. **No credential in the report.** The report gathers what the tracker holds after `capture/scrub.ts`
    has run. It never includes a scrubbed frame, and it states the known caveats (the bare `tcp`
    filter, the HTTP dialog).
@@ -34,7 +37,7 @@ legible in the report. So WP20 comes first, and this WP packages what WP20 rende
 ## Current state when you start
 
 - WP8's Diagnostics ring buffer and the `session-<stamp>.log` files.
-- WP20's packet inspector — the recent packets the report includes.
+- The session recording under `recordings/`, which is the packets the report includes.
 - `capture/scrub.ts` — the guarantee the report inherits.
 
 ## Acceptance criteria

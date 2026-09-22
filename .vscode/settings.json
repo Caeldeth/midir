@@ -20,7 +20,7 @@
       {
         "name": "> build:win:portable",
         "command": "npm run build:win:portable"
-      },
+      }
     ],
     "loadNpmCommands": false
   }

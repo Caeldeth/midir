@@ -22,14 +22,17 @@ Local-only for now. CI would need a virtual display (headed/xvfb), so this isn't
     `ELECTRON_RUN_AS_NODE`, and redirects `%LOCALAPPDATA%` to a temp dir so runs are hermetic.
     Reuse `localAppData` across two launches to test persistence.
   - `getMainWindow(app, { bridge? })` — skips the splash and returns the real main window. It
-    finds it by the `window.electron` toolkit bridge (present on every sibling's preload, absent
-    on the splash), so it needs **no per-app change**. Override `bridge` only if you both rename
-    `window.api` *and* drop the toolkit bridge.
+    finds it by the `window.api` bridge (absent on the splash, which has no preload). Midir has
+    no `window.electron` toolkit bridge since WP28.
   - `readGeometry(app, page, selector?)` — native window bounds + a DOM element's on-screen
     left edge, for measuring layout/offsets (see the offset-spec pattern in the house doc).
 - **`app-boot.spec.js`** — smoke: splash → main window revealed → hydrated UI on screen.
 - **`settings-persistence.spec.js`** — change theme → wait for the write to hit disk →
   relaunch same userData → assert it hydrated. The full renderer → IPC → disk → reload loop.
+- **`nav-pages.spec.js`** — opens every tab in the real renderer and asserts none went to the
+  error boundary (HTOO-393). A new view needs one line here; its marker is `page-<view>`.
+- **`ipc-guard.spec.js`** — the main window reaches a privileged channel, and a rogue window
+  with the same preload at the same URL is refused (`windowSecurity.ts`, R-006).
 
 ## Adding specs
 

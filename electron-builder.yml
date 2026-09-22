@@ -1,6 +1,9 @@
 appId: co.eris.midir
 productName: Midir
-icon: resources/midir.png
+# The Windows master, 1024x1024 with real alpha: the Red Hyb variant Midir
+# claims (the document repo's docs/logos). The runtime assets are cut from it;
+# see the recipes beside each use. build/ is buildResources and never packaged.
+icon: build/icon.png
 directories:
   buildResources: build
 files:
@@ -11,7 +14,7 @@ files:
   - '!{.env,.env.*,.npmrc,pnpm-lock.yaml}'
   # The scaffold excludes above miss every other dev tree in the repo root, so
   # they are packaged into app.asar unless they are named here. `resources/**`
-  # must survive — it is asarUnpack'd and holds splash.html and the icon.
+  # must survive — it is asarUnpack'd and holds splash.html and the window icon.
   - '!{coverage,e2e,test-results,playwright-report,docs,scripts,.claude,.agents,.codex,.github}/*'
   - '!{CLAUDE.md,playwright.config.mjs,vitest.config.mjs}'
   - '!**/*.tsbuildinfo'
@@ -53,6 +56,9 @@ portable:
   artifactName: ${name}-${version}-portable.${ext}
 mac:
   category: public.app-category.developer-tools
+  # The square tile (docs/logos/macros/midir_fixed.png) inset to Apple's grid by
+  # scripts/make-icons.mjs, never the Windows master, which is a round emblem.
+  icon: build/icon-mac.png
   hardenedRuntime: true
   gatekeeperAssess: false
   entitlements: build/entitlements.mac.plist
@@ -65,6 +71,18 @@ mac:
 dmg:
   artifactName: ${name}-${version}.${ext}
 linux:
+  # MUST be explicit, and must be a DIRECTORY (HTOO-38). electron-builder
+  # resolves the Linux icon as [linux.icon, mac.icon ?? icon]: mac.icon outranks
+  # the top-level icon, so leaving this unset ships the macOS artwork on Linux,
+  # and a single PNG is never resampled, so a 1024 master becomes one hicolor
+  # entry at a size no desktop indexes, a blank document icon. Regenerate with
+  #   node scripts/make-icons.mjs
+  icon: build/icons
+  # Derives the installed .desktop filename from package.json's `desktopName`,
+  # so it matches StartupWMClass and Electron's app_id (HTOO-63). Without it the
+  # desktop environment cannot associate the running window with the .desktop
+  # entry and shows a generic icon regardless of build/icons/.
+  syncDesktopName: true
   target:
     - AppImage
     - deb

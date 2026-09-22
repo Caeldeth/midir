@@ -40,7 +40,10 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
     if (this.state.message === null) return this.props.children
 
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+      <Box
+        sx={{ display: 'flex', justifyContent: 'center', p: 4 }}
+        data-testid="error-boundary-fallback"
+      >
         <Paper sx={{ p: 4, maxWidth: 620, textAlign: 'center' }}>
           <Typography variant="h5" gutterBottom>
             Something in this view failed

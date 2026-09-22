@@ -2,6 +2,16 @@
 <html>
   <head>
     <meta charset="UTF-8" />
+    <!-- Tighter than the renderer's, and deliberately so: this document has one
+         inline <style>, one same-origin <img> and NO SCRIPT AT ALL, so it grants
+         no script source rather than granting 'self'. Kept byte-identical to
+         SPLASH_CSP in src/main/windowSecurity.ts, which is where the response
+         header is set; windowSecurity.csp.test.ts reads this file and asserts
+         the two agree, because a static document cannot import the constant. -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; style-src 'unsafe-inline'; img-src 'self'"
+    />
     <title>Midir</title>
     <style>
       /* Splash is shown in a frameless, transparent BrowserWindow before the
@@ -72,7 +82,9 @@
   </head>
   <body>
     <div class="card">
-      <img class="logo" src="./midir.png" alt="" />
+      <!-- A 256px webp cut from build/icon.png; the master never ships:
+           magick build/icon.png -resize 256x256 -strip -quality 90 resources/midir-splash.webp -->
+      <img class="logo" src="./midir-splash.webp" alt="" />
       <div class="title">MIDIR</div>
       <div class="subtitle">Loading…</div>
       <div class="spinner"></div>
