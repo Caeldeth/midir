@@ -15,8 +15,9 @@ const TOWN: MapView = {
   height: 3,
   collision: [0, 0, 0, 0, 0, 0x0f, 0x08, 0, 0, 0, 0, 0],
   warps: [
-    { x: 3, y: 0, toMapId: 2, toMapName: 'Field' },
-    { x: 0, y: 2, toMapId: 5, toMapName: '', via: 'dialog' }
+    { x: 3, y: 0, toMapId: 2, toMapName: 'Field', source: 'authored', observations: 3 },
+    { x: 0, y: 2, toMapId: 5, toMapName: '', via: 'dialog', source: 'authored' },
+    { x: 1, y: 0, toMapId: 2, toMapName: 'Field', source: 'learned', observations: 2 }
   ],
   sizeSource: 'graph'
 }
@@ -57,12 +58,20 @@ describe('the Map page', () => {
     await useMapStore.getState().select(1)
     expect(await screen.findByTestId('map-view')).toBeInTheDocument()
     expect(screen.getByTestId('map-caption')).toHaveTextContent(
-      '4 × 3 tiles, size from the world map · 2 warps'
+      '4 × 3 tiles, size from the world map · 3 warps'
     )
     const warps = screen.getAllByTestId('map-warp')
-    expect(warps).toHaveLength(2)
+    expect(warps).toHaveLength(3)
     await userEvent.hover(warps[0]!)
-    expect(await screen.findByText('→ Field')).toBeInTheDocument()
+    expect(
+      await screen.findByText('→ Field · confirmed by the wire, seen 3 times')
+    ).toBeInTheDocument()
+    await userEvent.unhover(warps[0]!)
+    // A warp the wire learned says so, and is drawn apart (WP29).
+    await userEvent.hover(warps[2]!)
+    expect(
+      await screen.findByText('→ Field · learned from the wire, seen 2 times')
+    ).toBeInTheDocument()
   })
 
   it('the picker opens its list, names every map, greys the undrawable, and picks one', async () => {

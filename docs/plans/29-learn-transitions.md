@@ -1,9 +1,37 @@
 # WP29 — learn map transitions from the wire
 
 **Size:** M. **Depends on:** WP14 (position and map, off the wire). Read `00-overview.md` first.
-**PLANNED.** **Card:** `HTOO-78`.
+**COMPLETE 2026-09-22.** **Card:** `HTOO-78`.
 **Trigger to start:** the imported `WorldMap.dat` graph proves stale in play, or a want to let the
-wire verify and extend the graph without a hand edit.
+wire verify and extend the graph without a hand edit. Fired 2026-09-21: the live check found three
+tiles the `.dat` had wrong in one evening (HTOO-82).
+
+**What shipped.** `model/transitions.ts`, a third reducer beside the character and the position,
+watches each connection's walks and answers at every map change whether a step caused it. The
+rule is what 339 walk-warps in the recordings look like: the step's `CWalk 0x06`, the empty
+`0x32` that acknowledges it, then `0x15` and `0x04` — and **no `SMove 0x0B` for the step that
+warps**, because the map change is that step's reply. So the origin is the last confirmed tile plus
+the oldest unanswered step (two are often in flight; the server answers in order), and a teleport,
+a death, or a dialog warp has every step answered and nothing to learn from. Belt and braces: the
+step must be acknowledged, a spell, item, skill, or dialog answer (`0x0F`, `0x1C`, `0x3E`, now
+decoded to their slot; `0x39`, `0x3A`) inside 2 s drops the candidate, and a loss forgets the
+step. A world-map hop is learned too, with the pane's point for the map the client clicked, so the
+walker can use it. `store/transitionStore.ts` keeps `transitions.json`: one record per edge with
+its count, arrival, and times; an edge enters the graph at two crossings, and **one plain tile
+promotes one destination, the one seen most** — the Rucesion Village Way tile (23,11) went to the
+Commons 45 times and, twice, after a notice, to map 3079: a gate's bounce, not a door.
+`route/graph.ts` `mergeLearned` lays the learned edges (`source: 'learned'`), the wire's map
+names (`gameName`) and sizes over the imported nodes, and `route/liveGraph.ts` rebuilds the graph
+the walker, the Laborer, and the Map tab hold whenever either store is written, so a warp learned
+this session is on the next plan. Both names resolve on the Walker tab and the game's shows first.
+The Map tab draws a learned warp in its own colour and says how often the wire saw it.
+
+**Verified over every recording** (44 files, 2026-07-23 to 2026-09-22, the opt-in
+`transitions.recordings.test.ts` under `MIDIR_RECORDINGS`): 110 edges learned, 77 tile for tile
+what the graph holds, 4 beside an authored strip, 16 pairs the `.dat` lacks, 13 maps it does not
+know, none more than two tiles from an authored tile of the same pair. One finding went back into
+the imported layer: the Rucesion Town Hall door is two tiles, (4,6) and (5,6), and the override of
+2026-09-21 had kept only the first.
 
 **Also to learn, noted by WP33 (2026-09-21):** the game's map names. The graph's names come from
 DA Walker's `.dat` ("Abel Outskirts", "Mileth Altar", "MilethEnt"); the game's are on every

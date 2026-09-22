@@ -1,5 +1,13 @@
 import { ClientOpcode, ServerOpcode } from '../opcodes'
 import {
+  decodeUseItem,
+  decodeUseSkill,
+  decodeUseSpell,
+  type UseItem,
+  type UseSkill,
+  type UseSpell
+} from './actions'
+import {
   decodeClientExit,
   decodeClientTransfer,
   decodeLogin,
@@ -72,6 +80,7 @@ import {
   type RemoveInventory
 } from './items'
 
+export * from './actions'
 export * from './board'
 export * from './character'
 export * from './client'
@@ -123,6 +132,9 @@ export type DecodedPacket =
   | ClientExit
   | MerchantResponse
   | PursuitResponse
+  | UseSpell
+  | UseItem
+  | UseSkill
 
 /**
  * A decoder returns null when the body is an opcode Midir models but a variant
@@ -167,7 +179,10 @@ const CLIENT_DECODERS = new Map<number, Decoder>([
   [ClientOpcode.PursuitResponse, decodePursuitResponse],
   [ClientOpcode.FieldMapClick, decodeFieldMapClick],
   [ClientOpcode.Bulletin, decodeBulletinRequest],
-  [ClientOpcode.Exchange, decodeExchangeRequest]
+  [ClientOpcode.Exchange, decodeExchangeRequest],
+  [ClientOpcode.UseSpell, decodeUseSpell],
+  [ClientOpcode.UseItem, decodeUseItem],
+  [ClientOpcode.UseSkill, decodeUseSkill]
 ])
 
 /** True while Midir has a decoder for `opcode`. */

@@ -65,6 +65,6 @@ describe('opcodeName', () => {
 
   it('falls back to the hexadecimal value', () => {
     expect(opcodeName(0x5b, 'serverToClient')).toBe('0x5b')
-    expect(opcodeName(0x1c, 'clientToServer')).toBe('0x1c')
+    expect(opcodeName(0x1d, 'clientToServer')).toBe('0x1d')
   })
 })

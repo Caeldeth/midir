@@ -96,12 +96,17 @@ export async function mapView(ctx: MapHandlerContext, mapId: unknown): Promise<M
   const grid = await ctx.maps.gridFor(mapId, size.width, size.height, overlay)
   if (grid === null) return { ok: false, failure: { kind: 'noCache' } }
 
-  const nameOf = (id: number): string => ctx.graph.node(id)?.name ?? ''
+  // The game's own name first, then the .dat's, then the wire's reading.
+  const nameOf = (id: number): string => {
+    const known = ctx.graph.node(id)
+    return known?.gameName ?? (known?.name !== undefined && known.name !== '' ? known.name : '')
+  }
+  const mapName = nameOf(mapId)
   return {
     ok: true,
     view: {
       mapId,
-      mapName: node?.name !== undefined && node.name !== '' ? node.name : (learned?.name ?? ''),
+      mapName: mapName !== '' ? mapName : (learned?.name ?? ''),
       width: grid.width,
       height: grid.height,
       collision: Array.from(grid.collision),
@@ -110,7 +115,9 @@ export async function mapView(ctx: MapHandlerContext, mapId: unknown): Promise<M
         y: exit.y,
         toMapId: exit.toMapId,
         toMapName: nameOf(exit.toMapId),
-        ...(exit.via !== undefined ? { via: exit.via.kind } : {})
+        ...(exit.via !== undefined ? { via: exit.via.kind } : {}),
+        source: exit.source ?? 'authored',
+        ...(exit.observations !== undefined ? { observations: exit.observations } : {})
       })),
       sizeSource: size.source
     }

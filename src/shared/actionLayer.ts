@@ -174,7 +174,10 @@ export interface WalkerState {
 /** A place the walker can be sent to: a named map from the world graph. */
 export interface WalkerDestination {
   mapId: number
+  /** The .dat's name, or empty when only the wire has named the map. */
   name: string
+  /** The game's own name, from the wire, when it has given one (WP29). */
+  gameName?: string
 }
 
 /** A message worth showing the user for each walk-stop reason. */

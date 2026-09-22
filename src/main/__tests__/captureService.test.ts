@@ -17,6 +17,7 @@ import { createCaptureService } from '../captureService'
 import { ClientOpcode, ServerOpcode } from '../protocol/opcodes'
 import { createCharacterStore } from '../store/characterStore'
 import { createBoardStore } from '../store/boardStore'
+import { createTransitionStore } from '../store/transitionStore'
 import {
   clientSessionBody,
   frameOf,
@@ -817,6 +818,50 @@ describe('createCaptureService', () => {
       const saved = (await store.load()).characters[CHARACTER]
       expect(saved).toBeDefined()
       expect(saved && 'position' in saved).toBe(false)
+      await service.stop()
+    })
+
+    it('learns a walk-warp into the transition store and says the graph changed (WP29)', async () => {
+      // The step East from (5,8), its acknowledgement, the new map, the arrival.
+      const ackBody = [ServerOpcode.StaticObjectState, 0]
+      const transitionStore = createTransitionStore(directory)
+      let rebuilt = 0
+      const service = createCaptureService({
+        store: createCharacterStore(directory),
+        transitionStore,
+        onGraphLearned: () => {
+          rebuilt++
+        },
+        createSource: (): PacketSource =>
+          createReplaySource([
+            ...loginRecording(),
+            worldMove(WORLD, CHARACTER, mapInfoBody(100, 'Mileth'), 3, 2300),
+            worldMove(WORLD, CHARACTER, posBody(5, 8), 4, 2400),
+            worldWalk(WORLD, CHARACTER, walkBody(1, 1), 2500),
+            worldMove(WORLD, CHARACTER, ackBody, 5, 2700),
+            worldMove(WORLD, CHARACTER, mapInfoBody(101, 'Mileth Inn'), 6, 2700),
+            worldMove(WORLD, CHARACTER, posBody(2, 9), 7, 2700)
+          ]),
+        now: () => 7000,
+        saveDebounceMs: 0
+      })
+      await service.start('adapter')
+      await service.flush()
+
+      expect((await transitionStore.load()).edges).toEqual({
+        '100:6,8>101': {
+          fromMapId: 100,
+          x: 6,
+          y: 8,
+          toMapId: 101,
+          arrivalX: 2,
+          arrivalY: 9,
+          observations: 1,
+          firstSeenMs: 2700,
+          lastSeenMs: 2700
+        }
+      })
+      expect(rebuilt).toBe(1)
       await service.stop()
     })
   })

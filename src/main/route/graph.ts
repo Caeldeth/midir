@@ -1,4 +1,6 @@
 import worldmapData from './worldmap.json'
+import type { EdgeSource } from '../../shared/map'
+import type { LearnedEdge } from '../store/transitionStore'
 
 /**
  * The between-maps planner: the graph of how the world connects, and a search
@@ -11,7 +13,11 @@ import worldmapData from './worldmap.json'
  *
  * The graph is data, imported once from DA Walker's WorldMap.dat and versioned
  * as route/worldmap.json (WP15 decision 1). It is not parsed at runtime; see
- * scripts/import-worldmap.mjs for the import.
+ * scripts/import-worldmap.mjs for the import. The wire adds to it at run
+ * time: `mergeLearned` lays the edges the transition learner proved (WP29)
+ * and the names and sizes the wire gave (WP30) over the imported nodes, and
+ * every edge says which source it came from. The imported file is never
+ * written.
  */
 
 /**
@@ -39,6 +45,13 @@ export interface RouteExit {
   y: number
   /** Absent for a warp that fires on the step. */
   via?: RouteHop
+  /**
+   * Where the edge came from. Absent means `authored`: the imported file.
+   * A learned edge is one the wire proved and the file lacks (WP29).
+   */
+  source?: EdgeSource
+  /** How many clean walk-warps the wire saw cross this edge, when any did. */
+  observations?: number
 }
 
 /** One map in the graph, and the warp tiles that leave it. */
@@ -46,6 +59,12 @@ export interface RouteNode {
   mapId: number
   /** The map name, or an empty string when WorldMap.dat had none. */
   name: string
+  /**
+   * The game's own name for the map, from `SMapSize 0x15`, when the wire has
+   * given one (WP29). It differs from the .dat's for many maps ("Abel Port
+   * Way" against "Abel Outskirts"); the errands and the pins use `name`.
+   */
+  gameName?: string
   /** The map size from WorldMap.dat's header, when it had one (47 maps do). */
   width?: number
   height?: number
@@ -82,20 +101,24 @@ export interface RoutePlan {
 /** A place the walker can be asked to go: a named map. */
 export interface RouteDestination {
   mapId: number
+  /** The .dat's name, or empty when only the wire has named the map. */
   name: string
+  /** The game's own name, when the wire has given one. */
+  gameName?: string
 }
 
 export interface RouteGraph {
   /** The node for a map id, or null when the graph does not know it. */
   node(mapId: number): RouteNode | null
-  /** Every named map, sorted by name, for the destination picker. */
+  /** Every named map, sorted by name, for the destination picker. Either name counts. */
   destinations(): RouteDestination[]
   /** Every node, named or not, sorted by map id. The map viewer lists them (WP30). */
   nodes(): RouteNode[]
   /**
    * Resolve a destination given as a name or a map id to a map id in the graph,
-   * or null when nothing matches. A name match is case-insensitive: an exact
-   * name first, then the only node whose name contains the text.
+   * or null when nothing matches. A name match is case-insensitive and reads
+   * both names: an exact name first, then the only node whose name contains
+   * the text.
    */
   resolveDestination(destination: string | number): number | null
   /**
@@ -133,10 +156,18 @@ export function createRouteGraph(nodes: RouteNode[]): RouteGraph {
 
   function destinations(): RouteDestination[] {
     return nodes
-      .filter((n) => n.name !== '')
-      .map((n) => ({ mapId: n.mapId, name: n.name }))
-      .sort((a, b) => a.name.localeCompare(b.name))
+      .filter((n) => n.name !== '' || n.gameName !== undefined)
+      .map((n) => ({
+        mapId: n.mapId,
+        name: n.name,
+        ...(n.gameName !== undefined ? { gameName: n.gameName } : {})
+      }))
+      .sort((a, b) => (a.gameName ?? a.name).localeCompare(b.gameName ?? b.name))
   }
+
+  /** The names a node answers to, lower-cased. */
+  const namesOf = (n: RouteNode): string[] =>
+    [n.name, n.gameName ?? ''].filter((name) => name !== '').map((name) => name.toLowerCase())
 
   function resolveDestination(destination: string | number): number | null {
     if (typeof destination === 'number') {
@@ -150,9 +181,9 @@ export function createRouteGraph(nodes: RouteNode[]): RouteGraph {
       return byId.has(id) ? id : null
     }
     // An exact name wins over a partial one.
-    const exact = nodes.find((n) => n.name.toLowerCase() === text)
+    const exact = nodes.find((n) => namesOf(n).includes(text))
     if (exact !== undefined) return exact.mapId
-    const partial = nodes.filter((n) => n.name !== '' && n.name.toLowerCase().includes(text))
+    const partial = nodes.filter((n) => namesOf(n).some((name) => name.includes(text)))
     return partial.length === 1 ? partial[0].mapId : null
   }
 
@@ -211,5 +242,79 @@ export function createRouteGraph(nodes: RouteNode[]): RouteGraph {
   return { node, nodes: () => sortedNodes, destinations, resolveDestination, planRoute }
 }
 
-/** The world graph, built from the imported WorldMap.dat. */
-export const worldGraph: RouteGraph = createRouteGraph(worldmapData.nodes as RouteNode[])
+/** The imported nodes, as WorldMap.dat and the overrides give them. */
+export const worldNodes: RouteNode[] = worldmapData.nodes as RouteNode[]
+
+/** The world graph, built from the imported WorldMap.dat alone. */
+export const worldGraph: RouteGraph = createRouteGraph(worldNodes)
+
+/** What the wire has said about a map: its name and size from `SMapSize 0x15`. */
+export interface WireMap {
+  name: string
+  width: number
+  height: number
+}
+
+/**
+ * Lay the learned layer over the imported nodes (WP29).
+ *
+ * A learned edge the file already holds (same origin tile, same destination)
+ * confirms it: the exit keeps its source and gains the count. One the file
+ * lacks is added with `source: 'learned'`; when its origin map is not in the
+ * file at all, the map is added as a node, named and sized by the wire. A
+ * learned world-map hop carries the point the client clicked as its `via`.
+ * The wire's name and size go on every node they are known for. The imported
+ * nodes are never changed; the result is a new list.
+ */
+export function mergeLearned(
+  nodes: RouteNode[],
+  learned: LearnedEdge[],
+  wire: Record<string, WireMap> = {}
+): RouteNode[] {
+  const byId = new Map<number, RouteNode>()
+  for (const node of nodes) {
+    byId.set(node.mapId, { ...node, exits: node.exits.map((e) => ({ ...e })) })
+  }
+
+  const ensure = (mapId: number): RouteNode => {
+    const existing = byId.get(mapId)
+    if (existing !== undefined) return existing
+    const added: RouteNode = { mapId, name: '', exits: [] }
+    byId.set(mapId, added)
+    return added
+  }
+
+  for (const edge of learned) {
+    const node = ensure(edge.fromMapId)
+    ensure(edge.toMapId)
+    const known = node.exits.find(
+      (e) => e.toMapId === edge.toMapId && e.x === edge.x && e.y === edge.y
+    )
+    if (known !== undefined) {
+      known.observations = edge.observations
+      continue
+    }
+    node.exits.push({
+      toMapId: edge.toMapId,
+      x: edge.x,
+      y: edge.y,
+      ...(edge.via !== undefined ? { via: edge.via } : {}),
+      source: 'learned',
+      observations: edge.observations
+    })
+  }
+
+  for (const [key, size] of Object.entries(wire)) {
+    const mapId = Number(key)
+    if (!Number.isInteger(mapId)) continue
+    const node = byId.get(mapId)
+    if (node === undefined) continue
+    if (size.name !== '') node.gameName = size.name
+    if (node.width === undefined) {
+      node.width = size.width
+      node.height = size.height
+    }
+  }
+
+  return [...byId.values()]
+}

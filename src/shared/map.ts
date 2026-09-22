@@ -4,6 +4,12 @@
 /** What a warp needs beyond the step, when it needs anything. */
 export type MapHopKind = 'fieldMap' | 'prompt' | 'dialog'
 
+/**
+ * Where an edge of the route graph came from (WP29): the imported
+ * `WorldMap.dat`, the wire, or a later world import.
+ */
+export type EdgeSource = 'authored' | 'learned' | 'ceridwen'
+
 /** One map the viewer can list. */
 export interface MapSummary {
   mapId: number
@@ -21,6 +27,9 @@ export interface MapWarp {
   toMapName: string
   /** Absent for a warp that fires on the step. */
   via?: MapHopKind
+  source: EdgeSource
+  /** How many clean walk-warps the wire saw cross it, when any did. */
+  observations?: number
 }
 
 /**

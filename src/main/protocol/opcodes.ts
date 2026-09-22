@@ -140,6 +140,12 @@ export const ClientOpcode = {
   FieldMapClick: 0x3f,
   /** An action in the exchange window. See decode/exchange.ts. */
   Exchange: 0x4a,
+  /** Casts a spell from a spellbook slot. A map change after one is not a walk. See decode/actions.ts. */
+  UseSpell: 0x0f,
+  /** Uses an item from an inventory slot. See decode/actions.ts. */
+  UseItem: 0x1c,
+  /** Uses a skill from a skillbook slot. See decode/actions.ts. */
+  UseSkill: 0x3e,
   /** Verifies a one-time password. Wire format unknown. See scrub.ts. */
   Otp: 0x8f
 } as const
