@@ -526,6 +526,8 @@
     {
       "mapId": 378,
       "name": "Loures Dungeon",
+      "width": 30,
+      "height": 10,
       "exits": [
         {
           "toMapId": 122,
@@ -875,6 +877,8 @@
     {
       "mapId": 502,
       "name": "Abel",
+      "width": 70,
+      "height": 78,
       "exits": [
         {
           "toMapId": 167,
@@ -2832,6 +2836,8 @@
     {
       "mapId": 2088,
       "name": "",
+      "width": 15,
+      "height": 40,
       "exits": [
         {
           "toMapId": 2089,
@@ -3125,6 +3131,8 @@
     {
       "mapId": 2096,
       "name": "",
+      "width": 15,
+      "height": 40,
       "exits": [
         {
           "toMapId": 2095,
@@ -3146,6 +3154,8 @@
     {
       "mapId": 2099,
       "name": "",
+      "width": 15,
+      "height": 40,
       "exits": [
         {
           "toMapId": 2095,
@@ -3167,6 +3177,8 @@
     {
       "mapId": 2120,
       "name": "Mount Gigaran Enterance",
+      "width": 40,
+      "height": 15,
       "exits": [
         {
           "toMapId": 504,
@@ -3289,6 +3301,8 @@
     {
       "mapId": 2141,
       "name": "",
+      "width": 100,
+      "height": 50,
       "exits": [
         {
           "toMapId": 2140,
@@ -3315,6 +3329,8 @@
     {
       "mapId": 2900,
       "name": "Veltain Mines Enterance",
+      "width": 20,
+      "height": 22,
       "exits": [
         {
           "toMapId": 2901,
@@ -3782,6 +3798,8 @@
     {
       "mapId": 3006,
       "name": "MilethEnt",
+      "width": 16,
+      "height": 24,
       "exits": [
         {
           "toMapId": 449,
@@ -4033,6 +4051,8 @@
     {
       "mapId": 3008,
       "name": "Undine Outskirts",
+      "width": 16,
+      "height": 24,
       "exits": [
         {
           "toMapId": 502,
@@ -4084,6 +4104,8 @@
     {
       "mapId": 3010,
       "name": "Rucesion Village Way",
+      "width": 24,
+      "height": 16,
       "exits": [
         {
           "toMapId": 505,
@@ -4120,6 +4142,8 @@
     {
       "mapId": 3012,
       "name": "Loures",
+      "width": 16,
+      "height": 24,
       "exits": [
         {
           "toMapId": 542,
@@ -4366,6 +4390,8 @@
     {
       "mapId": 3014,
       "name": "Abel Outskirts",
+      "width": 16,
+      "height": 24,
       "exits": [
         {
           "toMapId": 449,
@@ -4507,6 +4533,8 @@
     {
       "mapId": 3016,
       "name": "Suomi Outskirts",
+      "width": 24,
+      "height": 16,
       "exits": [
         {
           "toMapId": 503,
@@ -4588,6 +4616,8 @@
     {
       "mapId": 3020,
       "name": "Piet",
+      "width": 24,
+      "height": 16,
       "exits": [
         {
           "toMapId": 501,
@@ -4821,6 +4851,8 @@
     {
       "mapId": 3048,
       "name": "Rucesion Commons",
+      "width": 20,
+      "height": 12,
       "exits": [
         {
           "toMapId": 3010,
@@ -4847,6 +4879,8 @@
     {
       "mapId": 3049,
       "name": "Rucesion Town Hall",
+      "width": 12,
+      "height": 16,
       "exits": [
         {
           "toMapId": 3048,
@@ -4863,6 +4897,8 @@
     {
       "mapId": 3052,
       "name": "Pravat Cave",
+      "width": 51,
+      "height": 26,
       "exits": [
         {
           "toMapId": 449,
@@ -5301,6 +5337,8 @@
     {
       "mapId": 3059,
       "name": "",
+      "width": 14,
+      "height": 21,
       "exits": [
         {
           "toMapId": 3052,
@@ -5337,6 +5375,8 @@
     {
       "mapId": 3071,
       "name": "",
+      "width": 8,
+      "height": 16,
       "exits": [
         {
           "toMapId": 3012,
@@ -5512,6 +5552,8 @@
     {
       "mapId": 3078,
       "name": "Mehadi Swamp",
+      "width": 12,
+      "height": 18,
       "exits": [
         {
           "toMapId": 4003,
@@ -5538,6 +5580,8 @@
     {
       "mapId": 3079,
       "name": "Mileth Gateway",
+      "width": 14,
+      "height": 7,
       "exits": [
         {
           "toMapId": 449,
@@ -6320,6 +6364,8 @@
     {
       "mapId": 3081,
       "name": "Rucesion Gateway",
+      "width": 14,
+      "height": 7,
       "exits": [
         {
           "toMapId": 502,
@@ -7166,6 +7212,8 @@
     {
       "mapId": 3271,
       "name": "Loures Castle",
+      "width": 65,
+      "height": 77,
       "exits": [
         {
           "toMapId": 109,
@@ -7838,6 +7886,8 @@
     {
       "mapId": 3926,
       "name": "Loures Market",
+      "width": 78,
+      "height": 80,
       "exits": [
         {
           "toMapId": 3271,
@@ -8407,6 +8457,8 @@
     {
       "mapId": 6228,
       "name": "Oren",
+      "width": 133,
+      "height": 200,
       "exits": [
         {
           "toMapId": 502,
@@ -8544,6 +8596,8 @@
     {
       "mapId": 6525,
       "name": "",
+      "width": 100,
+      "height": 150,
       "exits": [
         {
           "toMapId": 6228,
@@ -8658,6 +8712,8 @@
     {
       "mapId": 6925,
       "name": "Loures Harbour",
+      "width": 50,
+      "height": 75,
       "exits": [
         {
           "toMapId": 3012,
@@ -10766,6 +10822,8 @@
     {
       "mapId": 8320,
       "name": "AJ20",
+      "width": 50,
+      "height": 30,
       "exits": [
         {
           "toMapId": 8319,
@@ -10787,6 +10845,8 @@
     {
       "mapId": 8321,
       "name": "AJ21",
+      "width": 30,
+      "height": 60,
       "exits": [
         {
           "toMapId": 8310,
@@ -10853,6 +10913,8 @@
     {
       "mapId": 8322,
       "name": "AJ22",
+      "width": 70,
+      "height": 30,
       "exits": [
         {
           "toMapId": 8321,
@@ -10919,6 +10981,8 @@
     {
       "mapId": 8323,
       "name": "AJ23",
+      "width": 20,
+      "height": 40,
       "exits": [
         {
           "toMapId": 8322,
@@ -10965,6 +11029,8 @@
     {
       "mapId": 8324,
       "name": "AJ24",
+      "width": 40,
+      "height": 40,
       "exits": [
         {
           "toMapId": 8323,
@@ -10991,6 +11057,8 @@
     {
       "mapId": 8325,
       "name": "AJ25",
+      "width": 25,
+      "height": 50,
       "exits": [
         {
           "toMapId": 8324,
@@ -11017,6 +11085,8 @@
     {
       "mapId": 8326,
       "name": "AJ26",
+      "width": 70,
+      "height": 30,
       "exits": [
         {
           "toMapId": 8325,
@@ -11043,6 +11113,8 @@
     {
       "mapId": 8327,
       "name": "AJ27",
+      "width": 40,
+      "height": 40,
       "exits": [
         {
           "toMapId": 8326,
@@ -11069,6 +11141,8 @@
     {
       "mapId": 8328,
       "name": "AJ28 - Hostile VIllage Ent",
+      "width": 20,
+      "height": 40,
       "exits": [
         {
           "toMapId": 8327,
@@ -11115,6 +11189,8 @@
     {
       "mapId": 8329,
       "name": "AJ29 - Hostile VIllage",
+      "width": 20,
+      "height": 40,
       "exits": [
         {
           "toMapId": 8328,
@@ -11806,6 +11882,8 @@
     {
       "mapId": 8345,
       "name": "YT1",
+      "width": 20,
+      "height": 60,
       "exits": [
         {
           "toMapId": 8318,
@@ -11852,6 +11930,8 @@
     {
       "mapId": 8346,
       "name": "YT2",
+      "width": 100,
+      "height": 20,
       "exits": [
         {
           "toMapId": 8345,
@@ -12076,6 +12156,8 @@
     {
       "mapId": 8350,
       "name": "YT6",
+      "width": 60,
+      "height": 40,
       "exits": [
         {
           "toMapId": 8349,
@@ -12132,6 +12214,8 @@
     {
       "mapId": 8351,
       "name": "YT7",
+      "width": 50,
+      "height": 30,
       "exits": [
         {
           "toMapId": 8350,
@@ -12361,6 +12445,8 @@
     {
       "mapId": 8355,
       "name": "YT11",
+      "width": 50,
+      "height": 15,
       "exits": [
         {
           "toMapId": 8354,
@@ -12417,6 +12503,8 @@
     {
       "mapId": 8356,
       "name": "YT12",
+      "width": 60,
+      "height": 60,
       "exits": [
         {
           "toMapId": 8355,
@@ -12948,6 +13036,8 @@
     {
       "mapId": 10000,
       "name": "Asilon",
+      "width": 90,
+      "height": 80,
       "exits": [
         {
           "toMapId": 10004,
@@ -12997,6 +13087,8 @@
     {
       "mapId": 10004,
       "name": "",
+      "width": 21,
+      "height": 16,
       "exits": [
         {
           "toMapId": 10000,
@@ -13419,6 +13511,8 @@
     {
       "mapId": 10028,
       "name": "",
+      "width": 55,
+      "height": 33,
       "exits": [
         {
           "toMapId": 10008,

@@ -30,6 +30,8 @@ export * from './items'
 export * from './log'
 export * from './actionLayer'
 export * from './boards'
+export * from './map'
+import type { MapPosition, MapSummary, MapViewResult } from './map'
 
 /** How **Open GitHub issue** ended. The copy to the clipboard happened in both cases. */
 export type OpenIssueResult = { ok: true; truncated: boolean } | { ok: false; reason: 'unsafe-url' }
@@ -315,6 +317,14 @@ export interface MidirApi {
     pollState: () => Promise<BoardPollState[]>
     /** Watch a poll as it changes. Call the result to stop watching. */
     onPollState: (handler: (state: BoardPollState) => void) => () => void
+  }
+  map: {
+    /** Every map the graph or the wire knows, by id (WP30). */
+    list: () => Promise<MapSummary[]>
+    /** One map's passability and warps, or why it cannot be drawn. */
+    view: (mapId: number) => Promise<MapViewResult>
+    /** Where every live character stands now. */
+    positions: () => Promise<MapPosition[]>
   }
   characters: {
     /** Every character Midir has recorded, newest first. */

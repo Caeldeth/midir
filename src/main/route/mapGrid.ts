@@ -77,6 +77,11 @@ export interface MapGrid {
   /** True while (x, y) is inside the map. */
   inBounds(x: number, y: number): boolean
   /**
+   * One blocked-direction nibble per tile, row-major: the OR of both statics'
+   * SOTP bits, the door overlay applied. The map viewer draws it (WP30).
+   */
+  readonly collision: Uint8Array
+  /**
    * Can the player step from (x, y) in a walk direction (0-3)?
    *
    * The move is blocked when the direction's collision bit is set on either the
@@ -138,5 +143,5 @@ export function buildMapGrid(
     return true
   }
 
-  return { width, height, inBounds, canMove }
+  return { width, height, collision: blockedBits, inBounds, canMove }
 }

@@ -61,6 +61,7 @@ import {
 } from './windowSecurity'
 import { createCharacterStore } from './store/characterStore'
 import { createBoardStore, readPostIds } from './store/boardStore'
+import { createMapStore } from './store/mapStore'
 
 // Settings + cache both under %LOCALAPPDATA%/Erisco/Midir (local). On Windows,
 // Electron's appData path is the ROAMING dir, so we resolve %LOCALAPPDATA%
@@ -297,9 +298,15 @@ if (replayPath !== undefined) {
   )
 }
 
+// The map sizes the wire names (WP30), so the viewer can read a cache file.
+const mapStore = createMapStore(settingsPath, (failure) => {
+  log.error('maps', `${failure.stage}: ${failure.path} — ${failure.message}`)
+})
+
 const captureService = createCaptureService({
   store: characterStore,
   boardStore,
+  mapStore,
   onBoards: () => pushToRenderer(BOARDS_CHANGED_CHANNEL, undefined),
   createSource: (device) => {
     if (replayLines !== null) return createReplaySource(replayLines)
@@ -476,6 +483,13 @@ const ctx: HandlerContext = {
   characterStore,
   boardStore,
   boardPoll,
+  mapStore,
+  graph: worldGraph,
+  maps: mapSource,
+  gameFolder: () => darkAgesPath,
+  liveConnections: () => captureService.liveCharacterEntries(),
+  positionFor: (connectionId) => captureService.positionFor(connectionId),
+  doorsFor: (connectionId) => captureService.doorsFor(connectionId),
   actionLayer,
   speaker,
   walker,

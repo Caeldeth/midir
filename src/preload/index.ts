@@ -17,6 +17,9 @@ import type {
   LogEntry,
   OpenIssueResult,
   LogFileInfo,
+  MapPosition,
+  MapSummary,
+  MapViewResult,
   MidirApi,
   MidirSettings,
   RecordingInfo,
@@ -123,6 +126,11 @@ const api: MidirApi = {
       subscribe('boards:poll-changed', handler)
   },
 
+  map: {
+    list: (): Promise<MapSummary[]> => ipcRenderer.invoke('map:list'),
+    view: (mapId: number): Promise<MapViewResult> => ipcRenderer.invoke('map:view', mapId),
+    positions: (): Promise<MapPosition[]> => ipcRenderer.invoke('map:positions')
+  },
   characters: {
     list: (): Promise<CharacterRecord[]> => ipcRenderer.invoke('characters:list'),
     get: (name: string): Promise<CharacterRecord | null> =>

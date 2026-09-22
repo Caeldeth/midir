@@ -15,6 +15,7 @@ import { registerCaptureHandlers, type CaptureHandlerContext } from './capture'
 import { registerCharacterHandlers, type CharacterHandlerContext } from './characters'
 import { registerDiagnosticsHandlers, type DiagnosticsHandlerContext } from './diagnostics'
 import { registerIconsHandlers } from './icons'
+import { registerMapHandlers, type MapHandlerContext } from './map'
 import { registerSettingsHandlers, type SettingsHandlerContext } from './settings'
 
 export * from './assist'
@@ -23,6 +24,7 @@ export * from './capture'
 export * from './characters'
 export * from './diagnostics'
 export * from './icons'
+export * from './map'
 export * from './settings'
 
 export interface HandlerContext
@@ -32,7 +34,8 @@ export interface HandlerContext
     CharacterHandlerContext,
     DiagnosticsHandlerContext,
     AssistHandlerContext,
-    BoardHandlerContext {
+    BoardHandlerContext,
+    MapHandlerContext {
   settingsPath: string
   settingsManager: ReturnType<typeof createSettingsManager>
   appGetVersion: () => string
@@ -92,4 +95,5 @@ export function registerHandlers(deps: RegisterDeps, ctx: HandlerContext): void 
   registerIconsHandlers(ipcMain, dialog, BrowserWindow, ctx.updateDarkAgesPath)
   registerAssistHandlers(ipcMain, ctx)
   registerBoardHandlers(ipcMain, dialog, BrowserWindow, ctx)
+  registerMapHandlers(ipcMain, ctx)
 }

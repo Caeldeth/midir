@@ -62,7 +62,10 @@ const MAX_TILE = 300
  * ints, and the rest of the line is the name. Names start with a letter, so
  * consuming up to two integer tokens as the size never eats a name.
  *
- * Returns `{ mapId, name }` or null when the first token is not a map id.
+ * Returns `{ mapId, name, width?, height? }` or null when the first token is
+ * not a map id. The size is kept when both ints are positive (`-1 -1` means
+ * DA Walker did not know it), because the map viewer (WP30) needs a size to
+ * read the map cache for a map the character is not standing on.
  */
 function parseHeader(line) {
   const tokens = line.trim().split(/\s+/)
@@ -71,12 +74,16 @@ function parseHeader(line) {
   if (!/^\d+$/.test(tokens[i] ?? '')) return null
   const mapId = Number(tokens[i])
   i++
-  let consumed = 0
-  while (consumed < 2 && /^-?\d+$/.test(tokens[i] ?? '')) {
+  const size = []
+  while (size.length < 2 && /^-?\d+$/.test(tokens[i] ?? '')) {
+    size.push(Number(tokens[i]))
     i++
-    consumed++
   }
-  return { mapId, name: tokens.slice(i).join(' ').trim() }
+  const name = tokens.slice(i).join(' ').trim()
+  if (size.length === 2 && size[0] > 0 && size[1] > 0) {
+    return { mapId, name, width: size[0], height: size[1] }
+  }
+  return { mapId, name }
 }
 
 /** All whitespace-separated integers on a line, or null when a token is not an int. */
@@ -201,6 +208,10 @@ export function parseWorldMap(text) {
       node.name = name
       namedCount++
     }
+    if (header.width !== undefined && node.width === undefined) {
+      node.width = header.width
+      node.height = header.height
+    }
     nodes.set(mapId, node)
 
     // Walk the exit lines. A destination line sets the current destination and
@@ -238,6 +249,7 @@ export function parseWorldMap(text) {
     .map((n) => ({
       mapId: n.mapId,
       name: n.name,
+      ...(n.width !== undefined ? { width: n.width, height: n.height } : {}),
       exits: [...n.exits.values()].sort((a, b) => a.toMapId - b.toMapId || a.x - b.x || a.y - b.y)
     }))
 

@@ -159,6 +159,12 @@ export interface WalkerState {
   position?: WalkerPosition
   /** The next warp the walker is heading for, when one is planned. */
   nextWarp?: { toMapId: number; x: number; y: number }
+  /**
+   * The tiles of the path the walker last planned, from the next step to the
+   * goal, on `position`'s map. The map viewer draws it (WP30). Absent when
+   * nothing is planned; empty when the character stands on the goal.
+   */
+  path?: { x: number; y: number }[]
   /** How many confirmed steps the walker has taken this run. */
   stepsTaken: number
   /** Why the walker stopped, when it stopped for a reason worth showing. */

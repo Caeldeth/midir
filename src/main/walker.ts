@@ -250,6 +250,8 @@ interface Run {
   stepsTaken: number
   lastPosition?: Position
   nextWarp?: { toMapId: number; x: number; y: number }
+  /** The path last planned, for the map viewer. */
+  path?: { x: number; y: number }[]
   /** Capture time of the last world map pane written to the log, so a retry does not repeat it. */
   loggedPaneAt?: number
   /** Popups already clicked, keyed by kind and capture time, so none is clicked twice. */
@@ -296,6 +298,7 @@ function gridWithBlocks(
   return {
     width: grid.width,
     height: grid.height,
+    collision: grid.collision,
     inBounds: grid.inBounds,
     canMove: (x, y, direction) => {
       const delta = DIRECTION_DELTA[direction]
@@ -371,6 +374,7 @@ export function createWalker(options: WalkerOptions): Walker {
       destination: run.destination,
       ...(run.lastPosition !== undefined ? { position: toWalkerPosition(run.lastPosition) } : {}),
       ...(run.nextWarp !== undefined ? { nextWarp: run.nextWarp } : {}),
+      ...(run.path !== undefined ? { path: run.path } : {}),
       stepsTaken: run.stepsTaken,
       ...(reason !== undefined ? { reason } : {})
     })
@@ -997,6 +1001,7 @@ export function createWalker(options: WalkerOptions): Walker {
       }
 
       run.nextWarp = { toMapId: leg.toMapId, x: best.warp.x, y: best.warp.y }
+      run.path = best.path.map((step) => ({ x: step.x, y: step.y }))
       publish(run)
 
       const before = position
@@ -1411,6 +1416,9 @@ export function createWalker(options: WalkerOptions): Walker {
         )
         return { kind: 'stopped', reason: 'blocked' }
       }
+
+      run.path = best.map((s) => ({ x: s.x, y: s.y }))
+      publish(run)
 
       const step = best[0]!
       const isTurn = step.direction !== facing
