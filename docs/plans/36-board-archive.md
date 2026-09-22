@@ -50,8 +50,8 @@ first live capture settles it by comparing the value with the row clicked.
 `W` key, and when a board in the world is clicked). Action 2 `[u16 boardId][u16 startPostId]
 [s8 navOffset]` lists a page: the client's first page is `0x7FFF, -16`, and its older-page request
 is `(oldest loaded id − 1), -16`. Action 3 `[u16 boardId][u16 postId][s8 navOffset]` reads one post:
-`0` for the row clicked, `-1`/`+1` for the Prev and Next buttons, which are **server-side sibling
-navigation**. Board 0 is the mailbox. Actions 4–7 write (post, delete, send mail, highlight) and
+`0` for the row clicked, `-1`/`+1` for the Prev and Next buttons (server-side sibling navigation,
+which the poll does not use; see decision 4). Board 0 is the mailbox. Actions 4–7 write (post, delete, send mail, highlight) and
 Midir never sends them; they are decoded for the record so the player's own posts are on it.
 
 **No recording on disk holds a `0x31`.** The 26 recordings' `0x3B` packets are all the server's
@@ -77,7 +77,7 @@ new id.
 ## The one way to get this wrong
 
 **Answering, sending, or deleting.** Every dialog in the board UI has buttons that write: New,
-Reply, Delete, Hilight. A driven poll clicks rows and three navigation buttons (View, Next, Up)
+Reply, Delete, Hilight. A driven poll clicks rows, the list's scroll, and two buttons (View, Up)
 and nothing else, and the pane positions it clicks are measured, not guessed, by the pane watcher
 from a hand click paired with the client's own `0x3B` — the WP17 method. A poll that finds a
 dialog it does not expect (a compose pane, a result alert, anything not types 1–5) stops, as the
@@ -105,19 +105,28 @@ never right of the Content pane on a post.
    prototype wrote: `boardId`, `boardName`, `capturedUtc`, `posts[]`), and one button: **Read
    everything**. The poll then, on the selected window: opens the mailbox (`W`), which lists the
    boards; for each board in the list, clicks its row and View, reads the list page off the wire,
-   pages older by scrolling to the bottom until a page adds no new id, then clicks the newest row
-   and View and walks every post with **Next** until the server answers with the no-article result
-   (or a post already in the archive with a body, when the poll is asked to fill gaps only); then
-   Up, and the next board. The mailbox is a board like any other. Every gesture waits for its packet
+   pages older by scrolling to the bottom until a page adds no new id, then opens every post the
+   list holds from its own row (row and View, newest first; a post already in the archive with a
+   body is skipped when the poll is asked to fill gaps only); then Up, and the next board. The mailbox is a board like any other. Every gesture waits for its packet
    before the next, and a gesture the wire does not answer within its wait stops the poll with the
    reason named, never a loop. The poll reads the profile too: it clicks the profile button once at
    the start, so the legend is read (#25 keeps it).
-4. **Next, not the list, walks the bodies.** The Prev and Next buttons are server-side sibling
-   navigation (`navOffset ±1`), so the poll does not need the list to find every post: it opens
-   the newest and presses Next until the end. The list is still read, because it carries the
-   highlight flag and proves the walk complete: a post in the list with no body after the walk is
-   logged as one the walk missed. Which of Prev and Next is older is measured on the first live run
-   and kept as a named constant with the observation.
+4. **The list walks the bodies, as Brigid does.** Brigid's boards went through extensive trouble
+   and now handle retail correctly, and the poll does what its `PostListPane` and `WorldScreen`
+   wiring do, not something of its own: page the list with the cursor at the oldest held id (the
+   reply includes the cursor post, so dedupe by id absorbs the overlap), a first page shorter than
+   16 rows ends paging at once, a later page that adds no new id ends it, one page request in
+   flight per board and never another until its reply lands (the client's own list re-requests
+   the same cursor for ever on an exhausted or empty board, and the poll must not let it); then
+   open every post by its own id from its row (`0x3B` action 3 with `navOffset 0`), newest first,
+   deduped against the bodies held. Prev and Next are never used for the walk: Brigid steps by
+   id ±1 itself rather than trust them, and a poll that leaned on them would depend on the
+   server's sibling rule and would have no proof it saw every post. The list is the proof: a
+   post in the list with no body after the walk is logged as one the walk missed, and the poll
+   opens it again once before it moves on. The list dialog shows a page of rows at a time, so the
+   poll scrolls: the gesture that pages the client's list (the scroll bar, or the keys the dialog
+   consumes) is measured on the first live run by the pane watcher, like every other position,
+   and a row is clicked only while it is on screen.
 5. **The pane positions are measured before they are used.** The layouts (`_nbdlist.txt`,
    `_narlist.txt`, `_narti.txt`, `_nmaill.txt`, `_nmailr.txt` in `setoa.dat`) give a 581 × 290 pane
    with View at 507–568 × 35–57 (board list), the list rows in 19–499 × 18–273, Prev/Next at
@@ -189,9 +198,10 @@ and a push channel for the poll's state and for a changed board.
 2. A hand browse of one board fills `boards.json` with every header seen and every body opened,
    and a restart shows the same. A header never replaces a body.
 3. The mailbox is stored under the character's key and never under another character's.
-4. The poll reads a whole board with no key pressed but `W` and no button clicked but rows, View,
-   Next, and Up; the log states every click's pane position and the `0x3B` that followed it; and a
-   post that the list holds and the walk missed is named in the log.
+4. The poll reads a whole board with no key pressed but `W` and the list's own scroll, and no
+   button clicked but rows, View, and Up; the log states every click's pane position and the `0x3B`
+   that followed it; every post the list holds has a body at the end, or is named in the log as one
+   the walk missed twice.
 5. The poll stops on a compose dialog, a result alert, the credential pane, and a stop; it never
    sends `0x3B` action 4, 5, 6, or 7 (asserted in the tests and grep-able in the log).
 6. The export is the prototype's shape, and a board of 200 posts exports in one file.
