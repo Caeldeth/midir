@@ -34,6 +34,17 @@ describe('settingsManager', () => {
     expect((await mgr.load()).walkerRightClick).toBe(true)
   })
 
+  it('keeps hide-unseen off by default, round-trips it, and floors a bad value (WP25)', async () => {
+    const mgr = createSettingsManager(dir)
+    expect(DEFAULT_SETTINGS.hideUnseenDays).toBe(0)
+    await mgr.save({ ...DEFAULT_SETTINGS, hideUnseenDays: 30 })
+    expect((await mgr.load()).hideUnseenDays).toBe(30)
+    await writeFile(join(dir, 'settings.json'), JSON.stringify({ hideUnseenDays: -4.5 }))
+    expect((await mgr.load()).hideUnseenDays).toBe(0)
+    await writeFile(join(dir, 'settings.json'), JSON.stringify({ hideUnseenDays: 'soon' }))
+    expect((await mgr.load()).hideUnseenDays).toBe(0)
+  })
+
   it('writes human-readable JSON to settings.json', async () => {
     const mgr = createSettingsManager(dir)
     await mgr.save({ ...DEFAULT_SETTINGS, theme: 'chadul' })

@@ -131,6 +131,7 @@ Aliases: `@renderer` to `src/renderer/src`, `@shared` to `src/shared`.
 - **The recordings cap never deletes the file capture is writing.** `pruneRecordings` and every
   delete path take the path from `captureService.status().recordingPath` and skip it. Removing a
   file under the recorder would corrupt the running session.
+- **The settings save payload is derived, never listed.** `shared/settings.ts` builds it from `DEFAULT_SETTINGS`'s keys (plus the optional `darkAgesPath` when set), and `settingsPayload.test.ts` pins the keys to the Zod schema's. A destructured list was silent data loss on the next field added (the template's HTOO-235). Adding a setting is: the type and default, `withDefaults` in the manager, the schema, the store setter.
 - **Hand-rolled crash-safe JSON settings** under `%LOCALAPPDATA%\Erisco\Midir` (resolve `LOCALAPPDATA` yourself on win32), atomic tmp to rename with a `.bak`, Zod-validated on save.
 - **Path safety**: validate every renderer-supplied path against allowed roots (`assertInside*`).
 - **Six shared themes** — four Dark Ages (hybrasyl default, chadul, danaan, grinneal) plus the corporate pair (mundanes light, dubhaimid dark). Cinzel and Crimson fonts. Scrollbar colors go to `:root` CSS variables. The `ThemeName` union lives in `shared/`.
