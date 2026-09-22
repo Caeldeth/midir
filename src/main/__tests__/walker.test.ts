@@ -1151,7 +1151,7 @@ describe('walker and a gated map (WP32)', () => {
 })
 
 describe('the destination picker', () => {
-  it('offers a spot as "Place @ x,y" beside the map names, once', () => {
+  it('offers the named maps and nothing else: the end tile is its own field', () => {
     const world = lineWorld()
     const walker = createWalker({
       actionLayer: { stopped: false } as unknown as ActionLayer,
@@ -1159,19 +1159,9 @@ describe('the destination picker', () => {
       positionFor: () => world.position,
       maps: { gridFor: async () => null },
       graph: createRouteGraph(lineGraph()),
-      log: noop,
-      spots: () => [
-        { destination: 'Cave', tile: { x: 1, y: 0 } },
-        { destination: 3, tile: { x: 1, y: 0 } },
-        { destination: 'Nowhere', tile: { x: 0, y: 0 } }
-      ]
+      log: noop
     })
-    expect(walker.destinations().map((d) => d.name)).toEqual([
-      'Cave',
-      'Cave @ 1,0',
-      'Field',
-      'Town'
-    ])
+    expect(walker.destinations().map((d) => d.name)).toEqual(['Cave', 'Field', 'Town'])
   })
 })
 

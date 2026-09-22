@@ -47,6 +47,33 @@ describe('useWalkerStore', () => {
     expect(window.api.walker.go).not.toHaveBeenCalled()
   })
 
+  it('sends the end tile from the fields, to stand on', () => {
+    window.api.walker.go = vi.fn(async () => ({ kind: 'arrived' as const }))
+    useWalkerStore.getState().go('A', 'Rucesion Bank', { x: 6, y: 8 })
+    expect(window.api.walker.go).toHaveBeenCalledWith({
+      connectionId: 'A',
+      destination: 'Rucesion Bank',
+      tile: { x: 6, y: 8 },
+      arrive: 'on'
+    })
+  })
+
+  it('reads a pinned "Place @ x,y" as its own end tile when the fields give none', () => {
+    window.api.walker.go = vi.fn(async () => ({ kind: 'arrived' as const }))
+    useWalkerStore.getState().go('A', 'Rucesion Bank @ 6,8')
+    expect(window.api.walker.go).toHaveBeenCalledWith({
+      connectionId: 'A',
+      destination: 'Rucesion Bank',
+      tile: { x: 6, y: 8 },
+      arrive: 'on'
+    })
+    useWalkerStore.getState().go('A', 'Mileth')
+    expect(window.api.walker.go).toHaveBeenLastCalledWith({
+      connectionId: 'A',
+      destination: 'Mileth'
+    })
+  })
+
   it('keeps the outcome when a walk ends', async () => {
     window.api.walker.go = vi.fn(async () => ({
       kind: 'stopped' as const,
