@@ -26,6 +26,7 @@ import { createPaneWatcher } from './paneWatcher'
 import { createMapSource } from './route/mapSource'
 import { worldNodes, type XmlNode } from './route/graph'
 import xmlworld from './route/xmlworld.json'
+import mapnames from './route/mapnames.json'
 import { createLiveGraph } from './route/liveGraph'
 import { seededGates, type Passport } from './route/access'
 import { createIconService } from './icons/iconService'
@@ -315,7 +316,12 @@ const transitionStore = createTransitionStore(settingsPath, (failure) => {
 const worldGraph = createLiveGraph(worldNodes)
 async function rebuildGraph(): Promise<void> {
   const [transitions, maps] = await Promise.all([transitionStore.load(), mapStore.load()])
-  worldGraph.update({ transitions, wire: maps.maps, xml: xmlworld.nodes as XmlNode[] })
+  worldGraph.update({
+    transitions,
+    wire: maps.maps,
+    xml: xmlworld.nodes as XmlNode[],
+    names: mapnames.names
+  })
 }
 rebuildGraph().catch((error: unknown) => {
   log.error('transitions', `The learned graph would not build: ${String(error)}`)

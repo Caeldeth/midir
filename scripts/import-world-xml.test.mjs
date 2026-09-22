@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { buildNodes, disagreements, parseMapXml } from './import-world-xml.mjs'
+import {
+  buildNodes,
+  disagreements,
+  hybrasylOnly,
+  parseMapXml,
+  RETAIL_MAP_IDS_END
+} from './import-world-xml.mjs'
 
 /**
  * The world XML importer (WP24, provisional). The snippet is the shape of
@@ -93,5 +99,22 @@ describe('disagreements', () => {
       }
     ])
     expect(disagreements([commons], [commons])).toEqual([])
+  })
+})
+
+describe('hybrasylOnly', () => {
+  const names = { 3048: 'Rucesion Commons', 700: 'Aisling Undercroft' }
+
+  it('leaves out a map retail does not have', () => {
+    // Retail stops below 30000, whatever the map is called.
+    expect(RETAIL_MAP_IDS_END).toBe(30000)
+    expect(hybrasylOnly({ mapId: 30400, name: 'Undine' }, names)).toBe(true)
+    // An Old or Undercroft map stands or falls by the name list.
+    expect(hybrasylOnly({ mapId: 3048, name: 'Old Rucesion Commons' }, names)).toBe(false)
+    expect(hybrasylOnly({ mapId: 700, name: 'Undercroft 1' }, names)).toBe(false)
+    expect(hybrasylOnly({ mapId: 701, name: 'Undercroft 2' }, names)).toBe(true)
+    expect(hybrasylOnly({ mapId: 702, name: 'Old Dubhaim Keep' }, names)).toBe(true)
+    // Every other map is retail's, named or not.
+    expect(hybrasylOnly({ mapId: 703, name: 'Mehadi Swamp 3' }, names)).toBe(false)
   })
 })

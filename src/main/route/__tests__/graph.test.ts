@@ -455,6 +455,48 @@ describe('the learned layer (WP29, WP30, WP24)', () => {
     expect(XML_PROMOTION_OBSERVATIONS).toBe(1)
   })
 
+  it('a seed name reaches a map nothing else names, and the wire replaces it (WP38)', () => {
+    // A .dat that names one of its three maps.
+    const nameless: RouteNode[] = [
+      { mapId: 1, name: 'Town', exits: [{ toMapId: 6, x: 3, y: 4 }] },
+      { mapId: 6, name: '', exits: [{ toMapId: 1, x: 0, y: 0 }] },
+      { mapId: 7, name: '', exits: [{ toMapId: 6, x: 1, y: 1 }] }
+    ]
+    const names = { 1: 'Old Town', 6: 'Mileth Storage', 7: 'Suomi Way', 99: 'Nowhere' }
+    const seeded = mergeLearned(nameless, layer([], { names }))
+    const nodeOf = (list: RouteNode[], mapId: number): RouteNode =>
+      list.find((n) => n.mapId === mapId)!
+
+    // The .dat's name is shown, the seed's is answered to, and a seed for a
+    // map with no node adds nothing.
+    expect(nodeOf(seeded, 1)).toMatchObject({ name: 'Town', seedName: 'Old Town' })
+    expect(nodeOf(seeded, 1).gameName).toBeUndefined()
+    expect(createRouteGraph(seeded).resolveDestination('old town')).toBe(1)
+    expect(seeded.some((n) => n.mapId === 99)).toBe(false)
+    // The nameless maps take the seed, and it resolves like any other name.
+    expect(nodeOf(seeded, 6).gameName).toBe('Mileth Storage')
+    expect(nodeOf(seeded, 7).gameName).toBe('Suomi Way')
+    expect(createRouteGraph(seeded).resolveDestination('suomi way')).toBe(7)
+
+    // The seed outranks the XML's Hybrasyl name, and the wire outranks both.
+    const over = mergeLearned(
+      nameless,
+      layer([], {
+        names,
+        xml: [{ mapId: 7, name: 'Old Suomi Way', width: 4, height: 4, exits: [] }],
+        wire: { 6: { name: 'Mileth Bank', width: 9, height: 9 } }
+      })
+    )
+    expect(nodeOf(over, 6).gameName).toBe('Mileth Bank')
+    expect(nodeOf(over, 7).gameName).toBe('Suomi Way')
+    // The XML still names a map the list does not.
+    const xmlOnly = mergeLearned(
+      nameless,
+      layer([], { names, xml: [{ mapId: 8, name: 'Old Cellar', width: 4, height: 4, exits: [] }] })
+    )
+    expect(nodeOf(xmlOnly, 8).gameName).toBe('Old Cellar')
+  })
+
   it('the live graph answers from the newest merge', () => {
     const live = createLiveGraph(NODES)
     expect(live.planRoute(1, 5)).toBeNull()

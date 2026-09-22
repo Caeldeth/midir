@@ -65,6 +65,14 @@ export interface RouteNode {
    * Way" against "Abel Outskirts"); the errands and the pins use `name`.
    */
   gameName?: string
+  /**
+   * The map name the seed list gives (WP38). It outranks the world XML's,
+   * because the XML names a retail map as Hybrasyl authored it ("Old Rucesion
+   * Commons"), and it stands beside WorldMap.dat's rather than over it: the
+   * two disagree on 260 names and either can be right, so the node answers to
+   * both and shows the .dat's.
+   */
+  seedName?: string
   /** The map size from WorldMap.dat's header, when it had one (47 maps do). */
   width?: number
   height?: number
@@ -173,7 +181,9 @@ export function createRouteGraph(nodes: RouteNode[]): RouteGraph {
 
   /** The names a node answers to, lower-cased. */
   const namesOf = (n: RouteNode): string[] =>
-    [n.name, n.gameName ?? ''].filter((name) => name !== '').map((name) => name.toLowerCase())
+    [n.name, n.gameName ?? '', n.seedName ?? '']
+      .filter((name) => name !== '')
+      .map((name) => name.toLowerCase())
 
   function resolveDestination(destination: string | number): number | null {
     if (typeof destination === 'number') {
@@ -281,6 +291,12 @@ export interface LearnedLayer {
   wire?: Record<string, WireMap>
   /** The world XML, when it is in. */
   xml?: XmlNode[]
+  /**
+   * Seed names by map id, as `mapnames.json` holds them (WP38). They are the
+   * weakest name in the graph: one reaches a map only when no other source
+   * names it, and the wire replaces it on the first visit.
+   */
+  names?: Record<string, string>
 }
 
 const sameTile = (
@@ -297,9 +313,11 @@ const sameTile = (
  * that it is a candidate. A world XML edge is a candidate until the wire
  * crosses it once or the user accepts it, and then an exit with
  * `source: 'xml'`. An accepted edge no source holds is `curated`. A map no
- * source in the file knows is added as a node, named by the wire first and
- * the XML second, and sized by whichever has a size. The imported nodes are
- * never changed; the result is a new list.
+ * source in the file knows is added as a node, and sized by whichever source
+ * has a size. A name comes from the wire first, the seed list second, and the
+ * XML last (WP38), and a map WorldMap.dat names keeps that name and answers to
+ * the seed list's as well. The imported nodes are never changed; the result is a new
+ * list.
  */
 export function mergeLearned(nodes: RouteNode[], layer: LearnedLayer): RouteNode[] {
   const { transitions } = layer
@@ -401,7 +419,19 @@ export function mergeLearned(nodes: RouteNode[], layer: LearnedLayer): RouteNode
     })
   }
 
-  // The wire's word on names and sizes wins over the XML's.
+  // The seed names (WP38). The list outranks the XML, whose name for a retail
+  // map is Hybrasyl's own, and it ties with WorldMap.dat, so a map the .dat
+  // names keeps that name and answers to both. The list names no map of its
+  // own, because a name with no edge behind it is a destination the walker
+  // cannot plan a route to.
+  for (const [key, name] of Object.entries(layer.names ?? {})) {
+    const node = byId.get(Number(key))
+    if (node === undefined || name === '') continue
+    node.seedName = name
+    if (node.name === '') node.gameName = name
+  }
+
+  // The wire's word on names and sizes wins over the XML's and the seed's.
   for (const [key, size] of Object.entries(wire)) {
     const mapId = Number(key)
     if (!Number.isInteger(mapId)) continue
