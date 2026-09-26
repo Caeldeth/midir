@@ -66,6 +66,17 @@ plans written first. This file stays the law; a WP doc has to agree with it.
 
 Never name the internal document repo in commits, PR titles, PR bodies, or branch names. Call it "the document repo".
 
+**Do not edit the document repo's protocol pages from this repo, and not without express permission.**
+A measurement Midir makes that a page does not hold is filed as a card on the ERISCO board, labelled
+`Comhaigne`, for the owner of the page to accept or refuse. `darkages-741-re` belongs to another
+author, so anything for it is an upstream report at most.
+
+**A claim that Chaos-Server is right where Hybrasyl is wrong must be defended rigorously.** Hybrasyl
+is built for retail compatibility; Chaos makes no such promise. So the prior runs the other way, and
+the burden is on the claim against Hybrasyl. A difference the client cannot observe — trailing bytes
+past the field it reads, for one — is trivia about a serializer and is not evidence of either. State
+what was measured, and stop there.
+
 ## Commands
 
 ```bash
