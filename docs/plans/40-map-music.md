@@ -48,9 +48,23 @@ Each verified the same read against the binary, and `WIRE-FORMATS.md` gives the 
 What neither records is what the **retail server** emits, and each leaves a hedge in place of it: the
 document repo's page reports the four-byte form as Chaos's own "unread slack" against Hybrasyl's two
 bytes, and `darkages-741-re` says only that "some server implementations may append another `u16`".
-The measurement above names retail as one of them, and puts Chaos's serializer with retail rather
-than apart from it. The document repo's page is owed that observation. The second source is
-`ewrogers/darkages-741-re`, so its page is an upstream report, not a commit of ours.
+The measurement above names retail as one of them.
+
+**That is a fact about bytes, and it is not a verdict on either reference server.** The client stops
+reading after two bytes, and the frame header states where the body ends, so a two-byte emission and
+a four-byte one are identical to every part of the client that can observe them. Hybrasyl's form is
+retail-compatible in everything the client does with it.
+
+**A claim that Chaos is right where Hybrasyl is wrong has to be defended rigorously, and a byte
+count does not defend it** (Sabrael, 2026-09-26). Hybrasyl is built for retail compatibility, and
+Chaos makes no such promise, so the prior runs the other way: where the two differ, the burden is on
+the claim against Hybrasyl. A difference the client cannot observe is trivia about retail's own
+serializer, and nothing more.
+
+The document repo's protocol pages are **not edited from this repo, and not without Sabrael's
+express permission** (Sabrael, 2026-09-26). The observation is filed as `ERIS-7` on the ERISCO board,
+labelled `Comhaigne`, for the owner of that page to accept or refuse. `darkages-741-re` is
+`ewrogers/darkages-741-re`, another author's repo, so its page is an upstream report at most.
 
 ## How the track finds its map
 
