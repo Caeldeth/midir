@@ -23,11 +23,13 @@ Midir is already on the wire when retail states it.
 is the track. Any other value is a one-shot sound effect id. Sources: the document repo's
 `protocol/server/0x19-play-sound.md`, and `darkages-741-re/docs/network/server/025-0x19-sound-effect.md`.
 
-**The server sends no audio.** The client plays its own local file, `.\music\<track>.mus`, which is
-an MP3 with the extension changed. So this WP records a number. There is no sound to capture, and
-no file to copy.
+**The server sends no audio.** The client plays its own local file, `.\music\<track>.mus`. The
+`.mus` extension is a naming convention over ordinary MP3 data, not a container and not MIDI. The
+client ships **64 tracks, numbered 1 through 64** (`darkages-741-re/docs/audio/music.md`). So this
+WP records a number in that range. There is no sound to capture, and no file to copy.
 
-Track `100` means "keep playing". It is not a stop, and it names no map.
+Track `100` means "keep playing". It is not a stop, it names no map, and it is outside the 1 to 64
+range, which is a second reason to read it as "not a track".
 
 ### Measured in the private recordings, 2026-09-26
 
@@ -36,24 +38,40 @@ connections whose key was never known. Of the 2224: **1808 sound effects** over 
 **416 music readings**.
 
 Retail sends **four body bytes** for music, `[0xFF][track][0][0]`, in 410 of the 416 readings; five
-carry a single trailing zero and one carries `[0][25]`. The 7.41 client reads the first two bytes
-and stops, so the tail changes nothing. This settles the open note on the document repo's page,
-which records that the reference servers disagree on the length: retail matches Chaos's serializer,
-not Hybrasyl's. That page is owed the correction.
+carry three bytes, `[0xFF][track][0]`, and one carries `[0xFF][track][0][25]`. The lengths differ in
+the frame headers as well as in the payloads, so the variation is retail's and not an artefact of
+the walk. The 7.41 client reads the first two bytes and stops, so the tail changes nothing here
+either.
+
+**Both protocol sources describe the client correctly, and they do not disagree with each other.**
+Each verified the same read against the binary, and `WIRE-FORMATS.md` gives the same two-byte shape.
+What neither records is what the **retail server** emits, and each leaves a hedge in place of it: the
+document repo's page reports the four-byte form as Chaos's own "unread slack" against Hybrasyl's two
+bytes, and `darkages-741-re` says only that "some server implementations may append another `u16`".
+The measurement above names retail as one of them, and puts Chaos's serializer with retail rather
+than apart from it. The document repo's page is owed that observation. The second source is
+`ewrogers/darkages-741-re`, so its page is an upstream report, not a commit of ours.
 
 ## How the track finds its map
 
-The packet names no map, so the map is the connection's newest `SMapSize 0x15`. Two rules make that
-attribution sound, and both are measured rather than assumed:
+The packet names no map, so the map is the connection's newest `SMapSize 0x15`. Three rules make that
+attribution sound, and the two that matter are measured rather than assumed:
 
 1. **Drop track 100.** It means the music did not change. 18 of the 416 readings.
-2. **Drop a reading that belongs to the world map pane.** 34 readings arrived after `SFieldMap
+2. **Take a track of 1 to 64 only.** That is the client's whole asset set. A value outside it, other
+   than 100, has no file behind it, so it is logged and dropped rather than stored.
+3. **Drop a reading that belongs to the world map pane.** 34 readings arrived after `SFieldMap
 0x2E` on the same map. **Every one of the 34 is track 15**, which is the field theme the pane
    itself plays, and the map under the pane is a gateway whose own track is something else.
 
-With both rules, **364 readings name 35 maps and no map disagrees with itself.** Without them, 6 of
+With those rules, **364 readings name 35 maps and no map disagrees with itself.** Without them, 6 of
 36 maps carried two tracks, and the false one was track 15 every time: Abel Port read 17 and 15,
 Rucesion Village 16 and 15, Undine Village Way 13 and 15.
+
+The client's side of the same fact is already recorded: `darkages-741-re/docs/audio/music.md` lists
+"minigame and pane code, which can select a numbered track or restore the previous path" as a
+producer of music beside `SSoundEffect`. A pane owning a track is expected behaviour, so the rule
+reads a known client habit rather than working around a surprise.
 
 The 35 maps also agree with each other in a way that no rule enforced: track 16 is every Rucesion
 map that was visited (the Village, the Commons, the Hall, the Threshold, the Armor Shop, the
@@ -70,8 +88,8 @@ its value.
 ## Design
 
 - **The decoder.** `protocol/decode/sound.ts`: `{ kind: 'music', track }` for the `0xFF` form, and
-  `{ kind: 'soundEffect', id }` for the other. It reads the two bytes and steps over any tail.
-  `ServerOpcode.SoundEffect = 0x19`.
+  `{ kind: 'soundEffect', id }` for the other. It reads the two bytes and steps over any tail, whose
+  length varies. `ServerOpcode.SoundEffect = 0x19`.
 - **The reducer.** `model/music.ts`, pure, per connection, in the shape of `model/doors.ts`: it
   holds the current map id and whether a field-map pane has arrived since that map's `0x15`, and it
   returns a reading only when the two rules above allow one.
