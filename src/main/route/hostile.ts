@@ -16,10 +16,13 @@
  * is out of reach for the run. `oren` was left out for exactly that reason: it
  * catches Oren Island City and 40 of its shops along with the tombs.
  *
- * The starter list is Sabrael's own (2026-09-27: "Mileth Crypt, Abel Crypt, Piet
- * Crypt, Mehadi, East Woodlands, West Woodlands") plus the dungeon words that
- * read unambiguously in the map names. Candidates deliberately left out, pending
- * a word from someone who plays there: `astrid`, `oren`, `veltain`, `mine`.
+ * The list is Sabrael's own (2026-09-27: "Mileth Crypt, Abel Crypt, Piet Crypt,
+ * Mehadi, East Woodlands, West Woodlands", then "astrid, veltain and mine can be
+ * added") plus the dungeon words that read unambiguously in the map names. Each
+ * one is counted against the 2387 known map names before it goes in: `mine` takes
+ * 47 and every one of them is a mine, and `veltain` takes 8 that all say "Veltain
+ * Mines", so it is redundant today and kept for the day the wire names one of
+ * them something else. `oren` stays out, for the reason above.
  */
 
 /** Map-name patterns whose maps hold monsters. */
@@ -36,7 +39,10 @@ export const HOSTILE_PATTERNS: readonly RegExp[] = [
   /giragan/i,
   /\btower\b/i,
   /\bpit\b/i,
-  /insect/i
+  /insect/i,
+  /astrid/i,
+  /veltain/i,
+  /\bmines?\b/i
 ]
 
 /** Maps to treat as hostile whatever they are called. */

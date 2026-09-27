@@ -182,7 +182,7 @@ Aliases: `@renderer` to `src/renderer/src`, `@shared` to `src/shared`.
   mode. **It keeps out of the maps that hold monsters by default** (`route/hostile.ts`): a list of
   name patterns the player keeps, because nothing on the wire says a map is dangerous and the run's
   own evidence arrives only after a character has been hit. An avoided map is neither visited nor
-  crossed, so the list costs reach — 485 maps a walk reaches from Mileth, 274 of them outside the
+  crossed, so the list costs reach — 485 maps a walk reaches from Mileth, 266 of them outside the
   list — and a pattern that is too broad costs more than one that is too narrow (`oren` was left out
   because it catches Oren Island City and its shops). Two rules keep a run honest about what went wrong: a `blocked` walk that **never took a step**
   is a fact about the map the character stands on, not the map it was sent to, so the run stops as

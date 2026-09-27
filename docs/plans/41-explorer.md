@@ -129,7 +129,7 @@ Tavern, the Bank, TOC, the Crypt Vestibule, Crypt 1 and Crypt 2-1 — and no map
    words that read unambiguously in the map names). The switch is on the panel.
 
    An avoided map is **neither a target nor a crossing**, so the list costs reach: of 485 maps a walk
-   reaches from Mileth, 274 are outside it, and 242 of the 423 unread ones. That is the trade, and it
+   reaches from Mileth, 266 are outside it, and 236 of the 423 unread ones. That is the trade, and it
    is why a pattern that is too broad costs more than one too narrow — `oren` catches Oren Island
    City and 40 shops along with the tombs, so it is not in the list. `astrid`, `veltain` and `mine`
    are the other candidates left out pending a word from someone who plays there.

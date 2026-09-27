@@ -638,7 +638,7 @@ export interface ExplorerRequest {
    * Whether to keep out of the maps that hold monsters, as
    * `route/hostile.ts` names them. **True when left out**, because the run has no
    * way to fight and the cheapest way not to die is not to go. It costs reach: of
-   * 485 maps a walk reaches from Mileth, 274 are outside the hostile list.
+   * 485 maps a walk reaches from Mileth, 266 are outside the hostile list.
    */
   avoidHostile?: boolean
 }

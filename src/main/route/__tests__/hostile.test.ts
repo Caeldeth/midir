@@ -19,6 +19,16 @@ describe('the hostile map list', () => {
     expect(isHostileName(node(6, 'West Woodland 10-1'))).toBe(true)
   })
 
+  it('names the mines, Astrid and Veltain, which Sabrael added', () => {
+    // 2026-09-27. Counted first: `mine` takes 47 known names and every one is a
+    // mine, and all 8 Veltain maps say "Veltain Mines".
+    expect(isHostileName(node(624, 'Mine 1-1'))).toBe(true)
+    expect(isHostileName(node(660, 'Mine Entrance'))).toBe(true)
+    expect(isHostileName(node(2901, 'Veltain Mines 1'))).toBe(true)
+    expect(isHostileName(node(3062, 'Astrid South'))).toBe(true)
+    expect(isHostileName(node(3060, 'Astrid Entrance'))).toBe(true)
+  })
+
   it('leaves a town and its shops alone', () => {
     for (const name of [
       'Mileth Village',
@@ -28,7 +38,10 @@ describe('the hostile map list', () => {
       'Oren Island City',
       'Oren Island Shop 1',
       'Mileth Inn',
-      'Suomi Village'
+      'Suomi Village',
+      // `mine` is a whole word, so a name that merely contains those letters is
+      // not a mine.
+      'Determined Hall'
     ]) {
       expect(isHostileName(node(9, name))).toBe(false)
     }
