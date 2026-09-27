@@ -167,6 +167,7 @@ WP34 (dismiss blocking popups)   COMPLETE — 2026-09-21; a dialog, an exchange,
 WP35 (right-click walking)   COMPLETE — complete/35-right-click-walking.md — the client walks a stretch; every tile confirmed
 WP36 (the board archive)   COMPLETE — complete/36-board-archive.md — every board and mail off the wire; the poll reads them all
 WP37 (the character doll)   COMPLETE — complete/37-character-doll.md — Brigid's compositor over the khan archives, asked for by URL
+WP43 (the world graph view)   PLANNED — 43-world-graph-view.md — the graph as a graph: 326 pieces over confirmed warps, 8 with candidates
 ```
 
 WP7 was the one gap in the shipped run. It was specified, deferred for the protocol work that kept
@@ -240,6 +241,7 @@ trigger is in each doc's header.
 | WP40 | S    | Capture each map's music track  | HTOO-475 | BUILT 2026-09-27 — `40-map-music.md`                                 |
 | WP41 | L    | The explorer (unsteered visits) | HTOO-476 | BUILT 2026-09-27 — `41-explorer.md`                                  |
 | WP42 | S    | Legend badges from the client   | HTOO-482 | BUILT 2026-09-27 — `42-legend-badges.md`                             |
+| WP43 | M    | The world graph view            | HTOO-483 | PLANNED — `43-world-graph-view.md`                                   |
 
 `00a-backlog.md` now holds only what is not a WP: the non-goals, the debts owed to another repo, and
 the one conditional rule.
