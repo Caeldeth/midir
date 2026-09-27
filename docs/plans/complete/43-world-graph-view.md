@@ -2,7 +2,8 @@
 
 **Size:** M. **Depends on:** WP29 (the learned layer and its curations), WP30 (the Map tab and
 `map:editWarp`), WP24 (the candidate layer), and WP38 (the map names). Read `00-overview.md` first.
-**BUILT 2026-09-27.** **Card:** `HTOO-483`.
+**COMPLETE 2026-09-27**, merged in #48. A watched look at the picture, and the two live checks under
+Verification, are owed. **Card:** `HTOO-483`.
 **Trigger to start:** Sabrael, 2026-09-27, after the explorer stranded itself twice in one run: the
 Map tab shows one map at a time, and the faults the explorer meets are facts about the **shape of
 the whole graph**.
