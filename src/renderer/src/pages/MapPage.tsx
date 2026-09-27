@@ -375,6 +375,7 @@ function MapPage(): React.JSX.Element {
                 : 'the live map'}
             {' · '}
             {view.warps.length} warp{view.warps.length === 1 ? '' : 's'}
+            {view.music !== undefined ? ` · music track ${view.music.track}` : ''}
             {hover !== null ? ` · (${hover.x}, ${hover.y})` : ''}
           </Typography>
         ) : null}

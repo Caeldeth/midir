@@ -15,12 +15,26 @@ import { createJsonStore, type JsonStore, type JsonStoreFailure } from '../jsonS
  */
 export const MAPS_FILE = 'maps.json'
 
+/** The music track the wire selected for a map (WP40). */
+export interface MapMusic {
+  /** 1 to 64. The client has a file for each one. */
+  track: number
+  /** Capture time of the packet the track came from. */
+  seenAtMs: number
+}
+
 export interface MapSize {
   name: string
   width: number
   height: number
   /** Capture time of the packet the reading came from. */
   seenAtMs: number
+  /**
+   * The map's music, once the wire has selected it (WP40). It is optional
+   * because the server sends a track only when the track changes, so a map
+   * whose music matches the map behind it is silent. Silence is not a reading.
+   */
+  music?: MapMusic
 }
 
 export interface MapFile {
@@ -34,7 +48,13 @@ const fileSchema = z.object({
       name: z.string(),
       width: z.number().int().positive(),
       height: z.number().int().positive(),
-      seenAtMs: z.number()
+      seenAtMs: z.number(),
+      music: z
+        .object({
+          track: z.number().int().positive(),
+          seenAtMs: z.number()
+        })
+        .optional()
     })
   )
 })
@@ -81,5 +101,31 @@ export function withMapSize(
   ) {
     return file
   }
-  return { maps: { ...file.maps, [key]: { ...size, seenAtMs } } }
+  // `existing` first, so a stored music track survives the next visit's size
+  // reading. `size` carries no music, and a spread of it alone would drop one.
+  return { maps: { ...file.maps, [key]: { ...existing, ...size, seenAtMs } } }
+}
+
+/**
+ * `file` with one map's music track from the wire (WP40).
+ *
+ * A newer reading replaces an older one, and an unchanged track writes nothing.
+ * A map with no record yet gets none: the track arrives after the `0x15` that
+ * names and sizes the map, and a record without those does not satisfy the
+ * schema.
+ */
+export function withMapMusic(
+  file: MapFile,
+  mapId: number,
+  track: number,
+  seenAtMs: number
+): MapFile {
+  const key = String(mapId)
+  const existing = file.maps[key]
+  if (existing === undefined) return file
+  if (existing.music !== undefined) {
+    if (existing.music.seenAtMs > seenAtMs) return file
+    if (existing.music.track === track) return file
+  }
+  return { maps: { ...file.maps, [key]: { ...existing, music: { track, seenAtMs } } } }
 }

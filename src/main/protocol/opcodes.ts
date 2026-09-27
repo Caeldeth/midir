@@ -102,6 +102,8 @@ export const ServerOpcode = {
   Bulletin: 0x31,
   /** A door opened or closed (or a walk acknowledged, with no records). See decode/staticObject.ts. */
   StaticObjectState: 0x32,
+  /** One sound effect, or the map's music track under a 0xFF marker. See decode/sound.ts. */
+  SoundEffect: 0x19,
   DrawHumanObjects: 0x33,
   ObjectInfo: 0x34,
   AddEquip: 0x37,

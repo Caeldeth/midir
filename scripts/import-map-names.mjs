@@ -5,11 +5,12 @@
 //   node scripts/import-map-names.mjs <path to the list> [output]
 //
 // The list is a plain text file of `<map id> - <name>` lines, one map to a
-// line. It is a community scrape of the retail client and it is old, so it is
-// the weakest name Midir has: `mergeLearned` applies a name from here only to
-// a map that WorldMap.dat, the world XML, and the wire all leave unnamed, and
-// the wire's `SMapSize 0x15` name replaces it on the first visit
-// (route/graph.ts). The file is never written at run time.
+// line. `mergeLearned` ranks the names, weakest first: the world XML, this
+// list, then the wire (route/graph.ts). The list outranks the XML because the
+// XML names a retail map as Hybrasyl authored it, and it ties with
+// WorldMap.dat, which it disagrees with on 260 names: a map the .dat names
+// shows the .dat's name and answers to both. The wire's `SMapSize 0x15` name
+// replaces it on the first visit. The file is never written at run time.
 //
 // The rows are not clean. The separator is a hyphen or a CP1252 en dash
 // (0x96), some rows carry a `*` marker, some pad the name with runs of
