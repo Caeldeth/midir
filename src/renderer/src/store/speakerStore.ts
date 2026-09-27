@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import type { AssistWindow, SpeakerConfig, SpeakerState } from '@shared/types'
+import { connectionOf } from '@shared/types'
 import { useSettingsStore } from './settingsStore'
 
 /**
@@ -14,8 +15,12 @@ import { useSettingsStore } from './settingsStore'
 interface SpeakerStoreState {
   /** The open game windows the user can pick to drive. */
   windows: AssistWindow[]
-  /** The connection id of the window the user picked to drive. */
-  selected: string
+  /**
+   * The window the user picked, by its handle as text (`windowKey`). It is not
+   * a connection id: a connection id changes at every login, and the pick has
+   * to survive a logout.
+   */
+  selectedWindow: string
   /** True while a stop is in force. */
   stopped: boolean
   /** Why the last stop fired, ready to show the user. */
@@ -26,7 +31,8 @@ interface SpeakerStoreState {
   busy: boolean
   /** The last failure to report to the user. */
   error: string | null
-  setSelected: (connectionId: string) => void
+  /** Pick a window to drive, by `windowKey`. */
+  setSelected: (picked: string) => void
   refreshWindows: () => Promise<void>
   refresh: () => Promise<void>
   start: (config: SpeakerConfig) => Promise<void>
@@ -50,13 +56,13 @@ function messageOf(error: unknown): string {
 
 export const useSpeakerStore = create<SpeakerStoreState>((set, get) => ({
   windows: [],
-  selected: '',
+  selectedWindow: '',
   stopped: false,
   running: {},
   busy: false,
   error: null,
 
-  setSelected: (connectionId) => set({ selected: connectionId }),
+  setSelected: (picked) => set({ selectedWindow: picked }),
 
   refreshWindows: async () => {
     set({ windows: await window.api.assist.windows() })
@@ -102,10 +108,11 @@ export const useSpeakerStore = create<SpeakerStoreState>((set, get) => ({
   },
 
   toggle: () => {
-    const { selected, running } = get()
-    if (selected === '') return
-    if (running[selected]?.running) {
-      void get().stop(selected)
+    const { windows, selectedWindow, running } = get()
+    const connectionId = connectionOf(windows, selectedWindow)
+    if (connectionId === '') return
+    if (running[connectionId]?.running) {
+      void get().stop(connectionId)
       return
     }
     const s = useSettingsStore.getState()
@@ -113,7 +120,7 @@ export const useSpeakerStore = create<SpeakerStoreState>((set, get) => ({
       lines: s.speakerLines,
       intervalMs: s.speakerIntervalMs,
       repeat: s.speakerRepeat,
-      connectionId: selected
+      connectionId
     })
   },
 

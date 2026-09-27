@@ -78,6 +78,24 @@ describe('the Map page', () => {
     expect(screen.getByText('Pick a map')).toBeInTheDocument()
   })
 
+  it('names the music track in the caption when the wire has read one (WP40)', async () => {
+    window.api.map.view = vi.fn(async () => ({
+      ok: true as const,
+      view: { ...TOWN, music: { track: 16, seenAtMs: 1100 } }
+    }))
+    render(<MapPage />)
+    await useMapStore.getState().select(1)
+    expect(await screen.findByTestId('map-view')).toBeInTheDocument()
+    expect(screen.getByTestId('map-caption')).toHaveTextContent('music track 16')
+  })
+
+  it('says nothing about music for a map that stayed silent', async () => {
+    render(<MapPage />)
+    await useMapStore.getState().select(1)
+    expect(await screen.findByTestId('map-view')).toBeInTheDocument()
+    expect(screen.getByTestId('map-caption')).not.toHaveTextContent('music')
+  })
+
   it('draws the picked map with its warps, each naming its destination', async () => {
     render(<MapPage />)
     await useMapStore.getState().select(1)

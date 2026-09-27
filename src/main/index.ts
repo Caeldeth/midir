@@ -12,7 +12,7 @@ import {
 } from 'electron'
 import { copyFileSync, existsSync, mkdirSync, readFileSync } from 'fs'
 import { join } from 'path'
-import type { CaptureAvailability } from '../shared/types'
+import type { CaptureAvailability, CaptureStatus } from '../shared/types'
 import { createPcapSource, loadPcapApi, type PcapApi } from './capture/pcapSource'
 import { parseRecording } from './capture/recording'
 import { createReplaySource } from './capture/replaySource'
@@ -20,6 +20,7 @@ import { createActionLayer, type HotkeyRegistrar, type WindowApi } from './actio
 import { createSpeaker } from './speaker'
 import { createWalker } from './walker'
 import { createLaborer } from './laborer'
+import { createExplorer } from './explorer'
 import { createBoardPoll } from './boardPoll'
 import { builtinErrands } from './laborer/errands'
 import { createPaneWatcher } from './paneWatcher'
@@ -29,8 +30,10 @@ import xmlworld from './route/xmlworld.json'
 import mapnames from './route/mapnames.json'
 import { createLiveGraph } from './route/liveGraph'
 import { seededGates, type Passport } from './route/access'
+import { hostileMaps } from './route/hostile'
 import { createIconService } from './icons/iconService'
 import { createDollService } from './icons/dollService'
+import { createLegendService } from './icons/legendService'
 import { registerIconProtocol } from './icons/protocol'
 import { createRecorder, type Recorder } from './capture/recorder'
 import { createCaptureService } from './captureService'
@@ -40,6 +43,7 @@ import {
   BOARDS_CHANGED_CHANNEL,
   BOARD_POLL_STATE_CHANNEL,
   CHARACTER_CHANGED_CHANNEL,
+  EXPLORER_STATE_CHANNEL,
   LOG_APPENDED_CHANNEL,
   LABORER_STATE_CHANNEL,
   SPEAKER_STATE_CHANNEL,
@@ -327,6 +331,26 @@ rebuildGraph().catch((error: unknown) => {
   log.error('transitions', `The learned graph would not build: ${String(error)}`)
 })
 
+/**
+ * Who is logged in, as the log last reported it.
+ *
+ * A status push also happens for every connection that opens or closes, and
+ * those say nothing a reader of the log needs. A login and a logout say a great
+ * deal, and the log held neither: a report that the title bar read wrong had no
+ * evidence either way (Sabrael, 2026-09-27).
+ */
+let loggedIn: string[] = []
+
+function reportStatus(status: CaptureStatus): void {
+  const names = status.characters
+  for (const name of names)
+    if (!loggedIn.includes(name)) log.info('capture', `${name} is logged in.`)
+  for (const name of loggedIn)
+    if (!names.includes(name)) log.info('capture', `${name} is logged out.`)
+  loggedIn = names
+  pushToRenderer(CAPTURE_STATUS_CHANNEL, status)
+}
+
 const captureService = createCaptureService({
   store: characterStore,
   boardStore,
@@ -344,7 +368,7 @@ const captureService = createCaptureService({
     return createPcapSource({ device, api: pcap })
   },
   createRecorder: startRecordingIfWanted,
-  onStatus: (status) => pushToRenderer(CAPTURE_STATUS_CHANNEL, status),
+  onStatus: reportStatus,
   onCharacter: (record) => pushToRenderer(CHARACTER_CHANGED_CHANNEL, record)
 })
 
@@ -413,6 +437,8 @@ void settingsManager
 const iconService = createIconService({ getDarkAgesPath: () => darkAgesPath, log })
 // The character doll (WP37), from the khan archives beside legend.dat.
 const dollService = createDollService({ getDarkAgesPath: () => darkAgesPath, log })
+// The legend badges (WP42), from setoa.dat in the same folder.
+const legendService = createLegendService({ getDarkAgesPath: () => darkAgesPath, log })
 
 // The Walker reads the map passability from the same Dark Ages folder the icon
 // service uses: the on-disk tile cache and sotp.dat, never memory. The map
@@ -463,6 +489,31 @@ const laborer = createLaborer({
   passportFor,
   log,
   onState: (state) => pushToRenderer(LABORER_STATE_CHANNEL, state)
+})
+
+// The explorer walks to maps nothing has read yet, through the same Walker, so
+// that the wire teaches their names, sizes, music, and warps (WP41). The maps
+// already read come from the store, after a flush: an arrival writes on a
+// debounce, and a stale read would send the run back to a map it just left.
+const explorer = createExplorer({
+  walker,
+  graph: () => worldGraph,
+  readings: async () => {
+    await captureService.flush()
+    const maps = (await mapStore.load()).maps
+    return new Map(Object.entries(maps).map(([mapId, map]) => [Number(mapId), map.seenAtMs]))
+  },
+  positionFor: (connectionId) => captureService.positionFor(connectionId),
+  // The maps that hold monsters, by name (route/hostile.ts). Read at every pick,
+  // so a name the wire corrects counts.
+  hostileMaps: () => hostileMaps(worldGraph.nodes()),
+  healthFor: (connectionId) => {
+    const record = captureService.recordFor(connectionId)
+    if (record === null) return null
+    return { current: record.stats.currentHealth, max: record.stats.maxHealth }
+  },
+  log,
+  onState: (state) => pushToRenderer(EXPLORER_STATE_CHANNEL, state)
 })
 
 // The board poll reads every board and the mailbox through the client's own
@@ -528,6 +579,7 @@ const ctx: HandlerContext = {
   speaker,
   walker,
   laborer,
+  explorer,
   log,
   logsPath,
   // The report's two side effects, injected so the handler module stays free of
@@ -548,6 +600,7 @@ const ctx: HandlerContext = {
       stopOnFocusLoss: settings.assistStopOnFocusLoss
     })
   },
+  legendIcons: legendService,
   updateDarkAgesPath: (path) => {
     darkAgesPath = path
   }
@@ -668,7 +721,7 @@ app.whenReady().then(() => {
 
   // Install the item-icon handler now the app is ready. The scheme was declared
   // privileged before this (see registerSchemesAsPrivileged above).
-  registerIconProtocol(protocol, iconService, log, dollService)
+  registerIconProtocol(protocol, iconService, log, dollService, legendService)
 
   // Register the global stop hotkey now the app is ready. The hotkey comes from
   // the settings; a load failure still registers the default, so the stop is
@@ -721,6 +774,7 @@ app.on('window-all-closed', () => {
 // even when before-quit defers the quit for a capture flush.
 app.on('will-quit', () => {
   paneWatcher.stop()
+  explorer.dispose()
   laborer.dispose()
   boardPoll.dispose()
   walker.dispose()

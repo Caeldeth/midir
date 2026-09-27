@@ -2,6 +2,7 @@ import {
   createRouteGraph,
   mergeLearned,
   type LearnedLayer,
+  type PathStep,
   type PlanOptions,
   type RouteDestination,
   type RouteGraph,
@@ -37,6 +38,10 @@ export function createLiveGraph(base: RouteNode[]): LiveGraph {
       current.planRoute(fromMapId, toMapId, options),
     reachableFrom: (fromMapId: number, options?: PlanOptions): Set<number> =>
       current.reachableFrom(fromMapId, options),
+    distancesFrom: (fromMapId: number, options?: PlanOptions): Map<number, number> =>
+      current.distancesFrom(fromMapId, options),
+    pathsFrom: (fromMapId: number, options?: PlanOptions): Map<number, PathStep> =>
+      current.pathsFrom(fromMapId, options),
     update(layer): void {
       current = createRouteGraph(mergeLearned(base, layer))
     }

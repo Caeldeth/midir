@@ -97,6 +97,26 @@ function App(): React.JSX.Element {
     }
   }, [])
 
+  // Re-read the capture status whenever the window comes back.
+  //
+  // The status arrives on a push and the title bar follows it. This is the
+  // reconciliation, because the push is the only path and nothing checks it:
+  // Midir sits behind the game window for a whole session, and the indicator
+  // read wrong until a visit to Settings, which was the one tab that asked main
+  // again (Sabrael, 2026-09-27). A read on focus costs one call and makes the
+  // window's own return the refresh.
+  useEffect(() => {
+    const reconcile = (): void => {
+      if (document.visibilityState !== 'hidden') void useCaptureStore.getState().reconcile()
+    }
+    window.addEventListener('focus', reconcile)
+    document.addEventListener('visibilitychange', reconcile)
+    return () => {
+      window.removeEventListener('focus', reconcile)
+      document.removeEventListener('visibilitychange', reconcile)
+    }
+  }, [])
+
   // Read the current state once the settings are in, then start capture if the
   // user asked for that. Starting before hydration would use an empty adapter.
   useEffect(() => {

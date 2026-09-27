@@ -46,7 +46,7 @@ interface Posted {
 
 /** A fake window API over one or two game clients. */
 function fakeWindows(
-  clients: { pid: number; handle: number; local: number; title?: string }[],
+  clients: { pid: number; handle: number; local: number; title?: string; connected?: boolean }[],
   sizes = new Map<number, ClientSize>()
 ) {
   const live = new Set(clients.map((c) => c.handle))
@@ -57,7 +57,10 @@ function fakeWindows(
     processIdsByName: () => clients.map((c) => c.pid),
     tcpConnectionsForPid: (pid) => {
       const client = clients.find((c) => c.pid === pid)
-      return client ? [connOf(client.local)] : []
+      // `connected: false` is a client at the login screen: open, with no
+      // connection of its own.
+      if (client === undefined || client.connected === false) return []
+      return [connOf(client.local)]
     },
     windowsForPid: (pid): GameWindow[] => {
       const client = clients.find((c) => c.pid === pid)
@@ -150,6 +153,33 @@ describe('the action layer', () => {
     expect(list).toHaveLength(2)
     expect(list[0]).toMatchObject({ windowHandle: CLIENT_A.handle, characterName: 'Alice' })
     expect(list[1].characterName).toBeUndefined()
+  })
+
+  it('keeps a client in the list with nothing to drive while nobody is logged in', () => {
+    // A logout leaves the client open with no TCP connection at all: one
+    // recording held 102 seconds of none. The window has to stay in the picker,
+    // or the window the user picked vanishes from under them mid-errand.
+    const windows = fakeWindows([{ ...CLIENT_A, connected: false }])
+    const { layer } = build(windows, () => [])
+    const list = layer.listWindows()
+    expect(list).toHaveLength(1)
+    expect(list[0]).toMatchObject({ windowHandle: CLIENT_A.handle, title: 'Dark Ages' })
+    expect(list[0].connectionId).toBeUndefined()
+    expect(list[0].characterName).toBeUndefined()
+  })
+
+  it('gives one client the same window handle across a logout, and a new connection id', () => {
+    // This is why the picker holds the handle: the handle is the same client,
+    // and the connection id is not.
+    const loggedIn = fakeWindows([CLIENT_A])
+    const loggedOut = fakeWindows([{ ...CLIENT_A, connected: false }])
+    const before = build(loggedIn, () => [
+      { connectionId: idOf(CLIENT_A.local), name: 'Alice' }
+    ]).layer.listWindows()
+    const after = build(loggedOut, () => []).layer.listWindows()
+    expect(after[0].windowHandle).toBe(before[0].windowHandle)
+    expect(before[0].connectionId).toBeDefined()
+    expect(after[0].connectionId).toBeUndefined()
   })
 
   it('posts a key to the resolved window and returns null', async () => {

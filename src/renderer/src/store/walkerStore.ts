@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import type { AssistWindow, WalkerDestination, WalkerState, WalkOutcome } from '@shared/types'
-import { parseDestination, walkStopMessage } from '@shared/types'
+import { connectionOf, parseDestination, walkStopMessage } from '@shared/types'
 
 /**
  * The Walker, mirrored from the main process.
@@ -18,8 +18,12 @@ interface WalkerStoreState {
   windows: AssistWindow[]
   /** The places the walker can be sent to, for the picker. */
   destinations: WalkerDestination[]
-  /** The connection id of the window the user picked to drive. */
-  selected: string
+  /**
+   * The window the user picked, by its handle as text (`windowKey`). It is not
+   * a connection id: a connection id changes at every login, and the pick has
+   * to survive a logout.
+   */
+  selectedWindow: string
   /** The place the user asked to walk to. */
   destination: string
   /**
@@ -37,7 +41,8 @@ interface WalkerStoreState {
   lastOutcome?: WalkOutcome
   busy: boolean
   error: string | null
-  setSelected: (connectionId: string) => void
+  /** Pick a window to drive, by `windowKey`. */
+  setSelected: (picked: string) => void
   setDestination: (destination: string) => void
   setEndTile: (x: string, y: string) => void
   refreshWindows: () => Promise<void>
@@ -67,7 +72,7 @@ export function outcomeMessage(outcome: WalkOutcome): string {
 export const useWalkerStore = create<WalkerStoreState>((set, get) => ({
   windows: [],
   destinations: [],
-  selected: '',
+  selectedWindow: '',
   destination: '',
   endX: '',
   endY: '',
@@ -76,8 +81,8 @@ export const useWalkerStore = create<WalkerStoreState>((set, get) => ({
   busy: false,
   error: null,
 
-  setSelected: (connectionId) => {
-    set({ selected: connectionId })
+  setSelected: (picked) => {
+    set({ selectedWindow: picked })
     // A different character stands somewhere else, so what it reaches differs.
     void get().refresh()
   },
@@ -89,14 +94,16 @@ export const useWalkerStore = create<WalkerStoreState>((set, get) => ({
   },
 
   refresh: async () => {
-    // The destinations carry reachability from where the selected window's
-    // character stands, so the refresh names the window (WP39).
-    const selected = get().selected
-    const [windows, assist, walkers, destinations] = await Promise.all([
-      window.api.assist.windows(),
+    // The destinations carry reachability from where the picked window's
+    // character stands, so the refresh names its connection (WP39). The windows
+    // come first, because the connection is read from the picked one: a client
+    // with nobody logged in has none, and then nothing is marked.
+    const windows = await window.api.assist.windows()
+    const connectionId = connectionOf(windows, get().selectedWindow)
+    const [assist, walkers, destinations] = await Promise.all([
       window.api.assist.state(),
       window.api.walker.state(),
-      window.api.walker.destinations(selected === '' ? undefined : selected)
+      window.api.walker.destinations(connectionId === '' ? undefined : connectionId)
     ])
     const running: Record<string, WalkerState> = {}
     for (const state of walkers) if (state.running) running[state.connectionId] = state

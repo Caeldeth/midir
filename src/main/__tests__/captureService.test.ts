@@ -18,6 +18,7 @@ import { ClientOpcode, ServerOpcode } from '../protocol/opcodes'
 import { createCharacterStore } from '../store/characterStore'
 import { createBoardStore } from '../store/boardStore'
 import { createTransitionStore } from '../store/transitionStore'
+import { createMapStore } from '../store/mapStore'
 import {
   clientSessionBody,
   frameOf,
@@ -1019,6 +1020,111 @@ describe('createCaptureService', () => {
       await built.service.start('adapter')
       await built.service.flush()
       expect((await built.boardStore.load()).boards).toEqual({})
+      await built.service.stop()
+    })
+  })
+
+  describe("the map's music (WP40)", () => {
+    const mapInfoBody = (mapId: number, name: string): number[] => [
+      ServerOpcode.MapInfo,
+      ...u16(mapId),
+      15,
+      15,
+      0,
+      0,
+      0,
+      0,
+      0,
+      ...str8(name)
+    ]
+    /** SSoundEffect 0x19 in the four-byte form retail sends. */
+    const musicBody = (track: number): number[] => [ServerOpcode.SoundEffect, 0xff, track, 0, 0]
+    /** SFieldMap 0x2E: the world map pane, with no points. */
+    const paneBody = (): number[] => [ServerOpcode.FieldMap, ...str8('field001'), 0, 0]
+
+    const worldChunk = (body: number[], sequence: number, timestampMs: number): RecordingLine =>
+      encodeChunk(
+        chunk(
+          WORLD,
+          sessionBody({ plaintext: body, keyName: CHARACTER, saltSelector: 3, sequence }),
+          timestampMs
+        )
+      )
+
+    function buildWithMaps(lines: RecordingLine[]): {
+      service: ReturnType<typeof createCaptureService>
+      mapStore: ReturnType<typeof createMapStore>
+    } {
+      const mapStore = createMapStore(directory)
+      const service = createCaptureService({
+        store: createCharacterStore(directory),
+        mapStore,
+        createSource: (): PacketSource => createReplaySource(lines),
+        now: () => 7000,
+        saveDebounceMs: 0
+      })
+      return { service, mapStore }
+    }
+
+    it('keeps the track the wire selected, beside the map it named', async () => {
+      const built = buildWithMaps([
+        ...loginRecording(),
+        worldChunk(mapInfoBody(505, 'Rucesion Village'), 3, 2300),
+        worldChunk(musicBody(16), 4, 2400)
+      ])
+      await built.service.start('adapter')
+      await built.service.flush()
+      expect((await built.mapStore.load()).maps['505']).toMatchObject({
+        name: 'Rucesion Village',
+        music: { track: 16, seenAtMs: 2400 }
+      })
+      await built.service.stop()
+    })
+
+    it('gives the gateway map its own track, and not the one the pane plays', async () => {
+      // Abel Port read 17 and 15 before the pane rule. The pane's 15 is the
+      // field theme, and it arrives while the character still stands on 502.
+      const built = buildWithMaps([
+        ...loginRecording(),
+        worldChunk(mapInfoBody(502, 'Abel Port'), 3, 2300),
+        worldChunk(musicBody(17), 4, 2400),
+        worldChunk(paneBody(), 5, 2500),
+        worldChunk(musicBody(15), 6, 2600)
+      ])
+      await built.service.start('adapter')
+      await built.service.flush()
+      expect((await built.mapStore.load()).maps['502']?.music?.track).toBe(17)
+      await built.service.stop()
+    })
+
+    it('keeps the track when the map is visited again', async () => {
+      // Every visit sends the size, and the track arrives once. A size write
+      // that dropped the track would lose it on the walk home.
+      const built = buildWithMaps([
+        ...loginRecording(),
+        worldChunk(mapInfoBody(505, 'Rucesion Village'), 3, 2300),
+        worldChunk(musicBody(16), 4, 2400),
+        worldChunk(mapInfoBody(3048, 'Rucesion Commons'), 5, 2500),
+        worldChunk(mapInfoBody(505, 'Rucesion Village'), 6, 2600)
+      ])
+      await built.service.start('adapter')
+      await built.service.flush()
+      expect((await built.mapStore.load()).maps['505']?.music?.track).toBe(16)
+      await built.service.stop()
+    })
+
+    it('stores no track for a map that stayed silent', async () => {
+      const built = buildWithMaps([
+        ...loginRecording(),
+        worldChunk(mapInfoBody(505, 'Rucesion Village'), 3, 2300),
+        worldChunk(musicBody(16), 4, 2400),
+        worldChunk(mapInfoBody(3049, 'Rucesion Hall'), 5, 2500)
+      ])
+      await built.service.start('adapter')
+      await built.service.flush()
+      const maps = (await built.mapStore.load()).maps
+      expect(maps['3049']?.name).toBe('Rucesion Hall')
+      expect(maps['3049']?.music).toBeUndefined()
       await built.service.stop()
     })
   })

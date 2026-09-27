@@ -1,5 +1,15 @@
 import { describe, expect, it } from 'vitest'
-import { MAX_CHAT_CHARS, MIN_HYPHEN_FRAGMENT, parseDestination, wrapChatLine } from '../actionLayer'
+import {
+  connectionOf,
+  pinOf,
+  MAX_CHAT_CHARS,
+  MIN_HYPHEN_FRAGMENT,
+  parseDestination,
+  pickedWindow,
+  windowKey,
+  wrapChatLine,
+  type AssistWindow
+} from '../actionLayer'
 
 /** True when a hyphen sits next to a space, which must never happen. */
 function hasSpacedHyphen(piece: string): boolean {
@@ -86,5 +96,86 @@ describe('parseDestination', () => {
       destination: 'Mileth Inn @ counter'
     })
     expect(parseDestination('Mileth Inn @ 5')).toEqual({ destination: 'Mileth Inn @ 5' })
+  })
+})
+
+describe('the window picker keys (the logout fix)', () => {
+  const open: AssistWindow = {
+    connectionId: 'world-1',
+    windowHandle: 7,
+    title: 'Dark Ages',
+    characterName: 'Alice'
+  }
+  /** The same client after a logout: open, with nothing logged in on it. */
+  const quiet: AssistWindow = { windowHandle: 7, title: 'Dark Ages' }
+
+  it('keys a window by its handle, which a logout does not change', () => {
+    expect(windowKey(open)).toBe('7')
+    expect(windowKey(quiet)).toBe(windowKey(open))
+  })
+
+  it('finds the picked window whether or not anyone is logged in on it', () => {
+    expect(pickedWindow([open], '7')).toBe(open)
+    expect(pickedWindow([quiet], '7')).toBe(quiet)
+    expect(pickedWindow([open], '8')).toBeUndefined()
+  })
+
+  it('gives the connection to drive, and nothing for a client with nobody on it', () => {
+    expect(connectionOf([open], '7')).toBe('world-1')
+    expect(connectionOf([quiet], '7')).toBe('')
+    expect(connectionOf([], '7')).toBe('')
+  })
+
+  it('reads the new connection after the next login, under the same pick', () => {
+    const again: AssistWindow = { ...open, connectionId: 'world-2', characterName: 'Bob' }
+    expect(connectionOf([again], windowKey(open))).toBe('world-2')
+  })
+})
+
+describe('pinOf (a pinned destination with its own name)', () => {
+  it('reads a pin the user named, with its tile', () => {
+    expect(
+      pinOf({ label: 'Mileth Altar', destination: 'Mileth Village', tile: { x: 12, y: 15 } })
+    ).toEqual({
+      label: 'Mileth Altar',
+      destination: 'Mileth Village',
+      tile: { x: 12, y: 15 }
+    })
+  })
+
+  it('reads a pin with no tile, which arrives wherever the route lands', () => {
+    expect(pinOf({ label: 'Home', destination: 'Mileth Inn' })).toEqual({
+      label: 'Home',
+      destination: 'Mileth Inn'
+    })
+  })
+
+  it('migrates the older form, one string, into a pin named after its text', () => {
+    // A pin used to be `Place @ x,y` and had no name of its own.
+    expect(pinOf('Mileth Village @ 12,15')).toEqual({
+      label: 'Mileth Village @ 12,15',
+      destination: 'Mileth Village',
+      tile: { x: 12, y: 15 }
+    })
+    expect(pinOf('Mileth Inn')).toEqual({ label: 'Mileth Inn', destination: 'Mileth Inn' })
+  })
+
+  it('falls back to the place when a stored pin has no name', () => {
+    expect(pinOf({ destination: 'Mileth Inn' })?.label).toBe('Mileth Inn')
+    expect(pinOf({ label: '   ', destination: 'Mileth Inn' })?.label).toBe('Mileth Inn')
+  })
+
+  it('drops a value that names no place', () => {
+    expect(pinOf('')).toBeNull()
+    expect(pinOf('   ')).toBeNull()
+    expect(pinOf({ label: 'Nowhere' })).toBeNull()
+    expect(pinOf(null)).toBeNull()
+    expect(pinOf(42)).toBeNull()
+  })
+
+  it('drops a tile that is not two whole, non-negative numbers', () => {
+    expect(pinOf({ label: 'A', destination: 'B', tile: { x: 1.5, y: 2 } })?.tile).toBeUndefined()
+    expect(pinOf({ label: 'A', destination: 'B', tile: { x: -1, y: 2 } })?.tile).toBeUndefined()
+    expect(pinOf({ label: 'A', destination: 'B', tile: { x: '1', y: 2 } })?.tile).toBeUndefined()
   })
 })

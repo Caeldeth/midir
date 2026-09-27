@@ -82,6 +82,12 @@ export interface MapView {
   warps: MapWarp[]
   /** Where the size came from, for the caption. */
   sizeSource: 'wire' | 'graph' | 'live'
+  /**
+   * The music track the wire selected for this map, once it has (WP40). Absent
+   * for most maps: the server sends a track only when the track changes, so a
+   * map whose music matches the map behind it is silent.
+   */
+  music?: { track: number; seenAtMs: number }
 }
 
 /** Why a map could not be drawn. */

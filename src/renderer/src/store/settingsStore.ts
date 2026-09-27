@@ -1,6 +1,22 @@
 import { create } from 'zustand'
 import { toSettings } from '@shared/settings'
-import { DEFAULT_SETTINGS, type MidirSettings, type ThemeName } from '@shared/types'
+import { pinOf } from '@shared/actionLayer'
+import { type WalkerPin, DEFAULT_SETTINGS, type MidirSettings, type ThemeName } from '@shared/types'
+
+/**
+ * The pins, read through `pinOf`, whatever shape they arrive in.
+ *
+ * Main normalises the pins it loads, so this is a second reading of a value
+ * that should already be right. It is here because the Walker page reads
+ * `pin.destination` on every render: a pin in the older one-string form took
+ * the whole page down with "Cannot read properties of undefined", four times
+ * in one day of a main process that had not restarted on the new code. A value
+ * this store cannot read is dropped, not rendered.
+ */
+function pins(value: unknown): WalkerPin[] {
+  if (!Array.isArray(value)) return []
+  return value.map((held) => pinOf(held)).filter((held): held is WalkerPin => held !== null)
+}
 
 interface SettingsActions {
   setTheme: (name: ThemeName) => void
@@ -16,7 +32,7 @@ interface SettingsActions {
   setSpeakerLines: (value: string[]) => void
   setSpeakerIntervalMs: (value: number) => void
   setSpeakerRepeat: (value: boolean) => void
-  setWalkerPinnedDestinations: (value: string[]) => void
+  setWalkerPinnedDestinations: (value: WalkerPin[]) => void
   setWalkerRightClick: (value: boolean) => void
   setHideUnseenDays: (value: number) => void
   hydrate: () => Promise<void>
@@ -67,7 +83,7 @@ export const useSettingsStore = create<SettingsStore>((set) => ({
     // the user's first real change).
     suppressNextSave = true
     hydrated = true
-    set({ ...loaded })
+    set({ ...loaded, walkerPinnedDestinations: pins(loaded.walkerPinnedDestinations) })
   }
 }))
 

@@ -13,7 +13,7 @@ describe('useSpeakerStore', () => {
   beforeEach(() => {
     useSpeakerStore.setState({
       windows: [],
-      selected: '',
+      selectedWindow: '',
       stopped: false,
       stopReason: undefined,
       running: {},
@@ -72,7 +72,7 @@ describe('useSpeakerStore', () => {
   it('toggle starts the selected window when nothing runs, and stops it when it does', () => {
     window.api.speaker.start = vi.fn(async () => undefined)
     window.api.speaker.stop = vi.fn(async () => undefined)
-    useSpeakerStore.setState({ selected: 'A', running: {} })
+    useSpeakerStore.setState({ windows: [WINDOW], selectedWindow: '1000', running: {} })
 
     useSpeakerStore.getState().toggle()
     expect(window.api.speaker.start).toHaveBeenCalledOnce()
@@ -84,7 +84,7 @@ describe('useSpeakerStore', () => {
 
   it('toggle does nothing with no window selected', () => {
     window.api.speaker.start = vi.fn(async () => undefined)
-    useSpeakerStore.setState({ selected: '' })
+    useSpeakerStore.setState({ windows: [WINDOW], selectedWindow: '' })
     useSpeakerStore.getState().toggle()
     expect(window.api.speaker.start).not.toHaveBeenCalled()
   })
@@ -98,7 +98,7 @@ describe('useSpeakerStore', () => {
     window.api.assist.onState = vi.fn(() => () => undefined)
     window.api.speaker.onState = vi.fn(() => () => undefined)
     window.api.speaker.start = vi.fn(async () => undefined)
-    useSpeakerStore.setState({ selected: 'A', running: {} })
+    useSpeakerStore.setState({ windows: [WINDOW], selectedWindow: '1000', running: {} })
 
     const stop = useSpeakerStore.getState().subscribe()
     fire?.()

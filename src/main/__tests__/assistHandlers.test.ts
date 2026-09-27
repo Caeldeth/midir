@@ -12,12 +12,16 @@ import {
   stopSpeaker,
   stopWalker,
   walkerState,
+  startExplorer,
+  stopExplorer,
+  explorerState,
   type AssistHandlerContext
 } from '../handlers/assist'
 import type { ActionLayer } from '../actionLayer'
 import type { Laborer } from '../laborer'
 import type { Speaker } from '../speaker'
 import type { Walker } from '../walker'
+import type { Explorer } from '../explorer'
 
 /**
  * The assist handler bodies, called directly with a fake action layer, a fake
@@ -38,6 +42,11 @@ function fakeContext(): AssistHandlerContext & {
   }
   laborer: {
     errands: ReturnType<typeof vi.fn>
+    run: ReturnType<typeof vi.fn>
+    stop: ReturnType<typeof vi.fn>
+    states: ReturnType<typeof vi.fn>
+  }
+  explorer: {
     run: ReturnType<typeof vi.fn>
     stop: ReturnType<typeof vi.fn>
     states: ReturnType<typeof vi.fn>
@@ -63,11 +72,17 @@ function fakeContext(): AssistHandlerContext & {
     stop: vi.fn(),
     states: vi.fn(() => [])
   }
+  const explorer = {
+    run: vi.fn(async () => ({ kind: 'ended', reason: 'done' })),
+    stop: vi.fn(),
+    states: vi.fn(() => [])
+  }
   return {
     actionLayer: actionLayer as unknown as ActionLayer & typeof actionLayer,
     speaker: speaker as unknown as Speaker & typeof speaker,
     walker: walker as unknown as Walker & typeof walker,
-    laborer: laborer as unknown as Laborer & typeof laborer
+    laborer: laborer as unknown as Laborer & typeof laborer,
+    explorer: explorer as unknown as Explorer & typeof explorer
   }
 }
 
@@ -239,5 +254,49 @@ describe('the assist handlers', () => {
     const ctx = fakeContext()
     expect(laborerState(ctx)).toEqual([])
     expect(ctx.laborer.states).toHaveBeenCalledOnce()
+  })
+
+  describe('the explorer (WP41)', () => {
+    it('starts a run on the window it was given', async () => {
+      const ctx = fakeContext()
+      const outcome = await startExplorer(ctx, { connectionId: 'A' })
+      expect(outcome).toEqual({ kind: 'ended', reason: 'done' })
+      expect(ctx.explorer.run).toHaveBeenCalledWith({ connectionId: 'A' })
+    })
+
+    it('passes a budget through, and leaves the limits to the explorer', async () => {
+      const ctx = fakeContext()
+      await startExplorer(ctx, { connectionId: 'A', budget: { maps: 5, minutes: 30 } })
+      expect(ctx.explorer.run).toHaveBeenCalledWith({
+        connectionId: 'A',
+        budget: { maps: 5, minutes: 30 }
+      })
+    })
+
+    it('refuses a run with no window, and says what to do', async () => {
+      const ctx = fakeContext()
+      await expect(startExplorer(ctx, { connectionId: '' })).rejects.toThrow(
+        'Pick a window to drive first.'
+      )
+      expect(ctx.explorer.run).not.toHaveBeenCalled()
+    })
+
+    it('stops a run on one window', () => {
+      const ctx = fakeContext()
+      stopExplorer(ctx, 'A')
+      expect(ctx.explorer.stop).toHaveBeenCalledWith('A')
+    })
+
+    it('ignores a stop with no window named', () => {
+      const ctx = fakeContext()
+      stopExplorer(ctx, '')
+      expect(ctx.explorer.stop).not.toHaveBeenCalled()
+    })
+
+    it('reports every run in progress', () => {
+      const ctx = fakeContext()
+      expect(explorerState(ctx)).toEqual([])
+      expect(ctx.explorer.states).toHaveBeenCalledOnce()
+    })
   })
 })

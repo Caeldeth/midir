@@ -26,6 +26,19 @@ describe('useCaptureStore', () => {
     expect(useCaptureStore.getState().status).toEqual(RUNNING)
   })
 
+  it('re-reads the status alone, and keeps the adapter list', async () => {
+    // The reconciliation for the window's return. The adapter list costs a
+    // device enumeration and nothing about it changes while Midir runs.
+    useCaptureStore.setState({ availability: { available: true, devices: [] } })
+    window.api.capture.availability = vi.fn()
+    window.api.capture.status = vi.fn(async () => RUNNING)
+
+    await useCaptureStore.getState().reconcile()
+    expect(useCaptureStore.getState().status).toEqual(RUNNING)
+    expect(window.api.capture.availability).not.toHaveBeenCalled()
+    expect(useCaptureStore.getState().availability).not.toBeNull()
+  })
+
   it('starts on a named adapter and keeps the status it is given', async () => {
     window.api.capture.start = vi.fn(async () => RUNNING)
     await useCaptureStore.getState().start('adapter')

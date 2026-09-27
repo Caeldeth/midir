@@ -57,6 +57,12 @@ Automation of a game is against the terms of service of most operators. You turn
 
 If you install Npcap with the option "Restrict Npcap driver's access to Administrators only", you must run Midir as an administrator. Midir shows this instruction if it cannot open the adapter.
 
+## Credits
+
+The stand-in legend marks are from the [Game Icons](https://game-icons.net/) set, used under
+[CC BY 3.0](https://creativecommons.org/licenses/by/3.0/). Midir draws them when it cannot read your
+Dark Ages folder; when it can, it draws the game's own art from the files already on your computer.
+
 ## Start Midir before you log in
 
 Midir learns the encryption keys from the login handshake. If you start Midir in the middle of a game session, it cannot read that session. Start Midir first, then start Dark Ages.

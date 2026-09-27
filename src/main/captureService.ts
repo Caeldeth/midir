@@ -20,8 +20,9 @@ import { reduceExchange, type ExchangeState } from './model/exchange'
 import { reduceFieldMap, type FieldMapState } from './model/fieldMap'
 import { reduceEntities, type EntityState } from './model/entities'
 import { reduceDoors, type DoorState } from './model/doors'
+import { reduceMusic, type MusicState } from './model/music'
 import { reduceTransitions, type TransitionState } from './model/transitions'
-import { withMapSize, type MapFile, type MapStore } from './store/mapStore'
+import { withMapMusic, withMapSize, type MapFile, type MapStore } from './store/mapStore'
 import { withObservation, type TransitionFile, type TransitionStore } from './store/transitionStore'
 import { reduceBoard, type BoardState } from './model/board'
 import {
@@ -204,6 +205,7 @@ export function createCaptureService(options: CaptureServiceOptions): CaptureSer
   /** What the client draws around each character, keyed by connection id. */
   const entities = new Map<string, EntityState>()
   const doors = new Map<string, DoorState>()
+  const music = new Map<string, MusicState>()
   /**
    * The transition learner's state for each connection (WP29): the last
    * confirmed tile and the steps in flight, which say at a map change
@@ -549,6 +551,30 @@ export function createCaptureService(options: CaptureServiceOptions): CaptureSer
     if (doorsAfter === null) doors.delete(id)
     else doors.set(id, doorsAfter)
 
+    // The map's music (WP40). The reducer decides which readings count; a write
+    // happens only when the accepted track changes, so a map that repeats its
+    // own track every visit writes once.
+    const musicBefore = music.get(id) ?? null
+    const musicAfter = reduceMusic(musicBefore, {
+      packet: tracked.event.packet,
+      timestampMs: tracked.timestampMs,
+      sawLoss
+    })
+    if (musicAfter === null) music.delete(id)
+    else music.set(id, musicAfter)
+    if (
+      musicAfter !== null &&
+      musicAfter.mapId !== undefined &&
+      musicAfter.track !== undefined &&
+      (musicAfter.track !== musicBefore?.track || musicAfter.mapId !== musicBefore?.mapId) &&
+      options.mapStore !== undefined
+    ) {
+      const { mapId, track } = musicAfter
+      const at = tracked.timestampMs
+      mapWrites.push((file) => withMapMusic(file, mapId, track, at))
+      scheduleSave()
+    }
+
     // The transition learner (WP29): what it proves goes to the store, on the
     // same debounce as everything else; its state stays with the connection.
     const learned = reduceTransitions(transitions.get(id) ?? null, {
@@ -608,6 +634,7 @@ export function createCaptureService(options: CaptureServiceOptions): CaptureSer
       fieldMaps.clear()
       entities.clear()
       doors.clear()
+      music.clear()
       transitions.clear()
       boards.clear()
       lossy.clear()
@@ -644,6 +671,7 @@ export function createCaptureService(options: CaptureServiceOptions): CaptureSer
           fieldMaps.delete(connection.id)
           entities.delete(connection.id)
           doors.delete(connection.id)
+          music.delete(connection.id)
           transitions.delete(connection.id)
           boards.delete(connection.id)
           connectionCount = tracker.activeConnections().length
@@ -699,6 +727,7 @@ export function createCaptureService(options: CaptureServiceOptions): CaptureSer
       fieldMaps.clear()
       entities.clear()
       doors.clear()
+      music.clear()
       transitions.clear()
       await flush()
       publishStatus()

@@ -44,7 +44,8 @@ export function registerIconsHandlers(
   ipcMain: IpcMain,
   dialog: Dialog,
   BrowserWindow: typeof BrowserWindowType,
-  onLegendFound?: (path: string) => void
+  onLegendFound?: (path: string) => void,
+  legend?: { palette: () => Promise<string[] | null> }
 ): void {
   ipcMain.handle('icons:chooseFolder', (event) =>
     chooseDarkAgesFolder(dialog, BrowserWindow.fromWebContents(event.sender))
@@ -57,4 +58,7 @@ export function registerIconsHandlers(
     if (legendFound && typeof folderPath === 'string') onLegendFound?.(folderPath)
     return { legendFound }
   })
+  // The colours a legend mark's `color` byte indexes. 256 short strings, asked
+  // for once and kept in the renderer, so no mark carries its colour over IPC.
+  ipcMain.handle('icons:legendPalette', async () => (await legend?.palette()) ?? null)
 }

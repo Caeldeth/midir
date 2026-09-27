@@ -14,7 +14,7 @@ describe('useWalkerStore', () => {
     useWalkerStore.setState({
       windows: [],
       destinations: [],
-      selected: '',
+      selectedWindow: '',
       destination: '',
       stopped: false,
       stopReason: undefined,

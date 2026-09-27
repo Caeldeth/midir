@@ -42,6 +42,7 @@ import {
 } from './exchange'
 import { decodePursuitMessage, type PursuitMessage } from './pursuit'
 import { decodeStaticObjectState, type StaticObjectState } from './staticObject'
+import { decodeSoundEffect, type Music, type SoundEffect } from './sound'
 import { decodeBulletin, decodeBulletinRequest, type Bulletin, type BulletinRequest } from './board'
 import {
   decodeAddWorldObjects,
@@ -129,6 +130,8 @@ export type DecodedPacket =
   | Exchange
   | ExchangeRequest
   | StaticObjectState
+  | Music
+  | SoundEffect
   | ClientExit
   | MerchantResponse
   | PursuitResponse
@@ -166,7 +169,8 @@ const DECODERS = new Map<number, Decoder>([
   [ServerOpcode.Bulletin, decodeBulletin],
   [ServerOpcode.SystemMessage, decodeSystemMessage],
   [ServerOpcode.Exchange, decodeExchange],
-  [ServerOpcode.StaticObjectState, decodeStaticObjectState]
+  [ServerOpcode.StaticObjectState, decodeStaticObjectState],
+  [ServerOpcode.SoundEffect, decodeSoundEffect]
 ])
 
 const CLIENT_DECODERS = new Map<number, Decoder>([

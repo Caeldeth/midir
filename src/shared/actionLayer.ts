@@ -30,12 +30,48 @@ export interface ActionTarget {
  * name; a window with no decoded character yet shows only the title.
  */
 export interface AssistWindow {
-  connectionId: string
+  /**
+   * The live connection on this window, when the client has one. It is absent
+   * while the client sits at the login or character screen, and it is a
+   * different id after every login, so it is never what a picked window is
+   * remembered by. `windowHandle` is.
+   */
+  connectionId?: string
+  /**
+   * The client's own window. It lasts as long as the client is open, through a
+   * logout and the login after it, so this is the picker's identity.
+   */
   windowHandle: number
   /** The window title, for the user to tell two clients apart. */
   title: string
   /** The character on this connection, when one is decoded. */
   characterName?: string
+}
+
+/**
+ * The value a window picker holds: the window's handle as text.
+ *
+ * A picked window has to survive a logout, because the player logs out and back
+ * in while a driving tab is open. The connection id does not survive one — it is
+ * minted per login, and the client holds no connection at all in between (102
+ * seconds of none, in one recording). The window handle does.
+ */
+export function windowKey(window: AssistWindow): string {
+  return String(window.windowHandle)
+}
+
+/** The picked window, or undefined when the client that had it has closed. */
+export function pickedWindow(windows: AssistWindow[], picked: string): AssistWindow | undefined {
+  return windows.find((w) => windowKey(w) === picked)
+}
+
+/**
+ * The connection to drive for the picked window, or an empty string when it has
+ * none: the client is open, and nobody is logged in on it. Every driving action
+ * needs a connection, so an empty string is what turns the buttons off.
+ */
+export function connectionOf(windows: AssistWindow[], picked: string): string {
+  return pickedWindow(windows, picked)?.connectionId ?? ''
 }
 
 /** Whether a stop is in force, and why. Pushed on every change. */
@@ -84,6 +120,73 @@ export interface WalkRequest {
   tile?: { x: number; y: number }
   /** Whether to end on `tile` or beside it. Beside when absent. */
   arrive?: 'on' | 'beside'
+  /**
+   * Maps to keep out of the route: neither crossed nor arrived at. The explorer
+   * passes the hostile maps when it is told to avoid them, so a run does not
+   * walk the character through a crypt to reach a shop (WP41).
+   */
+  avoid?: number[]
+}
+
+/**
+ * A pinned destination on the Walker: the place, the tile, and the name the user
+ * gave it.
+ *
+ * The label exists because a map's name is often not what the player calls the
+ * spot. "Mileth Altar" is a reactor on Mileth Village (map 500), so the place
+ * and the tile are the route and the label is the errand (Sabrael, 2026-09-27).
+ */
+export interface WalkerPin {
+  /** What the user calls this spot. */
+  label: string
+  /** The place the walker is given: a map name or a map id, as text. */
+  destination: string
+  /** The tile to end on, when the pin names one. */
+  tile?: { x: number; y: number }
+}
+
+/**
+ * Read a pin from a stored value.
+ *
+ * A pin used to be one string, `Place @ x,y`, and its text was its only name.
+ * Such a value still loads: the text becomes the label, and the place and tile
+ * are read out of it. Anything else returns null and is dropped.
+ */
+export function pinOf(value: unknown): WalkerPin | null {
+  if (typeof value === 'string') {
+    const text = value.trim()
+    if (text === '') return null
+    const parsed = parseDestination(text)
+    if (parsed.destination === '') return null
+    return {
+      label: text,
+      destination: parsed.destination,
+      ...(parsed.tile !== undefined ? { tile: parsed.tile } : {})
+    }
+  }
+  if (typeof value !== 'object' || value === null) return null
+  const record = value as Record<string, unknown>
+  const destination = typeof record.destination === 'string' ? record.destination.trim() : ''
+  if (destination === '') return null
+  const label =
+    typeof record.label === 'string' && record.label.trim() !== ''
+      ? record.label.trim()
+      : destination
+  const tile = record.tile as { x?: unknown; y?: unknown } | undefined
+  const hasTile =
+    tile !== undefined &&
+    tile !== null &&
+    typeof tile.x === 'number' &&
+    typeof tile.y === 'number' &&
+    Number.isInteger(tile.x) &&
+    Number.isInteger(tile.y) &&
+    tile.x >= 0 &&
+    tile.y >= 0
+  return {
+    label,
+    destination,
+    ...(hasTile ? { tile: { x: tile.x as number, y: tile.y as number } } : {})
+  }
 }
 
 /** A destination as typed on the Walker tab, split into its parts. */
@@ -138,7 +241,20 @@ export type WalkStopReason =
   | 'protected'
 
 /** How a walk ended. */
-export type WalkOutcome = { kind: 'arrived' } | { kind: 'stopped'; reason: WalkStopReason }
+export type WalkOutcome =
+  | { kind: 'arrived' }
+  | {
+      kind: 'stopped'
+      reason: WalkStopReason
+      /**
+       * Confirmed steps the walk took before it stopped. A `blocked` stop with
+       * none is a fact about where the character stands — no first step landed —
+       * and not about the destination, which is what the explorer needs to tell
+       * them apart (2026-09-27: one unwalkable map made a run set aside 13 good
+       * ones in a third of a second).
+       */
+      stepsTaken?: number
+    }
 
 /** Where the walker last saw the character. A trimmed Position, safe to send. */
 export interface WalkerPosition {
@@ -184,6 +300,13 @@ export interface WalkerDestination {
    * reachability is from a map and there is no map to ask from.
    */
   reachable?: boolean
+  /**
+   * True when the only way there runs over an edge the imported world XML
+   * proposes and the wire has never crossed. The walk is offered, because Midir
+   * does have a way; it may end early if the imported tile is a tile off, and
+   * crossing it is what confirms it (WP24).
+   */
+  viaUnconfirmed?: boolean
 }
 
 /** A message worth showing the user for each walk-stop reason. */
@@ -476,4 +599,157 @@ export function wrapChatLine(text: string): string[] {
   }
   flush()
   return pieces
+}
+
+/**
+ * The explorer: the walker with a queue in front of it (WP41).
+ *
+ * It visits maps the stores hold no reading for, so that what only a visit
+ * teaches gets taught — the wire's own name for the map, its size, its music
+ * track (WP40), and the crossing of a warp the world XML only proposes.
+ *
+ * It is off until it is started, one run to a window, and every rule in
+ * `CLAUDE.md` holds: it drives through the same action layer as the walker, it
+ * sends no packet, and the one global stop halts it. It adds stops of its own,
+ * because nobody is watching each hop.
+ */
+
+/** What one exploration run may spend. Each limit is reached by stopping. */
+export interface ExplorerBudget {
+  /** Maps to arrive at before the run stops. */
+  maps: number
+  /** Minutes to run before the run stops. */
+  minutes: number
+}
+
+/** The budget a run takes when the caller names none. Deliberately small. */
+export const DEFAULT_EXPLORER_BUDGET: ExplorerBudget = { maps: 20, minutes: 15 }
+
+/** The most a run may be given. An unattended run is not a mode this has. */
+export const MAX_EXPLORER_MAPS = 200
+export const MAX_EXPLORER_MINUTES = 120
+
+/**
+ * Which maps a run goes looking for (WP41).
+ *
+ * `unread` is the plain sweep and the default. The other two are for going back
+ * over ground already covered, because a first visit is not the last word:
+ *
+ * - `unconfirmed` takes the maps whose **only way in** is a warp the world XML
+ *   proposed and no walk has crossed. Crossing one is what promotes it (WP24),
+ *   so this is the run that turns imported guesses into known ways.
+ * - `stale` takes a map whose reading is older than the run's `staleDays`. It is
+ *   what picks up a field added after the visit: every map read before WP40 has
+ *   a name and a size and no music, and no `unread` run will ever go back for it.
+ */
+export type ExplorerScope = 'unread' | 'unconfirmed' | 'stale'
+
+/** How old a reading must be for a `stale` run to go back, when none is given. */
+export const DEFAULT_STALE_DAYS = 30
+
+/** What each scope is looking for, in the user's words. */
+export function explorerScopeLabel(scope: ExplorerScope): string {
+  switch (scope) {
+    case 'unread':
+      return 'Maps never visited'
+    case 'unconfirmed':
+      return 'Maps reached only by an imported warp'
+    case 'stale':
+      return 'Maps not visited lately'
+  }
+}
+
+export interface ExplorerRequest {
+  /** The connection, and so the character, to drive. */
+  connectionId: string
+  /** The limits for this run. The default applies to whatever is left out. */
+  budget?: Partial<ExplorerBudget>
+  /**
+   * Whether to keep out of the maps that hold monsters, as
+   * `route/hostile.ts` names them. **True when left out**, because the run has no
+   * way to fight and the cheapest way not to die is not to go. It costs reach: of
+   * 485 maps a walk reaches from Mileth, 210 are outside the hostile list.
+   */
+  avoidHostile?: boolean
+  /** Which maps to go looking for. `unread` when left out. */
+  scope?: ExplorerScope
+  /** For a `stale` run: how old a reading may be before the run goes back. */
+  staleDays?: number
+}
+
+/** Why an exploration run ended. */
+export type ExplorerStopReason =
+  /** The user stopped it, by the button or the global stop. */
+  | 'user'
+  /** The character logged off or the window closed. */
+  | 'lostCharacter'
+  /** No character was on the window when the run was asked for. */
+  | 'noPosition'
+  /** The walker lost track of where the character is. */
+  | 'lostPosition'
+  /** A dialog or an exchange stayed on screen through every close gesture. */
+  | 'dialog'
+  /** A login or password dialog is on screen. Nothing is posted to it. */
+  | 'protected'
+  /** The character lost health, so something is attacking it. */
+  | 'hurt'
+  /** The run spent its budget of maps or of minutes. */
+  | 'budget'
+  /**
+   * The walk could not leave the map the character stands on, or no unread map
+   * can be reached from it. The run is not finished; it is stranded, which is a
+   * different thing and used to be reported as `done`.
+   */
+  | 'stuck'
+  /** Every map the run was looking for has been reached. */
+  | 'done'
+
+export type ExplorerOutcome = { kind: 'ended'; reason: ExplorerStopReason }
+
+/** What one explorer is doing now. Pushed on every change. */
+export interface ExplorerState {
+  connectionId: string
+  running: boolean
+  /** Maps this run has arrived at for the first time. */
+  visited: number
+  /** Maps still unread and reachable, at the last pick. */
+  remaining: number
+  /** The map being walked to now. */
+  target?: { mapId: number; name: string }
+  /** Maps set aside this run, because a walk to one of them did not arrive. */
+  skipped: number
+  /** The budget the run is spending. */
+  budget: ExplorerBudget
+  /** Whether this run is keeping out of the maps that hold monsters. */
+  avoidingHostile: boolean
+  /** What this run is looking for. */
+  scope: ExplorerScope
+  /** Why the run ended, in words worth showing. */
+  reason?: string
+}
+
+/** A message worth showing the user for each explorer stop reason. */
+export function explorerStopMessage(reason: ExplorerStopReason): string {
+  switch (reason) {
+    case 'user':
+      return 'You stopped the explorer.'
+    case 'lostCharacter':
+      return 'The character logged off or the window closed.'
+    case 'noPosition':
+      return 'Log in first: the explorer starts from the map the character stands on.'
+    case 'lostPosition':
+      return 'The explorer lost track of where the character is.'
+    case 'dialog':
+      return 'A dialog stayed on screen, so the run stopped.'
+    case 'protected':
+      return 'A login dialog is on screen. The explorer posts nothing to it.'
+    case 'hurt':
+      return 'The character lost health, so the run stopped.'
+    case 'budget':
+      return 'The run reached its budget.'
+    case 'stuck':
+      return 'The explorer could not walk on from this map. Walk somewhere with a known way out, or add a warp on the Map tab.'
+    case 'done':
+      return 'Every map this run was looking for has been reached.'
+  }
 }

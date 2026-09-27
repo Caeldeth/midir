@@ -21,6 +21,7 @@ import Guidance from '@renderer/components/Guidance'
 import { formatAgo, plural } from '@renderer/lib/format'
 import { boardPollOutcomeMessage, useBoardStore } from '@renderer/store/boardStore'
 import { useCaptureStore } from '@renderer/store/captureStore'
+import { connectionOf, windowKey } from '@shared/types'
 import type { BoardRecord, BoardSummary, PostRecord } from '@shared/types'
 import React, { useEffect, useMemo } from 'react'
 
@@ -118,9 +119,11 @@ function PollPanel(): React.JSX.Element {
     void refreshWindows()
   }, [refreshWindows, captureStatus])
 
-  // A selection that names a window that is gone collapses to empty.
-  const selectedValue = windows.some((w) => w.connectionId === pollWindow) ? pollWindow : ''
-  const running = selectedValue !== '' ? polls[selectedValue] : undefined
+  // A pick collapses to empty only when that client has closed. A logout keeps
+  // the window in the list, with nothing to drive until the next login.
+  const selectedValue = windows.some((w) => windowKey(w) === pollWindow) ? pollWindow : ''
+  const connectionId = connectionOf(windows, selectedValue)
+  const running = connectionId !== '' ? polls[connectionId] : undefined
 
   const windowLabel = (w: (typeof windows)[number]): string =>
     w.characterName !== undefined ? w.characterName : w.title || 'A game window'
@@ -143,7 +146,7 @@ function PollPanel(): React.JSX.Element {
           sx={{ minWidth: 220 }}
         >
           {windows.map((w) => (
-            <MenuItem key={w.connectionId} value={w.connectionId}>
+            <MenuItem key={windowKey(w)} value={windowKey(w)}>
               {windowLabel(w)}
             </MenuItem>
           ))}
@@ -188,7 +191,7 @@ function PollPanel(): React.JSX.Element {
             variant="outlined"
             color="warning"
             size="small"
-            onClick={() => void stopPoll(selectedValue)}
+            onClick={() => void stopPoll(connectionId)}
             data-testid="poll-stop"
           >
             Stop
@@ -241,8 +244,9 @@ function Archive({
   const pollWindow = useBoardStore((s) => s.pollWindow)
   const polls = useBoardStore((s) => s.polls)
   const poll = useBoardStore((s) => s.poll)
-  const canPoll =
-    windows.some((w) => w.connectionId === pollWindow) && polls[pollWindow] === undefined
+  // A poll needs a live connection, so a client with nobody logged in cannot.
+  const connectionId = connectionOf(windows, pollWindow)
+  const canPoll = connectionId !== '' && polls[connectionId] === undefined
   return (
     <Box sx={{ display: 'flex', flex: 1, minHeight: 0 }}>
       <Box

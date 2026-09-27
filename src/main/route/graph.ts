@@ -150,6 +150,33 @@ export interface RouteGraph {
    * which destinations it has no way to (WP39).
    */
   reachableFrom(fromMapId: number, options?: PlanOptions): Set<number>
+  /**
+   * Every map a walk can reach from this one, with the number of map changes
+   * it takes to get there. The start map is 0. `reachableFrom` is the same
+   * sweep with the distances dropped, so the rule for which exits a walk may
+   * take lives in one place. The explorer asks so it can visit the nearest
+   * unread map first (WP41).
+   */
+  distancesFrom(fromMapId: number, options?: PlanOptions): Map<number, number>
+  /**
+   * The same sweep, with the map each one was reached through kept: a
+   * breadth-first tree rooted at `fromMapId`, in the order it was reached, so a
+   * caller can read the shortest path back for any map it names.
+   *
+   * `distancesFrom` and `reachableFrom` are both this with something dropped, so
+   * the rule for which exits a walk may take lives in one place. The explorer
+   * reads the whole path, because every map on the way is read for free as the
+   * character crosses it (WP41).
+   */
+  pathsFrom(fromMapId: number, options?: PlanOptions): Map<number, PathStep>
+}
+
+/** One map in a breadth-first sweep: how far, and what it was reached through. */
+export interface PathStep {
+  /** Map changes from the start. The start itself is 0. */
+  distance: number
+  /** The map this one was reached from. Absent for the start. */
+  previous?: number
 }
 
 /** What a plan may leave out. */
@@ -160,6 +187,21 @@ export interface PlanOptions {
    * passes the gated maps its character cannot enter (WP32).
    */
   passable?: (mapId: number) => boolean
+  /**
+   * Whether the walk may take a **candidate** edge: one the imported world XML
+   * proposes and the wire has never crossed (WP24).
+   *
+   * The XML holds 3171 candidate edges against 2132 the graph routes over, and
+   * they are the difference between 224 maps reachable from Mileth and 485. A
+   * candidate names the right destination; what it can get wrong is the tile,
+   * by one (the Town Hall door, y 5 against y 6), and that failure is safe: the
+   * warp does not fire, the walker marks the tile and re-plans, and the leg
+   * stops at worst. Crossing one is also the only thing that confirms it, so
+   * the walker and the explorer both ask for them; the route is then shown as
+   * unconfirmed rather than refused (2026-09-27, on a Walker that would not
+   * route to a map it had the way to).
+   */
+  useCandidates?: boolean
 }
 
 /** True for an exit the walker can take: a step, a world-map click, or a prompt. */
@@ -169,6 +211,16 @@ function walkable(exit: RouteExit): boolean {
 
 export function createRouteGraph(nodes: RouteNode[]): RouteGraph {
   const byId = new Map<number, RouteNode>(nodes.map((n) => [n.mapId, n]))
+
+  /**
+   * The edges a walk may take out of one map. Candidates come last, so a
+   * confirmed edge to the same map is always preferred.
+   */
+  function exitsOf(node: RouteNode, options?: PlanOptions): RouteExit[] {
+    const exits = node.exits.filter(walkable)
+    if (options?.useCandidates !== true) return exits
+    return [...exits, ...(node.candidates ?? []).filter(walkable)]
+  }
 
   function node(mapId: number): RouteNode | null {
     return byId.get(mapId) ?? null
@@ -209,23 +261,35 @@ export function createRouteGraph(nodes: RouteNode[]): RouteGraph {
     return partial.length === 1 ? partial[0].mapId : null
   }
 
-  function reachableFrom(fromMapId: number, options?: PlanOptions): Set<number> {
-    const reached = new Set<number>()
+  function pathsFrom(fromMapId: number, options?: PlanOptions): Map<number, PathStep> {
+    const reached = new Map<number, PathStep>()
     if (!byId.has(fromMapId)) return reached
     const passable = options?.passable ?? ((): boolean => true)
-    reached.add(fromMapId)
+    reached.set(fromMapId, { distance: 0 })
     const queue: number[] = [fromMapId]
     while (queue.length > 0) {
       const current = queue.shift()!
-      for (const exit of byId.get(current)!.exits) {
-        if (!walkable(exit)) continue
+      const distance = reached.get(current)!.distance + 1
+      for (const exit of exitsOf(byId.get(current)!, options)) {
         if (reached.has(exit.toMapId) || !byId.has(exit.toMapId)) continue
         if (!passable(exit.toMapId)) continue
-        reached.add(exit.toMapId)
+        reached.set(exit.toMapId, { distance, previous: current })
         queue.push(exit.toMapId)
       }
     }
     return reached
+  }
+
+  function distancesFrom(fromMapId: number, options?: PlanOptions): Map<number, number> {
+    const distances = new Map<number, number>()
+    for (const [mapId, step] of pathsFrom(fromMapId, options)) {
+      distances.set(mapId, step.distance)
+    }
+    return distances
+  }
+
+  function reachableFrom(fromMapId: number, options?: PlanOptions): Set<number> {
+    return new Set(pathsFrom(fromMapId, options).keys())
   }
 
   function planRoute(fromMapId: number, toMapId: number, options?: PlanOptions): RoutePlan | null {
@@ -241,8 +305,7 @@ export function createRouteGraph(nodes: RouteNode[]): RouteGraph {
     let found = false
     while (queue.length > 0 && !found) {
       const current = queue.shift()!
-      for (const exit of byId.get(current)!.exits) {
-        if (!walkable(exit)) continue
+      for (const exit of exitsOf(byId.get(current)!, options)) {
         if (visited.has(exit.toMapId) || !byId.has(exit.toMapId)) continue
         if (!passable(exit.toMapId)) continue
         visited.add(exit.toMapId)
@@ -269,9 +332,8 @@ export function createRouteGraph(nodes: RouteNode[]): RouteGraph {
     for (let i = 0; i < path.length - 1; i++) {
       const from = path[i]
       const to = path[i + 1]
-      const warps = byId
-        .get(from)!
-        .exits.filter((e) => e.toMapId === to && walkable(e))
+      const warps = exitsOf(byId.get(from)!, options)
+        .filter((e) => e.toMapId === to)
         .map((e) => ({ x: e.x, y: e.y, ...(e.via !== undefined ? { via: e.via } : {}) }))
       legs.push({ fromMapId: from, toMapId: to, warps })
     }
@@ -286,7 +348,9 @@ export function createRouteGraph(nodes: RouteNode[]): RouteGraph {
     destinations,
     resolveDestination,
     planRoute,
-    reachableFrom
+    reachableFrom,
+    distancesFrom,
+    pathsFrom
   }
 }
 

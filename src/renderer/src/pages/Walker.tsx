@@ -4,6 +4,10 @@ import {
   Box,
   Button,
   Chip,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   FormControlLabel,
   IconButton,
   MenuItem,
@@ -16,12 +20,15 @@ import {
 } from '@mui/material'
 import PushPinOutlined from '@mui/icons-material/PushPinOutlined'
 import InfoTip from '@renderer/components/InfoTip'
+import ExplorerCard from '@renderer/components/ExplorerCard'
 import { useCaptureStore } from '@renderer/store/captureStore'
 import { useSettingsStore } from '@renderer/store/settingsStore'
 import { outcomeMessage, useWalkerStore } from '@renderer/store/walkerStore'
 import {
+  connectionOf,
   formatHotkey,
-  parseDestination,
+  windowKey,
+  type WalkerPin,
   type WalkerPosition,
   type WalkOutcome
 } from '@shared/types'
@@ -49,7 +56,7 @@ function Walker(): React.JSX.Element {
   const busy = useWalkerStore((s) => s.busy)
   const error = useWalkerStore((s) => s.error)
   const lastOutcome = useWalkerStore((s) => s.lastOutcome)
-  const selected = useWalkerStore((s) => s.selected)
+  const selectedWindow = useWalkerStore((s) => s.selectedWindow)
   const setSelected = useWalkerStore((s) => s.setSelected)
   const destination = useWalkerStore((s) => s.destination)
   const setDestination = useWalkerStore((s) => s.setDestination)
@@ -73,18 +80,28 @@ function Walker(): React.JSX.Element {
   const setRightClick = useSettingsStore((s) => s.setWalkerRightClick)
 
   const captureStatus = useCaptureStore((s) => s.status)
-
-  useEffect(() => {
-    void refresh()
-  }, [refresh])
+  /** Who is logged in, as one string, so a re-read keys on a login and not on a connection. */
+  const liveCharacters = useCaptureStore((s) => s.status.characters.join(','))
 
   useEffect(() => {
     void refreshWindows()
   }, [refreshWindows, captureStatus])
 
+  // A login or a logout changes every destination's mark, because reachability
+  // is from where the character stands (WP39). So the whole refresh runs again
+  // on a change to who is logged in, and this effect covers the first read as
+  // well. The key is the names and not the whole status: a connection that
+  // opens and closes moves nobody, and the destinations are a long list.
+  useEffect(() => {
+    void refresh()
+  }, [refresh, liveCharacters])
+
   // A selection that names a window that is gone collapses to empty.
-  const selectedValue = windows.some((w) => w.connectionId === selected) ? selected : ''
-  const run = selectedValue !== '' ? running[selectedValue] : undefined
+  // A pick collapses to empty only when that client has closed. A logout keeps
+  // the window in the list, with nothing to drive until the next login.
+  const selectedValue = windows.some((w) => windowKey(w) === selectedWindow) ? selectedWindow : ''
+  const connectionId = connectionOf(windows, selectedValue)
+  const run = connectionId !== '' ? running[connectionId] : undefined
   const isRunning = run?.running === true
 
   const windowLabel = (w: (typeof windows)[number]): string =>
@@ -109,34 +126,56 @@ function Walker(): React.JSX.Element {
   // Midir knows the place and knows no way to walk there from where the
   // character stands. `reachable` is absent until a character is logged in.
   const unreachable = named?.reachable === false
+  // Midir has a way, but only over a warp the imported world data proposes and
+  // the wire has never crossed. The walk is offered: crossing it is what
+  // confirms it, and a tile that is a tile off stops the leg and nothing worse.
+  const unconfirmed = named?.viaUnconfirmed === true
   const noWayText = `Midir knows no way to walk there from where the character stands. Walk a warp it has not seen yet, or add one on the Map tab.`
+  const unconfirmedText = `The only way Midir knows there comes from its imported map data, which no walk has confirmed yet. The walk may stop early; crossing it is what proves it.`
 
   const onGo = (): void => {
-    if (selectedValue === '' || destination.trim() === '' || !endValid || unreachable) return
-    go(selectedValue, destination.trim(), endTile)
+    if (connectionId === '' || destination.trim() === '' || !endValid || unreachable) return
+    go(connectionId, destination.trim(), endTile)
   }
 
   const trimmed = destination.trim()
-  // A pin keeps the end tile with the place, as `Place @ x,y`.
-  const pinText = endTile !== undefined ? `${trimmed} @ ${endTile.x},${endTile.y}` : trimmed
-  const alreadyPinned = pinned.some((d) => d.toLowerCase() === pinText.toLowerCase())
+  /** The place and tile a pin would hold, as text, for comparing two pins. */
+  const spotOf = (pin: WalkerPin): string =>
+    `${pin.destination.toLowerCase()}@${pin.tile?.x ?? ''},${pin.tile?.y ?? ''}`
+  const spotNow = `${trimmed.toLowerCase()}@${endTile?.x ?? ''},${endTile?.y ?? ''}`
+  const alreadyPinned = pinned.some((pin) => spotOf(pin) === spotNow)
+
+  // Naming a pin is its own step, because the name is the point: a map's name is
+  // often not what the player calls the spot on it (Sabrael, 2026-09-27).
+  const [pinOpen, setPinOpen] = React.useState(false)
+  const [pinLabel, setPinLabel] = React.useState('')
 
   const onPin = (): void => {
     if (trimmed === '' || !endValid || alreadyPinned) return
-    setPinned([...pinned, pinText])
+    setPinLabel(trimmed)
+    setPinOpen(true)
   }
 
-  const onUnpin = (value: string): void => {
-    setPinned(pinned.filter((d) => d !== value))
+  const savePin = (): void => {
+    const label = pinLabel.trim()
+    if (label === '' || trimmed === '') return
+    setPinned([
+      ...pinned,
+      { label, destination: trimmed, ...(endTile !== undefined ? { tile: endTile } : {}) }
+    ])
+    setPinOpen(false)
+  }
+
+  const onUnpin = (pin: WalkerPin): void => {
+    setPinned(pinned.filter((held) => held !== pin))
   }
 
   /** A pin fills the place and the end tile it carries, if any. */
-  const onPick = (place: string): void => {
-    const parsed = parseDestination(place)
-    setDestination(parsed.destination)
+  const onPick = (pin: WalkerPin): void => {
+    setDestination(pin.destination)
     setEndTile(
-      parsed.tile !== undefined ? String(parsed.tile.x) : '',
-      parsed.tile !== undefined ? String(parsed.tile.y) : ''
+      pin.tile !== undefined ? String(pin.tile.x) : '',
+      pin.tile !== undefined ? String(pin.tile.y) : ''
     )
   }
 
@@ -177,12 +216,14 @@ function Walker(): React.JSX.Element {
             disabled={isRunning}
             helperText={
               windows.length === 0
-                ? 'No game window is open. Log in first, then refresh.'
-                : 'Midir drives only this window.'
+                ? 'No game window is open. Start Dark Ages, then refresh.'
+                : selectedValue !== '' && connectionId === ''
+                  ? 'Nobody is logged in on this client. Log in to drive it.'
+                  : 'Midir drives only this window.'
             }
           >
             {windows.map((w) => (
-              <MenuItem key={w.connectionId} value={w.connectionId}>
+              <MenuItem key={windowKey(w)} value={windowKey(w)}>
                 {windowLabel(w)}
                 {w.characterName !== undefined && w.title !== '' ? ` — ${w.title}` : ''}
               </MenuItem>
@@ -220,6 +261,10 @@ function Walker(): React.JSX.Element {
                       <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                         No route Midir knows
                       </Typography>
+                    ) : place?.viaUnconfirmed === true ? (
+                      <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                        Route not confirmed yet
+                      </Typography>
                     ) : null}
                   </Box>
                 </Box>
@@ -237,7 +282,9 @@ function Walker(): React.JSX.Element {
                     ? 'Give both End x and End y, or neither.'
                     : unreachable
                       ? noWayText
-                      : 'Pick a known place, or type a map name or number. End x and y are optional: a tile to stand on.'
+                      : unconfirmed
+                        ? unconfirmedText
+                        : 'Pick a known place, or type a map name or number. End x and y are optional: a tile to stand on.'
                 }
               />
             )}
@@ -281,16 +328,24 @@ function Walker(): React.JSX.Element {
             data-testid="walker-pinned"
             sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}
           >
-            {pinned.map((place) => (
-              <Chip
-                key={place}
-                label={place}
-                variant="outlined"
-                onClick={() => onPick(place)}
-                onDelete={() => onUnpin(place)}
-                icon={<PushPinOutlined fontSize="small" />}
-                data-testid="walker-pin"
-              />
+            {pinned.map((pin) => (
+              <Tooltip
+                key={`${pin.label}:${spotOf(pin)}`}
+                title={
+                  pin.tile !== undefined
+                    ? `${pin.destination} at ${pin.tile.x}, ${pin.tile.y}`
+                    : pin.destination
+                }
+              >
+                <Chip
+                  label={pin.label}
+                  variant="outlined"
+                  onClick={() => onPick(pin)}
+                  onDelete={() => onUnpin(pin)}
+                  icon={<PushPinOutlined fontSize="small" />}
+                  data-testid="walker-pin"
+                />
+              </Tooltip>
             ))}
           </Box>
         ) : null}
@@ -300,7 +355,7 @@ function Walker(): React.JSX.Element {
             <Button
               variant="outlined"
               disabled={busy}
-              onClick={() => void stop(selectedValue)}
+              onClick={() => void stop(connectionId)}
               data-testid="walker-stop"
             >
               Stop
@@ -310,7 +365,7 @@ function Walker(): React.JSX.Element {
               <span>
                 <Button
                   variant="contained"
-                  disabled={selectedValue === '' || destination.trim() === '' || unreachable}
+                  disabled={connectionId === '' || destination.trim() === '' || unreachable}
                   onClick={onGo}
                   data-testid="walker-go"
                 >
@@ -385,6 +440,43 @@ function Walker(): React.JSX.Element {
           lastOutcome={lastOutcome}
         />
       </Paper>
+
+      <Dialog open={pinOpen} onClose={() => setPinOpen(false)} fullWidth maxWidth="xs">
+        <DialogTitle>Name this pin</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            fullWidth
+            size="small"
+            label="Pin name"
+            value={pinLabel}
+            onChange={(event) => setPinLabel(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') savePin()
+            }}
+            helperText={
+              endTile !== undefined
+                ? `${trimmed} at ${endTile.x}, ${endTile.y}`
+                : `${trimmed}, anywhere the route arrives`
+            }
+            slotProps={{ htmlInput: { maxLength: 60 } }}
+            sx={{ mt: 1 }}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setPinOpen(false)}>Cancel</Button>
+          <Button
+            variant="contained"
+            onClick={savePin}
+            disabled={pinLabel.trim() === ''}
+            data-testid="walker-pin-save"
+          >
+            Pin
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <ExplorerCard />
     </Box>
   )
 }

@@ -16,6 +16,10 @@ import type {
   Errand,
   ErrandOutcome,
   ErrandRequest,
+  ExplorerOutcome,
+  ExplorerRequest,
+  ExplorerState,
+  WalkerPin,
   LaborerState,
   SpeakerConfig,
   SpeakerState,
@@ -97,7 +101,7 @@ export interface MidirSettings {
   /** Rotate the list forever. When false, the Speaker sends each line once. */
   speakerRepeat: boolean
   /** The Walker destinations the user pinned, each a place name or a map id. */
-  walkerPinnedDestinations: string[]
+  walkerPinnedDestinations: WalkerPin[]
   /**
    * Walk by right-click: the walker hands a stretch of up to eight tiles to
    * the client's own pathfinder with one right-click on empty ground, and
@@ -229,6 +233,11 @@ export interface MidirApi {
     chooseFolder: () => Promise<string | null>
     /** Whether `legend.dat` is present in `path`. Drives the Settings on/off note. */
     probe: (path: string) => Promise<{ legendFound: boolean }>
+    /**
+     * The 256 colours a legend mark's `color` byte indexes, as CSS hex, or null
+     * when the client's palette cannot be read (WP42).
+     */
+    legendPalette: () => Promise<string[] | null>
   }
 
   capture: {
@@ -298,6 +307,17 @@ export interface MidirApi {
     state: () => Promise<LaborerState[]>
     /** Watch a Laborer as it changes. Call the result to stop watching. */
     onState: (handler: (state: LaborerState) => void) => () => void
+  }
+
+  explorer: {
+    /** Explore from where a character stands. Resolves with how the run ended (WP41). */
+    start: (request: ExplorerRequest) => Promise<ExplorerOutcome>
+    /** Stop the run on one connection. */
+    stop: (connectionId: string) => Promise<void>
+    /** Every run now in progress. */
+    state: () => Promise<ExplorerState[]>
+    /** Watch a run as it changes. Call the result to stop watching. */
+    onState: (handler: (state: ExplorerState) => void) => () => void
   }
 
   boards: {

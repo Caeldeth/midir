@@ -17,7 +17,8 @@ export function createMockApi(): MidirApi {
     },
     icons: {
       chooseFolder: vi.fn(async () => null),
-      probe: vi.fn(async () => ({ legendFound: false }))
+      probe: vi.fn(async () => ({ legendFound: false })),
+      legendPalette: vi.fn(async () => null)
     },
     capture: {
       availability: vi.fn(async () => ({ available: true, devices: [] })),
@@ -50,6 +51,12 @@ export function createMockApi(): MidirApi {
     laborer: {
       list: vi.fn(async () => []),
       run: vi.fn(async () => ({ kind: 'done' as const })),
+      stop: vi.fn(async () => undefined),
+      state: vi.fn(async () => []),
+      onState: vi.fn(() => () => undefined)
+    },
+    explorer: {
+      start: vi.fn(async () => ({ kind: 'ended' as const, reason: 'done' as const })),
       stop: vi.fn(async () => undefined),
       state: vi.fn(async () => []),
       onState: vi.fn(() => () => undefined)

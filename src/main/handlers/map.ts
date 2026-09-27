@@ -131,7 +131,8 @@ export async function mapView(ctx: MapHandlerContext, mapId: unknown): Promise<M
       height: grid.height,
       collision: Array.from(grid.collision),
       warps: warpsOf(mapId, node, layer, nameOf),
-      sizeSource: size.source
+      sizeSource: size.source,
+      ...(learned?.music !== undefined ? { music: learned.music } : {})
     }
   }
 }

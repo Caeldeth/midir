@@ -21,6 +21,7 @@ import type { Logger } from '../log'
 import { parseDollPath, type DollAppearance } from '../../shared/doll'
 import type { IconService } from './iconService'
 import type { DollService } from './dollService'
+import type { LegendService } from './legendService'
 
 /** What one icon request resolves to. A 404 body is empty. */
 export interface IconResponse {
@@ -37,7 +38,9 @@ export interface IconResponse {
  * a stray request never throws.
  */
 export type IconRequest =
-  { kind: 'item'; sprite: number; color: number } | { kind: 'doll'; appearance: DollAppearance }
+  | { kind: 'item'; sprite: number; color: number }
+  | { kind: 'doll'; appearance: DollAppearance }
+  | { kind: 'legend'; icon: number }
 
 export function parseIconUrl(rawUrl: string): IconRequest | null {
   let url: URL
@@ -50,6 +53,13 @@ export function parseIconUrl(rawUrl: string): IconRequest | null {
   if (url.host === 'doll') {
     const appearance = parseDollPath(segments)
     return appearance === null ? null : { kind: 'doll', appearance }
+  }
+  // A legend badge is `midir-icon://legend/<icon>`, the mark's own icon byte
+  // (WP42). The service answers 404 for a byte with no frame.
+  if (url.host === 'legend') {
+    const icon = Number(segments[0])
+    if (segments.length !== 1 || !Number.isInteger(icon) || icon < 0) return null
+    return { kind: 'legend', icon }
   }
   if (segments.length === 0) return null
   const sprite = Number(segments[0])
@@ -66,14 +76,15 @@ export function parseIconUrl(rawUrl: string): IconRequest | null {
 export async function handleIconRequest(
   service: IconService,
   rawUrl: string,
-  dolls?: DollService
+  dolls?: DollService,
+  legend?: LegendService
 ): Promise<IconResponse> {
   const parsed = parseIconUrl(rawUrl)
   if (parsed === null) return { status: 404 }
-  const png =
-    parsed.kind === 'doll'
-      ? ((await dolls?.render(parsed.appearance)) ?? null)
-      : await service.render(parsed.sprite, parsed.color)
+  let png: Uint8Array | null
+  if (parsed.kind === 'doll') png = (await dolls?.render(parsed.appearance)) ?? null
+  else if (parsed.kind === 'legend') png = (await legend?.render(parsed.icon)) ?? null
+  else png = await service.render(parsed.sprite, parsed.color)
   if (png === null || png.length === 0) return { status: 404 }
   return { status: 200, body: png }
 }
@@ -86,11 +97,12 @@ export function registerIconProtocol(
   protocol: Protocol,
   service: IconService,
   log: Logger,
-  dolls?: DollService
+  dolls?: DollService,
+  legend?: LegendService
 ): void {
   protocol.handle('midir-icon', async (request) => {
     try {
-      const response = await handleIconRequest(service, request.url, dolls)
+      const response = await handleIconRequest(service, request.url, dolls, legend)
       if (response.status === 200 && response.body !== undefined) {
         // A Buffer is a Uint8Array the response layer always accepts as a body.
         return new Response(Buffer.from(response.body), {

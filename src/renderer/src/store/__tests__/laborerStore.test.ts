@@ -16,7 +16,7 @@ describe('useLaborerStore', () => {
     useLaborerStore.setState({
       windows: [],
       errands: [],
-      selected: '',
+      selectedWindow: '',
       errand: '',
       stopped: false,
       stopReason: undefined,
