@@ -16,7 +16,6 @@ const WINDOW: AssistWindow = {
   connectionId: 'c1',
   title: 'Dark Ages',
   characterName: 'Test',
-  processId: 1,
   windowHandle: 1
 }
 
@@ -31,7 +30,7 @@ const RUN: ExplorerState = {
 }
 
 beforeEach(() => {
-  useWalkerStore.setState({ selected: 'c1', windows: [WINDOW] })
+  useWalkerStore.setState({ selectedWindow: '1', windows: [WINDOW] })
   useExplorerStore.setState({
     running: {},
     maps: '20',
@@ -44,7 +43,7 @@ beforeEach(() => {
 
 describe('the explorer panel', () => {
   it('drives nothing until a window is picked', async () => {
-    useWalkerStore.setState({ selected: '', windows: [] })
+    useWalkerStore.setState({ selectedWindow: '', windows: [] })
     render(<ExplorerCard />)
     expect(screen.getByTestId('explorer-start')).toBeDisabled()
     expect(screen.getByText(/Pick a game window above/)).toBeInTheDocument()
@@ -106,11 +105,23 @@ describe('the explorer panel', () => {
   })
 
   it('does not drive a window that has closed', async () => {
-    useWalkerStore.setState({ selected: 'c1', windows: [] })
+    useWalkerStore.setState({ selectedWindow: '1', windows: [] })
     window.api.explorer.state = vi.fn(async () => [RUN])
     render(<ExplorerCard />)
     await waitFor(() => expect(window.api.explorer.state).toHaveBeenCalled())
     expect(screen.getByTestId('explorer-start')).toBeDisabled()
+  })
+
+  it('keeps the pick through a logout, and waits for the next login', () => {
+    // The client is still open, so the window stays picked. It carries no
+    // connection until someone logs in, and there is nothing to drive yet.
+    useWalkerStore.setState({
+      selectedWindow: '1',
+      windows: [{ windowHandle: 1, title: 'Dark Ages' }]
+    })
+    render(<ExplorerCard />)
+    expect(screen.getByTestId('explorer-start')).toBeDisabled()
+    expect(screen.getByText(/Log in on that client/)).toBeInTheDocument()
   })
 
   it('watches for pushed run states, and stops watching when it goes away', () => {

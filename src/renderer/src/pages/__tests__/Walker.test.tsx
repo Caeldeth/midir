@@ -18,7 +18,7 @@ const PLACES: WalkerDestination[] = [
 ]
 
 beforeEach(() => {
-  useWalkerStore.setState({ destinations: PLACES, selected: 'c1', destination: '' })
+  useWalkerStore.setState({ destinations: PLACES, selectedWindow: '1', destination: '' })
   window.api.assist.windows = vi.fn(async () => [
     {
       connectionId: 'c1',

@@ -146,6 +146,13 @@ Aliases: `@renderer` to `src/renderer/src`, `@shared` to `src/shared`.
 - **The settings save payload is derived, never listed.** `shared/settings.ts` builds it from `DEFAULT_SETTINGS`'s keys (plus the optional `darkAgesPath` when set), and `settingsPayload.test.ts` pins the keys to the Zod schema's. A destructured list was silent data loss on the next field added (the template's HTOO-235). Adding a setting is: the type and default, `withDefaults` in the manager, the schema, the store setter.
 - **Hand-rolled crash-safe JSON settings** under `%LOCALAPPDATA%\Erisco\Midir` (resolve `LOCALAPPDATA` yourself on win32), atomic tmp to rename with a `.bak`, Zod-validated on save.
 - **Path safety**: validate every renderer-supplied path against allowed roots (`assertInside*`).
+- **A picked game window is remembered by its window handle, never by its connection id.** A
+  connection id is minted per login, and a logged-out client holds no connection at all (one
+  recording has 102 seconds of none), so keying the picker on it made the window vanish from under
+  the player the moment they logged out. `AssistWindow.connectionId` is therefore optional and
+  `windowHandle` is the identity: `windowKey`, `pickedWindow`, and `connectionOf` in
+  `shared/actionLayer.ts` are the three helpers every driving tab uses, and a client with nobody
+  logged in stays in the list with its buttons off.
 - **Six shared themes** — four Dark Ages (hybrasyl default, chadul, danaan, grinneal) plus the corporate pair (mundanes light, dubhaimid dark). Cinzel and Crimson fonts. Scrollbar colors go to `:root` CSS variables. The `ThemeName` union lives in `shared/`.
 
 ## Decoding notes that are easy to get wrong

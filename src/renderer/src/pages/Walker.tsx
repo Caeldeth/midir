@@ -21,8 +21,10 @@ import { useCaptureStore } from '@renderer/store/captureStore'
 import { useSettingsStore } from '@renderer/store/settingsStore'
 import { outcomeMessage, useWalkerStore } from '@renderer/store/walkerStore'
 import {
+  connectionOf,
   formatHotkey,
   parseDestination,
+  windowKey,
   type WalkerPosition,
   type WalkOutcome
 } from '@shared/types'
@@ -50,7 +52,7 @@ function Walker(): React.JSX.Element {
   const busy = useWalkerStore((s) => s.busy)
   const error = useWalkerStore((s) => s.error)
   const lastOutcome = useWalkerStore((s) => s.lastOutcome)
-  const selected = useWalkerStore((s) => s.selected)
+  const selectedWindow = useWalkerStore((s) => s.selectedWindow)
   const setSelected = useWalkerStore((s) => s.setSelected)
   const destination = useWalkerStore((s) => s.destination)
   const setDestination = useWalkerStore((s) => s.setDestination)
@@ -84,8 +86,11 @@ function Walker(): React.JSX.Element {
   }, [refreshWindows, captureStatus])
 
   // A selection that names a window that is gone collapses to empty.
-  const selectedValue = windows.some((w) => w.connectionId === selected) ? selected : ''
-  const run = selectedValue !== '' ? running[selectedValue] : undefined
+  // A pick collapses to empty only when that client has closed. A logout keeps
+  // the window in the list, with nothing to drive until the next login.
+  const selectedValue = windows.some((w) => windowKey(w) === selectedWindow) ? selectedWindow : ''
+  const connectionId = connectionOf(windows, selectedValue)
+  const run = connectionId !== '' ? running[connectionId] : undefined
   const isRunning = run?.running === true
 
   const windowLabel = (w: (typeof windows)[number]): string =>
@@ -113,8 +118,8 @@ function Walker(): React.JSX.Element {
   const noWayText = `Midir knows no way to walk there from where the character stands. Walk a warp it has not seen yet, or add one on the Map tab.`
 
   const onGo = (): void => {
-    if (selectedValue === '' || destination.trim() === '' || !endValid || unreachable) return
-    go(selectedValue, destination.trim(), endTile)
+    if (connectionId === '' || destination.trim() === '' || !endValid || unreachable) return
+    go(connectionId, destination.trim(), endTile)
   }
 
   const trimmed = destination.trim()
@@ -178,12 +183,14 @@ function Walker(): React.JSX.Element {
             disabled={isRunning}
             helperText={
               windows.length === 0
-                ? 'No game window is open. Log in first, then refresh.'
-                : 'Midir drives only this window.'
+                ? 'No game window is open. Start Dark Ages, then refresh.'
+                : selectedValue !== '' && connectionId === ''
+                  ? 'Nobody is logged in on this client. Log in to drive it.'
+                  : 'Midir drives only this window.'
             }
           >
             {windows.map((w) => (
-              <MenuItem key={w.connectionId} value={w.connectionId}>
+              <MenuItem key={windowKey(w)} value={windowKey(w)}>
                 {windowLabel(w)}
                 {w.characterName !== undefined && w.title !== '' ? ` — ${w.title}` : ''}
               </MenuItem>
@@ -301,7 +308,7 @@ function Walker(): React.JSX.Element {
             <Button
               variant="outlined"
               disabled={busy}
-              onClick={() => void stop(selectedValue)}
+              onClick={() => void stop(connectionId)}
               data-testid="walker-stop"
             >
               Stop
@@ -311,7 +318,7 @@ function Walker(): React.JSX.Element {
               <span>
                 <Button
                   variant="contained"
-                  disabled={selectedValue === '' || destination.trim() === '' || unreachable}
+                  disabled={connectionId === '' || destination.trim() === '' || unreachable}
                   onClick={onGo}
                   data-testid="walker-go"
                 >

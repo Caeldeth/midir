@@ -2,7 +2,7 @@ import { Alert, Box, Button, Paper, Stack, TextField, Typography } from '@mui/ma
 import InfoTip from '@renderer/components/InfoTip'
 import { runMessage, useExplorerStore } from '@renderer/store/explorerStore'
 import { useWalkerStore } from '@renderer/store/walkerStore'
-import { MAX_EXPLORER_MAPS, MAX_EXPLORER_MINUTES } from '@shared/types'
+import { connectionOf, MAX_EXPLORER_MAPS, MAX_EXPLORER_MINUTES, windowKey } from '@shared/types'
 import React, { useEffect } from 'react'
 
 /**
@@ -20,7 +20,7 @@ const cardSx = { p: 3, display: 'flex', flexDirection: 'column', mt: 2.5 } as co
 const headingSx = { color: 'text.button', fontWeight: 'bold' } as const
 
 function ExplorerCard(): React.JSX.Element {
-  const selected = useWalkerStore((s) => s.selected)
+  const selectedWindow = useWalkerStore((s) => s.selectedWindow)
   const windows = useWalkerStore((s) => s.windows)
   const running = useExplorerStore((s) => s.running)
   const maps = useExplorerStore((s) => s.maps)
@@ -39,9 +39,12 @@ function ExplorerCard(): React.JSX.Element {
     return subscribe()
   }, [refresh, subscribe])
 
-  // A selection naming a window that closed drives nothing.
-  const selectedValue = windows.some((w) => w.connectionId === selected) ? selected : ''
-  const run = selectedValue === '' ? undefined : running[selectedValue]
+  // The pick survives a logout, because it names the window and not the
+  // connection. What it cannot survive is the client closing, and a client with
+  // nobody logged in has nothing to drive yet.
+  const selectedValue = windows.some((w) => windowKey(w) === selectedWindow) ? selectedWindow : ''
+  const connectionId = connectionOf(windows, selectedValue)
+  const run = connectionId === '' ? undefined : running[connectionId]
   const isRunning = run?.running === true
 
   return (
@@ -89,7 +92,7 @@ function ExplorerCard(): React.JSX.Element {
           <Button
             variant="outlined"
             disabled={busy}
-            onClick={() => void stop(selectedValue)}
+            onClick={() => void stop(connectionId)}
             data-testid="explorer-stop"
           >
             Stop
@@ -97,8 +100,8 @@ function ExplorerCard(): React.JSX.Element {
         ) : (
           <Button
             variant="contained"
-            disabled={busy || selectedValue === ''}
-            onClick={() => start(selectedValue)}
+            disabled={busy || connectionId === ''}
+            onClick={() => start(connectionId)}
             data-testid="explorer-start"
           >
             Explore
@@ -122,9 +125,11 @@ function ExplorerCard(): React.JSX.Element {
             {runMessage(lastOutcome)}
           </Typography>
         ) : null}
-        {run === undefined && lastOutcome === undefined && selectedValue === '' ? (
+        {run === undefined && lastOutcome === undefined && connectionId === '' ? (
           <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-            Pick a game window above to explore from.
+            {selectedValue === ''
+              ? 'Pick a game window above to explore from.'
+              : 'Log in on that client to explore from it.'}
           </Typography>
         ) : null}
       </Box>

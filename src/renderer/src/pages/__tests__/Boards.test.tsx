@@ -161,7 +161,7 @@ describe('the poll on the Boards page (WP36 PR2)', () => {
     render(<Boards />)
     expect(await screen.findByText('No boards yet')).toBeInTheDocument()
     expect(screen.getByTestId('poll-start')).toBeDisabled()
-    useBoardStore.getState().setPollWindow('c1')
+    useBoardStore.getState().setPollWindow('7')
     await userEvent.click(screen.getByTestId('poll-start'))
     expect(window.api.boards.poll).toHaveBeenCalledWith({
       connectionId: 'c1',
@@ -183,7 +183,7 @@ describe('the poll on the Boards page (WP36 PR2)', () => {
     render(<Boards />)
     await screen.findByText('No boards yet')
     useBoardStore.setState({
-      pollWindow: 'c1',
+      pollWindow: '7',
       polls: {
         c1: {
           connectionId: 'c1',
@@ -209,7 +209,7 @@ describe('the poll on the Boards page (WP36 PR2)', () => {
     await screen.findByTestId('board-view')
     // No window picked: the button waits.
     expect(screen.getByTestId('board-read')).toBeDisabled()
-    useBoardStore.getState().setPollWindow('c1')
+    useBoardStore.getState().setPollWindow('7')
     await userEvent.click(screen.getByTestId('board-read'))
     expect(window.api.boards.poll).toHaveBeenCalledWith({
       connectionId: 'c1',

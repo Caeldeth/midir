@@ -15,7 +15,13 @@ import InfoTip from '@renderer/components/InfoTip'
 import { useCaptureStore } from '@renderer/store/captureStore'
 import { useSettingsStore } from '@renderer/store/settingsStore'
 import { useSpeakerStore } from '@renderer/store/speakerStore'
-import { formatHotkey, MAX_CHAT_CHARS, MIN_SPEAKER_INTERVAL_MS } from '@shared/types'
+import {
+  connectionOf,
+  formatHotkey,
+  MAX_CHAT_CHARS,
+  MIN_SPEAKER_INTERVAL_MS,
+  windowKey
+} from '@shared/types'
 import React, { useEffect, useMemo } from 'react'
 
 /**
@@ -45,7 +51,7 @@ function Speaker(): React.JSX.Element {
   const stop = useSpeakerStore((s) => s.stop)
   const stopAll = useSpeakerStore((s) => s.stopAll)
   const clearStop = useSpeakerStore((s) => s.clearStop)
-  const selected = useSpeakerStore((s) => s.selected)
+  const selectedWindow = useSpeakerStore((s) => s.selectedWindow)
   const setSelected = useSpeakerStore((s) => s.setSelected)
 
   const speakerLines = useSettingsStore((s) => s.speakerLines)
@@ -71,10 +77,11 @@ function Speaker(): React.JSX.Element {
     void refreshWindows()
   }, [refreshWindows, captureStatus])
 
-  // A selection that names a window that is gone collapses to empty, so the
-  // picker never points at a window that closed.
-  const selectedValue = windows.some((w) => w.connectionId === selected) ? selected : ''
-  const isRunning = selectedValue !== '' && running[selectedValue]?.running === true
+  // A pick collapses to empty only when that client has closed. A logout keeps
+  // the window in the list, with nothing to drive until the next login.
+  const selectedValue = windows.some((w) => windowKey(w) === selectedWindow) ? selectedWindow : ''
+  const connectionId = connectionOf(windows, selectedValue)
+  const isRunning = connectionId !== '' && running[connectionId]?.running === true
   const hasLines = useMemo(
     () => speakerLines.some((line) => line.trim().length > 0),
     [speakerLines]
@@ -88,12 +95,12 @@ function Speaker(): React.JSX.Element {
   const intervalSeconds = Math.round(speakerIntervalMs / 1000)
 
   const onStart = (): void => {
-    if (selectedValue === '') return
+    if (connectionId === '') return
     void start({
       lines: speakerLines,
       intervalMs: speakerIntervalMs,
       repeat: speakerRepeat,
-      connectionId: selectedValue
+      connectionId
     })
   }
 
@@ -137,12 +144,14 @@ function Speaker(): React.JSX.Element {
             disabled={isRunning}
             helperText={
               windows.length === 0
-                ? 'No game window is open. Log in first, then refresh.'
-                : 'Midir drives only this window.'
+                ? 'No game window is open. Start Dark Ages, then refresh.'
+                : selectedValue !== '' && connectionId === ''
+                  ? 'Nobody is logged in on this client. Log in to drive it.'
+                  : 'Midir drives only this window.'
             }
           >
             {windows.map((w) => (
-              <MenuItem key={w.connectionId} value={w.connectionId}>
+              <MenuItem key={windowKey(w)} value={windowKey(w)}>
                 {windowLabel(w)}
                 {w.characterName !== undefined && w.title !== '' ? ` — ${w.title}` : ''}
               </MenuItem>
@@ -220,7 +229,7 @@ function Speaker(): React.JSX.Element {
             <Button
               variant="outlined"
               disabled={busy}
-              onClick={() => void stop(selectedValue)}
+              onClick={() => void stop(connectionId)}
               data-testid="speaker-stop"
             >
               Stop
@@ -228,7 +237,7 @@ function Speaker(): React.JSX.Element {
           ) : (
             <Button
               variant="contained"
-              disabled={busy || selectedValue === '' || !hasLines}
+              disabled={busy || connectionId === '' || !hasLines}
               onClick={onStart}
               data-testid="speaker-start"
             >

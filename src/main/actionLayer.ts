@@ -365,15 +365,19 @@ export function createActionLayer(options: ActionLayerOptions): ActionLayer {
             connection.remotePort
           )
         )
-      if (live.length === 0) continue
+      // A client with no live connection is still a client: it is sitting at
+      // the login or character screen. It stays in the list with no connection
+      // to drive, so a window the user picked does not vanish when the player
+      // logs out — the row goes quiet and comes back when they log in again.
       // Prefer the connection that carries a character; a client has one world
       // connection worth driving, and it is the one Midir decoded a name on.
       const connectionId = live.find((id) => names.has(id)) ?? live[0]
+      const characterName = connectionId === undefined ? undefined : names.get(connectionId)
       result.push({
-        connectionId,
+        ...(connectionId !== undefined ? { connectionId } : {}),
         windowHandle: window.handle,
         title: window.title,
-        ...(names.has(connectionId) ? { characterName: names.get(connectionId) } : {})
+        ...(characterName !== undefined ? { characterName } : {})
       })
     }
     return result

@@ -6,7 +6,7 @@ import type {
   BoardRecord,
   BoardSummary
 } from '@shared/types'
-import { boardPollStopMessage } from '@shared/types'
+import { boardPollStopMessage, connectionOf } from '@shared/types'
 import { create } from 'zustand'
 
 /**
@@ -30,7 +30,11 @@ interface BoardStoreState {
   error: string | null
   /** The open game windows the poll can drive. */
   windows: AssistWindow[]
-  /** The window picked for the poll. */
+  /**
+   * The window picked for the poll, by its handle as text (`windowKey`). It is
+   * not a connection id: a connection id changes at every login, and the pick
+   * has to survive a logout.
+   */
   pollWindow: string
   onlyUnread: boolean
   /** The poll on each window, by connection id, while one runs. */
@@ -82,17 +86,18 @@ export const useBoardStore = create<BoardStoreState>((set, get) => ({
     }
   },
 
-  setPollWindow: (connectionId) => set({ pollWindow: connectionId }),
+  setPollWindow: (picked) => set({ pollWindow: picked }),
   setOnlyUnread: (onlyUnread) => set({ onlyUnread }),
 
   poll: (scope) => {
-    const { pollWindow, onlyUnread } = get()
-    if (pollWindow === '') return
+    const { windows, pollWindow, onlyUnread } = get()
+    const connectionId = connectionOf(windows, pollWindow)
+    if (connectionId === '') return
     set({ pollError: null, lastPoll: undefined })
     // The poll resolves when it ends, which may be many minutes. Do not await
     // it: the running state arrives on a push, and the outcome is kept.
     window.api.boards
-      .poll({ connectionId: pollWindow, scope, onlyUnread })
+      .poll({ connectionId, scope, onlyUnread })
       .then((outcome) => set({ lastPoll: outcome }))
       .catch((error) => set({ pollError: messageOf(error) }))
   },

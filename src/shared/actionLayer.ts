@@ -30,12 +30,48 @@ export interface ActionTarget {
  * name; a window with no decoded character yet shows only the title.
  */
 export interface AssistWindow {
-  connectionId: string
+  /**
+   * The live connection on this window, when the client has one. It is absent
+   * while the client sits at the login or character screen, and it is a
+   * different id after every login, so it is never what a picked window is
+   * remembered by. `windowHandle` is.
+   */
+  connectionId?: string
+  /**
+   * The client's own window. It lasts as long as the client is open, through a
+   * logout and the login after it, so this is the picker's identity.
+   */
   windowHandle: number
   /** The window title, for the user to tell two clients apart. */
   title: string
   /** The character on this connection, when one is decoded. */
   characterName?: string
+}
+
+/**
+ * The value a window picker holds: the window's handle as text.
+ *
+ * A picked window has to survive a logout, because the player logs out and back
+ * in while a driving tab is open. The connection id does not survive one — it is
+ * minted per login, and the client holds no connection at all in between (102
+ * seconds of none, in one recording). The window handle does.
+ */
+export function windowKey(window: AssistWindow): string {
+  return String(window.windowHandle)
+}
+
+/** The picked window, or undefined when the client that had it has closed. */
+export function pickedWindow(windows: AssistWindow[], picked: string): AssistWindow | undefined {
+  return windows.find((w) => windowKey(w) === picked)
+}
+
+/**
+ * The connection to drive for the picked window, or an empty string when it has
+ * none: the client is open, and nobody is logged in on it. Every driving action
+ * needs a connection, so an empty string is what turns the buttons off.
+ */
+export function connectionOf(windows: AssistWindow[], picked: string): string {
+  return pickedWindow(windows, picked)?.connectionId ?? ''
 }
 
 /** Whether a stop is in force, and why. Pushed on every change. */

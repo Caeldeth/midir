@@ -14,7 +14,13 @@ import InfoTip from '@renderer/components/InfoTip'
 import { useCaptureStore } from '@renderer/store/captureStore'
 import { useSettingsStore } from '@renderer/store/settingsStore'
 import { errandOutcomeMessage, useLaborerStore } from '@renderer/store/laborerStore'
-import { formatHotkey, type ErrandOutcome, type LaborerState } from '@shared/types'
+import {
+  connectionOf,
+  formatHotkey,
+  windowKey,
+  type ErrandOutcome,
+  type LaborerState
+} from '@shared/types'
 import React, { useEffect } from 'react'
 
 /**
@@ -41,7 +47,7 @@ function Laborer(): React.JSX.Element {
   const busy = useLaborerStore((s) => s.busy)
   const error = useLaborerStore((s) => s.error)
   const lastOutcome = useLaborerStore((s) => s.lastOutcome)
-  const selected = useLaborerStore((s) => s.selected)
+  const selectedWindow = useLaborerStore((s) => s.selectedWindow)
   const setSelected = useLaborerStore((s) => s.setSelected)
   const errand = useLaborerStore((s) => s.errand)
   const params = useLaborerStore((s) => s.params)
@@ -69,8 +75,11 @@ function Laborer(): React.JSX.Element {
   }, [refreshWindows, captureStatus])
 
   // A selection that names a window that is gone collapses to empty.
-  const selectedValue = windows.some((w) => w.connectionId === selected) ? selected : ''
-  const activeRun = selectedValue !== '' ? running[selectedValue] : undefined
+  // A pick collapses to empty only when that client has closed. A logout keeps
+  // the window in the list, with nothing to drive until the next login.
+  const selectedValue = windows.some((w) => windowKey(w) === selectedWindow) ? selectedWindow : ''
+  const connectionId = connectionOf(windows, selectedValue)
+  const activeRun = connectionId !== '' ? running[connectionId] : undefined
   const isRunning = activeRun?.running === true
 
   // An errand name that is no longer offered collapses to empty.
@@ -84,8 +93,8 @@ function Laborer(): React.JSX.Element {
     w.characterName !== undefined ? w.characterName : w.title || 'A game window'
 
   const onRun = (): void => {
-    if (selectedValue === '' || errandValue === '' || !paramsFilled) return
-    run(selectedValue, errandValue, params)
+    if (connectionId === '' || errandValue === '' || !paramsFilled) return
+    run(connectionId, errandValue, params)
   }
 
   return (
@@ -125,12 +134,14 @@ function Laborer(): React.JSX.Element {
             disabled={isRunning}
             helperText={
               windows.length === 0
-                ? 'No game window is open. Log in first, then refresh.'
-                : 'Midir drives only this window.'
+                ? 'No game window is open. Start Dark Ages, then refresh.'
+                : selectedValue !== '' && connectionId === ''
+                  ? 'Nobody is logged in on this client. Log in to drive it.'
+                  : 'Midir drives only this window.'
             }
           >
             {windows.map((w) => (
-              <MenuItem key={w.connectionId} value={w.connectionId}>
+              <MenuItem key={windowKey(w)} value={windowKey(w)}>
                 {windowLabel(w)}
                 {w.characterName !== undefined && w.title !== '' ? ` — ${w.title}` : ''}
               </MenuItem>
@@ -178,7 +189,7 @@ function Laborer(): React.JSX.Element {
             <Button
               variant="outlined"
               disabled={busy}
-              onClick={() => void stop(selectedValue)}
+              onClick={() => void stop(connectionId)}
               data-testid="laborer-stop"
             >
               Stop
@@ -186,7 +197,7 @@ function Laborer(): React.JSX.Element {
           ) : (
             <Button
               variant="contained"
-              disabled={selectedValue === '' || errandValue === '' || !paramsFilled}
+              disabled={connectionId === '' || errandValue === '' || !paramsFilled}
               onClick={onRun}
               data-testid="laborer-run"
             >

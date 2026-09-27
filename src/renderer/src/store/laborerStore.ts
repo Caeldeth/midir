@@ -18,8 +18,12 @@ interface LaborerStoreState {
   windows: AssistWindow[]
   /** The built-in errands, for the picker. */
   errands: Errand[]
-  /** The connection id of the window the user picked to drive. */
-  selected: string
+  /**
+   * The window the user picked, by its handle as text (`windowKey`). It is not
+   * a connection id: a connection id changes at every login, and the pick has
+   * to survive a logout.
+   */
+  selectedWindow: string
   /** The name of the errand the user chose. */
   errand: string
   /** The values the user typed for the chosen errand's params, by name. */
@@ -33,7 +37,8 @@ interface LaborerStoreState {
   lastOutcome?: ErrandOutcome
   busy: boolean
   error: string | null
-  setSelected: (connectionId: string) => void
+  /** Pick a window to drive, by `windowKey`. */
+  setSelected: (picked: string) => void
   setErrand: (errand: string) => void
   setParam: (name: string, value: string) => void
   refreshWindows: () => Promise<void>
@@ -63,7 +68,7 @@ export function errandOutcomeMessage(outcome: ErrandOutcome): string {
 export const useLaborerStore = create<LaborerStoreState>((set, get) => ({
   windows: [],
   errands: [],
-  selected: '',
+  selectedWindow: '',
   errand: '',
   params: {},
   stopped: false,
@@ -71,7 +76,7 @@ export const useLaborerStore = create<LaborerStoreState>((set, get) => ({
   busy: false,
   error: null,
 
-  setSelected: (connectionId) => set({ selected: connectionId }),
+  setSelected: (picked) => set({ selectedWindow: picked }),
   // A new errand starts with empty values; a citizen's name for one errand is
   // not an answer for another.
   setErrand: (errand) => set({ errand, params: {} }),
