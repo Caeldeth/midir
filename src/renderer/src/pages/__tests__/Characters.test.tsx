@@ -94,3 +94,41 @@ describe('the Characters page hide-unseen filter (WP25)', () => {
     expect(remove).toHaveBeenCalledWith('Sabrael')
   })
 })
+
+describe('the readings a record is still missing', () => {
+  it('marks a character with no bank and no legend reading', async () => {
+    await renderWith([TODAY])
+    const row = within(screen.getByTestId('character-list'))
+    expect(row.getByLabelText('No bank reading')).toBeInTheDocument()
+    expect(row.getByLabelText('No legend reading')).toBeInTheDocument()
+  })
+
+  it('drops the bank mark for a reading that came back empty', async () => {
+    // An empty bank is a reading. Only a record with no bank at all is unread.
+    await renderWith([{ ...TODAY, bank: { readAtMs: NOW - DAY, items: [] } }])
+    const row = within(screen.getByTestId('character-list'))
+    expect(row.queryByLabelText('No bank reading')).not.toBeInTheDocument()
+    expect(row.getByLabelText('No legend reading')).toBeInTheDocument()
+  })
+
+  it('drops the legend mark for a profile that was read, marks or none', async () => {
+    await renderWith([{ ...TODAY, profileReadAtMs: NOW - DAY }])
+    const row = within(screen.getByTestId('character-list'))
+    expect(row.queryByLabelText('No legend reading')).not.toBeInTheDocument()
+  })
+
+  it('drops the legend mark for an older record that has marks and no stamp', async () => {
+    const withMarks: CharacterRecord = {
+      ...TODAY,
+      legend: [{ key: 'a', icon: 1, color: 32, text: 'Registered' }]
+    }
+    await renderWith([withMarks])
+    const row = within(screen.getByTestId('character-list'))
+    expect(row.queryByLabelText('No legend reading')).not.toBeInTheDocument()
+  })
+
+  it('shows no marks at all once both readings are in', async () => {
+    await renderWith([{ ...TODAY, bank: { readAtMs: NOW, items: [] }, profileReadAtMs: NOW }])
+    expect(screen.queryByTestId('unread-marks')).not.toBeInTheDocument()
+  })
+})

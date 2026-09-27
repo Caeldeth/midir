@@ -15,7 +15,8 @@ import {
 import type { ConnectionInfo, PacketSource, StreamChunk } from '../capture/source'
 import { createCaptureService } from '../captureService'
 import { ClientOpcode, ServerOpcode } from '../protocol/opcodes'
-import { createCharacterStore } from '../store/characterStore'
+import { createCharacterStore, withCharacter } from '../store/characterStore'
+import { emptyCharacter } from '../../shared/character'
 import { createBoardStore } from '../store/boardStore'
 import { createTransitionStore } from '../store/transitionStore'
 import { createMapStore } from '../store/mapStore'
@@ -331,11 +332,45 @@ describe('createCaptureService', () => {
     await service.stop()
   })
 
-  it('tells the renderer about every character change', async () => {
+  it('tells the renderer about the record it wrote', async () => {
     const { service, characters } = build(loginRecording())
     await service.start('adapter')
+    await service.flush()
     expect(characters.length).toBeGreaterThan(0)
     expect(characters.every((record) => record.name === CHARACTER)).toBe(true)
+    await service.stop()
+  })
+
+  it('pushes one whole record for a login, not one for every packet', async () => {
+    // A login is a burst, and the reducer publishes a record after each packet
+    // of it. The renderer replaces the record it holds with the one it is
+    // given, so a push for every step made the item index fall and climb back
+    // while the burst ran (Sabrael, 2026-09-27). The push follows the write.
+    const { service, characters } = build(loginRecording())
+    await service.start('adapter')
+    await service.flush()
+    expect(characters).toHaveLength(1)
+    // And the one record carries both packets of the burst.
+    expect(characters[0]?.stats.level).toBeGreaterThan(0)
+    expect(Object.keys(characters[0]?.inventory ?? {})).not.toHaveLength(0)
+    await service.stop()
+  })
+
+  it('pushes the bank the file holds, which a fresh login knows nothing about', async () => {
+    // The session reducer starts from nothing, so the record it holds during a
+    // login is a part of the truth. The file holds the rest.
+    const store = createCharacterStore(directory)
+    await store.update((file) =>
+      withCharacter(file, {
+        ...emptyCharacter(CHARACTER, 1000),
+        bank: { readAtMs: 900, npcName: 'Antonio', items: [] }
+      })
+    )
+
+    const { service, characters } = build(loginRecording())
+    await service.start('adapter')
+    await service.flush()
+    expect(characters[0]?.bank).toEqual({ readAtMs: 900, npcName: 'Antonio', items: [] })
     await service.stop()
   })
 

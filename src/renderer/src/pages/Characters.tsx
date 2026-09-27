@@ -1,4 +1,6 @@
+import AccountBalanceOutlinedIcon from '@mui/icons-material/AccountBalanceOutlined'
 import DeleteOutlinedIcon from '@mui/icons-material/DeleteOutlined'
+import MenuBookOutlinedIcon from '@mui/icons-material/MenuBookOutlined'
 import {
   Box,
   Button,
@@ -16,7 +18,9 @@ import Guidance from '@renderer/components/Guidance'
 import { characterClassName, formatAgo, formatNumber } from '@renderer/lib/format'
 import { findCharacter, useCharacterStore } from '@renderer/store/characterStore'
 import { useSettingsStore } from '@renderer/store/settingsStore'
+import { hasBankReading, hasProfileReading } from '@shared/character'
 import { HIDE_UNSEEN_DAY_CHOICES, splitUnseen } from '@shared/unseen'
+import type { CharacterRecord } from '@shared/types'
 import React, { useEffect } from 'react'
 
 /**
@@ -34,6 +38,39 @@ import React, { useEffect } from 'react'
  */
 
 const LIST_WIDTH = 300
+
+/**
+ * What the record is still missing, as two marks on the row.
+ *
+ * The bank and the profile are the two opportunistic readings: neither arrives
+ * at a login, and each waits on something the player does in the client — a
+ * visit to a banker, and opening the profile. So "never read" is the ordinary
+ * state of a character nobody has done that for, and the list is where it has
+ * to be visible: the sheet says it too, but only for the character on screen
+ * (Sabrael, 2026-09-27). A mark shows only while the reading is missing.
+ */
+function UnreadMarks({ record }: { record: CharacterRecord }): React.JSX.Element | null {
+  const bank = !hasBankReading(record)
+  const profile = !hasProfileReading(record)
+  if (!bank && !profile) return null
+  return (
+    <Box
+      data-testid="unread-marks"
+      sx={{ display: 'flex', gap: 0.5, alignItems: 'center', color: 'text.disabled', mr: 0.5 }}
+    >
+      {bank ? (
+        <Tooltip title="No bank reading. Visit a banker and choose Withdraw Item.">
+          <AccountBalanceOutlinedIcon aria-label="No bank reading" sx={{ fontSize: '1.05rem' }} />
+        </Tooltip>
+      ) : null}
+      {profile ? (
+        <Tooltip title="No legend reading. Open the profile in the client.">
+          <MenuBookOutlinedIcon aria-label="No legend reading" sx={{ fontSize: '1.05rem' }} />
+        </Tooltip>
+      ) : null}
+    </Box>
+  )
+}
 
 function Characters(): React.JSX.Element {
   const characters = useCharacterStore((s) => s.characters)
@@ -105,6 +142,7 @@ function Characters(): React.JSX.Element {
                 )} · ${formatAgo(record.lastSeenMs)}`}
                 slotProps={{ primary: { noWrap: true }, secondary: { noWrap: true } }}
               />
+              <UnreadMarks record={record} />
               <Tooltip title={`Forget ${record.name}`}>
                 <IconButton
                   size="small"

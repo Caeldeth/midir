@@ -271,6 +271,29 @@ export interface CharacterSummary {
   itemCount: number
 }
 
+/**
+ * True when a bank reading is on the record.
+ *
+ * The bank arrives only when the player opens one, so its absence is "not read"
+ * and never "empty". An empty reading is still a reading: `items` is empty and
+ * `readAtMs` says when it was taken (WP11).
+ */
+export function hasBankReading(record: CharacterRecord): boolean {
+  return record.bank !== undefined
+}
+
+/**
+ * True when a profile reading is on the record.
+ *
+ * `SSelfLook 0x39` carries the legend, the title, and the guild, and the client
+ * asks for it only when the player opens their profile — 6 self-looks in 40
+ * logins. A record stored before the stamp existed has marks and no stamp, so
+ * either one counts as a reading. `mergeCharacter` reads the pair the same way.
+ */
+export function hasProfileReading(record: CharacterRecord): boolean {
+  return record.profileReadAtMs !== undefined || record.legend.length > 0
+}
+
 /** Reduce a record to the row the character list shows. */
 export function summarise(record: CharacterRecord): CharacterSummary {
   return {

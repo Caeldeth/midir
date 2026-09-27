@@ -22,6 +22,7 @@ import {
   nationName,
   plural
 } from '@renderer/lib/format'
+import { hasProfileReading } from '@shared/character'
 import { INVENTORY_SLOT_COUNT } from '@shared/labels'
 import type { CharacterRecord, ItemRef } from '@shared/types'
 import EquipScreen from '@renderer/components/EquipScreen'
@@ -349,7 +350,7 @@ function CharacterSheet({ record }: { record: CharacterRecord }): React.JSX.Elem
       </Section>
 
       <Section title="Legend">
-        {record.profileReadAtMs === undefined ? (
+        {!hasProfileReading(record) ? (
           // The server sends the legend only when the player opens their own
           // profile, so an unread legend is not an empty one.
           <Typography variant="body2" sx={{ color: 'text.secondary' }}>
@@ -358,7 +359,12 @@ function CharacterSheet({ record }: { record: CharacterRecord }): React.JSX.Elem
         ) : (
           <>
             <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 1 }}>
-              {plural(record.legend.length, 'mark')} · read {formatAgo(record.profileReadAtMs)}
+              {plural(record.legend.length, 'mark')}
+              {/* A legend stored before the stamp existed has marks and no time
+                  on it. It is still a reading, so it shows without the time. */}
+              {record.profileReadAtMs !== undefined
+                ? ` · read ${formatAgo(record.profileReadAtMs)}`
+                : ''}
             </Typography>
             {record.legend.map((mark, index) => (
               <Box
