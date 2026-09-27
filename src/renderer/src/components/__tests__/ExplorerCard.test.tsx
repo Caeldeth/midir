@@ -27,6 +27,7 @@ const RUN: ExplorerState = {
   skipped: 2,
   budget: { maps: 20, minutes: 15 },
   avoidingHostile: true,
+  scope: 'unread',
   target: { mapId: 3049, name: 'Rucesion Hall' }
 }
 
@@ -37,6 +38,8 @@ beforeEach(() => {
     maps: '20',
     minutes: '15',
     avoidHostile: true,
+    scope: 'unread',
+    staleDays: '30',
     busy: false,
     error: null,
     lastOutcome: undefined
@@ -61,7 +64,8 @@ describe('the explorer panel', () => {
     expect(window.api.explorer.start).toHaveBeenCalledWith({
       connectionId: 'c1',
       budget: { maps: 5, minutes: 15 },
-      avoidHostile: true
+      avoidHostile: true,
+      scope: 'unread'
     })
   })
 
@@ -72,7 +76,8 @@ describe('the explorer panel', () => {
     expect(window.api.explorer.start).toHaveBeenCalledWith({
       connectionId: 'c1',
       budget: { minutes: 15 },
-      avoidHostile: true
+      avoidHostile: true,
+      scope: 'unread'
     })
   })
 
@@ -111,6 +116,33 @@ describe('the explorer panel', () => {
     await waitFor(() =>
       expect(screen.getByTestId('explorer-status')).toHaveTextContent('keeping out of hostile maps')
     )
+  })
+
+  it('sends the scope the run was set to, and asks for days only when it needs them', async () => {
+    render(<ExplorerCard />)
+    // The plain run looks for maps never visited, and asks for no days.
+    expect(screen.queryByLabelText('Older than (days)')).not.toBeInTheDocument()
+
+    await userEvent.click(screen.getByLabelText('Looking for'))
+    await userEvent.click(await screen.findByText('Maps not visited lately'))
+    const days = await screen.findByLabelText('Older than (days)')
+    await userEvent.clear(days)
+    await userEvent.type(days, '14')
+
+    await userEvent.click(screen.getByTestId('explorer-start'))
+    expect(window.api.explorer.start).toHaveBeenCalledWith(
+      expect.objectContaining({ scope: 'stale', staleDays: 14 })
+    )
+  })
+
+  it('leaves the days out of a run that does not use them', async () => {
+    render(<ExplorerCard />)
+    await userEvent.click(screen.getByLabelText('Looking for'))
+    await userEvent.click(await screen.findByText('Maps reached only by an imported warp'))
+    await userEvent.click(screen.getByTestId('explorer-start'))
+    const sent = vi.mocked(window.api.explorer.start).mock.calls[0]?.[0]
+    expect(sent).toMatchObject({ scope: 'unconfirmed' })
+    expect(sent).not.toHaveProperty('staleDays')
   })
 
   it('says how the run ended once it is over', () => {

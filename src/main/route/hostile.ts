@@ -22,7 +22,9 @@
  * one is counted against the 2387 known map names before it goes in: `mine` takes
  * 47 and every one of them is a mine, and `veltain` takes 8 that all say "Veltain
  * Mines", so it is redundant today and kept for the day the wire names one of
- * them something else. `oren` stays out, for the reason above.
+ * them something else, and `cthonic` takes 65 — the Remains 1 to 56, the Ruins,
+ * the Rooms and the Nightmare, one family and all of it the same kind of place.
+ * `oren` stays out, for the reason above.
  */
 
 /** Map-name patterns whose maps hold monsters. */
@@ -42,7 +44,8 @@ export const HOSTILE_PATTERNS: readonly RegExp[] = [
   /insect/i,
   /astrid/i,
   /veltain/i,
-  /\bmines?\b/i
+  /\bmines?\b/i,
+  /cthonic/i
 ]
 
 /** Maps to treat as hostile whatever they are called. */

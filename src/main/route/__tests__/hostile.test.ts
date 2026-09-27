@@ -29,6 +29,15 @@ describe('the hostile map list', () => {
     expect(isHostileName(node(3060, 'Astrid Entrance'))).toBe(true)
   })
 
+  it('names the whole Cthonic family, not only the Remains', () => {
+    // Sabrael, 2026-09-27. The pattern takes 65 maps: Remains 1 to 56, the
+    // Ruins, the Rooms, and the Disciple Nightmare.
+    expect(isHostileName(node(5001, 'Cthonic Remains 1'))).toBe(true)
+    expect(isHostileName(node(300, 'Cthonic Ruins1'))).toBe(true)
+    expect(isHostileName(node(402, 'Cthonic Room 1'))).toBe(true)
+    expect(isHostileName(node(3090, 'Cthonic Disciple Nightmare'))).toBe(true)
+  })
+
   it('leaves a town and its shops alone', () => {
     for (const name of [
       'Mileth Village',

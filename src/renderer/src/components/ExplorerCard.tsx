@@ -3,6 +3,7 @@ import {
   Box,
   Button,
   FormControlLabel,
+  MenuItem,
   Paper,
   Stack,
   Switch,
@@ -12,7 +13,14 @@ import {
 import InfoTip from '@renderer/components/InfoTip'
 import { runMessage, useExplorerStore } from '@renderer/store/explorerStore'
 import { useWalkerStore } from '@renderer/store/walkerStore'
-import { connectionOf, MAX_EXPLORER_MAPS, MAX_EXPLORER_MINUTES, windowKey } from '@shared/types'
+import {
+  connectionOf,
+  explorerScopeLabel,
+  MAX_EXPLORER_MAPS,
+  MAX_EXPLORER_MINUTES,
+  windowKey,
+  type ExplorerScope
+} from '@shared/types'
 import React, { useEffect } from 'react'
 
 /**
@@ -36,11 +44,15 @@ function ExplorerCard(): React.JSX.Element {
   const maps = useExplorerStore((s) => s.maps)
   const minutes = useExplorerStore((s) => s.minutes)
   const avoidHostile = useExplorerStore((s) => s.avoidHostile)
+  const scope = useExplorerStore((s) => s.scope)
+  const staleDays = useExplorerStore((s) => s.staleDays)
   const busy = useExplorerStore((s) => s.busy)
   const error = useExplorerStore((s) => s.error)
   const lastOutcome = useExplorerStore((s) => s.lastOutcome)
   const setBudget = useExplorerStore((s) => s.setBudget)
   const setAvoidHostile = useExplorerStore((s) => s.setAvoidHostile)
+  const setScope = useExplorerStore((s) => s.setScope)
+  const setStaleDays = useExplorerStore((s) => s.setStaleDays)
   const refresh = useExplorerStore((s) => s.refresh)
   const start = useExplorerStore((s) => s.start)
   const stop = useExplorerStore((s) => s.stop)
@@ -76,6 +88,34 @@ function ExplorerCard(): React.JSX.Element {
       ) : null}
 
       <Stack direction="row" sx={{ gap: 2, alignItems: 'center', mb: 2, flexWrap: 'wrap' }}>
+        <TextField
+          select
+          size="small"
+          label="Looking for"
+          value={scope}
+          onChange={(event) => setScope(event.target.value as ExplorerScope)}
+          disabled={isRunning}
+          sx={{ minWidth: 260 }}
+          slotProps={{ htmlInput: { 'aria-label': 'Looking for' } }}
+        >
+          {(['unread', 'unconfirmed', 'stale'] as const).map((value) => (
+            <MenuItem key={value} value={value}>
+              {explorerScopeLabel(value)}
+            </MenuItem>
+          ))}
+        </TextField>
+        {scope === 'stale' ? (
+          <TextField
+            type="number"
+            size="small"
+            label="Older than (days)"
+            value={staleDays}
+            onChange={(event) => setStaleDays(event.target.value)}
+            disabled={isRunning}
+            sx={{ maxWidth: 160 }}
+            slotProps={{ htmlInput: { min: 1, step: 1 } }}
+          />
+        ) : null}
         <TextField
           type="number"
           size="small"

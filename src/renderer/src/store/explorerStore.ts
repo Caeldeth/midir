@@ -1,6 +1,6 @@
 import { create } from 'zustand'
-import type { ExplorerOutcome, ExplorerState } from '@shared/types'
-import { DEFAULT_EXPLORER_BUDGET, explorerStopMessage } from '@shared/types'
+import type { ExplorerOutcome, ExplorerScope, ExplorerState } from '@shared/types'
+import { DEFAULT_EXPLORER_BUDGET, DEFAULT_STALE_DAYS, explorerStopMessage } from '@shared/types'
 
 /**
  * The explorer, mirrored from the main process (WP41).
@@ -25,12 +25,18 @@ interface ExplorerStoreState {
   minutes: string
   /** Whether to keep out of the maps that hold monsters. On by default. */
   avoidHostile: boolean
+  /** Which maps a run goes looking for. */
+  scope: ExplorerScope
+  /** For a stale run: how old a reading may be, as typed. */
+  staleDays: string
   /** How the last run ended, for the status line. */
   lastOutcome?: ExplorerOutcome
   busy: boolean
   error: string | null
   setBudget: (maps: string, minutes: string) => void
   setAvoidHostile: (value: boolean) => void
+  setScope: (scope: ExplorerScope) => void
+  setStaleDays: (days: string) => void
   refresh: () => Promise<void>
   start: (connectionId: string) => void
   stop: (connectionId: string) => Promise<void>
@@ -54,12 +60,18 @@ export const useExplorerStore = create<ExplorerStoreState>((set, get) => ({
   maps: String(DEFAULT_EXPLORER_BUDGET.maps),
   minutes: String(DEFAULT_EXPLORER_BUDGET.minutes),
   avoidHostile: true,
+  scope: 'unread',
+  staleDays: String(DEFAULT_STALE_DAYS),
   busy: false,
   error: null,
 
   setBudget: (maps, minutes) => set({ maps, minutes }),
 
   setAvoidHostile: (value) => set({ avoidHostile: value }),
+
+  setScope: (scope) => set({ scope }),
+
+  setStaleDays: (staleDays) => set({ staleDays }),
 
   refresh: async () => {
     const states = await window.api.explorer.state()
@@ -85,7 +97,12 @@ export const useExplorerStore = create<ExplorerStoreState>((set, get) => ({
       .start({
         connectionId,
         ...(Object.keys(budget).length > 0 ? { budget } : {}),
-        avoidHostile: get().avoidHostile
+        avoidHostile: get().avoidHostile,
+        scope: get().scope,
+        // Only a stale run reads it, and the explorer holds it to a sane floor.
+        ...(get().scope === 'stale' && Number(get().staleDays) > 0
+          ? { staleDays: Number(get().staleDays) }
+          : {})
       })
       .then((outcome) => set({ lastOutcome: outcome }))
       .catch((error) => set({ error: messageOf(error) }))

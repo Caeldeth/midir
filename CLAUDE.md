@@ -186,9 +186,15 @@ Aliases: `@renderer` to `src/renderer/src`, `@shared` to `src/shared`.
   mode. **It keeps out of the maps that hold monsters by default** (`route/hostile.ts`): a list of
   name patterns the player keeps, because nothing on the wire says a map is dangerous and the run's
   own evidence arrives only after a character has been hit. An avoided map is neither visited nor
-  crossed, so the list costs reach — 485 maps a walk reaches from Mileth, 266 of them outside the
+  crossed, so the list costs reach — 485 maps a walk reaches from Mileth, 210 of them outside the
   list — and a pattern that is too broad costs more than one that is too narrow (`oren` was left out
-  because it catches Oren Island City and its shops). Two rules keep a run honest about what went wrong: a `blocked` walk that **never took a step**
+  because it catches Oren Island City and its shops). **A run's scope says what it is looking for**: `unread` is the plain sweep, `unconfirmed` takes the
+  maps whose only way in is a warp the world XML proposed and no walk has crossed (333 of them, and
+  crossing one promotes it), and `stale` takes a reading older than the run's `staleDays` — which is
+  what picks up a field added after the visit, since a map read before WP40 has a name and a size and
+  no music and no `unread` run will ever go back for it. A map is struck off for the rest of the run
+  once it has been reached, whatever the scope, because an arrival does not always change what made
+  the map a target. Two rules keep a run honest about what went wrong: a `blocked` walk that **never took a step**
   is a fact about the map the character stands on, not the map it was sent to, so the run stops as
   `stuck` rather than setting the target aside (one unwalkable map cost 13 good ones in a third of a
   second before that); and an empty frontier with unread maps left is `stuck` too, never `done`,

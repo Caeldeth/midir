@@ -629,6 +629,36 @@ export const DEFAULT_EXPLORER_BUDGET: ExplorerBudget = { maps: 20, minutes: 15 }
 export const MAX_EXPLORER_MAPS = 200
 export const MAX_EXPLORER_MINUTES = 120
 
+/**
+ * Which maps a run goes looking for (WP41).
+ *
+ * `unread` is the plain sweep and the default. The other two are for going back
+ * over ground already covered, because a first visit is not the last word:
+ *
+ * - `unconfirmed` takes the maps whose **only way in** is a warp the world XML
+ *   proposed and no walk has crossed. Crossing one is what promotes it (WP24),
+ *   so this is the run that turns imported guesses into known ways.
+ * - `stale` takes a map whose reading is older than the run's `staleDays`. It is
+ *   what picks up a field added after the visit: every map read before WP40 has
+ *   a name and a size and no music, and no `unread` run will ever go back for it.
+ */
+export type ExplorerScope = 'unread' | 'unconfirmed' | 'stale'
+
+/** How old a reading must be for a `stale` run to go back, when none is given. */
+export const DEFAULT_STALE_DAYS = 30
+
+/** What each scope is looking for, in the user's words. */
+export function explorerScopeLabel(scope: ExplorerScope): string {
+  switch (scope) {
+    case 'unread':
+      return 'Maps never visited'
+    case 'unconfirmed':
+      return 'Maps reached only by an imported warp'
+    case 'stale':
+      return 'Maps not visited lately'
+  }
+}
+
 export interface ExplorerRequest {
   /** The connection, and so the character, to drive. */
   connectionId: string
@@ -638,9 +668,13 @@ export interface ExplorerRequest {
    * Whether to keep out of the maps that hold monsters, as
    * `route/hostile.ts` names them. **True when left out**, because the run has no
    * way to fight and the cheapest way not to die is not to go. It costs reach: of
-   * 485 maps a walk reaches from Mileth, 266 are outside the hostile list.
+   * 485 maps a walk reaches from Mileth, 210 are outside the hostile list.
    */
   avoidHostile?: boolean
+  /** Which maps to go looking for. `unread` when left out. */
+  scope?: ExplorerScope
+  /** For a `stale` run: how old a reading may be before the run goes back. */
+  staleDays?: number
 }
 
 /** Why an exploration run ended. */
@@ -667,7 +701,7 @@ export type ExplorerStopReason =
    * different thing and used to be reported as `done`.
    */
   | 'stuck'
-  /** Every map the graph can reach from here has been read. */
+  /** Every map the run was looking for has been reached. */
   | 'done'
 
 export type ExplorerOutcome = { kind: 'ended'; reason: ExplorerStopReason }
@@ -688,6 +722,8 @@ export interface ExplorerState {
   budget: ExplorerBudget
   /** Whether this run is keeping out of the maps that hold monsters. */
   avoidingHostile: boolean
+  /** What this run is looking for. */
+  scope: ExplorerScope
   /** Why the run ended, in words worth showing. */
   reason?: string
 }
@@ -714,6 +750,6 @@ export function explorerStopMessage(reason: ExplorerStopReason): string {
     case 'stuck':
       return 'The explorer could not walk on from this map. Walk somewhere with a known way out, or add a warp on the Map tab.'
     case 'done':
-      return 'Every map the route graph can reach from here has been read.'
+      return 'Every map this run was looking for has been reached.'
   }
 }

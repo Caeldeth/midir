@@ -128,6 +128,25 @@ Sabrael ran it. Three faults, all now fixed, and the log was the evidence for ea
 The same run proved the good half: the first six maps were a clean Mileth sweep — the Altar, the
 Tavern, the Bank, TOC, the Crypt Vestibule, Crypt 1 and Crypt 2-1 — and no map was misread.
 
+## Going back over ground already read (2026-09-27)
+
+A first visit is not the last word, so a run has a **scope**:
+
+- **`unread`** — a map with no reading at all. The plain sweep, and the default.
+- **`unconfirmed`** — a map whose **only way in** is a warp the world XML proposed and no walk has
+  crossed. There are 333 of them, and crossing one is what promotes it (WP24), so this is the run
+  that turns imported guesses into known ways. It is a fact about the edges, not about where the
+  character stands: reading it from the position was wrong, because once the character moved every
+  map behind it looked unconfirmed and a finished run reported itself stranded.
+- **`stale`** — a reading older than the run's `staleDays`. This is what picks up a field added after
+  the visit: every map read before WP40 has a name and a size and no music, and no `unread` run will
+  ever go back for one.
+
+**A map is struck off for the rest of the run once it has been reached**, whatever the scope. An
+arrival does not always change what made the map a target — a crossing that the learner does not
+record leaves the warp unconfirmed — and without the guard the run would circle one map for its whole
+budget.
+
 ## Open questions — the first is answered by the build, and Sabrael may overrule it
 
 1. **How long may it run, and may it run while the player is away?** **Built as the conservative
@@ -143,7 +162,7 @@ Tavern, the Bank, TOC, the Crypt Vestibule, Crypt 1 and Crypt 2-1 — and no map
    words that read unambiguously in the map names). The switch is on the panel.
 
    An avoided map is **neither a target nor a crossing**, so the list costs reach: of 485 maps a walk
-   reaches from Mileth, 266 are outside it, and 236 of the 423 unread ones. That is the trade, and it
+   reaches from Mileth, 210 are outside it, and 180 of the 423 unread ones. That is the trade, and it
    is why a pattern that is too broad costs more than one too narrow — `oren` catches Oren Island
    City and 40 shops along with the tombs, so it is not in the list. `astrid`, `veltain` and `mine`
    are the other candidates left out pending a word from someone who plays there.

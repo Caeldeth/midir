@@ -478,9 +478,10 @@ const laborer = createLaborer({
 const explorer = createExplorer({
   walker,
   graph: () => worldGraph,
-  readMaps: async () => {
+  readings: async () => {
     await captureService.flush()
-    return new Set(Object.keys((await mapStore.load()).maps).map(Number))
+    const maps = (await mapStore.load()).maps
+    return new Map(Object.entries(maps).map(([mapId, map]) => [Number(mapId), map.seenAtMs]))
   },
   positionFor: (connectionId) => captureService.positionFor(connectionId),
   // The maps that hold monsters, by name (route/hostile.ts). Read at every pick,

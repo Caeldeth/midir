@@ -1,11 +1,13 @@
 import {
   DEFAULT_EXPLORER_BUDGET,
+  DEFAULT_STALE_DAYS,
   explorerStopMessage,
   MAX_EXPLORER_MAPS,
   MAX_EXPLORER_MINUTES,
   type ExplorerBudget,
   type ExplorerOutcome,
   type ExplorerRequest,
+  type ExplorerScope,
   type ExplorerState,
   type ExplorerStopReason,
   type WalkStopReason
@@ -45,8 +47,11 @@ export interface ExplorerOptions {
   walker: Walker
   /** The route graph. Read at every pick, so an edge learned mid-run counts. */
   graph: () => RouteGraph
-  /** The maps the stores already hold a reading for. Read at every pick. */
-  readMaps: () => Promise<Set<number>>
+  /**
+   * The maps the stores hold a reading for, and when each was read. Read at
+   * every pick; the time is what a `stale` run works from.
+   */
+  readings: () => Promise<Map<number, number>>
   /**
    * The maps that hold monsters (`route/hostile.ts`). Read at every pick, so a
    * name the wire corrects mid-run counts. Absent means none are known, and then
@@ -135,6 +140,17 @@ interface Run {
   budget: ExplorerBudget
   /** Whether this run keeps out of the maps that hold monsters. */
   avoidHostile: boolean
+  /** What this run is looking for. */
+  scope: ExplorerScope
+  /** For a `stale` run: how old a reading may be before it goes back. */
+  staleDays: number
+  /**
+   * Maps this run has already been sent to. A scope that goes back over read
+   * ground would otherwise circle one map for its whole budget: an arrival does
+   * not always change what made the map a target, and nothing else would stop it
+   * being the nearest one again.
+   */
+  reached: Set<number>
   startedAtMs: number
   /** Maps read since the run began, however they came to be read. */
   visited: number
@@ -167,6 +183,7 @@ export function createExplorer(options: ExplorerOptions): Explorer {
       skipped: run.skipped.size,
       budget: run.budget,
       avoidingHostile: run.avoidHostile,
+      scope: run.scope,
       ...(run.target !== undefined ? { target: run.target } : {}),
       ...(run.reason !== undefined ? { reason: explorerStopMessage(run.reason) } : {})
     }
@@ -206,29 +223,68 @@ export function createExplorer(options: ExplorerOptions): Explorer {
    * `remaining` 0 when nothing unread is in reach — which `unread` then tells
    * apart: everything read, or stranded on a map with no known way on.
    */
-  function pick(run: Run, read: Set<number>): Target | null {
+  /**
+   * The maps whose only way in is a warp the world XML proposed (WP24).
+   *
+   * It is a fact about the edges and not about where the character stands: a map
+   * with no confirmed edge into it is one that no walk has ever entered by a way
+   * Midir trusts, wherever the run happens to be. Reading it from the position
+   * instead was wrong — once the character moved, every map behind it looked
+   * unconfirmed, and a run that had finished reported itself stranded.
+   */
+  function unconfirmedMaps(graph: RouteGraph): Set<number> {
+    const confirmed = new Set<number>()
+    const proposed = new Set<number>()
+    for (const node of graph.nodes()) {
+      for (const exit of node.exits) confirmed.add(exit.toMapId)
+      for (const exit of node.candidates ?? []) proposed.add(exit.toMapId)
+    }
+    const only = new Set<number>()
+    for (const mapId of proposed) if (!confirmed.has(mapId)) only.add(mapId)
+    return only
+  }
+
+  /** Whether this run wants this map, by its scope. */
+  function wanted(
+    run: Run,
+    mapId: number,
+    readings: Map<number, number>,
+    unconfirmed: Set<number> | null
+  ): boolean {
+    if (run.reached.has(mapId) || run.skipped.has(mapId)) return false
+    const seenAtMs = readings.get(mapId)
+    switch (run.scope) {
+      case 'unread':
+        return seenAtMs === undefined
+      case 'stale':
+        return seenAtMs === undefined || now() - seenAtMs > run.staleDays * 86_400_000
+      case 'unconfirmed':
+        return unconfirmed !== null && unconfirmed.has(mapId)
+    }
+  }
+
+  function pick(run: Run, readings: Map<number, number>): Target | null {
     const position = options.positionFor(run.connectionId)
     if (position === null) return null
     const graph = options.graph()
     // A hostile map is neither a target nor a crossing, so it leaves the sweep
     // at the same point the walker's own plan leaves it.
     const hostile = hostileFor(run)
-    const paths = graph.pathsFrom(position.mapId, {
-      useCandidates: true,
-      ...(hostile.size > 0 ? { passable: (mapId: number) => !hostile.has(mapId) } : {})
-    })
+    const passable = hostile.size > 0 ? { passable: (mapId: number) => !hostile.has(mapId) } : {}
+    const paths = graph.pathsFrom(position.mapId, { useCandidates: true, ...passable })
+    const unconfirmed = run.scope === 'unconfirmed' ? unconfirmedMaps(graph) : null
 
     // Unread maps along each map's own shortest path, the map included. The
     // sweep is in breadth-first order, so a map's predecessor is always counted
     // before the map itself and one pass is enough.
     const onPath = new Map<number, number>()
-    const isUnread = (mapId: number): boolean => !read.has(mapId)
+    const isWanted = (mapId: number): boolean => wanted(run, mapId, readings, unconfirmed)
     let best: { mapId: number; onPath: number; hops: number } | null = null
     let remaining = 0
     for (const [mapId, step] of paths) {
       const before = step.previous === undefined ? 0 : (onPath.get(step.previous) ?? 0)
-      onPath.set(mapId, before + (isUnread(mapId) ? 1 : 0))
-      if (mapId === position.mapId || read.has(mapId) || run.skipped.has(mapId)) continue
+      onPath.set(mapId, before + (isWanted(mapId) ? 1 : 0))
+      if (mapId === position.mapId || !isWanted(mapId)) continue
       remaining += 1
       const here = { mapId, onPath: onPath.get(mapId) ?? 1, hops: step.distance }
       // Most unread maps per walk, then the nearest, then the lower map id so a
@@ -247,7 +303,7 @@ export function createExplorer(options: ExplorerOptions): Explorer {
     let unread = 0
     for (const node of graph.nodes()) {
       if (hostile.has(node.mapId)) continue
-      if (!read.has(node.mapId) && !run.skipped.has(node.mapId)) unread += 1
+      if (isWanted(node.mapId)) unread += 1
     }
     if (best === null) return { mapId: -1, name: '', remaining: 0, unread, onPath: 0, hops: 0 }
     return {
@@ -324,9 +380,9 @@ export function createExplorer(options: ExplorerOptions): Explorer {
       // One read of the store a turn: it says what the last walk taught, transit
       // included, and it is what the pick works from. The budget is checked after
       // the count, not before it.
-      const read = await options.readMaps()
-      count(run, read)
-      const next = pick(run, read)
+      const readings = await options.readings()
+      count(run, new Set(readings.keys()))
+      const next = pick(run, readings)
       if (next === null) return finish(run, run.visited === 0 ? 'noPosition' : 'lostCharacter')
       if (next.remaining === 0) {
         // Nothing unread is in reach. Whether that is finished or stranded
@@ -357,6 +413,9 @@ export function createExplorer(options: ExplorerOptions): Explorer {
       if (outcome.kind === 'arrived') {
         // What was learned is counted at the next pick, off the store, because
         // the maps crossed on the way were read as truly as the one aimed at.
+        // The map itself is struck off here: a scope that goes back over read
+        // ground has no other reason to stop asking for it.
+        run.reached.add(next.mapId)
         publish(run)
         continue
       }
@@ -398,6 +457,9 @@ export function createExplorer(options: ExplorerOptions): Explorer {
         // Avoiding is the default: a run cannot fight, so the cheapest way not
         // to die is not to go.
         avoidHostile: request.avoidHostile !== false,
+        scope: request.scope ?? 'unread',
+        staleDays: Math.max(1, Math.floor(request.staleDays ?? DEFAULT_STALE_DAYS)),
+        reached: new Set<number>(),
         startedAtMs: now(),
         visited: 0,
         remaining: 0,

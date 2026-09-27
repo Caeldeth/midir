@@ -49,6 +49,8 @@ interface World {
   clock: number
   /** How far the clock moves for each walk. */
   stepMs: number
+  /** When each read map was read. Missing means long ago. */
+  readAt: Map<number, number>
   /** Each destination the walker was asked for, in order. */
   requests: number[]
   /** The avoid list each walk carried, in order. */
@@ -66,6 +68,7 @@ function makeWorld(over: Partial<World> = {}): World {
     position: { mapId: 1, x: 5, y: 5, facing: 0, asOfMs: 0, confidence: 'confirmed' },
     healths: [],
     read: new Set([1]),
+    readAt: new Map<number, number>(),
     clock: 1000,
     stepMs: 1000,
     requests: [],
@@ -103,8 +106,12 @@ function fakeWalker(world: World, nodes: RouteNode[]): Walker {
                 useCandidates: true,
                 passable: (id) => !avoid.has(id)
               })
-        for (const leg of plan?.legs ?? []) world.read.add(leg.toMapId)
+        for (const leg of plan?.legs ?? []) {
+          world.read.add(leg.toMapId)
+          world.readAt.set(leg.toMapId, world.clock)
+        }
         world.read.add(mapId)
+        world.readAt.set(mapId, world.clock)
         if (world.position !== null) world.position = { ...world.position, mapId }
       }
       return outcome
@@ -123,7 +130,7 @@ function build(world: World, nodes: RouteNode[] = NODES, hostile = new Set<numbe
   const explorer = createExplorer({
     walker: fakeWalker(world, nodes),
     graph: () => createRouteGraph(nodes),
-    readMaps: async () => new Set(world.read),
+    readings: async () => new Map([...world.read].map((id) => [id, world.readAt.get(id) ?? 0])),
     hostileMaps: () => hostile,
     positionFor: (id) => (id === CID ? world.position : null),
     healthFor: (id) => {
@@ -482,6 +489,113 @@ describe('the explorer (WP41)', () => {
     })
   })
 
+  describe('going back over ground already read', () => {
+    /** Map 7 is reached only by a warp the world XML proposed (WP24). */
+    const withCandidate: RouteNode[] = [
+      {
+        mapId: 1,
+        name: 'Mileth',
+        exits: [{ toMapId: 2, x: 5, y: 0 }],
+        candidates: [{ toMapId: 7, x: 0, y: 5, source: 'xml' }]
+      },
+      { mapId: 2, name: 'Mileth Inn', exits: [{ toMapId: 1, x: 5, y: 9 }] },
+      { mapId: 7, name: 'Mileth Black Magic Master', exits: [] }
+    ]
+
+    it('takes only the maps an imported warp reaches, under the unconfirmed scope', async () => {
+      // Everything is read, so an ordinary run has nothing to do; 7 is still
+      // reached only by a warp no walk has crossed.
+      const world = makeWorld({ read: new Set([1, 2, 7]) })
+      const { explorer } = build(world, withCandidate)
+      expect(await explorer.run({ connectionId: CID, scope: 'unread' })).toEqual({
+        kind: 'ended',
+        reason: 'done'
+      })
+      expect(world.requests).toEqual([])
+
+      const second = makeWorld({ read: new Set([1, 2, 7]) })
+      const run = build(second, withCandidate)
+      expect(await run.explorer.run({ connectionId: CID, scope: 'unconfirmed' })).toEqual({
+        kind: 'ended',
+        reason: 'done'
+      })
+      expect(second.requests).toEqual([7])
+    })
+
+    it('takes a map whose reading has gone old, under the stale scope', async () => {
+      const fortyDays = 40 * 86_400_000
+      const world = makeWorld({
+        read: new Set([1, 2, 3, 4]),
+        readAt: new Map([
+          [1, fortyDays],
+          [2, 0],
+          [3, fortyDays],
+          [4, fortyDays]
+        ]),
+        clock: fortyDays
+      })
+      const { explorer } = build(world)
+      // Map 2 was read on day zero; the rest were read just now.
+      expect(await explorer.run({ connectionId: CID, scope: 'stale', staleDays: 30 })).toEqual({
+        kind: 'ended',
+        reason: 'done'
+      })
+      expect(world.requests).toEqual([2])
+    })
+
+    it('leaves a reading that is still fresh alone', async () => {
+      const fortyDays = 40 * 86_400_000
+      const world = makeWorld({
+        read: new Set([1, 2, 3, 4]),
+        readAt: new Map([
+          [1, fortyDays],
+          [2, fortyDays],
+          [3, fortyDays],
+          [4, fortyDays]
+        ]),
+        clock: fortyDays
+      })
+      const { explorer } = build(world)
+      expect(await explorer.run({ connectionId: CID, scope: 'stale', staleDays: 30 })).toEqual({
+        kind: 'ended',
+        reason: 'done'
+      })
+      expect(world.requests).toEqual([])
+    })
+
+    it('never sends a run to the same map twice, however it was chosen', async () => {
+      // A walk that teaches nothing new leaves the map as much of a target as it
+      // was; without this guard the run would circle it for its whole budget.
+      const fortyDays = 40 * 86_400_000
+      const world = makeWorld({
+        read: new Set([1, 2, 3, 4]),
+        readAt: new Map([
+          [1, fortyDays],
+          [2, 0],
+          [3, 0],
+          [4, 0]
+        ]),
+        clock: fortyDays
+      })
+      // The walker arrives but the store learns nothing: the readings never move.
+      const { explorer } = build(world)
+      world.readAt = new Map(world.readAt)
+      const frozen = new Map(world.readAt)
+      const outcome = await explorer.run({ connectionId: CID, scope: 'stale', staleDays: 30 })
+      world.readAt = frozen
+      expect(outcome).toEqual({ kind: 'ended', reason: 'done' })
+      // Three stale maps, three walks, each map asked for once.
+      expect(world.requests.length).toBe(new Set(world.requests).size)
+    })
+
+    it('says which scope a run is working to', async () => {
+      const world = makeWorld()
+      const { explorer, states } = build(world)
+      await explorer.run({ connectionId: CID, scope: 'unread' })
+      expect(states[0]).toMatchObject({ scope: 'unread' })
+    })
+  })
+
   it('pushes a state for each change, ending with the run stopped and its reason', async () => {
     const world = makeWorld({ read: new Set([1, 2, 3]) })
     const { explorer, states } = build(world)
@@ -489,7 +603,7 @@ describe('the explorer (WP41)', () => {
     expect(states[0]).toMatchObject({ running: true, visited: 0 })
     const last = states[states.length - 1]
     expect(last).toMatchObject({ running: false, visited: 1 })
-    expect(last?.reason).toContain('has been read')
+    expect(last?.reason).toContain('was looking for has been reached')
     expect(last?.target).toBeUndefined()
   })
 

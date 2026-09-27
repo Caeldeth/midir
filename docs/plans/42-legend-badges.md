@@ -2,7 +2,7 @@
 
 **Size:** S. **Depends on:** WP19 (the item icons) and WP37 (the doll): the same protocol, the same
 archive pattern, the same fallback. Read `00-overview.md` first.
-**BUILT 2026-09-27.** **Card:** `HTOO-CARD`.
+**BUILT 2026-09-27.** **Card:** `HTOO-482`.
 **Trigger to start:** Sabrael, 2026-09-27: "Should we use emoji for the legend mark icons?"
 
 ## Goal
