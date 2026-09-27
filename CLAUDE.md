@@ -246,6 +246,19 @@ Aliases: `@renderer` to `src/renderer/src`, `@shared` to `src/shared`.
   it is driven by an event, not by the map. `withMapSize` spreads the stored record first so a visit
   never wipes a track (WP40).
 - **The map cache has no header, so a map's size comes off the wire.** `lodNNNNN.map` is width × height × 6 bytes and nothing else, and `WorldMap.dat` sizes 47 maps in 385. A cache file exists only for a map the player visited, and every visit sends `SMapSize 0x15`, so `store/mapStore.ts` keeps `maps.json` from the capture service and the Map tab reads a size from there first, the graph second, a live position third (WP30). The tab draws the walker's grid top-down; the edit that curates a warp waits for WP29's editable layer.
+- **A record reaches the renderer when it is written, and never in pieces.** A login is a burst and
+  the session reducer publishes a record after each packet of it, so a push for every change made the
+  item index fall and climb back while the burst ran (Sabrael, 2026-09-27); the renderer replaces the
+  record it holds with the one it is given. So `captureService.save` merges into a `known` cache —
+  the file's record, seeded at `start`, plus everything this capture has added — and `writeAll` pushes
+  what it wrote, on the same debounce. That also puts the bank and the legend on the pushed record: a
+  fresh login knows neither, and the file is the other half of the truth.
+- **A bank row's name is the server's, and it is not always the inventory's.** The same sprite can
+  arrive as "Brute's Quill" in an inventory and "Brute's Quill1" in a bank list, and retail has real
+  item names that end in a digit ("Ship Key 18", "Yowien's Claw1", which is also worn). The row walk
+  is aligned — the list stays alphabetical through those rows and every row after them reads cleanly —
+  so the digit is data and not an off-by-one. **Do not strip it**, and do not group two such names as
+  one item without evidence that retail means one item.
 - **A field the store schema does not name is dropped on load, silently.** Add every new `CharacterRecord` field to `characterSchema`. The bank was missing from it, so every reading was lost at the next start. `mergeCharacter` is the other half: a fresh login knows nothing about the bank, so it must not replace one, and the write queue merges the same way the file does.
 
 ## Verifying changes

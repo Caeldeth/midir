@@ -221,6 +221,21 @@ export function createCaptureService(options: CaptureServiceOptions): CaptureSer
   /** Records changed but not yet written, by character name. */
   const unsaved = new Map<string, CharacterRecord>()
   /**
+   * The newest whole record for each character: the file's, plus everything
+   * this capture has added.
+   *
+   * A session reducer starts from nothing and fills a record packet by packet,
+   * so the record it holds during a login is a **part** of the truth. The file
+   * holds the rest — the bank, the legend, the first sighting — and the merge
+   * rule is what puts the two together. Keeping the result here means the
+   * renderer is told about the whole record and never about a part of one
+   * (Sabrael, 2026-09-27: a login drained the item index and refilled it).
+   *
+   * It is seeded from the file at `start` and is a cache, never a second
+   * source: `withCharacter` merges again at the write.
+   */
+  const known = new Map<string, CharacterRecord>()
+  /**
    * Who is logged in, by connection.
    *
    * The character belongs to its connection, not to the service. A player who
@@ -335,6 +350,12 @@ export function createCaptureService(options: CaptureServiceOptions): CaptureSer
     const pending = [...unsaved.values()]
     unsaved.clear()
     await store.update((file) => pending.reduce(withCharacter, file))
+    // The renderer hears about a record when the record is written, on the same
+    // debounce, and never before. A login sends a burst of packets and the
+    // reducer publishes a record after each one; pushing every step made the
+    // item index fall and climb back while the burst ran, because the renderer
+    // replaces the record it holds with the one it is given.
+    for (const record of pending) onCharacter?.(record)
   }
 
   /**
@@ -403,9 +424,10 @@ export function createCaptureService(options: CaptureServiceOptions): CaptureSer
    * first one read.
    */
   function save(record: CharacterRecord): void {
-    unsaved.set(record.name, mergeCharacter(unsaved.get(record.name), record))
+    const merged = mergeCharacter(known.get(record.name) ?? unsaved.get(record.name), record)
+    known.set(record.name, merged)
+    unsaved.set(record.name, merged)
     scheduleSave()
-    onCharacter?.(record)
   }
 
   /**
@@ -639,6 +661,13 @@ export function createCaptureService(options: CaptureServiceOptions): CaptureSer
       boards.clear()
       lossy.clear()
       tracker.clear()
+      // The file's half of every record this capture will publish. A read that
+      // fails leaves the cache empty, and the write-time merge still holds the
+      // file's fields: this is a cache, not a source.
+      known.clear()
+      for (const record of Object.values((await store.load()).characters)) {
+        known.set(record.name, record)
+      }
 
       device = nextDevice
       recorder = (await options.createRecorder?.(now())) ?? null
