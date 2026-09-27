@@ -13,7 +13,9 @@ import type {
   WalkOutcome,
   WalkRequest
 } from '../../shared/types'
+import type { ExplorerOutcome, ExplorerState } from '../../shared/actionLayer'
 import type { ActionLayer } from '../actionLayer'
+import type { Explorer } from '../explorer'
 import type { Laborer } from '../laborer'
 import type { Speaker } from '../speaker'
 import type { Walker } from '../walker'
@@ -29,6 +31,7 @@ export interface AssistHandlerContext {
   speaker: Speaker
   walker: Walker
   laborer: Laborer
+  explorer: Explorer
 }
 
 export function assistWindows(ctx: AssistHandlerContext): AssistWindow[] {
@@ -146,6 +149,41 @@ export function laborerState(ctx: AssistHandlerContext): LaborerState[] {
   return ctx.laborer.states()
 }
 
+/**
+ * The explorer's request (WP41). The budget is bounded by the explorer itself,
+ * so this checks the shape and leaves the limits to one place.
+ */
+const explorerRequestSchema = z.object({
+  connectionId: z.string().min(1, 'Pick a window to drive first.'),
+  budget: z
+    .object({
+      maps: z.number().int().positive().optional(),
+      minutes: z.number().int().positive().optional()
+    })
+    .optional()
+})
+
+export async function startExplorer(
+  ctx: AssistHandlerContext,
+  request: unknown
+): Promise<ExplorerOutcome> {
+  const parsed = explorerRequestSchema.safeParse(request)
+  if (!parsed.success) {
+    throw new Error(parsed.error.issues[0]?.message ?? 'Invalid explorer request')
+  }
+  return ctx.explorer.run(parsed.data)
+}
+
+export function stopExplorer(ctx: AssistHandlerContext, connectionId: unknown): void {
+  const parsed = connectionIdSchema.safeParse(connectionId)
+  if (!parsed.success) return
+  ctx.explorer.stop(parsed.data)
+}
+
+export function explorerState(ctx: AssistHandlerContext): ExplorerState[] {
+  return ctx.explorer.states()
+}
+
 export function registerAssistHandlers(ipcMain: IpcMain, ctx: AssistHandlerContext): void {
   ipcMain.handle('assist:windows', () => assistWindows(ctx))
   ipcMain.handle('assist:stopAll', () => assistStopAll(ctx))
@@ -164,6 +202,9 @@ export function registerAssistHandlers(ipcMain: IpcMain, ctx: AssistHandlerConte
   ipcMain.handle('errand:run', (_, request) => runErrand(ctx, request))
   ipcMain.handle('errand:stop', (_, connectionId) => stopErrand(ctx, connectionId))
   ipcMain.handle('errand:state', () => laborerState(ctx))
+  ipcMain.handle('explorer:start', (_, request) => startExplorer(ctx, request))
+  ipcMain.handle('explorer:stop', (_, connectionId) => stopExplorer(ctx, connectionId))
+  ipcMain.handle('explorer:state', () => explorerState(ctx))
 }
 
 /** The channel main uses to push the stop state to the renderer. */
@@ -174,6 +215,8 @@ export const SPEAKER_STATE_CHANNEL = 'speaker:state-changed'
 export const WALKER_STATE_CHANNEL = 'walker:state-changed'
 /** The channel main uses to push a Laborer's state to the renderer. */
 export const LABORER_STATE_CHANNEL = 'laborer:state-changed'
+/** The channel main uses to push an explorer run's state to the renderer (WP41). */
+export const EXPLORER_STATE_CHANNEL = 'explorer:state-changed'
 /**
  * The channel main uses to ask the renderer to toggle the Speaker. The renderer
  * owns the selected window, so the global hotkey acts through it.

@@ -13,6 +13,9 @@ import type {
   Errand,
   ErrandOutcome,
   ErrandRequest,
+  ExplorerOutcome,
+  ExplorerRequest,
+  ExplorerState,
   LaborerState,
   LogEntry,
   OpenIssueResult,
@@ -112,6 +115,16 @@ const api: MidirApi = {
     state: (): Promise<LaborerState[]> => ipcRenderer.invoke('errand:state'),
     onState: (handler: (state: LaborerState) => void): (() => void) =>
       subscribe('laborer:state-changed', handler)
+  },
+
+  explorer: {
+    start: (request: ExplorerRequest): Promise<ExplorerOutcome> =>
+      ipcRenderer.invoke('explorer:start', request),
+    stop: (connectionId: string): Promise<void> =>
+      ipcRenderer.invoke('explorer:stop', connectionId),
+    state: (): Promise<ExplorerState[]> => ipcRenderer.invoke('explorer:state'),
+    onState: (handler: (state: ExplorerState) => void): (() => void) =>
+      subscribe('explorer:state-changed', handler)
   },
 
   boards: {

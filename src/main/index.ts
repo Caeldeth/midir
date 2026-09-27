@@ -20,6 +20,7 @@ import { createActionLayer, type HotkeyRegistrar, type WindowApi } from './actio
 import { createSpeaker } from './speaker'
 import { createWalker } from './walker'
 import { createLaborer } from './laborer'
+import { createExplorer } from './explorer'
 import { createBoardPoll } from './boardPoll'
 import { builtinErrands } from './laborer/errands'
 import { createPaneWatcher } from './paneWatcher'
@@ -40,6 +41,7 @@ import {
   BOARDS_CHANGED_CHANNEL,
   BOARD_POLL_STATE_CHANNEL,
   CHARACTER_CHANGED_CHANNEL,
+  EXPLORER_STATE_CHANNEL,
   LOG_APPENDED_CHANNEL,
   LABORER_STATE_CHANNEL,
   SPEAKER_STATE_CHANNEL,
@@ -465,6 +467,27 @@ const laborer = createLaborer({
   onState: (state) => pushToRenderer(LABORER_STATE_CHANNEL, state)
 })
 
+// The explorer walks to maps nothing has read yet, through the same Walker, so
+// that the wire teaches their names, sizes, music, and warps (WP41). The maps
+// already read come from the store, after a flush: an arrival writes on a
+// debounce, and a stale read would send the run back to a map it just left.
+const explorer = createExplorer({
+  walker,
+  graph: () => worldGraph,
+  readMaps: async () => {
+    await captureService.flush()
+    return new Set(Object.keys((await mapStore.load()).maps).map(Number))
+  },
+  positionFor: (connectionId) => captureService.positionFor(connectionId),
+  healthFor: (connectionId) => {
+    const record = captureService.recordFor(connectionId)
+    if (record === null) return null
+    return { current: record.stats.currentHealth, max: record.stats.maxHealth }
+  },
+  log,
+  onState: (state) => pushToRenderer(EXPLORER_STATE_CHANNEL, state)
+})
+
 // The board poll reads every board and the mailbox through the client's own
 // board pane (WP36 PR2): the arrow keys walk the list, View opens a row, and
 // every reply off the wire is the check on where the selection is.
@@ -528,6 +551,7 @@ const ctx: HandlerContext = {
   speaker,
   walker,
   laborer,
+  explorer,
   log,
   logsPath,
   // The report's two side effects, injected so the handler module stays free of
@@ -721,6 +745,7 @@ app.on('window-all-closed', () => {
 // even when before-quit defers the quit for a capture flush.
 app.on('will-quit', () => {
   paneWatcher.stop()
+  explorer.dispose()
   laborer.dispose()
   boardPoll.dispose()
   walker.dispose()

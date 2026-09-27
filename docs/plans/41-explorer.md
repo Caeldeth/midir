@@ -2,7 +2,8 @@
 
 **Size:** L. **Depends on:** WP29 (learned transitions), WP33 (the world map pane), WP34 (popups),
 WP35 (right-click walking), WP39 (`reachableFrom`), WP32 (access). Read `00-overview.md` first.
-**PLANNED — not scheduled.** It needs the ruling in "Open questions" first. **Card:** `HTOO-476`.
+**BUILT 2026-09-27**, under the conservative default of question 1: no unattended mode.
+**Card:** `HTOO-476`.
 **Trigger to start:** Sabrael, 2026-09-26: "walking all these maps by hand would be tedious."
 
 ## Goal
@@ -61,17 +62,49 @@ nobody is watching each hop:
 The plan does not pretend otherwise. The first runs are towns and paths with Sabrael watching, and
 the avoid set is how the frontier shrinks to what is survivable.
 
-## Open questions — Sabrael decides before this is scheduled
+## What shipped
 
-1. **How long may it run, and may it run while the player is away?** A walker that goes where the
-   player just asked is a convenience. A process that walks a world for hours is the thing an
-   operator looks for, and the README already says automation is at the player's own risk. The
-   conservative answer, and this doc's default until told otherwise, is: a budget in minutes, a
-   visible panel, `assistStopOnFocusLoss` honoured, and no unattended mode at all.
-2. **Towns and paths only, or learn the danger?** Restricting the frontier by hand is safe and
-   slow. The avoid set is automatic and costs a death or two.
-3. **Does it use a gateway?** WP33 can click a world map point, so it can. A world-map hop crosses
-   the map the player would not walk, which widens the frontier a long way.
+- `src/main/explorer.ts`: the scheduler. `run` walks the queue, `stop` ends a run, `states` reports
+  them, `dispose` stops every run on shutdown. It holds no store of its own.
+- `RouteGraph.distancesFrom(mapId)`: the reachability sweep WP39 added, with the hop count kept.
+  `reachableFrom` is now that sweep with the distances dropped, so the rule for which exits a walk
+  may take stays in one place.
+- The IPC surface: `explorer:start`, `explorer:stop`, `explorer:state`, and the
+  `explorer:state-changed` push, with the Zod shape check beside the walker's.
+- `ExplorerCard` on the Walker tab, because the explorer is the Walker with a queue and it drives
+  the window the Walker is pointed at. It states the budget, the map it is walking to, how many maps
+  it has visited, how many are unread and in reach, and how many it set aside.
+- The frontier is **a map the stores have never held**. A map that was visited and stayed silent is
+  not a target: the server sends a music track only when the track changes, so a second visit would
+  teach nothing and the run would circle it until its budget ran out.
+- The store read is taken after `captureService.flush()`. An arrival writes on a debounce, and a
+  stale read would send the run back to the map it just left.
+
+**The stop policy as built.** The walker's own stops arrive as outcomes, and the explorer sorts them
+into one map's problem and the session's: `blocked`, `noRoute`, and a gate's `gated` set that map
+aside and the run goes on, while `lostCharacter`, `lostPosition`, `dialog`, and `protected` end it.
+On top of those it stops when the character loses health, when the budget of maps or of minutes is
+spent, and when the frontier empties.
+
+**The health rule holds the lowest reading, not the last.** Against the last reading, natural
+regeneration between hops reads as a hit (90, then 95, then 92 would stop a run). Against the lowest
+seen, it does not, and a character that began the run already hurt is not stopped for the health it
+was missing when it started.
+
+## Open questions — the first is answered by the build, and Sabrael may overrule it
+
+1. **How long may it run, and may it run while the player is away?** **Built as the conservative
+   answer**: a budget of 20 maps and 15 minutes by default, bounded at 200 maps and 120 minutes, a
+   panel that states what the run is doing, `assistStopOnFocusLoss` honoured through the action
+   layer, and no unattended mode. A walker that goes where the player just asked is a convenience; a
+   process that walks a world for hours is the thing an operator looks for, and the README already
+   says automation is at the player's own risk. Raising the bound is a decision, not a tweak.
+2. **Towns and paths only, or learn the danger?** Built the second way: the run sets aside a map the
+   walker could not deliver, and the health stop ends the run on the first hit. There is no curated
+   safe list. If the first watched runs are bloody, a hand-kept list of maps to leave alone is the
+   next step.
+3. **Does it use a gateway?** Yes, and it needed no code of its own: the walker plans a world-map
+   hop and clicks the pane's point (WP33), so a gateway is one more leg to the explorer.
 
 ## Non-goals (stop-lines)
 
@@ -84,8 +117,14 @@ the avoid set is how the frontier shrinks to what is survivable.
 
 ## Verification
 
-- The scheduler is a pure queue over a fake walker, so the frontier order, the budget, the avoid
-  set, and each stop reason are unit-testable with no game.
+- `src/main/__tests__/explorer.test.ts`: 44 tests over a fake walker. The nearest-first order and its
+  tie-break, the map already read, the map set aside and never asked for twice, every stop reason,
+  both budgets, the health rule including the regeneration case, the stop that ends a run, the
+  refusal of a second run on one window, and `dispose`.
+- `src/main/__tests__/assistHandlers.test.ts`: the IPC shape check and the refusal with no window.
+- `src/renderer/src/components/__tests__/ExplorerCard.test.tsx`: the panel off until a window is
+  picked, the budget it sends, the progress it states, and the stop.
 - The walking itself is WP35's and WP29's, already proven.
-- Handed to Sabrael: one watched run of a dozen town maps, and a check that the export from WP40
-  gained those maps.
+- **Handed to Sabrael:** one watched run of a dozen town maps, then `scripts/export-map-music.mjs`
+  to confirm the table gained them. Nothing below the `PacketSource` seam can be checked by an
+  agent, and a run drives a real client.

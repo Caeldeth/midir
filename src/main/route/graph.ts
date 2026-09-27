@@ -150,6 +150,14 @@ export interface RouteGraph {
    * which destinations it has no way to (WP39).
    */
   reachableFrom(fromMapId: number, options?: PlanOptions): Set<number>
+  /**
+   * Every map a walk can reach from this one, with the number of map changes
+   * it takes to get there. The start map is 0. `reachableFrom` is the same
+   * sweep with the distances dropped, so the rule for which exits a walk may
+   * take lives in one place. The explorer asks so it can visit the nearest
+   * unread map first (WP41).
+   */
+  distancesFrom(fromMapId: number, options?: PlanOptions): Map<number, number>
 }
 
 /** What a plan may leave out. */
@@ -209,23 +217,28 @@ export function createRouteGraph(nodes: RouteNode[]): RouteGraph {
     return partial.length === 1 ? partial[0].mapId : null
   }
 
-  function reachableFrom(fromMapId: number, options?: PlanOptions): Set<number> {
-    const reached = new Set<number>()
+  function distancesFrom(fromMapId: number, options?: PlanOptions): Map<number, number> {
+    const reached = new Map<number, number>()
     if (!byId.has(fromMapId)) return reached
     const passable = options?.passable ?? ((): boolean => true)
-    reached.add(fromMapId)
+    reached.set(fromMapId, 0)
     const queue: number[] = [fromMapId]
     while (queue.length > 0) {
       const current = queue.shift()!
+      const distance = reached.get(current)! + 1
       for (const exit of byId.get(current)!.exits) {
         if (!walkable(exit)) continue
         if (reached.has(exit.toMapId) || !byId.has(exit.toMapId)) continue
         if (!passable(exit.toMapId)) continue
-        reached.add(exit.toMapId)
+        reached.set(exit.toMapId, distance)
         queue.push(exit.toMapId)
       }
     }
     return reached
+  }
+
+  function reachableFrom(fromMapId: number, options?: PlanOptions): Set<number> {
+    return new Set(distancesFrom(fromMapId, options).keys())
   }
 
   function planRoute(fromMapId: number, toMapId: number, options?: PlanOptions): RoutePlan | null {
@@ -286,7 +299,8 @@ export function createRouteGraph(nodes: RouteNode[]): RouteGraph {
     destinations,
     resolveDestination,
     planRoute,
-    reachableFrom
+    reachableFrom,
+    distancesFrom
   }
 }
 

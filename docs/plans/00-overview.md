@@ -237,8 +237,8 @@ trigger is in each doc's header.
 | WP37 | M    | The character doll              | HTOO-84  | COMPLETE 2026-09-22 — `complete/37-character-doll.md`                |
 | WP38 | S    | Seed the blank map names        | HTOO-471 | COMPLETE 2026-09-22 — `complete/38-map-name-seed.md`                 |
 | WP39 | S    | UI cleanup; no-route clue       | HTOO-472 | COMPLETE 2026-09-22 — `complete/39-ui-cleanup.md`                    |
-| WP40 | S    | Capture each map's music track  | HTOO-475 | PLANNED — `40-map-music.md`                                          |
-| WP41 | L    | The explorer (unsteered visits) | HTOO-476 | PLANNED, not scheduled — `41-explorer.md`                            |
+| WP40 | S    | Capture each map's music track  | HTOO-475 | BUILT 2026-09-27 — `40-map-music.md`                                 |
+| WP41 | L    | The explorer (unsteered visits) | HTOO-476 | BUILT 2026-09-27 — `41-explorer.md`                                  |
 
 `00a-backlog.md` now holds only what is not a WP: the non-goals, the debts owed to another repo, and
 the one conditional rule.

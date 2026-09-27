@@ -16,6 +16,7 @@ import {
 } from '@mui/material'
 import PushPinOutlined from '@mui/icons-material/PushPinOutlined'
 import InfoTip from '@renderer/components/InfoTip'
+import ExplorerCard from '@renderer/components/ExplorerCard'
 import { useCaptureStore } from '@renderer/store/captureStore'
 import { useSettingsStore } from '@renderer/store/settingsStore'
 import { outcomeMessage, useWalkerStore } from '@renderer/store/walkerStore'
@@ -385,6 +386,8 @@ function Walker(): React.JSX.Element {
           lastOutcome={lastOutcome}
         />
       </Paper>
+
+      <ExplorerCard />
     </Box>
   )
 }

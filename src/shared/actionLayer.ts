@@ -477,3 +477,103 @@ export function wrapChatLine(text: string): string[] {
   flush()
   return pieces
 }
+
+/**
+ * The explorer: the walker with a queue in front of it (WP41).
+ *
+ * It visits maps the stores hold no reading for, so that what only a visit
+ * teaches gets taught — the wire's own name for the map, its size, its music
+ * track (WP40), and the crossing of a warp the world XML only proposes.
+ *
+ * It is off until it is started, one run to a window, and every rule in
+ * `CLAUDE.md` holds: it drives through the same action layer as the walker, it
+ * sends no packet, and the one global stop halts it. It adds stops of its own,
+ * because nobody is watching each hop.
+ */
+
+/** What one exploration run may spend. Each limit is reached by stopping. */
+export interface ExplorerBudget {
+  /** Maps to arrive at before the run stops. */
+  maps: number
+  /** Minutes to run before the run stops. */
+  minutes: number
+}
+
+/** The budget a run takes when the caller names none. Deliberately small. */
+export const DEFAULT_EXPLORER_BUDGET: ExplorerBudget = { maps: 20, minutes: 15 }
+
+/** The most a run may be given. An unattended run is not a mode this has. */
+export const MAX_EXPLORER_MAPS = 200
+export const MAX_EXPLORER_MINUTES = 120
+
+export interface ExplorerRequest {
+  /** The connection, and so the character, to drive. */
+  connectionId: string
+  /** The limits for this run. The default applies to whatever is left out. */
+  budget?: Partial<ExplorerBudget>
+}
+
+/** Why an exploration run ended. */
+export type ExplorerStopReason =
+  /** The user stopped it, by the button or the global stop. */
+  | 'user'
+  /** The character logged off or the window closed. */
+  | 'lostCharacter'
+  /** No character was on the window when the run was asked for. */
+  | 'noPosition'
+  /** The walker lost track of where the character is. */
+  | 'lostPosition'
+  /** A dialog or an exchange stayed on screen through every close gesture. */
+  | 'dialog'
+  /** A login or password dialog is on screen. Nothing is posted to it. */
+  | 'protected'
+  /** The character lost health, so something is attacking it. */
+  | 'hurt'
+  /** The run spent its budget of maps or of minutes. */
+  | 'budget'
+  /** Every map the graph can reach from here has been read. */
+  | 'done'
+
+export type ExplorerOutcome = { kind: 'ended'; reason: ExplorerStopReason }
+
+/** What one explorer is doing now. Pushed on every change. */
+export interface ExplorerState {
+  connectionId: string
+  running: boolean
+  /** Maps this run has arrived at for the first time. */
+  visited: number
+  /** Maps still unread and reachable, at the last pick. */
+  remaining: number
+  /** The map being walked to now. */
+  target?: { mapId: number; name: string }
+  /** Maps set aside this run, because a walk to one of them did not arrive. */
+  skipped: number
+  /** The budget the run is spending. */
+  budget: ExplorerBudget
+  /** Why the run ended, in words worth showing. */
+  reason?: string
+}
+
+/** A message worth showing the user for each explorer stop reason. */
+export function explorerStopMessage(reason: ExplorerStopReason): string {
+  switch (reason) {
+    case 'user':
+      return 'You stopped the explorer.'
+    case 'lostCharacter':
+      return 'The character logged off or the window closed.'
+    case 'noPosition':
+      return 'Log in first: the explorer starts from the map the character stands on.'
+    case 'lostPosition':
+      return 'The explorer lost track of where the character is.'
+    case 'dialog':
+      return 'A dialog stayed on screen, so the run stopped.'
+    case 'protected':
+      return 'A login dialog is on screen. The explorer posts nothing to it.'
+    case 'hurt':
+      return 'The character lost health, so the run stopped.'
+    case 'budget':
+      return 'The run reached its budget.'
+    case 'done':
+      return 'Every map the route graph can reach from here has been read.'
+  }
+}

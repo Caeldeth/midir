@@ -16,6 +16,9 @@ import type {
   Errand,
   ErrandOutcome,
   ErrandRequest,
+  ExplorerOutcome,
+  ExplorerRequest,
+  ExplorerState,
   LaborerState,
   SpeakerConfig,
   SpeakerState,
@@ -298,6 +301,17 @@ export interface MidirApi {
     state: () => Promise<LaborerState[]>
     /** Watch a Laborer as it changes. Call the result to stop watching. */
     onState: (handler: (state: LaborerState) => void) => () => void
+  }
+
+  explorer: {
+    /** Explore from where a character stands. Resolves with how the run ended (WP41). */
+    start: (request: ExplorerRequest) => Promise<ExplorerOutcome>
+    /** Stop the run on one connection. */
+    stop: (connectionId: string) => Promise<void>
+    /** Every run now in progress. */
+    state: () => Promise<ExplorerState[]>
+    /** Watch a run as it changes. Call the result to stop watching. */
+    onState: (handler: (state: ExplorerState) => void) => () => void
   }
 
   boards: {
