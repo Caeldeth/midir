@@ -47,6 +47,12 @@ export interface ExplorerOptions {
   graph: () => RouteGraph
   /** The maps the stores already hold a reading for. Read at every pick. */
   readMaps: () => Promise<Set<number>>
+  /**
+   * The maps that hold monsters (`route/hostile.ts`). Read at every pick, so a
+   * name the wire corrects mid-run counts. Absent means none are known, and then
+   * `avoidHostile` has nothing to avoid.
+   */
+  hostileMaps?: () => Set<number>
   /** Where a character stands, from the capture service. */
   positionFor: (connectionId: string) => Position | null
   /**
@@ -123,6 +129,8 @@ interface Run {
   connectionId: string
   running: boolean
   budget: ExplorerBudget
+  /** Whether this run keeps out of the maps that hold monsters. */
+  avoidHostile: boolean
   startedAtMs: number
   visited: number
   remaining: number
@@ -147,6 +155,7 @@ export function createExplorer(options: ExplorerOptions): Explorer {
       remaining: run.remaining,
       skipped: run.skipped.size,
       budget: run.budget,
+      avoidingHostile: run.avoidHostile,
       ...(run.target !== undefined ? { target: run.target } : {}),
       ...(run.reason !== undefined ? { reason: explorerStopMessage(run.reason) } : {})
     }
@@ -186,7 +195,13 @@ export function createExplorer(options: ExplorerOptions): Explorer {
     if (position === null) return null
     const graph = options.graph()
     const read = await options.readMaps()
-    const distances = graph.distancesFrom(position.mapId, { useCandidates: true })
+    // A hostile map is neither a target nor a crossing, so it leaves the sweep
+    // at the same point the walker's own plan leaves it.
+    const hostile = hostileFor(run)
+    const distances = graph.distancesFrom(position.mapId, {
+      useCandidates: true,
+      ...(hostile.size > 0 ? { passable: (mapId: number) => !hostile.has(mapId) } : {})
+    })
 
     let best: { mapId: number; distance: number } | null = null
     let remaining = 0
@@ -206,10 +221,17 @@ export function createExplorer(options: ExplorerOptions): Explorer {
     // that finished from one that is stranded.
     let unread = 0
     for (const node of graph.nodes()) {
+      if (hostile.has(node.mapId)) continue
       if (!read.has(node.mapId) && !run.skipped.has(node.mapId)) unread += 1
     }
     if (best === null) return { mapId: -1, name: '', remaining: 0, unread }
     return { mapId: best.mapId, name: nameOf(graph, best.mapId), remaining, unread }
+  }
+
+  /** The maps this run keeps out of. Empty when it was told not to avoid any. */
+  function hostileFor(run: Run): Set<number> {
+    if (!run.avoidHostile) return new Set()
+    return options.hostileMaps?.() ?? new Set()
   }
 
   /**
@@ -266,9 +288,11 @@ export function createExplorer(options: ExplorerOptions): Explorer {
         `walking to ${next.name} (${next.mapId}); ${next.remaining} unread and reachable`
       )
 
+      const hostile = hostileFor(run)
       const outcome = await options.walker.go({
         connectionId: run.connectionId,
-        destination: next.mapId
+        destination: next.mapId,
+        ...(hostile.size > 0 ? { avoid: [...hostile] } : {})
       })
 
       if (run.stopping) return finish(run, 'user')
@@ -312,6 +336,9 @@ export function createExplorer(options: ExplorerOptions): Explorer {
         connectionId: request.connectionId,
         running: true,
         budget: boundBudget(request.budget),
+        // Avoiding is the default: a run cannot fight, so the cheapest way not
+        // to die is not to go.
+        avoidHostile: request.avoidHostile !== false,
         startedAtMs: now(),
         visited: 0,
         remaining: 0,

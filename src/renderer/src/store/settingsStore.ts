@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { toSettings } from '@shared/settings'
-import { DEFAULT_SETTINGS, type MidirSettings, type ThemeName } from '@shared/types'
+import { type WalkerPin, DEFAULT_SETTINGS, type MidirSettings, type ThemeName } from '@shared/types'
 
 interface SettingsActions {
   setTheme: (name: ThemeName) => void
@@ -16,7 +16,7 @@ interface SettingsActions {
   setSpeakerLines: (value: string[]) => void
   setSpeakerIntervalMs: (value: number) => void
   setSpeakerRepeat: (value: boolean) => void
-  setWalkerPinnedDestinations: (value: string[]) => void
+  setWalkerPinnedDestinations: (value: WalkerPin[]) => void
   setWalkerRightClick: (value: boolean) => void
   setHideUnseenDays: (value: number) => void
   hydrate: () => Promise<void>

@@ -3,9 +3,11 @@ import { promises as fs } from 'fs'
 import {
   DEFAULT_SETTINGS,
   MAX_RECORDING_CAP_MB,
+  pinOf,
   THEME_NAMES,
   type MidirSettings,
-  type ThemeName
+  type ThemeName,
+  type WalkerPin
 } from '../shared/types'
 import { messageOf, type Logger } from './log'
 
@@ -58,8 +60,12 @@ function withDefaults(data: Partial<MidirSettings>): MidirSettings {
         : DEFAULT_SETTINGS.speakerIntervalMs,
     speakerRepeat:
       typeof data.speakerRepeat === 'boolean' ? data.speakerRepeat : DEFAULT_SETTINGS.speakerRepeat,
+    // A pin was one string before it had a label of its own. `pinOf` reads both
+    // shapes, so an older file keeps its pins.
     walkerPinnedDestinations: Array.isArray(data.walkerPinnedDestinations)
-      ? data.walkerPinnedDestinations.filter((d): d is string => typeof d === 'string')
+      ? data.walkerPinnedDestinations
+          .map((value) => pinOf(value))
+          .filter((pin): pin is WalkerPin => pin !== null)
       : DEFAULT_SETTINGS.walkerPinnedDestinations,
     walkerRightClick:
       typeof data.walkerRightClick === 'boolean'

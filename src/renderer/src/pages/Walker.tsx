@@ -4,6 +4,10 @@ import {
   Box,
   Button,
   Chip,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   FormControlLabel,
   IconButton,
   MenuItem,
@@ -23,8 +27,8 @@ import { outcomeMessage, useWalkerStore } from '@renderer/store/walkerStore'
 import {
   connectionOf,
   formatHotkey,
-  parseDestination,
   windowKey,
+  type WalkerPin,
   type WalkerPosition,
   type WalkOutcome
 } from '@shared/types'
@@ -128,26 +132,43 @@ function Walker(): React.JSX.Element {
   }
 
   const trimmed = destination.trim()
-  // A pin keeps the end tile with the place, as `Place @ x,y`.
-  const pinText = endTile !== undefined ? `${trimmed} @ ${endTile.x},${endTile.y}` : trimmed
-  const alreadyPinned = pinned.some((d) => d.toLowerCase() === pinText.toLowerCase())
+  /** The place and tile a pin would hold, as text, for comparing two pins. */
+  const spotOf = (pin: WalkerPin): string =>
+    `${pin.destination.toLowerCase()}@${pin.tile?.x ?? ''},${pin.tile?.y ?? ''}`
+  const spotNow = `${trimmed.toLowerCase()}@${endTile?.x ?? ''},${endTile?.y ?? ''}`
+  const alreadyPinned = pinned.some((pin) => spotOf(pin) === spotNow)
+
+  // Naming a pin is its own step, because the name is the point: a map's name is
+  // often not what the player calls the spot on it (Sabrael, 2026-09-27).
+  const [pinOpen, setPinOpen] = React.useState(false)
+  const [pinLabel, setPinLabel] = React.useState('')
 
   const onPin = (): void => {
     if (trimmed === '' || !endValid || alreadyPinned) return
-    setPinned([...pinned, pinText])
+    setPinLabel(trimmed)
+    setPinOpen(true)
   }
 
-  const onUnpin = (value: string): void => {
-    setPinned(pinned.filter((d) => d !== value))
+  const savePin = (): void => {
+    const label = pinLabel.trim()
+    if (label === '' || trimmed === '') return
+    setPinned([
+      ...pinned,
+      { label, destination: trimmed, ...(endTile !== undefined ? { tile: endTile } : {}) }
+    ])
+    setPinOpen(false)
+  }
+
+  const onUnpin = (pin: WalkerPin): void => {
+    setPinned(pinned.filter((held) => held !== pin))
   }
 
   /** A pin fills the place and the end tile it carries, if any. */
-  const onPick = (place: string): void => {
-    const parsed = parseDestination(place)
-    setDestination(parsed.destination)
+  const onPick = (pin: WalkerPin): void => {
+    setDestination(pin.destination)
     setEndTile(
-      parsed.tile !== undefined ? String(parsed.tile.x) : '',
-      parsed.tile !== undefined ? String(parsed.tile.y) : ''
+      pin.tile !== undefined ? String(pin.tile.x) : '',
+      pin.tile !== undefined ? String(pin.tile.y) : ''
     )
   }
 
@@ -300,16 +321,24 @@ function Walker(): React.JSX.Element {
             data-testid="walker-pinned"
             sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}
           >
-            {pinned.map((place) => (
-              <Chip
-                key={place}
-                label={place}
-                variant="outlined"
-                onClick={() => onPick(place)}
-                onDelete={() => onUnpin(place)}
-                icon={<PushPinOutlined fontSize="small" />}
-                data-testid="walker-pin"
-              />
+            {pinned.map((pin) => (
+              <Tooltip
+                key={`${pin.label}:${spotOf(pin)}`}
+                title={
+                  pin.tile !== undefined
+                    ? `${pin.destination} at ${pin.tile.x}, ${pin.tile.y}`
+                    : pin.destination
+                }
+              >
+                <Chip
+                  label={pin.label}
+                  variant="outlined"
+                  onClick={() => onPick(pin)}
+                  onDelete={() => onUnpin(pin)}
+                  icon={<PushPinOutlined fontSize="small" />}
+                  data-testid="walker-pin"
+                />
+              </Tooltip>
             ))}
           </Box>
         ) : null}
@@ -404,6 +433,41 @@ function Walker(): React.JSX.Element {
           lastOutcome={lastOutcome}
         />
       </Paper>
+
+      <Dialog open={pinOpen} onClose={() => setPinOpen(false)} fullWidth maxWidth="xs">
+        <DialogTitle>Name this pin</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            fullWidth
+            size="small"
+            label="Pin name"
+            value={pinLabel}
+            onChange={(event) => setPinLabel(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') savePin()
+            }}
+            helperText={
+              endTile !== undefined
+                ? `${trimmed} at ${endTile.x}, ${endTile.y}`
+                : `${trimmed}, anywhere the route arrives`
+            }
+            slotProps={{ htmlInput: { maxLength: 60 } }}
+            sx={{ mt: 1 }}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setPinOpen(false)}>Cancel</Button>
+          <Button
+            variant="contained"
+            onClick={savePin}
+            disabled={pinLabel.trim() === ''}
+            data-testid="walker-pin-save"
+          >
+            Pin
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <ExplorerCard />
     </Box>

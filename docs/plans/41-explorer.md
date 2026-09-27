@@ -122,10 +122,18 @@ Tavern, the Bank, TOC, the Crypt Vestibule, Crypt 1 and Crypt 2-1 — and no map
    layer, and no unattended mode. A walker that goes where the player just asked is a convenience; a
    process that walks a world for hours is the thing an operator looks for, and the README already
    says automation is at the player's own risk. Raising the bound is a decision, not a tweak.
-2. **Towns and paths only, or learn the danger?** Built the second way: the run sets aside a map the
-   walker could not deliver, and the health stop ends the run on the first hit. There is no curated
-   safe list. If the first watched runs are bloody, a hand-kept list of maps to leave alone is the
-   next step.
+2. **Towns and paths only, or learn the danger?** **Both, after the first run.** The run still sets
+   aside a map the walker could not deliver and still stops on the first hit, and it now also keeps
+   out of a hand-kept list of hostile maps by default (`route/hostile.ts`, Sabrael's list:
+   "Mileth Crypt, Abel Crypt, Piet Crypt, Mehadi, East Woodlands, West Woodlands", plus the dungeon
+   words that read unambiguously in the map names). The switch is on the panel.
+
+   An avoided map is **neither a target nor a crossing**, so the list costs reach: of 485 maps a walk
+   reaches from Mileth, 274 are outside it, and 242 of the 423 unread ones. That is the trade, and it
+   is why a pattern that is too broad costs more than one too narrow — `oren` catches Oren Island
+   City and 40 shops along with the tombs, so it is not in the list. `astrid`, `veltain` and `mine`
+   are the other candidates left out pending a word from someone who plays there.
+
 3. **Does it use a gateway?** Yes, and it needed no code of its own: the walker plans a world-map
    hop and clicks the pane's point (WP33), so a gateway is one more leg to the explorer.
 

@@ -51,6 +51,8 @@ interface World {
   stepMs: number
   /** Each destination the walker was asked for, in order. */
   requests: number[]
+  /** The avoid list each walk carried, in order. */
+  avoids: (number[] | undefined)[]
   /** Outcomes to return, in order. An empty queue arrives. */
   outcomes: WalkOutcome[]
   /** How many times the walker was told to stop. */
@@ -67,6 +69,7 @@ function makeWorld(over: Partial<World> = {}): World {
     clock: 1000,
     stepMs: 1000,
     requests: [],
+    avoids: [],
     outcomes: [],
     stopped: 0,
     ...over
@@ -84,6 +87,7 @@ function fakeWalker(world: World): Walker {
     go: async (request) => {
       const mapId = Number(request.destination)
       world.requests.push(mapId)
+      world.avoids.push(request.avoid)
       if (world.hold !== undefined) await world.hold
       const outcome = world.outcomes.shift() ?? { kind: 'arrived' as const }
       world.clock += world.stepMs
@@ -101,13 +105,14 @@ function fakeWalker(world: World): Walker {
   }
 }
 
-function build(world: World, nodes: RouteNode[] = NODES) {
+function build(world: World, nodes: RouteNode[] = NODES, hostile = new Set<number>()) {
   const log = fakeLogger()
   const states: ReturnType<typeof explorer.states>[number][] = []
   const explorer = createExplorer({
     walker: fakeWalker(world),
     graph: () => createRouteGraph(nodes),
     readMaps: async () => new Set(world.read),
+    hostileMaps: () => hostile,
     positionFor: (id) => (id === CID ? world.position : null),
     healthFor: (id) => {
       if (id !== CID || world.healths.length === 0) return null
@@ -415,6 +420,42 @@ describe('the explorer (WP41)', () => {
     const { explorer } = build(world, closed)
     expect(await explorer.run({ connectionId: CID })).toEqual({ kind: 'ended', reason: 'done' })
     expect(world.requests).toEqual([2])
+  })
+
+  describe('keeping out of hostile maps', () => {
+    it('makes no target of one, and asks the walker not to cross one either', async () => {
+      const world = makeWorld()
+      const { explorer } = build(world, NODES, new Set([2]))
+      const outcome = await explorer.run({ connectionId: CID })
+      // 2 is hostile, so the run takes 4; 3 sits behind 2 and is out of reach
+      // while 2 is avoided, which leaves the run stranded rather than finished.
+      expect(world.requests).toEqual([4])
+      expect(world.avoids[0]).toEqual([2])
+      expect(outcome).toEqual({ kind: 'ended', reason: 'stuck' })
+    })
+
+    it('visits them when the run is told not to avoid them', async () => {
+      const world = makeWorld()
+      const { explorer } = build(world, NODES, new Set([2]))
+      await explorer.run({ connectionId: CID, avoidHostile: false })
+      expect(world.requests).toEqual([2, 3, 4])
+      expect(world.avoids[0]).toBeUndefined()
+    })
+
+    it('avoids by default, because a run cannot fight', async () => {
+      const world = makeWorld()
+      const { explorer, states } = build(world, NODES, new Set([2]))
+      await explorer.run({ connectionId: CID })
+      expect(states[0]).toMatchObject({ avoidingHostile: true })
+    })
+
+    it('reports done, not stuck, when everything left out of reach is hostile', async () => {
+      // Nothing unread and safe is left, and the only unread map is hostile.
+      const world = makeWorld({ read: new Set([1, 3, 4]) })
+      const { explorer } = build(world, NODES, new Set([2]))
+      expect(await explorer.run({ connectionId: CID })).toEqual({ kind: 'ended', reason: 'done' })
+      expect(world.requests).toEqual([])
+    })
   })
 
   it('pushes a state for each change, ending with the run stopped and its reason', async () => {

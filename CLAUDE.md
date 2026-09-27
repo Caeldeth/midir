@@ -146,6 +146,12 @@ Aliases: `@renderer` to `src/renderer/src`, `@shared` to `src/shared`.
 - **The settings save payload is derived, never listed.** `shared/settings.ts` builds it from `DEFAULT_SETTINGS`'s keys (plus the optional `darkAgesPath` when set), and `settingsPayload.test.ts` pins the keys to the Zod schema's. A destructured list was silent data loss on the next field added (the template's HTOO-235). Adding a setting is: the type and default, `withDefaults` in the manager, the schema, the store setter.
 - **Hand-rolled crash-safe JSON settings** under `%LOCALAPPDATA%\Erisco\Midir` (resolve `LOCALAPPDATA` yourself on win32), atomic tmp to rename with a `.bak`, Zod-validated on save.
 - **Path safety**: validate every renderer-supplied path against allowed roots (`assertInside*`).
+- **A pinned destination carries its own label.** A map's name is often not what the player calls the
+  spot on it: "Mileth Altar" is a reactor on Mileth Village, map 500. So a pin is
+  `{ label, destination, tile? }` (`WalkerPin`), the chip shows the label and its tooltip shows the
+  place and tile, and naming it is its own step when it is pinned. `pinOf` in `shared/actionLayer.ts`
+  reads the older form, one string like `Place @ x,y`, so a settings file written before this keeps
+  its pins.
 - **A picked game window is remembered by its window handle, never by its connection id.** A
   connection id is minted per login, and a logged-out client holds no connection at all (one
   recording has 102 seconds of none), so keying the picker on it made the window vanish from under
@@ -173,7 +179,12 @@ Aliases: `@renderer` to `src/renderer/src`, `@shared` to `src/shared`.
   name, the size, the music (WP40), and the crossing of an XML warp. It confirms edges and never
   discovers them, a visited map that stayed silent is not a target, and it stops on a lost character,
   a dialog it cannot close, a health drop, or its budget of maps and minutes. It has no unattended
-  mode. Two rules keep a run honest about what went wrong: a `blocked` walk that **never took a step**
+  mode. **It keeps out of the maps that hold monsters by default** (`route/hostile.ts`): a list of
+  name patterns the player keeps, because nothing on the wire says a map is dangerous and the run's
+  own evidence arrives only after a character has been hit. An avoided map is neither visited nor
+  crossed, so the list costs reach — 485 maps a walk reaches from Mileth, 274 of them outside the
+  list — and a pattern that is too broad costs more than one that is too narrow (`oren` was left out
+  because it catches Oren Island City and its shops). Two rules keep a run honest about what went wrong: a `blocked` walk that **never took a step**
   is a fact about the map the character stands on, not the map it was sent to, so the run stops as
   `stuck` rather than setting the target aside (one unwalkable map cost 13 good ones in a third of a
   second before that); and an empty frontier with unread maps left is `stuck` too, never `done`,

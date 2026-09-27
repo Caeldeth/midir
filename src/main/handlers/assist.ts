@@ -88,7 +88,8 @@ const walkRequestSchema = z.object({
   connectionId: z.string().min(1, 'Pick a window to drive first.'),
   destination: z.union([z.string().min(1), z.number().int()]),
   tile: tileSchema.optional(),
-  arrive: z.enum(['on', 'beside']).optional()
+  arrive: z.enum(['on', 'beside']).optional(),
+  avoid: z.array(z.number().int().nonnegative()).max(4096).optional()
 })
 
 export async function startWalker(
@@ -160,7 +161,8 @@ const explorerRequestSchema = z.object({
       maps: z.number().int().positive().optional(),
       minutes: z.number().int().positive().optional()
     })
-    .optional()
+    .optional(),
+  avoidHostile: z.boolean().optional()
 })
 
 export async function startExplorer(

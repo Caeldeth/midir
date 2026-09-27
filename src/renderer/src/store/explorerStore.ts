@@ -23,11 +23,14 @@ interface ExplorerStoreState {
   /** The budget as typed: each field is empty or a number. */
   maps: string
   minutes: string
+  /** Whether to keep out of the maps that hold monsters. On by default. */
+  avoidHostile: boolean
   /** How the last run ended, for the status line. */
   lastOutcome?: ExplorerOutcome
   busy: boolean
   error: string | null
   setBudget: (maps: string, minutes: string) => void
+  setAvoidHostile: (value: boolean) => void
   refresh: () => Promise<void>
   start: (connectionId: string) => void
   stop: (connectionId: string) => Promise<void>
@@ -50,10 +53,13 @@ export const useExplorerStore = create<ExplorerStoreState>((set, get) => ({
   running: {},
   maps: String(DEFAULT_EXPLORER_BUDGET.maps),
   minutes: String(DEFAULT_EXPLORER_BUDGET.minutes),
+  avoidHostile: true,
   busy: false,
   error: null,
 
   setBudget: (maps, minutes) => set({ maps, minutes }),
+
+  setAvoidHostile: (value) => set({ avoidHostile: value }),
 
   refresh: async () => {
     const states = await window.api.explorer.state()
@@ -76,7 +82,11 @@ export const useExplorerStore = create<ExplorerStoreState>((set, get) => ({
     // The run resolves when it ends, which may be many minutes. Do not await it:
     // the state arrives on a push, and the outcome is kept for the status line.
     window.api.explorer
-      .start({ connectionId, ...(Object.keys(budget).length > 0 ? { budget } : {}) })
+      .start({
+        connectionId,
+        ...(Object.keys(budget).length > 0 ? { budget } : {}),
+        avoidHostile: get().avoidHostile
+      })
       .then((outcome) => set({ lastOutcome: outcome }))
       .catch((error) => set({ error: messageOf(error) }))
   },

@@ -26,6 +26,7 @@ const RUN: ExplorerState = {
   remaining: 11,
   skipped: 2,
   budget: { maps: 20, minutes: 15 },
+  avoidingHostile: true,
   target: { mapId: 3049, name: 'Rucesion Hall' }
 }
 
@@ -35,6 +36,7 @@ beforeEach(() => {
     running: {},
     maps: '20',
     minutes: '15',
+    avoidHostile: true,
     busy: false,
     error: null,
     lastOutcome: undefined
@@ -58,7 +60,8 @@ describe('the explorer panel', () => {
     await userEvent.click(screen.getByTestId('explorer-start'))
     expect(window.api.explorer.start).toHaveBeenCalledWith({
       connectionId: 'c1',
-      budget: { maps: 5, minutes: 15 }
+      budget: { maps: 5, minutes: 15 },
+      avoidHostile: true
     })
   })
 
@@ -68,7 +71,8 @@ describe('the explorer panel', () => {
     await userEvent.click(screen.getByTestId('explorer-start'))
     expect(window.api.explorer.start).toHaveBeenCalledWith({
       connectionId: 'c1',
-      budget: { minutes: 15 }
+      budget: { minutes: 15 },
+      avoidHostile: true
     })
   })
 
@@ -90,6 +94,23 @@ describe('the explorer panel', () => {
     expect(screen.queryByTestId('explorer-start')).not.toBeInTheDocument()
     await userEvent.click(screen.getByTestId('explorer-stop'))
     expect(window.api.explorer.stop).toHaveBeenCalledWith('c1')
+  })
+
+  it('sends the hostile-map choice, and says so while the run is going', async () => {
+    render(<ExplorerCard />)
+    await userEvent.click(screen.getByTestId('explorer-avoid-hostile'))
+    await userEvent.click(screen.getByTestId('explorer-start'))
+    expect(window.api.explorer.start).toHaveBeenCalledWith(
+      expect.objectContaining({ avoidHostile: false })
+    )
+  })
+
+  it('says it is keeping out of hostile maps while a run is going', async () => {
+    window.api.explorer.state = vi.fn(async () => [RUN])
+    render(<ExplorerCard />)
+    await waitFor(() =>
+      expect(screen.getByTestId('explorer-status')).toHaveTextContent('keeping out of hostile maps')
+    )
   })
 
   it('says how the run ended once it is over', () => {

@@ -255,6 +255,8 @@ export interface Walker {
 interface Run {
   connectionId: string
   destination: string
+  /** Maps this walk keeps out of, from the request. */
+  avoid: Set<number>
   running: boolean
   stopReason?: WalkStopReason
   stepsTaken: number
@@ -578,14 +580,20 @@ export function createWalker(options: WalkerOptions): Walker {
     toMapId: number
   ): { kind: 'plan'; plan: RoutePlan } | { kind: 'stopped'; reason: WalkStopReason } {
     const barrier = barrierFor(run.connectionId)
+    // Maps the caller asked to keep out of: the explorer's hostile list (WP41).
+    // A map here is neither crossed nor arrived at, exactly like a barred gate.
+    const avoided = run.avoid
     // Candidates are in: an edge the world XML proposes is the only way to many
     // maps, and crossing one is what confirms it (WP24, and see PlanOptions).
     const plan = graph.planRoute(fromMapId, toMapId, {
-      passable: (mapId) => barrier(mapId) === null,
+      passable: (mapId) => barrier(mapId) === null && !avoided.has(mapId),
       useCandidates: true
     })
     if (plan !== null) return { kind: 'plan', plan }
-    const open = graph.planRoute(fromMapId, toMapId, { useCandidates: true })
+    const open = graph.planRoute(fromMapId, toMapId, {
+      passable: (mapId) => !avoided.has(mapId),
+      useCandidates: true
+    })
     if (open === null) return { kind: 'stopped', reason: 'noRoute' }
     // The only way through is a gate: name the first one on it.
     for (const leg of open.legs) {
@@ -1662,6 +1670,7 @@ export function createWalker(options: WalkerOptions): Walker {
     const run: Run = {
       connectionId,
       destination,
+      avoid: new Set(request.avoid ?? []),
       running: true,
       stepsTaken: 0,
       dismissed: new Set()

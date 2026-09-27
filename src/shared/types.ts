@@ -19,6 +19,7 @@ import type {
   ExplorerOutcome,
   ExplorerRequest,
   ExplorerState,
+  WalkerPin,
   LaborerState,
   SpeakerConfig,
   SpeakerState,
@@ -100,7 +101,7 @@ export interface MidirSettings {
   /** Rotate the list forever. When false, the Speaker sends each line once. */
   speakerRepeat: boolean
   /** The Walker destinations the user pinned, each a place name or a map id. */
-  walkerPinnedDestinations: string[]
+  walkerPinnedDestinations: WalkerPin[]
   /**
    * Walk by right-click: the walker hands a stretch of up to eight tiles to
    * the client's own pathfinder with one right-click on empty ground, and

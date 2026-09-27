@@ -34,7 +34,13 @@ export const settingsSchema = z.object({
   speakerIntervalMs: z.number().int().min(0),
   speakerRepeat: z.boolean(),
   // The Walker destinations the user pinned.
-  walkerPinnedDestinations: z.array(z.string()),
+  walkerPinnedDestinations: z.array(
+    z.object({
+      label: z.string().min(1).max(60),
+      destination: z.string().min(1).max(120),
+      tile: z.object({ x: z.number().int().min(0), y: z.number().int().min(0) }).optional()
+    })
+  ),
   walkerRightClick: z.boolean(),
   // Days, 0 for off (WP25).
   hideUnseenDays: z.number().int().min(0)

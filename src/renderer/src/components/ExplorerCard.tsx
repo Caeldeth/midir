@@ -1,4 +1,14 @@
-import { Alert, Box, Button, Paper, Stack, TextField, Typography } from '@mui/material'
+import {
+  Alert,
+  Box,
+  Button,
+  FormControlLabel,
+  Paper,
+  Stack,
+  Switch,
+  TextField,
+  Typography
+} from '@mui/material'
 import InfoTip from '@renderer/components/InfoTip'
 import { runMessage, useExplorerStore } from '@renderer/store/explorerStore'
 import { useWalkerStore } from '@renderer/store/walkerStore'
@@ -25,10 +35,12 @@ function ExplorerCard(): React.JSX.Element {
   const running = useExplorerStore((s) => s.running)
   const maps = useExplorerStore((s) => s.maps)
   const minutes = useExplorerStore((s) => s.minutes)
+  const avoidHostile = useExplorerStore((s) => s.avoidHostile)
   const busy = useExplorerStore((s) => s.busy)
   const error = useExplorerStore((s) => s.error)
   const lastOutcome = useExplorerStore((s) => s.lastOutcome)
   const setBudget = useExplorerStore((s) => s.setBudget)
+  const setAvoidHostile = useExplorerStore((s) => s.setAvoidHostile)
   const refresh = useExplorerStore((s) => s.refresh)
   const start = useExplorerStore((s) => s.start)
   const stop = useExplorerStore((s) => s.stop)
@@ -109,6 +121,27 @@ function ExplorerCard(): React.JSX.Element {
         )}
       </Stack>
 
+      <FormControlLabel
+        sx={{ mb: 1 }}
+        control={
+          <Switch
+            checked={avoidHostile}
+            onChange={(event) => setAvoidHostile(event.target.checked)}
+            disabled={isRunning}
+            data-testid="explorer-avoid-hostile"
+          />
+        }
+        label={
+          <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
+            Keep out of hostile maps
+            <InfoTip
+              label="About hostile maps"
+              title="The crypts, the dungeons, the woodlands, the caves and the other maps that hold monsters are neither visited nor walked through. The run cannot fight, so this is how it stays alive; it costs reach, because a map behind hostile ground is then out of the run's way. The list lives in route/hostile.ts."
+            />
+          </Box>
+        }
+      />
+
       <Box data-testid="explorer-status">
         {run !== undefined ? (
           <Typography variant="body2" sx={{ color: 'text.secondary' }}>
@@ -117,7 +150,8 @@ function ExplorerCard(): React.JSX.Element {
               : 'Choosing a map.'}
             {` ${run.visited} visited of ${run.budget.maps}`}
             {`, ${run.remaining} unread within reach`}
-            {run.skipped > 0 ? `, ${run.skipped} set aside` : ''}.
+            {run.skipped > 0 ? `, ${run.skipped} set aside` : ''}
+            {run.avoidingHostile ? ', keeping out of hostile maps' : ''}.
           </Typography>
         ) : null}
         {run === undefined && lastOutcome !== undefined ? (

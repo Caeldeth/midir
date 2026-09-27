@@ -754,6 +754,17 @@ describe('walker', () => {
     expect(world.position.mapId).toBe(1) // it stopped before leaving the first map
   })
 
+  it('keeps out of a map the request avoids, and walks nowhere when that is the only way', async () => {
+    // The explorer passes its hostile list this way (WP41): Field is the only
+    // road to Cave, so avoiding it leaves no route at all.
+    const world = lineWorld()
+    const { walker } = harness(world, lineGraph())
+    const outcome = await walker.go({ connectionId: CID, destination: 'Cave', avoid: [2] })
+    expect(outcome).toMatchObject({ kind: 'stopped', reason: 'noRoute' })
+    expect(world.position.mapId).toBe(1)
+    expect(world.presses).toBe(0)
+  })
+
   it('fails with noRoute before moving when the destination is unknown', async () => {
     // Acceptance criterion 7.
     const world = lineWorld()

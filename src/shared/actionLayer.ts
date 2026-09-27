@@ -120,6 +120,73 @@ export interface WalkRequest {
   tile?: { x: number; y: number }
   /** Whether to end on `tile` or beside it. Beside when absent. */
   arrive?: 'on' | 'beside'
+  /**
+   * Maps to keep out of the route: neither crossed nor arrived at. The explorer
+   * passes the hostile maps when it is told to avoid them, so a run does not
+   * walk the character through a crypt to reach a shop (WP41).
+   */
+  avoid?: number[]
+}
+
+/**
+ * A pinned destination on the Walker: the place, the tile, and the name the user
+ * gave it.
+ *
+ * The label exists because a map's name is often not what the player calls the
+ * spot. "Mileth Altar" is a reactor on Mileth Village (map 500), so the place
+ * and the tile are the route and the label is the errand (Sabrael, 2026-09-27).
+ */
+export interface WalkerPin {
+  /** What the user calls this spot. */
+  label: string
+  /** The place the walker is given: a map name or a map id, as text. */
+  destination: string
+  /** The tile to end on, when the pin names one. */
+  tile?: { x: number; y: number }
+}
+
+/**
+ * Read a pin from a stored value.
+ *
+ * A pin used to be one string, `Place @ x,y`, and its text was its only name.
+ * Such a value still loads: the text becomes the label, and the place and tile
+ * are read out of it. Anything else returns null and is dropped.
+ */
+export function pinOf(value: unknown): WalkerPin | null {
+  if (typeof value === 'string') {
+    const text = value.trim()
+    if (text === '') return null
+    const parsed = parseDestination(text)
+    if (parsed.destination === '') return null
+    return {
+      label: text,
+      destination: parsed.destination,
+      ...(parsed.tile !== undefined ? { tile: parsed.tile } : {})
+    }
+  }
+  if (typeof value !== 'object' || value === null) return null
+  const record = value as Record<string, unknown>
+  const destination = typeof record.destination === 'string' ? record.destination.trim() : ''
+  if (destination === '') return null
+  const label =
+    typeof record.label === 'string' && record.label.trim() !== ''
+      ? record.label.trim()
+      : destination
+  const tile = record.tile as { x?: unknown; y?: unknown } | undefined
+  const hasTile =
+    tile !== undefined &&
+    tile !== null &&
+    typeof tile.x === 'number' &&
+    typeof tile.y === 'number' &&
+    Number.isInteger(tile.x) &&
+    Number.isInteger(tile.y) &&
+    tile.x >= 0 &&
+    tile.y >= 0
+  return {
+    label,
+    destination,
+    ...(hasTile ? { tile: { x: tile.x as number, y: tile.y as number } } : {})
+  }
 }
 
 /** A destination as typed on the Walker tab, split into its parts. */
@@ -567,6 +634,13 @@ export interface ExplorerRequest {
   connectionId: string
   /** The limits for this run. The default applies to whatever is left out. */
   budget?: Partial<ExplorerBudget>
+  /**
+   * Whether to keep out of the maps that hold monsters, as
+   * `route/hostile.ts` names them. **True when left out**, because the run has no
+   * way to fight and the cheapest way not to die is not to go. It costs reach: of
+   * 485 maps a walk reaches from Mileth, 274 are outside the hostile list.
+   */
+  avoidHostile?: boolean
 }
 
 /** Why an exploration run ended. */
@@ -612,6 +686,8 @@ export interface ExplorerState {
   skipped: number
   /** The budget the run is spending. */
   budget: ExplorerBudget
+  /** Whether this run is keeping out of the maps that hold monsters. */
+  avoidingHostile: boolean
   /** Why the run ended, in words worth showing. */
   reason?: string
 }

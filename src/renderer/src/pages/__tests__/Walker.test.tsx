@@ -1,6 +1,7 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useWalkerStore } from '@renderer/store/walkerStore'
+import { useSettingsStore } from '@renderer/store/settingsStore'
 import type { WalkerDestination } from '@shared/actionLayer'
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -56,6 +57,35 @@ describe('a destination Midir cannot reach', () => {
     await userEvent.type(screen.getByLabelText('Destination'), 'Mileth Black Magic Master')
     await waitFor(() => expect(screen.getByTestId('walker-go')).toBeEnabled())
     expect(screen.getByText(/imported map data, which no walk has confirmed/)).toBeInTheDocument()
+  })
+
+  it('pins a spot under a name the user gives it, and fills the fields again from it', async () => {
+    // "Mileth Altar" is a reactor on Mileth Village, so the label is not the map
+    // name (Sabrael, 2026-09-27).
+    useSettingsStore.setState({ walkerPinnedDestinations: [] })
+    render(<Walker />)
+    await waitFor(() => expect(screen.getByTestId('walker-go')).toBeInTheDocument())
+    await userEvent.type(screen.getByLabelText('Destination'), 'Field')
+    await userEvent.type(screen.getByLabelText('End x'), '12')
+    await userEvent.type(screen.getByLabelText('End y'), '15')
+    await userEvent.click(screen.getByRole('button', { name: 'Pin this destination' }))
+
+    const name = await screen.findByLabelText('Pin name')
+    await userEvent.clear(name)
+    await userEvent.type(name, 'Mileth Altar')
+    await userEvent.click(screen.getByTestId('walker-pin-save'))
+
+    expect(useSettingsStore.getState().walkerPinnedDestinations).toEqual([
+      { label: 'Mileth Altar', destination: 'Field', tile: { x: 12, y: 15 } }
+    ])
+    const chip = await screen.findByTestId('walker-pin')
+    expect(chip).toHaveTextContent('Mileth Altar')
+
+    // Picking it puts the place and the tile back in the fields.
+    await userEvent.clear(screen.getByLabelText('End x'))
+    await userEvent.click(chip)
+    expect(screen.getByLabelText('End x')).toHaveValue('12')
+    expect(screen.getByLabelText('Destination')).toHaveValue('Field')
   })
 
   it('asks main for the destinations of the window it drives', async () => {

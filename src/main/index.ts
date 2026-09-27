@@ -30,6 +30,7 @@ import xmlworld from './route/xmlworld.json'
 import mapnames from './route/mapnames.json'
 import { createLiveGraph } from './route/liveGraph'
 import { seededGates, type Passport } from './route/access'
+import { hostileMaps } from './route/hostile'
 import { createIconService } from './icons/iconService'
 import { createDollService } from './icons/dollService'
 import { registerIconProtocol } from './icons/protocol'
@@ -479,6 +480,9 @@ const explorer = createExplorer({
     return new Set(Object.keys((await mapStore.load()).maps).map(Number))
   },
   positionFor: (connectionId) => captureService.positionFor(connectionId),
+  // The maps that hold monsters, by name (route/hostile.ts). Read at every pick,
+  // so a name the wire corrects counts.
+  hostileMaps: () => hostileMaps(worldGraph.nodes()),
   healthFor: (connectionId) => {
     const record = captureService.recordFor(connectionId)
     if (record === null) return null
