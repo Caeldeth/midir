@@ -160,6 +160,46 @@ describe('reachableFrom (WP39)', () => {
   })
 })
 
+describe('pathsFrom (the sweep the explorer reads, WP41)', () => {
+  const graph = createRouteGraph(NODES)
+
+  it('gives each map its distance and the map it was reached through', () => {
+    const paths = graph.pathsFrom(1)
+    expect(paths.get(1)).toEqual({ distance: 0 })
+    expect(paths.get(2)).toEqual({ distance: 1, previous: 1 })
+    // 3 and 4 sit behind Field, so their path runs back through it.
+    expect(paths.get(3)?.previous).toBe(2)
+    expect(paths.get(4)?.previous).toBe(2)
+  })
+
+  it('walks back to the start through the previous chain', () => {
+    const paths = graph.pathsFrom(1)
+    const chain: number[] = []
+    for (let at: number | undefined = 3; at !== undefined; at = paths.get(at)?.previous) {
+      chain.push(at)
+    }
+    expect(chain).toEqual([3, 2, 1])
+  })
+
+  it('comes back in breadth-first order, so a map follows the one it came through', () => {
+    const order = [...graph.pathsFrom(1).keys()]
+    for (const [mapId, step] of graph.pathsFrom(1)) {
+      if (step.previous === undefined) continue
+      expect(order.indexOf(step.previous)).toBeLessThan(order.indexOf(mapId))
+    }
+  })
+
+  it('is the one sweep the other two read', () => {
+    const paths = graph.pathsFrom(1)
+    expect(graph.reachableFrom(1)).toEqual(new Set(paths.keys()))
+    expect([...graph.distancesFrom(1)]).toEqual([...paths].map(([id, s]) => [id, s.distance]))
+  })
+
+  it('leaves out a map the caller shuts, and everything behind it', () => {
+    expect([...graph.pathsFrom(1, { passable: (mapId) => mapId !== 2 }).keys()]).toEqual([1])
+  })
+})
+
 describe('a candidate edge, which only the world XML proposes (WP24)', () => {
   // Map 1 reaches 2 by a confirmed warp, and 7 only by a candidate: the XML
   // named it and no walk has crossed it.

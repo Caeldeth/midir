@@ -31,9 +31,23 @@ already exists**, so the new code is a scheduler and a stop policy, not new inpu
 
 1. **The frontier** is every node in `reachableFrom(current)` (WP39) that the stores have no reading
    for — no wire name, no size, no music, or an unconfirmed warp on the way in.
-2. It picks the cheapest one by `planRoute`, walks there with the walker exactly as a player's
-   "Go" does, waits for the map to settle (the `0x15`, then the first `0x04`), and lets the ordinary
-   reducers record what arrives. The explorer stores nothing of its own.
+2. It picks the one that **reads the most unread maps per walk**, walks there with the walker exactly
+   as a player's "Go" does, waits for the map to settle (the `0x15`, then the first `0x04`), and lets
+   the ordinary reducers record what arrives.
+
+   Distance alone was the first rule and it optimised the wrong thing (Sabrael, 2026-09-27: "does the
+   explore logic want it to seek out close maps first?"). Every map the character enters sends its own
+   `SMapSize 0x15`, so a map crossed on the way is read for free. Nearest-first therefore darts in and
+   out for one map at a time where a longer walk would read the whole chain: in the test graph three
+   maps took three walks and now take two. The order is unread-on-path descending, then the fewest map
+   changes, then the lower map id so a run repeats. `RouteGraph.pathsFrom` is the one breadth-first
+   sweep that serves all three of the graph's views, and it returns the tree in breadth-first order, so
+   counting the unread maps along every path is a single pass.
+
+   **What a run has learned is the store's own growth**, measured between picks, not the number of
+   arrivals. A run that crossed nine maps to arrive at three had read twelve, and reported three; the
+   budget now counts all twelve, which is what a budget of maps should mean. The explorer stores nothing of its own.
+
 3. It repeats until the frontier is empty, the budget runs out, or a stop fires.
 
 **It confirms edges; it does not discover them.** A map with no edge Midir has ever heard of is not

@@ -123,6 +123,10 @@ interface Target {
   remaining: number
   /** How many maps in the whole graph have no reading, in reach or not. */
   unread: number
+  /** Unread maps on the way there, the target itself included. */
+  onPath: number
+  /** Map changes to get there. */
+  hops: number
 }
 
 interface Run {
@@ -132,9 +136,16 @@ interface Run {
   /** Whether this run keeps out of the maps that hold monsters. */
   avoidHostile: boolean
   startedAtMs: number
+  /** Maps read since the run began, however they came to be read. */
   visited: number
   remaining: number
   skipped: Set<number>
+  /**
+   * The read maps as the previous pick saw them. The difference at the next pick
+   * is what this run learned, which counts the maps it crossed on the way and not
+   * only the ones it was aiming at.
+   */
+  readSeen?: Set<number>
   target?: { mapId: number; name: string }
   reason?: ExplorerStopReason
   /** The lowest health seen so far, so a drop reads as a drop and not a recovery. */
@@ -186,35 +197,49 @@ export function createExplorer(options: ExplorerOptions): Explorer {
    * them a run strands itself: from Mileth 224 maps are in reach, and 485 with
    * them.
    *
+   * **The order is unread maps per walk, not distance.** Every map entry sends
+   * its own `SMapSize 0x15`, so a map crossed on the way is read for free, and a
+   * four-hop walk through four unread maps teaches four times what a one-hop dart
+   * teaches. Distance is the tie-break, then the map id so a run repeats.
+   *
    * Returns null when there is no position to start from, and a target with
    * `remaining` 0 when nothing unread is in reach — which `unread` then tells
    * apart: everything read, or stranded on a map with no known way on.
    */
-  async function pick(run: Run): Promise<Target | null> {
+  function pick(run: Run, read: Set<number>): Target | null {
     const position = options.positionFor(run.connectionId)
     if (position === null) return null
     const graph = options.graph()
-    const read = await options.readMaps()
     // A hostile map is neither a target nor a crossing, so it leaves the sweep
     // at the same point the walker's own plan leaves it.
     const hostile = hostileFor(run)
-    const distances = graph.distancesFrom(position.mapId, {
+    const paths = graph.pathsFrom(position.mapId, {
       useCandidates: true,
       ...(hostile.size > 0 ? { passable: (mapId: number) => !hostile.has(mapId) } : {})
     })
 
-    let best: { mapId: number; distance: number } | null = null
+    // Unread maps along each map's own shortest path, the map included. The
+    // sweep is in breadth-first order, so a map's predecessor is always counted
+    // before the map itself and one pass is enough.
+    const onPath = new Map<number, number>()
+    const isUnread = (mapId: number): boolean => !read.has(mapId)
+    let best: { mapId: number; onPath: number; hops: number } | null = null
     let remaining = 0
-    for (const [mapId, distance] of distances) {
+    for (const [mapId, step] of paths) {
+      const before = step.previous === undefined ? 0 : (onPath.get(step.previous) ?? 0)
+      onPath.set(mapId, before + (isUnread(mapId) ? 1 : 0))
       if (mapId === position.mapId || read.has(mapId) || run.skipped.has(mapId)) continue
       remaining += 1
-      // Nearest first, and the lower map id breaks a tie so a run is repeatable.
+      const here = { mapId, onPath: onPath.get(mapId) ?? 1, hops: step.distance }
+      // Most unread maps per walk, then the nearest, then the lower map id so a
+      // run is repeatable.
       if (
         best === null ||
-        distance < best.distance ||
-        (distance === best.distance && mapId < best.mapId)
+        here.onPath > best.onPath ||
+        (here.onPath === best.onPath && here.hops < best.hops) ||
+        (here.onPath === best.onPath && here.hops === best.hops && mapId < best.mapId)
       ) {
-        best = { mapId, distance }
+        best = here
       }
     }
     // Unread anywhere in the graph, in reach or not. It is what separates a run
@@ -224,8 +249,34 @@ export function createExplorer(options: ExplorerOptions): Explorer {
       if (hostile.has(node.mapId)) continue
       if (!read.has(node.mapId) && !run.skipped.has(node.mapId)) unread += 1
     }
-    if (best === null) return { mapId: -1, name: '', remaining: 0, unread }
-    return { mapId: best.mapId, name: nameOf(graph, best.mapId), remaining, unread }
+    if (best === null) return { mapId: -1, name: '', remaining: 0, unread, onPath: 0, hops: 0 }
+    return {
+      mapId: best.mapId,
+      name: nameOf(graph, best.mapId),
+      remaining,
+      unread,
+      onPath: best.onPath,
+      hops: best.hops
+    }
+  }
+
+  /**
+   * Count what the run has learned since the last turn, and remember the set.
+   *
+   * A map crossed on the way to somewhere else sends its own `SMapSize 0x15` and
+   * is read as truly as the one the run aimed at, so what counts against the
+   * budget is the store's own growth and not the number of arrivals.
+   */
+  function count(run: Run, read: Set<number>): void {
+    if (run.readSeen === undefined) {
+      run.readSeen = new Set(read)
+      return
+    }
+    for (const mapId of read) {
+      if (run.readSeen.has(mapId)) continue
+      run.readSeen.add(mapId)
+      run.visited += 1
+    }
   }
 
   /** The maps this run keeps out of. Empty when it was told not to avoid any. */
@@ -267,11 +318,15 @@ export function createExplorer(options: ExplorerOptions): Explorer {
   async function loop(run: Run): Promise<ExplorerOutcome> {
     for (;;) {
       if (run.stopping) return finish(run, 'user')
-      if (run.visited >= run.budget.maps) return finish(run, 'budget')
       if (now() - run.startedAtMs >= run.budget.minutes * 60_000) return finish(run, 'budget')
       if (hurt(run)) return finish(run, 'hurt')
 
-      const next = await pick(run)
+      // One read of the store a turn: it says what the last walk taught, transit
+      // included, and it is what the pick works from. The budget is checked after
+      // the count, not before it.
+      const read = await options.readMaps()
+      count(run, read)
+      const next = pick(run, read)
       if (next === null) return finish(run, run.visited === 0 ? 'noPosition' : 'lostCharacter')
       if (next.remaining === 0) {
         // Nothing unread is in reach. Whether that is finished or stranded
@@ -279,13 +334,16 @@ export function createExplorer(options: ExplorerOptions): Explorer {
         // map with no known way on used to report this as `done`.
         return finish(run, next.unread === 0 ? 'done' : 'stuck')
       }
+      if (run.visited >= run.budget.maps) return finish(run, 'budget')
 
       run.target = { mapId: next.mapId, name: next.name }
       run.remaining = next.remaining
       publish(run)
       options.log.info(
         'explorer',
-        `walking to ${next.name} (${next.mapId}); ${next.remaining} unread and reachable`
+        `walking to ${next.name} (${next.mapId}), ${next.hops} map change` +
+          `${next.hops === 1 ? '' : 's'} away and reading ${next.onPath} unread on the way; ` +
+          `${next.remaining} unread and reachable`
       )
 
       const hostile = hostileFor(run)
@@ -297,7 +355,8 @@ export function createExplorer(options: ExplorerOptions): Explorer {
 
       if (run.stopping) return finish(run, 'user')
       if (outcome.kind === 'arrived') {
-        run.visited += 1
+        // What was learned is counted at the next pick, off the store, because
+        // the maps crossed on the way were read as truly as the one aimed at.
         publish(run)
         continue
       }

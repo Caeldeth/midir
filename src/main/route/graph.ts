@@ -158,6 +158,25 @@ export interface RouteGraph {
    * unread map first (WP41).
    */
   distancesFrom(fromMapId: number, options?: PlanOptions): Map<number, number>
+  /**
+   * The same sweep, with the map each one was reached through kept: a
+   * breadth-first tree rooted at `fromMapId`, in the order it was reached, so a
+   * caller can read the shortest path back for any map it names.
+   *
+   * `distancesFrom` and `reachableFrom` are both this with something dropped, so
+   * the rule for which exits a walk may take lives in one place. The explorer
+   * reads the whole path, because every map on the way is read for free as the
+   * character crosses it (WP41).
+   */
+  pathsFrom(fromMapId: number, options?: PlanOptions): Map<number, PathStep>
+}
+
+/** One map in a breadth-first sweep: how far, and what it was reached through. */
+export interface PathStep {
+  /** Map changes from the start. The start itself is 0. */
+  distance: number
+  /** The map this one was reached from. Absent for the start. */
+  previous?: number
 }
 
 /** What a plan may leave out. */
@@ -242,27 +261,35 @@ export function createRouteGraph(nodes: RouteNode[]): RouteGraph {
     return partial.length === 1 ? partial[0].mapId : null
   }
 
-  function distancesFrom(fromMapId: number, options?: PlanOptions): Map<number, number> {
-    const reached = new Map<number, number>()
+  function pathsFrom(fromMapId: number, options?: PlanOptions): Map<number, PathStep> {
+    const reached = new Map<number, PathStep>()
     if (!byId.has(fromMapId)) return reached
     const passable = options?.passable ?? ((): boolean => true)
-    reached.set(fromMapId, 0)
+    reached.set(fromMapId, { distance: 0 })
     const queue: number[] = [fromMapId]
     while (queue.length > 0) {
       const current = queue.shift()!
-      const distance = reached.get(current)! + 1
+      const distance = reached.get(current)!.distance + 1
       for (const exit of exitsOf(byId.get(current)!, options)) {
         if (reached.has(exit.toMapId) || !byId.has(exit.toMapId)) continue
         if (!passable(exit.toMapId)) continue
-        reached.set(exit.toMapId, distance)
+        reached.set(exit.toMapId, { distance, previous: current })
         queue.push(exit.toMapId)
       }
     }
     return reached
   }
 
+  function distancesFrom(fromMapId: number, options?: PlanOptions): Map<number, number> {
+    const distances = new Map<number, number>()
+    for (const [mapId, step] of pathsFrom(fromMapId, options)) {
+      distances.set(mapId, step.distance)
+    }
+    return distances
+  }
+
   function reachableFrom(fromMapId: number, options?: PlanOptions): Set<number> {
-    return new Set(distancesFrom(fromMapId, options).keys())
+    return new Set(pathsFrom(fromMapId, options).keys())
   }
 
   function planRoute(fromMapId: number, toMapId: number, options?: PlanOptions): RoutePlan | null {
@@ -322,7 +349,8 @@ export function createRouteGraph(nodes: RouteNode[]): RouteGraph {
     resolveDestination,
     planRoute,
     reachableFrom,
-    distancesFrom
+    distancesFrom,
+    pathsFrom
   }
 }
 
