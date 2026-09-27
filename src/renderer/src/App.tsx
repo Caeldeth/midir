@@ -21,6 +21,7 @@ import { useDiagnosticsStore } from '@renderer/store/diagnosticsStore'
 import { useSpeakerStore } from '@renderer/store/speakerStore'
 import { useWalkerStore } from '@renderer/store/walkerStore'
 import { useLaborerStore } from '@renderer/store/laborerStore'
+import { useMapStore } from '@renderer/store/mapStore'
 import ErrorBoundary from '@renderer/components/ErrorBoundary'
 import TitleBar from '@renderer/components/TitleBar'
 import NavBar, { type ViewName } from '@renderer/components/NavBar'
@@ -31,6 +32,7 @@ import Boards from '@renderer/pages/Boards'
 import Speaker from '@renderer/pages/Speaker'
 import Walker from '@renderer/pages/Walker'
 import MapPage from '@renderer/pages/MapPage'
+import GraphPage from '@renderer/pages/GraphPage'
 import Laborer from '@renderer/pages/Laborer'
 import Diagnostics from '@renderer/pages/Diagnostics'
 import Settings from '@renderer/pages/Settings'
@@ -176,6 +178,16 @@ function App(): React.JSX.Element {
                 {view === 'speaker' ? <Speaker /> : null}
                 {view === 'walker' ? <Walker /> : null}
                 {view === 'map' ? <MapPage /> : null}
+                {view === 'world' ? (
+                  <GraphPage
+                    onOpenMap={(mapId) => {
+                      // The graph names a map; the tile is on the Map tab. So
+                      // the hand-off picks the map there and shows that tab.
+                      void useMapStore.getState().select(mapId)
+                      setView('map')
+                    }}
+                  />
+                ) : null}
                 {view === 'laborer' ? <Laborer /> : null}
                 {view === 'diagnostics' && showDiagnostics ? <Diagnostics /> : null}
                 {view === 'settings' ? <Settings /> : null}

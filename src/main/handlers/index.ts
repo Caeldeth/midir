@@ -15,6 +15,7 @@ import { registerCaptureHandlers, type CaptureHandlerContext } from './capture'
 import { registerCharacterHandlers, type CharacterHandlerContext } from './characters'
 import { registerDiagnosticsHandlers, type DiagnosticsHandlerContext } from './diagnostics'
 import { registerIconsHandlers } from './icons'
+import { registerGraphHandlers, type GraphHandlerContext } from './graph'
 import { registerMapHandlers, type MapHandlerContext } from './map'
 import { registerSettingsHandlers, type SettingsHandlerContext } from './settings'
 
@@ -35,6 +36,7 @@ export interface HandlerContext
     DiagnosticsHandlerContext,
     AssistHandlerContext,
     BoardHandlerContext,
+    GraphHandlerContext,
     MapHandlerContext {
   settingsPath: string
   settingsManager: ReturnType<typeof createSettingsManager>
@@ -98,4 +100,5 @@ export function registerHandlers(deps: RegisterDeps, ctx: HandlerContext): void 
   registerAssistHandlers(ipcMain, ctx)
   registerBoardHandlers(ipcMain, dialog, BrowserWindow, ctx)
   registerMapHandlers(ipcMain, ctx)
+  registerGraphHandlers(ipcMain, ctx)
 }
