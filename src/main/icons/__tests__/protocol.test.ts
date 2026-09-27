@@ -87,7 +87,7 @@ describe('handleIconRequest', () => {
 
   it('hands a legend request to the legend service, and 404s without one', async () => {
     const url = 'midir-icon://legend/6'
-    const legend = { render: vi.fn(async () => Uint8Array.from([7])) }
+    const legend = { render: vi.fn(async () => Uint8Array.from([7])), palette: async () => null }
     const items = service(async () => null)
     expect(await handleIconRequest(items, url, undefined, legend)).toEqual({
       status: 200,
@@ -99,7 +99,7 @@ describe('handleIconRequest', () => {
   })
 
   it('answers a legend mark with no badge as 404', async () => {
-    const legend = { render: vi.fn(async () => null) }
+    const legend = { render: vi.fn(async () => null), palette: async () => null }
     expect(
       await handleIconRequest(
         service(async () => null),

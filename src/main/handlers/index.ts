@@ -53,6 +53,8 @@ export interface HandlerContext
    * service serve before the settings save lands.
    */
   updateDarkAgesPath?: (path: string) => void
+  /** The legend badges, for the text palette a mark's colour byte indexes (WP42). */
+  legendIcons?: { palette: () => Promise<string[] | null> }
 }
 
 interface RegisterDeps {
@@ -92,7 +94,7 @@ export function registerHandlers(deps: RegisterDeps, ctx: HandlerContext): void 
   registerCaptureHandlers(ipcMain, ctx)
   registerCharacterHandlers(ipcMain, ctx)
   registerDiagnosticsHandlers(ipcMain, shell, ctx)
-  registerIconsHandlers(ipcMain, dialog, BrowserWindow, ctx.updateDarkAgesPath)
+  registerIconsHandlers(ipcMain, dialog, BrowserWindow, ctx.updateDarkAgesPath, ctx.legendIcons)
   registerAssistHandlers(ipcMain, ctx)
   registerBoardHandlers(ipcMain, dialog, BrowserWindow, ctx)
   registerMapHandlers(ipcMain, ctx)

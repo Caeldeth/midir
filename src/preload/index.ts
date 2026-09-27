@@ -66,7 +66,8 @@ const api: MidirApi = {
   icons: {
     chooseFolder: (): Promise<string | null> => ipcRenderer.invoke('icons:chooseFolder'),
     probe: (path: string): Promise<{ legendFound: boolean }> =>
-      ipcRenderer.invoke('icons:probe', path)
+      ipcRenderer.invoke('icons:probe', path),
+    legendPalette: (): Promise<string[] | null> => ipcRenderer.invoke('icons:legendPalette')
   },
 
   capture: {

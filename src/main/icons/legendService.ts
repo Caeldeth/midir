@@ -32,6 +32,11 @@ export interface BadgeRenderer {
 export interface LegendService {
   /** One badge as PNG bytes, or null when there is none to draw. */
   render(icon: number): Promise<Uint8Array | null>
+  /**
+   * The 256 colours a mark's `color` byte indexes, as CSS hex, or null when the
+   * client's palette cannot be read.
+   */
+  palette(): Promise<string[] | null>
 }
 
 export interface LegendServiceDeps {
@@ -39,12 +44,26 @@ export interface LegendServiceDeps {
   log: Logger
   /** Injected by tests. The default reads `setoa.dat` from the folder. */
   openBadgeArchive?: OpenBadgeArchive
+  /** Injected by tests. The default reads `legend.dat`'s text palette. */
+  openTextPalette?: (folderPath: string) => Promise<string[] | null>
 }
 
 /** The sheet the client's legend list draws from, and the palette it uses. */
 export const BADGE_ARCHIVE = 'setoa.dat'
 export const BADGE_SHEET = 'legends.epf'
 export const BADGE_PALETTE = 'gui03.pal'
+
+/**
+ * Where a mark's **text** colour comes from, which is not where its badge comes
+ * from: the `color` byte is an index into palette slot 0, which the client loads
+ * from `legend.pal` in `legend.dat`, the same palette its rich text uses
+ * (`darkages-741-re/docs/network/server/057-0x39-self-look.md`). Read against a
+ * real client, index 1 is aqua, 32 white, 68 yellow, 88 blue, 128 green and 248
+ * red — the six that Hybrasyl's own `LegendColor` names, which is a second
+ * source agreeing.
+ */
+export const TEXT_ARCHIVE = 'legend.dat'
+export const TEXT_PALETTE = 'legend.pal'
 
 /** True for an icon byte the sheet has a frame for. 8 ("None") has none. */
 export function hasBadge(icon: number): boolean {
@@ -87,6 +106,20 @@ export function createBadgeRenderer(archive: DataArchive, log: Logger): BadgeRen
   }
 }
 
+/** Read the text palette out of a folder's `legend.dat`, as CSS hex. */
+export function readTextPalette(archive: DataArchive): string[] | null {
+  const entry = archive.get(TEXT_PALETTE)
+  if (entry === undefined) return null
+  const palette = Palette.fromEntry(entry)
+  const hex = (value: number): string => value.toString(16).padStart(2, '0')
+  const colours: string[] = []
+  for (let index = 0; index < palette.length; index++) {
+    const colour = palette.get(index)
+    colours.push(`#${hex(colour.r)}${hex(colour.g)}${hex(colour.b)}`)
+  }
+  return colours
+}
+
 /** The default opener: read `setoa.dat` from a folder and parse it. */
 function defaultOpener(log: Logger): OpenBadgeArchive {
   return async (folderPath) => {
@@ -104,9 +137,25 @@ function defaultOpener(log: Logger): OpenBadgeArchive {
   }
 }
 
+/** The default palette opener: read `legend.dat` and take its text palette. */
+function defaultPaletteOpener(): (folderPath: string) => Promise<string[] | null> {
+  return async (folderPath) => {
+    try {
+      const bytes = await readFile(join(folderPath, TEXT_ARCHIVE))
+      return readTextPalette(DataArchive.fromBuffer(bytes))
+    } catch {
+      return null
+    }
+  }
+}
+
 export function createLegendService(deps: LegendServiceDeps): LegendService {
   const { getDarkAgesPath, log } = deps
   const open = deps.openBadgeArchive ?? defaultOpener(log)
+  const openPalette = deps.openTextPalette ?? defaultPaletteOpener()
+  // One palette at a time, keyed by its folder, like the badge archive.
+  let palettePath: string | undefined
+  let paletteOpening: Promise<string[] | null> | undefined
 
   // One archive at a time, keyed by its folder. A path change resets it.
   let openPath: string | undefined
@@ -147,6 +196,16 @@ export function createLegendService(deps: LegendServiceDeps): LegendService {
       const png = archive.renderBadge(icon)
       pngCache.set(icon, png)
       return png
+    },
+
+    async palette() {
+      const path = getDarkAgesPath()
+      if (path === undefined || path === '') return null
+      if (palettePath !== path) {
+        palettePath = path
+        paletteOpening = openPalette(path)
+      }
+      return paletteOpening!
     }
   }
 }

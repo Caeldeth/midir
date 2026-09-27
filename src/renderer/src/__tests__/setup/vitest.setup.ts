@@ -17,7 +17,8 @@ export function createMockApi(): MidirApi {
     },
     icons: {
       chooseFolder: vi.fn(async () => null),
-      probe: vi.fn(async () => ({ legendFound: false }))
+      probe: vi.fn(async () => ({ legendFound: false })),
+      legendPalette: vi.fn(async () => null)
     },
     capture: {
       availability: vi.fn(async () => ({ available: true, devices: [] })),

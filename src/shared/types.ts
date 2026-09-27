@@ -233,6 +233,11 @@ export interface MidirApi {
     chooseFolder: () => Promise<string | null>
     /** Whether `legend.dat` is present in `path`. Drives the Settings on/off note. */
     probe: (path: string) => Promise<{ legendFound: boolean }>
+    /**
+     * The 256 colours a legend mark's `color` byte indexes, as CSS hex, or null
+     * when the client's palette cannot be read (WP42).
+     */
+    legendPalette: () => Promise<string[] | null>
   }
 
   capture: {

@@ -71,8 +71,16 @@ The set is CC BY 3.0, so the README carries the attribution. Icon 8 ("None") has
    (Sabrael, 2026-09-27). The name stays in `alt` and `title`, where a reader and a screen reader
    both find it.
 2. **No emoji.** See above.
-3. **One sheet, no per-mark colour.** The mark's `color` byte is still unread. The client colours
-   the mark's _text_ from it, and that is its own small piece of work.
+3. **The badge palette and the text palette are different files.** The badge is `gui03.pal`; the
+   mark's `color` byte indexes **`legend.pal`** in `legend.dat`, the palette the client's rich text
+   uses. Both are named in the second source, and reading the real file confirmed it: index 1 is
+   aqua, 32 near-white, 68 yellow, 88 blue, 128 green, 248 red — the same six that Hybrasyl's own
+   `LegendColor` names, which is a second source agreeing with retail's own file.
+4. **The colour is moved only as far as the theme needs.** The game draws on one dark parchment and
+   Midir has six themes, two of them light. Taken literally, a near-white mark is written in a light
+   theme's background and disappears. `readableMarkColor` keeps the hue and moves the lightness into
+   a band the theme can show: it scales a too-light colour down, and mixes a too-dark one toward
+   white, because scaling cannot lift a channel that is already zero.
 
 ## Non-goals (stop-lines)
 
@@ -80,6 +88,12 @@ The set is CC BY 3.0, so the README carries the attribution. Icon 8 ("None") has
   every other icon.
 - **No new setting.** The badges follow the "Legacy data files" switch the item icons use, and the
   stand-in takes over when it is off.
+
+## The mark's colour
+
+The palette is 256 short strings, read once per folder and held in the renderer, so no mark carries a
+colour over IPC: `icons:legendPalette` asks main, `iconsStore` keeps it, and the sheet looks the byte
+up. Without the client's files there is no palette, and the theme's own text colour stands.
 
 ## Verification
 

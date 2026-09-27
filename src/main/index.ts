@@ -579,6 +579,7 @@ const ctx: HandlerContext = {
       stopOnFocusLoss: settings.assistStopOnFocusLoss
     })
   },
+  legendIcons: legendService,
   updateDarkAgesPath: (path) => {
     darkAgesPath = path
   }

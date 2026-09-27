@@ -9,7 +9,8 @@ import {
   LinearProgress,
   Paper,
   Tooltip,
-  Typography
+  Typography,
+  useTheme
 } from '@mui/material'
 import {
   characterClassName,
@@ -26,6 +27,8 @@ import type { CharacterRecord, ItemRef } from '@shared/types'
 import EquipScreen from '@renderer/components/EquipScreen'
 import ItemIcon from '@renderer/components/ItemIcon'
 import LegendBadge from '@renderer/components/LegendBadge'
+import { useIconsStore } from '@renderer/store/iconsStore'
+import { readableMarkColor } from '@renderer/lib/markColor'
 import React from 'react'
 
 /**
@@ -128,6 +131,17 @@ function Section({
 
 function CharacterSheet({ record }: { record: CharacterRecord }): React.JSX.Element {
   const { stats, appearance } = record
+  // A mark's `color` byte indexes the client's own text palette, so the row is
+  // written in the colour the game writes it in. Without the client's files
+  // there is no palette, and the theme's own text colour stands (WP42).
+  const legendPalette = useIconsStore((s) => s.legendPalette)
+  const theme = useTheme()
+  const markColour = (colour: number): { color: string } | undefined => {
+    const hex = legendPalette?.[colour]
+    if (hex === undefined) return undefined
+    const readable = readableMarkColor(hex, theme.palette.mode === 'dark' ? 'dark' : 'light')
+    return readable === undefined ? undefined : { color: readable }
+  }
   const inventorySlots = Object.keys(record.inventory)
     .map(Number)
     .sort((a, b) => a - b)
@@ -352,7 +366,7 @@ function CharacterSheet({ record }: { record: CharacterRecord }): React.JSX.Elem
                 sx={{ py: 0.5, display: 'flex', gap: 1, alignItems: 'flex-start' }}
               >
                 <LegendBadge icon={mark.icon} />
-                <Typography variant="body2" sx={{ minWidth: 0 }}>
+                <Typography variant="body2" sx={{ minWidth: 0, ...(markColour(mark.color) ?? {}) }}>
                   {mark.text}
                 </Typography>
               </Box>
