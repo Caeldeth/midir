@@ -30,6 +30,19 @@ describe('parseIconUrl', () => {
     })
   })
 
+  it('reads a legend badge request: the mark icon byte in the path (WP42)', () => {
+    expect(parseIconUrl('midir-icon://legend/6')).toEqual({ kind: 'legend', icon: 6 })
+    expect(parseIconUrl('midir-icon://legend/0')).toEqual({ kind: 'legend', icon: 0 })
+  })
+
+  it('refuses a legend request that names no whole, non-negative icon', () => {
+    expect(parseIconUrl('midir-icon://legend/')).toBeNull()
+    expect(parseIconUrl('midir-icon://legend/-1')).toBeNull()
+    expect(parseIconUrl('midir-icon://legend/2.5')).toBeNull()
+    expect(parseIconUrl('midir-icon://legend/heart')).toBeNull()
+    expect(parseIconUrl('midir-icon://legend/6/2')).toBeNull()
+  })
+
   it('refuses a url that does not parse to two non-negative integers', () => {
     expect(parseIconUrl('not a url')).toBeNull()
     expect(parseIconUrl('midir-icon://item')).toBeNull()
@@ -70,6 +83,31 @@ describe('handleIconRequest', () => {
     })
     expect(items.render).not.toHaveBeenCalled()
     expect(await handleIconRequest(items, url)).toEqual({ status: 404 })
+  })
+
+  it('hands a legend request to the legend service, and 404s without one', async () => {
+    const url = 'midir-icon://legend/6'
+    const legend = { render: vi.fn(async () => Uint8Array.from([7])) }
+    const items = service(async () => null)
+    expect(await handleIconRequest(items, url, undefined, legend)).toEqual({
+      status: 200,
+      body: Uint8Array.from([7])
+    })
+    expect(legend.render).toHaveBeenCalledWith(6)
+    expect(items.render).not.toHaveBeenCalled()
+    expect(await handleIconRequest(items, url)).toEqual({ status: 404 })
+  })
+
+  it('answers a legend mark with no badge as 404', async () => {
+    const legend = { render: vi.fn(async () => null) }
+    expect(
+      await handleIconRequest(
+        service(async () => null),
+        'midir-icon://legend/8',
+        undefined,
+        legend
+      )
+    ).toEqual({ status: 404 })
   })
 
   it('answers a hit with 200 and the bytes', async () => {

@@ -18,7 +18,6 @@ import {
   formatDurability,
   formatNumber,
   formatSigned,
-  legendIconName,
   nationName,
   plural
 } from '@renderer/lib/format'
@@ -26,6 +25,7 @@ import { INVENTORY_SLOT_COUNT } from '@shared/labels'
 import type { CharacterRecord, ItemRef } from '@shared/types'
 import EquipScreen from '@renderer/components/EquipScreen'
 import ItemIcon from '@renderer/components/ItemIcon'
+import LegendBadge from '@renderer/components/LegendBadge'
 import React from 'react'
 
 /**
@@ -347,10 +347,13 @@ function CharacterSheet({ record }: { record: CharacterRecord }): React.JSX.Elem
               {plural(record.legend.length, 'mark')} · read {formatAgo(record.profileReadAtMs)}
             </Typography>
             {record.legend.map((mark, index) => (
-              <Box key={`${mark.key}-${index}`} sx={{ py: 0.5 }}>
-                <Typography variant="body2">{mark.text}</Typography>
-                <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                  {legendIconName(mark.icon)}
+              <Box
+                key={`${mark.key}-${index}`}
+                sx={{ py: 0.5, display: 'flex', gap: 1, alignItems: 'flex-start' }}
+              >
+                <LegendBadge icon={mark.icon} />
+                <Typography variant="body2" sx={{ minWidth: 0 }}>
+                  {mark.text}
                 </Typography>
               </Box>
             ))}

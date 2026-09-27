@@ -68,6 +68,14 @@ export const LEGEND_ICON_NAMES: Readonly<Record<number, string>> = {
   8: 'None'
 }
 
+/**
+ * How many of the icon values the client has a badge for.
+ *
+ * `legends.epf` holds eight frames and the icon byte is the frame index, so 0
+ * through 7 draw and 8 ("None") draws nothing (WP42).
+ */
+export const LEGEND_ICON_FRAMES = 8
+
 export const ELEMENT_NAMES: Readonly<Record<number, string>> = {
   0: 'None',
   1: 'Fire',

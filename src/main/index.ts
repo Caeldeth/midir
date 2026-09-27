@@ -33,6 +33,7 @@ import { seededGates, type Passport } from './route/access'
 import { hostileMaps } from './route/hostile'
 import { createIconService } from './icons/iconService'
 import { createDollService } from './icons/dollService'
+import { createLegendService } from './icons/legendService'
 import { registerIconProtocol } from './icons/protocol'
 import { createRecorder, type Recorder } from './capture/recorder'
 import { createCaptureService } from './captureService'
@@ -416,6 +417,8 @@ void settingsManager
 const iconService = createIconService({ getDarkAgesPath: () => darkAgesPath, log })
 // The character doll (WP37), from the khan archives beside legend.dat.
 const dollService = createDollService({ getDarkAgesPath: () => darkAgesPath, log })
+// The legend badges (WP42), from setoa.dat in the same folder.
+const legendService = createLegendService({ getDarkAgesPath: () => darkAgesPath, log })
 
 // The Walker reads the map passability from the same Dark Ages folder the icon
 // service uses: the on-disk tile cache and sotp.dat, never memory. The map
@@ -696,7 +699,7 @@ app.whenReady().then(() => {
 
   // Install the item-icon handler now the app is ready. The scheme was declared
   // privileged before this (see registerSchemesAsPrivileged above).
-  registerIconProtocol(protocol, iconService, log, dollService)
+  registerIconProtocol(protocol, iconService, log, dollService, legendService)
 
   // Register the global stop hotkey now the app is ready. The hotkey comes from
   // the settings; a load failure still registers the default, so the stop is

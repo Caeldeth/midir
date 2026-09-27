@@ -215,30 +215,31 @@ the walker crosses the world map, and clears a dialog, an exchange, and its conf
 Each is a real WP with a doc, but is trigger-gated: it starts when its trigger fires, not before. The
 trigger is in each doc's header.
 
-| WP   | Size | Title                           | Card     | Status                                                               |
-| ---- | ---- | ------------------------------- | -------- | -------------------------------------------------------------------- |
-| WP20 | M    | The packet inspector            | HTOO-69  | PLANNED — `20-packet-inspector.md`                                   |
-| WP21 | S    | e2e of the capture surface      | HTOO-70  | COMPLETE 2026-09-22 — `complete/21-e2e-capture-surface.md`           |
-| WP22 | S    | Deposit Item `0x43` decode      | HTOO-71  | COMPLETE 2026-09-22 — `complete/22-deposit-item-decode.md`           |
-| WP23 | S    | The `0x39` response tail decode | HTOO-72  | PLANNED — `23-pursuit-response-tail.md`                              |
-| WP24 | M    | Route graph from ceridwen       | HTOO-73  | PART SHIPPED 2026-09-22 — `24-ceridwen-route-graph.md`; XML layer in |
-| WP25 | S    | Record pruning / hide unseen    | HTOO-74  | COMPLETE 2026-09-22 — `complete/25-record-pruning.md`                |
-| WP26 | M    | The bug report to cernunnos     | HTOO-75  | COMPLETE 2026-09-22 — `complete/26-bug-report.md`                    |
-| WP27 | M    | Cut the first release           | HTOO-76  | PLANNED — `27-first-release.md`                                      |
-| WP28 | S    | App standards adoption          | HTOO-77  | COMPLETE 2026-09-22 — `complete/28-app-standards.md`                 |
-| WP29 | M    | Learn map transitions from wire | HTOO-78  | COMPLETE 2026-09-22 — `complete/29-learn-transitions.md`             |
-| WP30 | M    | Map viewer / route inspector    | HTOO-79  | COMPLETE 2026-09-22 — `complete/30-map-viewer.md`                    |
-| WP31 | S    | Dynamic door collision (`0x32`) | HTOO-80  | COMPLETE 2026-09-22 — `complete/31-door-collision.md`                |
-| WP32 | M    | Registration-aware routing      | HTOO-81  | COMPLETE — `complete/32-registration-aware-routing.md`               |
-| WP33 | S    | Map coverage for errand nodes   | HTOO-82  | COMPLETE — `complete/33-errand-map-coverage.md`                      |
-| WP34 | S    | Dismiss blocking popups         | HTOO-83  | COMPLETE — `complete/34-dismiss-blocking-popups.md`                  |
-| WP35 | M    | Right-click walking             | HTOO-468 | COMPLETE 2026-09-21 — `complete/35-right-click-walking.md`           |
-| WP36 | L    | The board archive               | HTOO-395 | COMPLETE 2026-09-22 — `complete/36-board-archive.md`                 |
-| WP37 | M    | The character doll              | HTOO-84  | COMPLETE 2026-09-22 — `complete/37-character-doll.md`                |
-| WP38 | S    | Seed the blank map names        | HTOO-471 | COMPLETE 2026-09-22 — `complete/38-map-name-seed.md`                 |
-| WP39 | S    | UI cleanup; no-route clue       | HTOO-472 | COMPLETE 2026-09-22 — `complete/39-ui-cleanup.md`                    |
-| WP40 | S    | Capture each map's music track  | HTOO-475 | BUILT 2026-09-27 — `40-map-music.md`                                 |
-| WP41 | L    | The explorer (unsteered visits) | HTOO-476 | BUILT 2026-09-27 — `41-explorer.md`                                  |
+| WP   | Size | Title                           | Card      | Status                                                               |
+| ---- | ---- | ------------------------------- | --------- | -------------------------------------------------------------------- |
+| WP20 | M    | The packet inspector            | HTOO-69   | PLANNED — `20-packet-inspector.md`                                   |
+| WP21 | S    | e2e of the capture surface      | HTOO-70   | COMPLETE 2026-09-22 — `complete/21-e2e-capture-surface.md`           |
+| WP22 | S    | Deposit Item `0x43` decode      | HTOO-71   | COMPLETE 2026-09-22 — `complete/22-deposit-item-decode.md`           |
+| WP23 | S    | The `0x39` response tail decode | HTOO-72   | PLANNED — `23-pursuit-response-tail.md`                              |
+| WP24 | M    | Route graph from ceridwen       | HTOO-73   | PART SHIPPED 2026-09-22 — `24-ceridwen-route-graph.md`; XML layer in |
+| WP25 | S    | Record pruning / hide unseen    | HTOO-74   | COMPLETE 2026-09-22 — `complete/25-record-pruning.md`                |
+| WP26 | M    | The bug report to cernunnos     | HTOO-75   | COMPLETE 2026-09-22 — `complete/26-bug-report.md`                    |
+| WP27 | M    | Cut the first release           | HTOO-76   | PLANNED — `27-first-release.md`                                      |
+| WP28 | S    | App standards adoption          | HTOO-77   | COMPLETE 2026-09-22 — `complete/28-app-standards.md`                 |
+| WP29 | M    | Learn map transitions from wire | HTOO-78   | COMPLETE 2026-09-22 — `complete/29-learn-transitions.md`             |
+| WP30 | M    | Map viewer / route inspector    | HTOO-79   | COMPLETE 2026-09-22 — `complete/30-map-viewer.md`                    |
+| WP31 | S    | Dynamic door collision (`0x32`) | HTOO-80   | COMPLETE 2026-09-22 — `complete/31-door-collision.md`                |
+| WP32 | M    | Registration-aware routing      | HTOO-81   | COMPLETE — `complete/32-registration-aware-routing.md`               |
+| WP33 | S    | Map coverage for errand nodes   | HTOO-82   | COMPLETE — `complete/33-errand-map-coverage.md`                      |
+| WP34 | S    | Dismiss blocking popups         | HTOO-83   | COMPLETE — `complete/34-dismiss-blocking-popups.md`                  |
+| WP35 | M    | Right-click walking             | HTOO-468  | COMPLETE 2026-09-21 — `complete/35-right-click-walking.md`           |
+| WP36 | L    | The board archive               | HTOO-395  | COMPLETE 2026-09-22 — `complete/36-board-archive.md`                 |
+| WP37 | M    | The character doll              | HTOO-84   | COMPLETE 2026-09-22 — `complete/37-character-doll.md`                |
+| WP38 | S    | Seed the blank map names        | HTOO-471  | COMPLETE 2026-09-22 — `complete/38-map-name-seed.md`                 |
+| WP39 | S    | UI cleanup; no-route clue       | HTOO-472  | COMPLETE 2026-09-22 — `complete/39-ui-cleanup.md`                    |
+| WP40 | S    | Capture each map's music track  | HTOO-475  | BUILT 2026-09-27 — `40-map-music.md`                                 |
+| WP41 | L    | The explorer (unsteered visits) | HTOO-476  | BUILT 2026-09-27 — `41-explorer.md`                                  |
+| WP42 | S    | Legend badges from the client   | HTOO-CARD | BUILT 2026-09-27 — `42-legend-badges.md`                             |
 
 `00a-backlog.md` now holds only what is not a WP: the non-goals, the debts owed to another repo, and
 the one conditional rule.
