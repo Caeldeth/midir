@@ -2,7 +2,8 @@
 
 **Size:** L. **Depends on:** WP29 (learned transitions), WP33 (the world map pane), WP34 (popups),
 WP35 (right-click walking), WP39 (`reachableFrom`), WP32 (access). Read `00-overview.md` first.
-**BUILT 2026-09-27**, under the conservative default of question 1: no unattended mode.
+**COMPLETE 2026-09-27**, merged in #46, under the conservative default of question 1: no unattended
+mode. A watched retest of the scopes is owed.
 **Card:** `HTOO-476`.
 **Trigger to start:** Sabrael, 2026-09-26: "walking all these maps by hand would be tedious."
 

@@ -2,7 +2,7 @@
 
 **Size:** S. **Depends on:** WP29 and WP30 (the learned layer, and `maps.json`). Read
 `00-overview.md` first.
-**PLANNED.** **Card:** `HTOO-475`.
+**COMPLETE 2026-09-27**, merged in #46. **Card:** `HTOO-475`.
 **Trigger to start:** Sabrael, 2026-09-26, on a map music table for the other tools in the
 ecosystem.
 
