@@ -71,6 +71,24 @@ export function createMockApi(): MidirApi {
       pollState: vi.fn(async () => []),
       onPollState: vi.fn(() => () => undefined)
     },
+    graph: {
+      view: vi.fn(async () => ({
+        nodes: [],
+        edges: [],
+        report: {
+          nodes: 0,
+          routedPairs: 0,
+          candidatePairs: 0,
+          components: [],
+          componentsWithCandidates: [],
+          noWayIn: [],
+          noWayOut: [],
+          oneWay: [],
+          candidateOnly: []
+        },
+        positions: []
+      }))
+    },
     map: {
       list: vi.fn(async () => []),
       view: vi.fn(async () => ({ ok: false as const, failure: { kind: 'noFolder' as const } })),

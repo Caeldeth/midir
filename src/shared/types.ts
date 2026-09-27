@@ -35,7 +35,9 @@ export * from './log'
 export * from './actionLayer'
 export * from './boards'
 export * from './map'
+export * from './graph'
 import type { MapPosition, MapSummary, MapViewResult, WarpEdit } from './map'
+import type { WorldGraphView } from './graph'
 
 /** How **Open GitHub issue** ended. The copy to the clipboard happened in both cases. */
 export type OpenIssueResult = { ok: true; truncated: boolean } | { ok: false; reason: 'unsafe-url' }
@@ -337,6 +339,13 @@ export interface MidirApi {
     pollState: () => Promise<BoardPollState[]>
     /** Watch a poll as it changes. Call the result to stop watching. */
     onPollState: (handler: (state: BoardPollState) => void) => () => void
+  }
+  graph: {
+    /**
+     * The whole route graph, with the report over it (WP43). The renderer
+     * scopes what it draws, so a change of scope needs no round trip.
+     */
+    view: () => Promise<WorldGraphView>
   }
   map: {
     /** Every map the graph or the wire knows, by id (WP30). */

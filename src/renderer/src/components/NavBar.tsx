@@ -12,6 +12,7 @@ export type ViewName =
   | 'speaker'
   | 'walker'
   | 'map'
+  | 'world'
   | 'laborer'
   | 'diagnostics'
   | 'settings'
@@ -24,6 +25,7 @@ export const VIEWS: readonly { name: ViewName; label: string }[] = [
   { name: 'speaker', label: 'Speaker' },
   { name: 'walker', label: 'Walker' },
   { name: 'map', label: 'Map' },
+  { name: 'world', label: 'World' },
   { name: 'laborer', label: 'Errands' },
   { name: 'diagnostics', label: 'Diagnostics' },
   { name: 'settings', label: 'Settings' }

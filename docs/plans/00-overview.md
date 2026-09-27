@@ -170,7 +170,7 @@ WP37 (the character doll)   COMPLETE — complete/37-character-doll.md — Brigi
 WP40 (each map's music track)   COMPLETE — complete/40-map-music.md — a track number per map, and no audio on the wire
 WP41 (the explorer)   COMPLETE — complete/41-explorer.md — the sweep by unread maps per walk, with scopes and a hostile list
 WP42 (legend badges and colour)   COMPLETE — complete/42-legend-badges.md — the client's own sheet, and the mark's text palette
-WP43 (the world graph view)   PLANNED — 43-world-graph-view.md — the graph as a graph: 326 pieces over confirmed warps, 8 with candidates
+WP43 (the world graph view)   BUILT — 43-world-graph-view.md — the graph as a graph: 334 pieces over routed warps, 9 with candidates
 ```
 
 WP7 was the one gap in the shipped run. It was specified, deferred for the protocol work that kept
@@ -244,7 +244,7 @@ trigger is in each doc's header.
 | WP40 | S    | Capture each map's music track  | HTOO-475 | COMPLETE 2026-09-27 (#46) — `complete/40-map-music.md`               |
 | WP41 | L    | The explorer (unsteered visits) | HTOO-476 | COMPLETE 2026-09-27 (#46) — `complete/41-explorer.md`; retest owed   |
 | WP42 | S    | Legend badges from the client   | HTOO-482 | COMPLETE 2026-09-27 (#46) — `complete/42-legend-badges.md`           |
-| WP43 | M    | The world graph view            | HTOO-483 | PLANNED — `43-world-graph-view.md`                                   |
+| WP43 | M    | The world graph view            | HTOO-483 | BUILT 2026-09-27 — `43-world-graph-view.md`                          |
 
 `00a-backlog.md` now holds only what is not a WP: the non-goals, the debts owed to another repo, and
 the one conditional rule.

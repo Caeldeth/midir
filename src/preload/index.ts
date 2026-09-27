@@ -24,6 +24,7 @@ import type {
   MapSummary,
   MapViewResult,
   WarpEdit,
+  WorldGraphView,
   MidirApi,
   MidirSettings,
   RecordingInfo,
@@ -140,6 +141,10 @@ const api: MidirApi = {
     pollState: (): Promise<BoardPollState[]> => ipcRenderer.invoke('boards:poll-state'),
     onPollState: (handler: (state: BoardPollState) => void): (() => void) =>
       subscribe('boards:poll-changed', handler)
+  },
+
+  graph: {
+    view: (): Promise<WorldGraphView> => ipcRenderer.invoke('graph:view')
   },
 
   map: {
