@@ -12,7 +12,7 @@ import {
 } from 'electron'
 import { copyFileSync, existsSync, mkdirSync, readFileSync } from 'fs'
 import { join } from 'path'
-import type { CaptureAvailability } from '../shared/types'
+import type { CaptureAvailability, CaptureStatus } from '../shared/types'
 import { createPcapSource, loadPcapApi, type PcapApi } from './capture/pcapSource'
 import { parseRecording } from './capture/recording'
 import { createReplaySource } from './capture/replaySource'
@@ -331,6 +331,26 @@ rebuildGraph().catch((error: unknown) => {
   log.error('transitions', `The learned graph would not build: ${String(error)}`)
 })
 
+/**
+ * Who is logged in, as the log last reported it.
+ *
+ * A status push also happens for every connection that opens or closes, and
+ * those say nothing a reader of the log needs. A login and a logout say a great
+ * deal, and the log held neither: a report that the title bar read wrong had no
+ * evidence either way (Sabrael, 2026-09-27).
+ */
+let loggedIn: string[] = []
+
+function reportStatus(status: CaptureStatus): void {
+  const names = status.characters
+  for (const name of names)
+    if (!loggedIn.includes(name)) log.info('capture', `${name} is logged in.`)
+  for (const name of loggedIn)
+    if (!names.includes(name)) log.info('capture', `${name} is logged out.`)
+  loggedIn = names
+  pushToRenderer(CAPTURE_STATUS_CHANNEL, status)
+}
+
 const captureService = createCaptureService({
   store: characterStore,
   boardStore,
@@ -348,7 +368,7 @@ const captureService = createCaptureService({
     return createPcapSource({ device, api: pcap })
   },
   createRecorder: startRecordingIfWanted,
-  onStatus: (status) => pushToRenderer(CAPTURE_STATUS_CHANNEL, status),
+  onStatus: reportStatus,
   onCharacter: (record) => pushToRenderer(CHARACTER_CHANGED_CHANNEL, record)
 })
 

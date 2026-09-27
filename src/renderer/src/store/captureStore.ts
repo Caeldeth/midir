@@ -16,6 +16,15 @@ interface CaptureState {
   /** The last failure to report to the user. */
   error: string | null
   refresh: () => Promise<void>
+  /**
+   * Re-read the status alone, and keep the adapter list as it is.
+   *
+   * A push from main is the ordinary path. This is the reconciliation, for the
+   * moment the window comes back: the title bar is the one thing the player
+   * reads all session, Midir sits behind the game window while it changes, and
+   * a status the renderer cannot prove is better re-read than believed.
+   */
+  reconcile: () => Promise<void>
   start: (device: string) => Promise<void>
   stop: () => Promise<void>
   clearError: () => void
@@ -45,6 +54,10 @@ export const useCaptureStore = create<CaptureState>((set, get) => ({
       window.api.capture.status()
     ])
     set({ availability, status })
+  },
+
+  reconcile: async () => {
+    set({ status: await window.api.capture.status() })
   },
 
   start: async (device) => {

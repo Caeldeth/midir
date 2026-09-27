@@ -80,14 +80,21 @@ function Walker(): React.JSX.Element {
   const setRightClick = useSettingsStore((s) => s.setWalkerRightClick)
 
   const captureStatus = useCaptureStore((s) => s.status)
-
-  useEffect(() => {
-    void refresh()
-  }, [refresh])
+  /** Who is logged in, as one string, so a re-read keys on a login and not on a connection. */
+  const liveCharacters = useCaptureStore((s) => s.status.characters.join(','))
 
   useEffect(() => {
     void refreshWindows()
   }, [refreshWindows, captureStatus])
+
+  // A login or a logout changes every destination's mark, because reachability
+  // is from where the character stands (WP39). So the whole refresh runs again
+  // on a change to who is logged in, and this effect covers the first read as
+  // well. The key is the names and not the whole status: a connection that
+  // opens and closes moves nobody, and the destinations are a long list.
+  useEffect(() => {
+    void refresh()
+  }, [refresh, liveCharacters])
 
   // A selection that names a window that is gone collapses to empty.
   // A pick collapses to empty only when that client has closed. A logout keeps

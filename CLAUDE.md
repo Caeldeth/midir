@@ -151,7 +151,10 @@ Aliases: `@renderer` to `src/renderer/src`, `@shared` to `src/shared`.
   `{ label, destination, tile? }` (`WalkerPin`), the chip shows the label and its tooltip shows the
   place and tile, and naming it is its own step when it is pinned. `pinOf` in `shared/actionLayer.ts`
   reads the older form, one string like `Place @ x,y`, so a settings file written before this keeps
-  its pins.
+  its pins. The **renderer reads a stored pin through `pinOf` as well**, although main normalises what
+  it loads: the page reads `pin.destination` on every render, and a pin in the older form took the
+  whole page down four times in one day while the main process had not restarted on the new code
+  (the log of 2026-09-27). A value the store cannot read is dropped, never rendered.
 - **A picked game window is remembered by its window handle, never by its connection id.** A
   connection id is minted per login, and a logged-out client holds no connection at all (one
   recording has 102 seconds of none), so keying the picker on it made the window vanish from under
@@ -159,6 +162,16 @@ Aliases: `@renderer` to `src/renderer/src`, `@shared` to `src/shared`.
   `windowHandle` is the identity: `windowKey`, `pickedWindow`, and `connectionOf` in
   `shared/actionLayer.ts` are the three helpers every driving tab uses, and a client with nobody
   logged in stays in the list with its buttons off.
+- **A push is the ordinary path, and the window's own return is the check.** The capture status goes
+  to the renderer on `capture:status-changed` and the title bar follows it. Nothing proved that push,
+  and the indicator read wrong until a visit to Settings — the one tab that asks main again (Sabrael,
+  2026-09-27). So `App` re-reads the status when the window takes focus or becomes visible
+  (`captureStore.reconcile`, the status alone: the adapter list costs a device enumeration and does
+  not change while Midir runs). **A login is a refresh of everything a login moves.** Every driving
+  tab reads its window list again on any status change, and the Walker reads its **destinations**
+  again when the character list changes, because reachability is from where the character stands
+  (WP39) and a connection that opens and closes moves nobody. Main logs a login and a logout by name,
+  because a report that the indicator read wrong had no evidence either way.
 - **Six shared themes** — four Dark Ages (hybrasyl default, chadul, danaan, grinneal) plus the corporate pair (mundanes light, dubhaimid dark). Cinzel and Crimson fonts. Scrollbar colors go to `:root` CSS variables. The `ThemeName` union lives in `shared/`.
 
 ## Decoding notes that are easy to get wrong

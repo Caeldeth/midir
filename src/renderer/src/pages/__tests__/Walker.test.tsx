@@ -1,8 +1,10 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useWalkerStore } from '@renderer/store/walkerStore'
 import { useSettingsStore } from '@renderer/store/settingsStore'
-import type { WalkerDestination } from '@shared/actionLayer'
+import { useCaptureStore } from '@renderer/store/captureStore'
+import type { WalkerDestination, WalkerPin } from '@shared/actionLayer'
+import { DEFAULT_SETTINGS, STOPPED_STATUS } from '@shared/types'
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import Walker from '../Walker'
@@ -92,5 +94,69 @@ describe('a destination Midir cannot reach', () => {
     render(<Walker />)
     await waitFor(() => expect(window.api.walker.destinations).toHaveBeenCalled())
     expect(window.api.walker.destinations).toHaveBeenCalledWith('c1')
+  })
+})
+
+describe('a login', () => {
+  it('reads the destinations again, because reachability moved with the character', async () => {
+    useCaptureStore.setState({ status: { ...STOPPED_STATUS, running: true, state: 'listening' } })
+    render(<Walker />)
+    await waitFor(() => expect(window.api.walker.destinations).toHaveBeenCalled())
+    const first = vi.mocked(window.api.walker.destinations).mock.calls.length
+
+    act(() => {
+      useCaptureStore.setState({
+        status: {
+          ...STOPPED_STATUS,
+          running: true,
+          state: 'decoding',
+          characters: ['Gabrael']
+        }
+      })
+    })
+    await waitFor(() =>
+      expect(vi.mocked(window.api.walker.destinations).mock.calls.length).toBeGreaterThan(first)
+    )
+  })
+
+  it('asks again for the connection count alone, and not for the whole list', async () => {
+    // A client that opens or closes moves nobody, so the long list stays put and
+    // only the window picker is read again.
+    useCaptureStore.setState({ status: { ...STOPPED_STATUS, running: true, state: 'listening' } })
+    render(<Walker />)
+    await waitFor(() => expect(window.api.walker.destinations).toHaveBeenCalled())
+    const first = vi.mocked(window.api.walker.destinations).mock.calls.length
+    const windows = vi.mocked(window.api.assist.windows).mock.calls.length
+
+    act(() => {
+      useCaptureStore.setState({
+        status: { ...STOPPED_STATUS, running: true, state: 'listening', connections: 2 }
+      })
+    })
+    await waitFor(() =>
+      expect(vi.mocked(window.api.assist.windows).mock.calls.length).toBeGreaterThan(windows)
+    )
+    expect(vi.mocked(window.api.walker.destinations).mock.calls.length).toBe(first)
+  })
+})
+
+describe('a pin in the older one-string form', () => {
+  it('reads as a pin, and does not take the page down', async () => {
+    // A main process that had not restarted on the new code served four of
+    // these, and the page threw on every render (the log of 2026-09-27).
+    await act(async () => {
+      window.api.settings.load = vi.fn(async () => ({
+        ...DEFAULT_SETTINGS,
+        walkerPinnedDestinations: ['Mileth Village @ 12,15'] as unknown as WalkerPin[]
+      }))
+      await useSettingsStore.getState().hydrate()
+    })
+    expect(useSettingsStore.getState().walkerPinnedDestinations).toEqual([
+      { label: 'Mileth Village @ 12,15', destination: 'Mileth Village', tile: { x: 12, y: 15 } }
+    ])
+
+    render(<Walker />)
+    await waitFor(() => expect(screen.getByTestId('walker-go')).toBeInTheDocument())
+    expect(await screen.findByTestId('walker-pin')).toHaveTextContent('Mileth Village @ 12,15')
   })
 })
