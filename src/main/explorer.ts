@@ -115,6 +115,8 @@ interface Target {
   name: string
   /** How many unread maps the graph can still reach, this one included. */
   remaining: number
+  /** How many maps in the whole graph have no reading, in reach or not. */
+  unread: number
 }
 
 interface Run {
@@ -170,15 +172,21 @@ export function createExplorer(options: ExplorerOptions): Explorer {
    * track changes, so a second visit teaches nothing and the run would circle
    * it for as long as its budget lasted.
    *
+   * The sweep counts the edges the world XML only proposes, because the walker
+   * plans over them too and crossing one is what confirms it (WP24). Without
+   * them a run strands itself: from Mileth 224 maps are in reach, and 485 with
+   * them.
+   *
    * Returns null when there is no position to start from, and a target with
-   * `remaining` 0 when every reachable map has been read.
+   * `remaining` 0 when nothing unread is in reach — which `unread` then tells
+   * apart: everything read, or stranded on a map with no known way on.
    */
   async function pick(run: Run): Promise<Target | null> {
     const position = options.positionFor(run.connectionId)
     if (position === null) return null
     const graph = options.graph()
     const read = await options.readMaps()
-    const distances = graph.distancesFrom(position.mapId)
+    const distances = graph.distancesFrom(position.mapId, { useCandidates: true })
 
     let best: { mapId: number; distance: number } | null = null
     let remaining = 0
@@ -194,8 +202,14 @@ export function createExplorer(options: ExplorerOptions): Explorer {
         best = { mapId, distance }
       }
     }
-    if (best === null) return { mapId: -1, name: '', remaining: 0 }
-    return { mapId: best.mapId, name: nameOf(graph, best.mapId), remaining }
+    // Unread anywhere in the graph, in reach or not. It is what separates a run
+    // that finished from one that is stranded.
+    let unread = 0
+    for (const node of graph.nodes()) {
+      if (!read.has(node.mapId) && !run.skipped.has(node.mapId)) unread += 1
+    }
+    if (best === null) return { mapId: -1, name: '', remaining: 0, unread }
+    return { mapId: best.mapId, name: nameOf(graph, best.mapId), remaining, unread }
   }
 
   /**
@@ -237,7 +251,12 @@ export function createExplorer(options: ExplorerOptions): Explorer {
 
       const next = await pick(run)
       if (next === null) return finish(run, run.visited === 0 ? 'noPosition' : 'lostCharacter')
-      if (next.remaining === 0) return finish(run, 'done')
+      if (next.remaining === 0) {
+        // Nothing unread is in reach. Whether that is finished or stranded
+        // depends on whether unread maps exist at all: a run that walks into a
+        // map with no known way on used to report this as `done`.
+        return finish(run, next.unread === 0 ? 'done' : 'stuck')
+      }
 
       run.target = { mapId: next.mapId, name: next.name }
       run.remaining = next.remaining
@@ -259,6 +278,19 @@ export function createExplorer(options: ExplorerOptions): Explorer {
         continue
       }
       if (!skipOnly(outcome.reason)) return finish(run, endReason(outcome.reason))
+
+      // A `blocked` stop with no step taken is about the map the character
+      // stands on, not the one it was sent to: nothing could leave. Setting the
+      // target aside would condemn a good map and then the next, and the next —
+      // one unwalkable map cost 13 of them in a third of a second (2026-09-27).
+      if (outcome.reason === 'blocked' && (outcome.stepsTaken ?? 0) === 0) {
+        options.log.warn(
+          'explorer',
+          `no step left the current map on the way to ${next.name} (${next.mapId}); the run stops` +
+            ' rather than blaming the maps it was sent to'
+        )
+        return finish(run, 'stuck')
+      }
 
       // One map the walker could not deliver. Set it aside and carry on: this
       // is the only way a run learns which maps it cannot have.

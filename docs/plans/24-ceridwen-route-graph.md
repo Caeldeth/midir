@@ -99,3 +99,21 @@ session before the walker steers by it.
 2. The importer converts a complete ceridwen map set to the route-graph JSON; unit-test the
    conversion against a known map's warps and NPCs.
 3. GUI (hand to Sabrael): a walk that uses the derived graph, checked against the live positions.
+
+## The provisional rule, revised 2026-09-27
+
+A candidate edge was invisible to routing, so the Walker reported "No route Midir knows" for a map it
+held the way to (Mileth Black Magic Master, map 401, which the XML reaches from Mileth Altar by two
+warps). The import was never the problem: the node and its edges were both there.
+
+The rule now separates **what is confirmed** from **what may be walked**. A candidate is still a
+candidate — the Map tab still shows its provenance, and a crossing or an acceptance is still what
+promotes it — but `PlanOptions.useCandidates` takes them, and the walker and the explorer both ask.
+
+The measured cost of not asking: 3171 candidate edges against 2132 routable ones, 224 maps reachable
+from Mileth against 485, and 513 named maps unreachable against 253.
+
+A candidate's destination is right; what it can get wrong is the tile, by one. That failure is safe —
+the warp does not fire, the walker marks the tile and re-plans — and the walk is what confirms the
+edge, so refusing to try was refusing the only evidence that would settle it. A route that rests on
+one is shown as "Route not confirmed yet" rather than hidden.

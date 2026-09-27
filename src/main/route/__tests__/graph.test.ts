@@ -160,6 +160,56 @@ describe('reachableFrom (WP39)', () => {
   })
 })
 
+describe('a candidate edge, which only the world XML proposes (WP24)', () => {
+  // Map 1 reaches 2 by a confirmed warp, and 7 only by a candidate: the XML
+  // named it and no walk has crossed it.
+  const graph = createRouteGraph([
+    {
+      mapId: 1,
+      name: 'Mileth',
+      exits: [{ toMapId: 2, x: 5, y: 0 }],
+      candidates: [{ toMapId: 7, x: 0, y: 5, source: 'xml' }]
+    },
+    { mapId: 2, name: 'Mileth Inn', exits: [] },
+    { mapId: 7, name: 'Mileth Black Magic Master', exits: [] }
+  ])
+
+  it('is left out of a route by default, so a confirmed way is preferred', () => {
+    expect(graph.planRoute(1, 7)).toBeNull()
+    expect(graph.reachableFrom(1)).toEqual(new Set([1, 2]))
+    expect(graph.distancesFrom(1).has(7)).toBe(false)
+  })
+
+  it('is taken when the caller asks for it, which is how it gets confirmed', () => {
+    const plan = graph.planRoute(1, 7, { useCandidates: true })
+    expect(plan).not.toBeNull()
+    expect(plan!.legs).toHaveLength(1)
+    // The leg carries the candidate's own tile, which is the tile to walk.
+    expect(plan!.legs[0].warps).toEqual([{ x: 0, y: 5 }])
+    expect(graph.reachableFrom(1, { useCandidates: true })).toEqual(new Set([1, 2, 7]))
+    expect(graph.distancesFrom(1, { useCandidates: true }).get(7)).toBe(1)
+  })
+
+  it('still respects a gate the caller shuts', () => {
+    expect(
+      graph.planRoute(1, 7, { useCandidates: true, passable: (mapId) => mapId !== 7 })
+    ).toBeNull()
+  })
+
+  it('never takes a candidate that needs an NPC dialog', () => {
+    const ship = createRouteGraph([
+      {
+        mapId: 1,
+        name: 'Port',
+        exits: [],
+        candidates: [{ toMapId: 2, x: 0, y: 0, via: { kind: 'dialog' }, source: 'xml' }]
+      },
+      { mapId: 2, name: 'Island', exits: [] }
+    ])
+    expect(ship.reachableFrom(1, { useCandidates: true })).toEqual(new Set([1]))
+  })
+})
+
 describe('the imported world graph', () => {
   it('knows Mileth, Abel, and the Mileth Bank', () => {
     expect(worldGraph.node(500)?.name).toBe('Mileth Altar')

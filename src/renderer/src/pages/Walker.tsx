@@ -115,7 +115,12 @@ function Walker(): React.JSX.Element {
   // Midir knows the place and knows no way to walk there from where the
   // character stands. `reachable` is absent until a character is logged in.
   const unreachable = named?.reachable === false
+  // Midir has a way, but only over a warp the imported world data proposes and
+  // the wire has never crossed. The walk is offered: crossing it is what
+  // confirms it, and a tile that is a tile off stops the leg and nothing worse.
+  const unconfirmed = named?.viaUnconfirmed === true
   const noWayText = `Midir knows no way to walk there from where the character stands. Walk a warp it has not seen yet, or add one on the Map tab.`
+  const unconfirmedText = `The only way Midir knows there comes from its imported map data, which no walk has confirmed yet. The walk may stop early; crossing it is what proves it.`
 
   const onGo = (): void => {
     if (connectionId === '' || destination.trim() === '' || !endValid || unreachable) return
@@ -228,6 +233,10 @@ function Walker(): React.JSX.Element {
                       <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                         No route Midir knows
                       </Typography>
+                    ) : place?.viaUnconfirmed === true ? (
+                      <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                        Route not confirmed yet
+                      </Typography>
                     ) : null}
                   </Box>
                 </Box>
@@ -245,7 +254,9 @@ function Walker(): React.JSX.Element {
                     ? 'Give both End x and End y, or neither.'
                     : unreachable
                       ? noWayText
-                      : 'Pick a known place, or type a map name or number. End x and y are optional: a tile to stand on.'
+                      : unconfirmed
+                        ? unconfirmedText
+                        : 'Pick a known place, or type a map name or number. End x and y are optional: a tile to stand on.'
                 }
               />
             )}

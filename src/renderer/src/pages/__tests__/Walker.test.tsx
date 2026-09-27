@@ -14,7 +14,9 @@ import Walker from '../Walker'
 
 const PLACES: WalkerDestination[] = [
   { mapId: 2, name: 'Field', reachable: true },
-  { mapId: 3, name: 'Hidden Cave', reachable: false }
+  { mapId: 3, name: 'Hidden Cave', reachable: false },
+  // Reachable, but only over a warp the imported world data proposes (WP24).
+  { mapId: 401, name: 'Mileth Black Magic Master', reachable: true, viaUnconfirmed: true }
 ]
 
 beforeEach(() => {
@@ -44,6 +46,16 @@ describe('a destination Midir cannot reach', () => {
     await userEvent.clear(destination)
     await userEvent.type(destination, 'Field')
     await waitFor(() => expect(screen.getByTestId('walker-go')).toBeEnabled())
+  })
+
+  it('offers a place whose only route is unconfirmed, and says so', async () => {
+    // Midir had the way to this map from its imported data and refused to use
+    // it, reporting no route at all (2026-09-27).
+    render(<Walker />)
+    await waitFor(() => expect(screen.getByTestId('walker-go')).toBeInTheDocument())
+    await userEvent.type(screen.getByLabelText('Destination'), 'Mileth Black Magic Master')
+    await waitFor(() => expect(screen.getByTestId('walker-go')).toBeEnabled())
+    expect(screen.getByText(/imported map data, which no walk has confirmed/)).toBeInTheDocument()
   })
 
   it('asks main for the destinations of the window it drives', async () => {

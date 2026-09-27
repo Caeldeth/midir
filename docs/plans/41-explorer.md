@@ -91,6 +91,29 @@ regeneration between hops reads as a hit (90, then 95, then 92 would stop a run)
 seen, it does not, and a character that began the run already hurt is not stopped for the health it
 was missing when it started.
 
+## What the first watched run found, 2026-09-27
+
+Sabrael ran it. Three faults, all now fixed, and the log was the evidence for each.
+
+1. **A run stranded itself and called it finished.** It walked Mileth → MilethEnt → Abel Outskirts →
+   EwEnt → EW-Crossroads → Wastelands, and at the Wastelands the frontier collapsed from 187 unread
+   to 1 and the run reported `done`. Nothing was reachable from there, because the learned graph holds
+   the way in and not the way back. An empty frontier with unread maps left is now `stuck`, which says
+   what happened.
+2. **One unwalkable map condemned thirteen good ones.** In a third of a second the run set aside
+   Mileth Town Hall, West Woods 10-1, Pravat West Entrance, Loures Castle, Loures Harbour, Abel Bank
+   and seven more, each with `blocked`. Every one of those walks failed at the origin: no first step
+   landed. A `blocked` stop that took **no step** is now read as a fact about where the character
+   stands, and the run stops as `stuck` instead of burning the frontier. `WalkOutcome` carries
+   `stepsTaken` for that.
+3. **The frontier ignored most of the map data Midir holds.** The sweep took only confirmed edges, so
+   224 maps were in reach from Mileth where the imported world XML knows 485. Both the explorer's
+   sweep and the walker's plan now take candidate edges (`PlanOptions.useCandidates`), which is also
+   the only way a candidate ever gets confirmed.
+
+The same run proved the good half: the first six maps were a clean Mileth sweep — the Altar, the
+Tavern, the Bank, TOC, the Crypt Vestibule, Crypt 1 and Crypt 2-1 — and no map was misread.
+
 ## Open questions — the first is answered by the build, and Sabrael may overrule it
 
 1. **How long may it run, and may it run while the player is away?** **Built as the conservative

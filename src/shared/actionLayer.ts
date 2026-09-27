@@ -174,7 +174,20 @@ export type WalkStopReason =
   | 'protected'
 
 /** How a walk ended. */
-export type WalkOutcome = { kind: 'arrived' } | { kind: 'stopped'; reason: WalkStopReason }
+export type WalkOutcome =
+  | { kind: 'arrived' }
+  | {
+      kind: 'stopped'
+      reason: WalkStopReason
+      /**
+       * Confirmed steps the walk took before it stopped. A `blocked` stop with
+       * none is a fact about where the character stands — no first step landed —
+       * and not about the destination, which is what the explorer needs to tell
+       * them apart (2026-09-27: one unwalkable map made a run set aside 13 good
+       * ones in a third of a second).
+       */
+      stepsTaken?: number
+    }
 
 /** Where the walker last saw the character. A trimmed Position, safe to send. */
 export interface WalkerPosition {
@@ -220,6 +233,13 @@ export interface WalkerDestination {
    * reachability is from a map and there is no map to ask from.
    */
   reachable?: boolean
+  /**
+   * True when the only way there runs over an edge the imported world XML
+   * proposes and the wire has never crossed. The walk is offered, because Midir
+   * does have a way; it may end early if the imported tile is a tile off, and
+   * crossing it is what confirms it (WP24).
+   */
+  viaUnconfirmed?: boolean
 }
 
 /** A message worth showing the user for each walk-stop reason. */
@@ -567,6 +587,12 @@ export type ExplorerStopReason =
   | 'hurt'
   /** The run spent its budget of maps or of minutes. */
   | 'budget'
+  /**
+   * The walk could not leave the map the character stands on, or no unread map
+   * can be reached from it. The run is not finished; it is stranded, which is a
+   * different thing and used to be reported as `done`.
+   */
+  | 'stuck'
   /** Every map the graph can reach from here has been read. */
   | 'done'
 
@@ -609,6 +635,8 @@ export function explorerStopMessage(reason: ExplorerStopReason): string {
       return 'The character lost health, so the run stopped.'
     case 'budget':
       return 'The run reached its budget.'
+    case 'stuck':
+      return 'The explorer could not walk on from this map. Walk somewhere with a known way out, or add a warp on the Map tab.'
     case 'done':
       return 'Every map the route graph can reach from here has been read.'
   }

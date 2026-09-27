@@ -578,11 +578,14 @@ export function createWalker(options: WalkerOptions): Walker {
     toMapId: number
   ): { kind: 'plan'; plan: RoutePlan } | { kind: 'stopped'; reason: WalkStopReason } {
     const barrier = barrierFor(run.connectionId)
+    // Candidates are in: an edge the world XML proposes is the only way to many
+    // maps, and crossing one is what confirms it (WP24, and see PlanOptions).
     const plan = graph.planRoute(fromMapId, toMapId, {
-      passable: (mapId) => barrier(mapId) === null
+      passable: (mapId) => barrier(mapId) === null,
+      useCandidates: true
     })
     if (plan !== null) return { kind: 'plan', plan }
-    const open = graph.planRoute(fromMapId, toMapId)
+    const open = graph.planRoute(fromMapId, toMapId, { useCandidates: true })
     if (open === null) return { kind: 'stopped', reason: 'noRoute' }
     // The only way through is a gate: name the first one on it.
     for (const leg of open.legs) {
@@ -1630,7 +1633,12 @@ export function createWalker(options: WalkerOptions): Walker {
   }
 
   /** End a run: disarm the layer, publish the final state, and log it. */
-  function finish(run: Run, outcome: WalkOutcome): void {
+  /**
+   * End a run and return the outcome to hand back. A stopped outcome carries the
+   * steps the walk managed, because a caller has to tell a failure at the origin
+   * (no step ever landed) from one along the way.
+   */
+  function finish(run: Run, outcome: WalkOutcome): WalkOutcome {
     run.running = false
     runs.delete(run.connectionId)
     actionLayer.disarm(run.connectionId)
@@ -1640,6 +1648,7 @@ export function createWalker(options: WalkerOptions): Walker {
         : (run.stopDetail ?? walkStopReasonText(outcome.reason))
     publish(run, reason)
     log.info('walker', `Walker on ${run.connectionId} ended: ${reason}.`)
+    return outcome.kind === 'arrived' ? outcome : { ...outcome, stepsTaken: run.stepsTaken }
   }
 
   async function go(request: WalkRequest): Promise<WalkOutcome> {
@@ -1661,13 +1670,11 @@ export function createWalker(options: WalkerOptions): Walker {
 
     if (destMapId === null) {
       const outcome: WalkOutcome = { kind: 'stopped', reason: 'noRoute' }
-      finish(run, outcome)
-      return outcome
+      return finish(run, outcome)
     }
     if (!hasLiveCharacter(connectionId)) {
       const outcome: WalkOutcome = { kind: 'stopped', reason: 'lostCharacter' }
-      finish(run, outcome)
-      return outcome
+      return finish(run, outcome)
     }
 
     const armed = actionLayer.arm(connectionId, (reason) => {
@@ -1679,8 +1686,7 @@ export function createWalker(options: WalkerOptions): Walker {
         kind: 'stopped',
         reason: armed === 'stopped' ? 'user' : 'lostCharacter'
       }
-      finish(run, outcome)
-      return outcome
+      return finish(run, outcome)
     }
 
     log.info('walker', `Walker started on ${connectionId} to ${destination} (map ${destMapId}).`)
@@ -1703,8 +1709,7 @@ export function createWalker(options: WalkerOptions): Walker {
       log.warn('walker', `Walker on ${connectionId} threw: ${String(error)}.`)
       outcome = { kind: 'stopped', reason: 'blocked' }
     }
-    finish(run, outcome)
-    return outcome
+    return finish(run, outcome)
   }
 
   function stop(connectionId: string): void {
@@ -1722,8 +1727,19 @@ export function createWalker(options: WalkerOptions): Walker {
       // guessed at.
       const from = connectionId !== undefined ? positionFor(connectionId) : null
       if (from === null) return places
-      const reached = graph.reachableFrom(from.mapId)
-      return places.map((place) => ({ ...place, reachable: reached.has(place.mapId) }))
+      // Two sweeps: the edges the wire has confirmed, and those plus the ones
+      // the world XML only proposes. A place in the second and not the first is
+      // offered with the caveat, never refused — Midir has a way to it, and
+      // walking it is what confirms the way (2026-09-27).
+      const confirmed = graph.reachableFrom(from.mapId)
+      const withCandidates = graph.reachableFrom(from.mapId, { useCandidates: true })
+      return places.map((place) => ({
+        ...place,
+        reachable: withCandidates.has(place.mapId),
+        ...(withCandidates.has(place.mapId) && !confirmed.has(place.mapId)
+          ? { viaUnconfirmed: true }
+          : {})
+      }))
     },
     go,
     stop,

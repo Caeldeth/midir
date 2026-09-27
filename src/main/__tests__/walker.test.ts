@@ -663,7 +663,7 @@ describe('walker', () => {
       { mapId: 2, name: 'Field', exits: [{ toMapId: 1, x: 0, y: 0 }] }
     ]
     const shut = harness(new World(maps, { mapId: 1, x: 0, y: 0 }), graph)
-    expect(await shut.walker.go({ connectionId: CID, destination: 2 })).toEqual({
+    expect(await shut.walker.go({ connectionId: CID, destination: 2 })).toMatchObject({
       kind: 'stopped',
       reason: 'blocked'
     })
@@ -685,7 +685,7 @@ describe('walker', () => {
     ]
     const { walker, world } = harness(new World(maps, { mapId: 1, x: 0, y: 0 }), graph)
     world.doors = { mapId: 3048, states: new Map([[doorKey(2, 0, 1), 0]]), asOfMs: 0 }
-    expect(await walker.go({ connectionId: CID, destination: 2 })).toEqual({
+    expect(await walker.go({ connectionId: CID, destination: 2 })).toMatchObject({
       kind: 'stopped',
       reason: 'blocked'
     })
@@ -708,7 +708,7 @@ describe('walker', () => {
     world.dropPresses = Number.MAX_SAFE_INTEGER // every key is swallowed
     const { walker } = harness(world, lineGraph())
     const outcome = await walker.go({ connectionId: CID, destination: 'Cave' })
-    expect(outcome).toEqual({ kind: 'stopped', reason: 'blocked' })
+    expect(outcome).toMatchObject({ kind: 'stopped', reason: 'blocked' })
     // It never left the start tile.
     expect(world.position).toMatchObject({ mapId: 1, x: 0, y: 0 })
   })
@@ -726,7 +726,7 @@ describe('walker', () => {
     ]
     const { walker } = harness(world, graph)
     const outcome = await walker.go({ connectionId: CID, destination: 2 })
-    expect(outcome).toEqual({ kind: 'stopped', reason: 'blocked' })
+    expect(outcome).toMatchObject({ kind: 'stopped', reason: 'blocked' })
     expect(world.presses).toBe(0)
   })
 
@@ -739,7 +739,7 @@ describe('walker', () => {
     }
     const { walker } = harness(world, lineGraph())
     const outcome = await walker.go({ connectionId: CID, destination: 'Cave' })
-    expect(outcome).toEqual({ kind: 'stopped', reason: 'lostPosition' })
+    expect(outcome).toMatchObject({ kind: 'stopped', reason: 'lostPosition' })
   })
 
   it('halts within one step when the global stop fires', async () => {
@@ -750,7 +750,7 @@ describe('walker', () => {
       built.layer.stopped = true // the stop fires after the first confirmed step
     }
     const outcome = await built.walker.go({ connectionId: CID, destination: 'Cave' })
-    expect(outcome).toEqual({ kind: 'stopped', reason: 'user' })
+    expect(outcome).toMatchObject({ kind: 'stopped', reason: 'user' })
     expect(world.position.mapId).toBe(1) // it stopped before leaving the first map
   })
 
@@ -759,7 +759,7 @@ describe('walker', () => {
     const world = lineWorld()
     const { walker } = harness(world, lineGraph())
     const outcome = await walker.go({ connectionId: CID, destination: 'Atlantis' })
-    expect(outcome).toEqual({ kind: 'stopped', reason: 'noRoute' })
+    expect(outcome).toMatchObject({ kind: 'stopped', reason: 'noRoute' })
     expect(world.presses).toBe(0)
   })
 
@@ -786,7 +786,7 @@ describe('walker', () => {
       sleep: async () => undefined
     })
     const outcome = await walker.go({ connectionId: CID, destination: 'Cave' })
-    expect(outcome).toEqual({ kind: 'stopped', reason: 'lostCharacter' })
+    expect(outcome).toMatchObject({ kind: 'stopped', reason: 'lostCharacter' })
     expect(built.world.presses).toBe(0)
   })
 
@@ -871,7 +871,7 @@ describe('walker tile goal', () => {
       tile: { x: 2, y: 2 },
       arrive: 'on'
     })
-    expect(outcome).toEqual({ kind: 'stopped', reason: 'blocked' })
+    expect(outcome).toMatchObject({ kind: 'stopped', reason: 'blocked' })
   })
 
   it('arrives with no steps when already on the tile it was asked to stand on', async () => {
@@ -903,7 +903,7 @@ describe('walker tile goal', () => {
     )
     const { walker } = harness(world, roomGraph)
     const outcome = await walker.go({ connectionId: CID, destination: 1, tile: { x: 2, y: 2 } })
-    expect(outcome).toEqual({ kind: 'stopped', reason: 'blocked' })
+    expect(outcome).toMatchObject({ kind: 'stopped', reason: 'blocked' })
   })
 
   it('stops lostPosition when something else changes the map mid-approach', async () => {
@@ -911,7 +911,7 @@ describe('walker tile goal', () => {
     world.hijackToMap = 9 // the next press lands on a map nobody asked for
     const { walker } = harness(world, roomGraph)
     const outcome = await walker.go({ connectionId: CID, destination: 1, tile: { x: 4, y: 4 } })
-    expect(outcome).toEqual({ kind: 'stopped', reason: 'lostPosition' })
+    expect(outcome).toMatchObject({ kind: 'stopped', reason: 'lostPosition' })
   })
 })
 
@@ -966,7 +966,7 @@ describe('walker and a popup mid-walk (WP34)', () => {
     popupAfterTwoSteps(world, pursuit())
     const { walker } = harness(world, lineGraph())
     const outcome = await walker.go({ connectionId: CID, destination: 'Cave' })
-    expect(outcome).toEqual({ kind: 'stopped', reason: 'dialog' })
+    expect(outcome).toMatchObject({ kind: 'stopped', reason: 'dialog' })
     expect(world.closeClicks).toBe(1)
   })
 
@@ -1024,7 +1024,7 @@ describe('walker and a popup mid-walk (WP34)', () => {
     }
     const { walker } = harness(world, lineGraph())
     const outcome = await walker.go({ connectionId: CID, destination: 'Cave' })
-    expect(outcome).toEqual({ kind: 'stopped', reason: 'protected' })
+    expect(outcome).toMatchObject({ kind: 'stopped', reason: 'protected' })
     expect(world.closeClicks).toBe(0)
     expect(world.otherKeys).toEqual([])
     // One step was posted before the walker could know the pane was up: the
@@ -1068,7 +1068,7 @@ describe('walker and a popup mid-walk (WP34)', () => {
     }
     const { walker } = harness(world, lineGraph())
     const outcome = await walker.go({ connectionId: CID, destination: 'Cave' })
-    expect(outcome).toEqual({ kind: 'stopped', reason: 'dialog' })
+    expect(outcome).toMatchObject({ kind: 'stopped', reason: 'dialog' })
     expect(world.otherKeys).toEqual([0x1b])
   })
 
@@ -1095,7 +1095,7 @@ describe('walker and a gated map (WP32)', () => {
     world.passport = { registered: false, citizenship: 4 }
     const { walker } = harness(world, lineGraph(), [FIELD_GATE])
     const outcome = await walker.go({ connectionId: CID, destination: 'Cave' })
-    expect(outcome).toEqual({ kind: 'stopped', reason: 'gated' })
+    expect(outcome).toMatchObject({ kind: 'stopped', reason: 'gated' })
     expect(world.presses).toBe(0)
   })
 
@@ -1104,7 +1104,7 @@ describe('walker and a gated map (WP32)', () => {
     world.passport = { registered: true, citizenship: 6 }
     const { walker } = harness(world, lineGraph(), [FIELD_GATE])
     const outcome = await walker.go({ connectionId: CID, destination: 'Cave' })
-    expect(outcome).toEqual({ kind: 'stopped', reason: 'gated' })
+    expect(outcome).toMatchObject({ kind: 'stopped', reason: 'gated' })
     expect(world.presses).toBe(0)
   })
 
@@ -1126,7 +1126,7 @@ describe('walker and a gated map (WP32)', () => {
         connectionId: CID,
         destination: 'Cave'
       })
-    ).toEqual({ kind: 'stopped', reason: 'gated' })
+    ).toMatchObject({ kind: 'stopped', reason: 'gated' })
     expect(nowhere.presses).toBe(0)
   })
 
@@ -1163,13 +1163,13 @@ describe('walker and a gated map (WP32)', () => {
     world.passport = { registered: true, citizenship: 6 }
     const { walker } = harness(world, lineGraph())
     const first = await walker.go({ connectionId: CID, destination: 'Cave' })
-    expect(first).toEqual({ kind: 'stopped', reason: 'gated' })
+    expect(first).toMatchObject({ kind: 'stopped', reason: 'gated' })
     // It reached the warp and was refused there: no three-stall grind.
     const pressesToTheGate = world.presses
     expect(world.position).toMatchObject({ mapId: 1 })
 
     const second = await walker.go({ connectionId: CID, destination: 'Cave' })
-    expect(second).toEqual({ kind: 'stopped', reason: 'gated' })
+    expect(second).toMatchObject({ kind: 'stopped', reason: 'gated' })
     expect(world.presses).toBe(pressesToTheGate)
   })
 
@@ -1179,12 +1179,12 @@ describe('walker and a gated map (WP32)', () => {
     world.gatedMaps.set(2, 'Mileth')
     world.passport = { registered: true, citizenship: 4 }
     const { walker } = harness(world, lineGraph())
-    expect(await walker.go({ connectionId: CID, destination: 'Cave' })).toEqual({
+    expect(await walker.go({ connectionId: CID, destination: 'Cave' })).toMatchObject({
       kind: 'stopped',
       reason: 'gated'
     })
     const presses = world.presses
-    expect(await walker.go({ connectionId: CID, destination: 'Cave' })).toEqual({
+    expect(await walker.go({ connectionId: CID, destination: 'Cave' })).toMatchObject({
       kind: 'stopped',
       reason: 'gated'
     })
@@ -1196,7 +1196,7 @@ describe('walker and a gated map (WP32)', () => {
     world.passport = { registered: false }
     const { walker } = harness(world, lineGraph(), [FIELD_GATE])
     const outcome = await walker.go({ connectionId: CID, destination: 99 })
-    expect(outcome).toEqual({ kind: 'stopped', reason: 'noRoute' })
+    expect(outcome).toMatchObject({ kind: 'stopped', reason: 'noRoute' })
   })
 })
 
@@ -1244,7 +1244,7 @@ describe('a warp tile the map cache calls a wall', () => {
       { mapId: 2, name: 'Storage', exits: [] }
     ])
     const outcome = await walker.go({ connectionId: CID, destination: 'Storage' })
-    expect(outcome).toEqual({ kind: 'stopped', reason: 'blocked' })
+    expect(outcome).toMatchObject({ kind: 'stopped', reason: 'blocked' })
   })
 })
 
@@ -1278,7 +1278,7 @@ describe('a warp one tile past the graph', () => {
       { mapId: 2, name: 'Field', exits: [] }
     ])
     const outcome = await walker.go({ connectionId: CID, destination: 'Field' })
-    expect(outcome).toEqual({ kind: 'stopped', reason: 'blocked' })
+    expect(outcome).toMatchObject({ kind: 'stopped', reason: 'blocked' })
     expect(world.position).toMatchObject({ mapId: 1, x: 4, y: 0 })
   })
 })
@@ -1298,7 +1298,7 @@ describe('a warp that never fires', () => {
       { mapId: 2, name: 'Field', exits: [] }
     ])
     const outcome = await walker.go({ connectionId: CID, destination: 'Field' })
-    expect(outcome).toEqual({ kind: 'stopped', reason: 'blocked' })
+    expect(outcome).toMatchObject({ kind: 'stopped', reason: 'blocked' })
     expect(world.position).toMatchObject({ mapId: 1, x: 4, y: 0 })
   })
 })
@@ -1403,7 +1403,7 @@ describe('walker across the world map', () => {
     world.missClicks = 100
     const { walker } = harness(world, fieldGraph())
     const outcome = await walker.go({ connectionId: CID, destination: 'Abel Outskirts' })
-    expect(outcome).toEqual({ kind: 'stopped', reason: 'blocked' })
+    expect(outcome).toMatchObject({ kind: 'stopped', reason: 'blocked' })
     // Three tries per stand on the tile, three stands before the tile is
     // learned as blocked.
     expect(world.clicks.length).toBe(9)
@@ -1413,7 +1413,7 @@ describe('walker across the world map', () => {
   it('stops as blocked when the pane never opens, rather than waiting forever', async () => {
     const { walker, world } = harness(fieldWorld(null), fieldGraph())
     const outcome = await walker.go({ connectionId: CID, destination: 'Abel Outskirts' })
-    expect(outcome).toEqual({ kind: 'stopped', reason: 'blocked' })
+    expect(outcome).toMatchObject({ kind: 'stopped', reason: 'blocked' })
     expect(world.clicks).toEqual([])
     expect(world.position.mapId).toBe(2)
   })
@@ -1596,7 +1596,7 @@ describe('walker by right-click (WP35)', () => {
       if (w.position.x === 3) walker.stop(CID)
     }
     const outcome = await walker.go({ connectionId: CID, destination: 2 })
-    expect(outcome).toEqual({ kind: 'stopped', reason: 'user' })
+    expect(outcome).toMatchObject({ kind: 'stopped', reason: 'user' })
     expect(world.rightClicks).toHaveLength(1)
     expect(world.presses).toBe(0)
   })
@@ -1620,7 +1620,7 @@ describe('walker by right-click (WP35)', () => {
     const world = new World(maps, { mapId: 1, x: 0, y: 0 })
     const { walker } = harness(world, corridorGraph(12), [], 'rightClick')
     const outcome = await walker.go({ connectionId: CID, destination: 2 })
-    expect(outcome).toEqual({ kind: 'stopped', reason: 'lostPosition' })
+    expect(outcome).toMatchObject({ kind: 'stopped', reason: 'lostPosition' })
   })
 
   it('is off by default: the key walk is unchanged and no right press is posted', async () => {

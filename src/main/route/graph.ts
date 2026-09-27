@@ -168,6 +168,21 @@ export interface PlanOptions {
    * passes the gated maps its character cannot enter (WP32).
    */
   passable?: (mapId: number) => boolean
+  /**
+   * Whether the walk may take a **candidate** edge: one the imported world XML
+   * proposes and the wire has never crossed (WP24).
+   *
+   * The XML holds 3171 candidate edges against 2132 the graph routes over, and
+   * they are the difference between 224 maps reachable from Mileth and 485. A
+   * candidate names the right destination; what it can get wrong is the tile,
+   * by one (the Town Hall door, y 5 against y 6), and that failure is safe: the
+   * warp does not fire, the walker marks the tile and re-plans, and the leg
+   * stops at worst. Crossing one is also the only thing that confirms it, so
+   * the walker and the explorer both ask for them; the route is then shown as
+   * unconfirmed rather than refused (2026-09-27, on a Walker that would not
+   * route to a map it had the way to).
+   */
+  useCandidates?: boolean
 }
 
 /** True for an exit the walker can take: a step, a world-map click, or a prompt. */
@@ -177,6 +192,16 @@ function walkable(exit: RouteExit): boolean {
 
 export function createRouteGraph(nodes: RouteNode[]): RouteGraph {
   const byId = new Map<number, RouteNode>(nodes.map((n) => [n.mapId, n]))
+
+  /**
+   * The edges a walk may take out of one map. Candidates come last, so a
+   * confirmed edge to the same map is always preferred.
+   */
+  function exitsOf(node: RouteNode, options?: PlanOptions): RouteExit[] {
+    const exits = node.exits.filter(walkable)
+    if (options?.useCandidates !== true) return exits
+    return [...exits, ...(node.candidates ?? []).filter(walkable)]
+  }
 
   function node(mapId: number): RouteNode | null {
     return byId.get(mapId) ?? null
@@ -226,8 +251,7 @@ export function createRouteGraph(nodes: RouteNode[]): RouteGraph {
     while (queue.length > 0) {
       const current = queue.shift()!
       const distance = reached.get(current)! + 1
-      for (const exit of byId.get(current)!.exits) {
-        if (!walkable(exit)) continue
+      for (const exit of exitsOf(byId.get(current)!, options)) {
         if (reached.has(exit.toMapId) || !byId.has(exit.toMapId)) continue
         if (!passable(exit.toMapId)) continue
         reached.set(exit.toMapId, distance)
@@ -254,8 +278,7 @@ export function createRouteGraph(nodes: RouteNode[]): RouteGraph {
     let found = false
     while (queue.length > 0 && !found) {
       const current = queue.shift()!
-      for (const exit of byId.get(current)!.exits) {
-        if (!walkable(exit)) continue
+      for (const exit of exitsOf(byId.get(current)!, options)) {
         if (visited.has(exit.toMapId) || !byId.has(exit.toMapId)) continue
         if (!passable(exit.toMapId)) continue
         visited.add(exit.toMapId)
@@ -282,9 +305,8 @@ export function createRouteGraph(nodes: RouteNode[]): RouteGraph {
     for (let i = 0; i < path.length - 1; i++) {
       const from = path[i]
       const to = path[i + 1]
-      const warps = byId
-        .get(from)!
-        .exits.filter((e) => e.toMapId === to && walkable(e))
+      const warps = exitsOf(byId.get(from)!, options)
+        .filter((e) => e.toMapId === to)
         .map((e) => ({ x: e.x, y: e.y, ...(e.via !== undefined ? { via: e.via } : {}) }))
       legs.push({ fromMapId: from, toMapId: to, warps })
     }

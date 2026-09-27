@@ -101,12 +101,12 @@ function fakeWalker(world: World): Walker {
   }
 }
 
-function build(world: World) {
+function build(world: World, nodes: RouteNode[] = NODES) {
   const log = fakeLogger()
   const states: ReturnType<typeof explorer.states>[number][] = []
   const explorer = createExplorer({
     walker: fakeWalker(world),
-    graph: () => createRouteGraph(NODES),
+    graph: () => createRouteGraph(nodes),
     readMaps: async () => new Set(world.read),
     positionFor: (id) => (id === CID ? world.position : null),
     healthFor: (id) => {
@@ -209,13 +209,30 @@ describe('the explorer (WP41)', () => {
     it('sets one map aside and carries on, and never asks for it again', async () => {
       const world = makeWorld()
       const { explorer } = build(world)
-      world.outcomes = [{ kind: 'stopped', reason: 'blocked' }]
+      world.outcomes = [{ kind: 'stopped', reason: 'blocked', stepsTaken: 4 }]
       const outcome = await explorer.run({ connectionId: CID })
       expect(outcome).toEqual({ kind: 'ended', reason: 'done' })
       // 2 was refused, so the run took 4, then reached 3 through 2 without
       // making 2 a target again. A map set aside is asked for exactly once.
       expect(world.requests).toEqual([2, 4, 3])
       expect(world.requests.filter((id) => id === 2)).toHaveLength(1)
+    })
+
+    it('stops the run when no step left the current map, rather than blaming the target', async () => {
+      // One unwalkable map cost 13 good ones in a third of a second before this
+      // rule: every target was set aside for a failure at the origin.
+      const world = makeWorld()
+      const { explorer } = build(world)
+      world.outcomes = [{ kind: 'stopped', reason: 'blocked', stepsTaken: 0 }]
+      expect(await explorer.run({ connectionId: CID })).toEqual({ kind: 'ended', reason: 'stuck' })
+      expect(world.requests).toEqual([2])
+    })
+
+    it('treats a blocked walk with no step count as one that never moved', async () => {
+      const world = makeWorld()
+      const { explorer } = build(world)
+      world.outcomes = [{ kind: 'stopped', reason: 'blocked' }]
+      expect(await explorer.run({ connectionId: CID })).toEqual({ kind: 'ended', reason: 'stuck' })
     })
 
     it('sets a map aside for a gate refusal, because that is one map and not the session', async () => {
@@ -230,7 +247,7 @@ describe('the explorer (WP41)', () => {
     it('reports a map set aside in the log, so the run can be read afterwards', async () => {
       const world = makeWorld()
       const { explorer, log } = build(world)
-      world.outcomes = [{ kind: 'stopped', reason: 'blocked' }]
+      world.outcomes = [{ kind: 'stopped', reason: 'blocked', stepsTaken: 4 }]
       await explorer.run({ connectionId: CID })
       expect(log.entries.some((e) => e.level === 'warn' && e.message.includes('set aside'))).toBe(
         true
@@ -374,6 +391,32 @@ describe('the explorer (WP41)', () => {
     })
   })
 
+  it('reports stuck, not done, when it strands itself on a map with no way on', async () => {
+    // A run walked into the Wastelands and reported `done` with 185 maps unread,
+    // because nothing was reachable from there (2026-09-27).
+    const deadEnd: RouteNode[] = [
+      { mapId: 1, name: 'Mileth', exits: [{ toMapId: 9, x: 5, y: 0 }] },
+      { mapId: 9, name: 'Wastelands', exits: [] },
+      { mapId: 50, name: 'Abel', exits: [] }
+    ]
+    const world = makeWorld()
+    const { explorer } = build(world, deadEnd)
+    expect(await explorer.run({ connectionId: CID })).toEqual({ kind: 'ended', reason: 'stuck' })
+    // It got to the Wastelands, and Abel is still unread and out of reach.
+    expect(world.requests).toEqual([9])
+  })
+
+  it('still reports done when every map in the graph has been read', async () => {
+    const closed: RouteNode[] = [
+      { mapId: 1, name: 'Mileth', exits: [{ toMapId: 2, x: 5, y: 0 }] },
+      { mapId: 2, name: 'Mileth Inn', exits: [{ toMapId: 1, x: 5, y: 9 }] }
+    ]
+    const world = makeWorld()
+    const { explorer } = build(world, closed)
+    expect(await explorer.run({ connectionId: CID })).toEqual({ kind: 'ended', reason: 'done' })
+    expect(world.requests).toEqual([2])
+  })
+
   it('pushes a state for each change, ending with the run stopped and its reason', async () => {
     const world = makeWorld({ read: new Set([1, 2, 3]) })
     const { explorer, states } = build(world)
@@ -388,7 +431,7 @@ describe('the explorer (WP41)', () => {
   it('counts what it visited and what it set aside', async () => {
     const world = makeWorld()
     const { explorer, states } = build(world)
-    world.outcomes = [{ kind: 'stopped', reason: 'blocked' }]
+    world.outcomes = [{ kind: 'stopped', reason: 'blocked', stepsTaken: 4 }]
     await explorer.run({ connectionId: CID })
     const last = states[states.length - 1]
     expect(last).toMatchObject({ visited: 2, skipped: 1 })
