@@ -249,9 +249,10 @@ trigger is in each doc's header.
 `00a-backlog.md` now holds only what is not a WP: the non-goals, the debts owed to another repo, and
 the one conditional rule.
 
-One feature deferred out of WP19 is a card without a WP doc, because it is not scheduled: list
-virtualization is `HTOO-85` (measure first; nothing is slow). The composited character doll, the
-other, became WP37 and shipped.
+Both features deferred out of WP19 have now shipped, neither as a WP doc. The composited character doll
+became WP37. List virtualization (`HTOO-85`) landed on its trigger on 2026-09-28: the Items index is
+windowed above 60 rows, after measuring 1866 ms and 9532 DOM nodes to mount 703 rows, and 5738 ms for 2805. The bounded lists — inventory, bank, legend — stay unwindowed on purpose. The rule is in
+`CLAUDE.md`.
 
 ## Conventions every WP follows
 

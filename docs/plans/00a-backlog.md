@@ -6,9 +6,9 @@ debts owed to another repo, and the one conditional rule.
 **Slotted work now lives in the WP table.** Everything that used to sit here as "owed but not built"
 is a numbered, trigger-gated WP (WP20–WP28), with its promotion trigger in its own doc header. See
 the "Triggered follow-ons" table in `00-overview.md`. The multi-client decode is WP12,
-and `SPursuitMessage 0x30` is WP17's first job. List virtualization (`HTOO-85`) and the composited
-character doll (the client's `HumanImage`, `HTOO-84`) are deferred out of WP19; see the non-goals in
-`19-read-app-polish.md`, each with its trigger.
+and `SPursuitMessage 0x30` is WP17's first job. The two features deferred out of WP19 have both
+shipped: the composited character doll (`HTOO-84`) as WP37, and list virtualization (`HTOO-85`) on its
+trigger on 2026-09-28.
 
 **The non-goals below stay off the board on purpose.** They are permanent declines, and a backlog
 card would read as intent to build. The conditional rule is a guard, so it gets no card either. Only

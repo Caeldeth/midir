@@ -95,7 +95,9 @@ sections.
   WP. _Trigger:_ a decision to build the doll. _Card:_ `HTOO-84`.
 - **No list virtualization in this pass.** The Items index and the inventory list are not windowed
   here. The inventory list is now inside a collapsed accordion, which lowers the pressure.
-  _Trigger:_ a slow list on a real long capture. _Card:_ `HTOO-85`.
+  _Trigger:_ a slow list on a real long capture. _Card:_ `HTOO-85`. **Fired on 2026-09-28** and the
+  Items index is windowed. The inventory list never needed it: 60 slots is bounded, and the trigger
+  was the index, which grows with every character.
 - **No theme-label change** in `ThemePicker.tsx`, and **no Laborer rename** (that stays with the
   assistants, WP13–WP18).
 - **No navigation change**, no new capture behaviour, and **no read-path cap**. Nothing in the
