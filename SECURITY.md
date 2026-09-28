@@ -2,7 +2,7 @@
 
 ## What Midir is
 
-Midir is a **local desktop companion for the retail Dark Ages client**. It runs on one machine, for one player, beside the game. It captures the game client's network traffic through Npcap, decodes the protocol, and keeps a record of the player's own characters. It has no server, no accounts, no telemetry, and no network egress of its own: the only bytes Midir touches on the network are the ones the game client already sends and receives, and Midir only reads them.
+Midir is a **local desktop companion for the retail Dark Ages client**. It runs on one machine, for one player, beside the game. It captures the game client's network traffic through Npcap, decodes the protocol, and keeps a record of the player's own characters. It has no server, no accounts, and no telemetry. It makes **one outbound request of its own**, the update check described in the table below; apart from that request, the only bytes Midir touches on the network are the ones the game client already sends and receives, and Midir only reads them.
 
 Midir also drives the game client, by posting keys and clicks to its window, when the player starts an assistant. It sends no packet, injects nothing, reads no memory, and never automates a credential dialog.
 
@@ -22,6 +22,7 @@ The main process is the only code that touches the filesystem, the capture, and 
 | Opening a link | `http`, `https`, and `mailto` only (`src/shared/externalUrl.ts`). A `file:`, `smb:`, or custom-scheme URL is refused rather than handed to the operating system. |
 | Content Security Policy | On the response header and in each document's `<meta>`, the two pinned equal by a test; the splash grants no script source at all. |
 | The game protocol on the wire | Read only, through Npcap. Every cipher input is on the wire in the clear or a constant, so Midir holds no key that the game does not already show. Nothing is sent. |
+| Midir's own outbound request | One unauthenticated `GET` of the house version manifest on `raw.githubusercontent.com`, through `net.fetch` so it takes the system proxy and the OS certificate store. It carries no user data and no identifier beyond a `User-Agent` naming the app, and it runs twice at most: ten seconds after start, and when the player asks. The response is read as JSON, checked against one schema, and a release URL is refused unless it is `https` and under `appIdentity.releaseUrlPrefix` — the manifest is in a repository other maintainers can write, so that check is what stops an edit there sending Midir's users elsewhere (`src/shared/updateVersion.ts`). It notices a release and never downloads or installs one. |
 | Session recordings on disk | `src/main/capture/scrub.ts` drops every client frame whose opcode can carry a credential before a recording is written, and stops recording a connection's client direction after a TCP gap rather than resynchronise into a credential. Two limits are stated there and in `CLAUDE.md`: the bare `tcp` filter and the HTTP dialog. |
 | The game window | Driven by posted window messages only, through one action layer with a global stop hotkey and a stop on losing the window. No packet, no injected code, no memory read or write. The credential pane (dialog type 9) is never touched, and no assistant types into a login or password field. |
 | Settings and app state on disk | Zod-validated on load and save; written atomically (temp → rename) with a backup. A single-instance lock keeps a second Midir from writing the same files. |
@@ -49,7 +50,7 @@ The latest release only. Midir ships forward; there are no maintenance branches.
 ## Known gaps
 
 - **Electron fuses are not yet set** (`runAsNode`, `--inspect`, `NODE_OPTIONS`, asar-only loading). Tracked house-wide as HTOO-374; Midir's row is owed.
-- **No update check.** A release is found by the player, not announced by the app (HTOO-65).
+- **No automatic update.** Midir notices a newer release and says so (HTOO-65). Midir does not download it, and no code path writes over the installation. The player downloads a release themselves, which also means an unsigned build is never replaced by something Midir chose.
 
 ## Out of scope
 

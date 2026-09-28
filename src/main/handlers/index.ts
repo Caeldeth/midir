@@ -18,6 +18,7 @@ import { registerIconsHandlers } from './icons'
 import { registerGraphHandlers, type GraphHandlerContext } from './graph'
 import { registerMapHandlers, type MapHandlerContext } from './map'
 import { registerSettingsHandlers, type SettingsHandlerContext } from './settings'
+import { registerUpdateHandlers, type UpdateHandlerContext } from './updates'
 
 export * from './assist'
 export * from './boards'
@@ -27,6 +28,7 @@ export * from './diagnostics'
 export * from './icons'
 export * from './map'
 export * from './settings'
+export * from './updates'
 
 export interface HandlerContext
   extends
@@ -37,7 +39,8 @@ export interface HandlerContext
     AssistHandlerContext,
     BoardHandlerContext,
     GraphHandlerContext,
-    MapHandlerContext {
+    MapHandlerContext,
+    UpdateHandlerContext {
   settingsPath: string
   settingsManager: ReturnType<typeof createSettingsManager>
   appGetVersion: () => string
@@ -101,4 +104,5 @@ export function registerHandlers(deps: RegisterDeps, ctx: HandlerContext): void 
   registerBoardHandlers(ipcMain, dialog, BrowserWindow, ctx)
   registerMapHandlers(ipcMain, ctx)
   registerGraphHandlers(ipcMain, ctx)
+  registerUpdateHandlers(ipcMain, ctx)
 }

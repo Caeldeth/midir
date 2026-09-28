@@ -100,7 +100,7 @@ WP40 (each map's music track)   COMPLETE — complete/40-map-music.md — a trac
 WP41 (the explorer)   COMPLETE — complete/41-explorer.md — the sweep by unread maps per walk, with scopes and a hostile list
 WP42 (legend badges and colour)   COMPLETE — complete/42-legend-badges.md — the client's own sheet, and the mark's text palette
 WP43 (the world graph view)   COMPLETE — complete/43-world-graph-view.md — the graph as a graph: 334 pieces over routed warps, 9 with candidates
-WP44 (the house update check)   PLANNED — 44-update-check.md — a port of the house module; the manifest, not the releases API
+WP44 (the house update check)   COMPLETE — complete/44-update-check.md — the house module, ported; Midir's one outbound request
 ```
 
 WP7 was the one gap in the shipped run. It was specified, deferred for the protocol work that kept paying better, and the WPs after it kept their numbers rather than closing the hole. It is now built: item icons come off the game's own `legend.dat`, drawn through a privileged protocol.
@@ -166,7 +166,7 @@ Each is a real WP with a doc, but is trigger-gated: it starts when its trigger f
 | WP41 | L | The explorer (unsteered visits) | HTOO-476 | COMPLETE 2026-09-27 (#46) — `complete/41-explorer.md`; retest owed |
 | WP42 | S | Legend badges from the client | HTOO-482 | COMPLETE 2026-09-27 (#46) — `complete/42-legend-badges.md` |
 | WP43 | M | The world graph view | HTOO-483 | COMPLETE 2026-09-27 (#48) — `complete/43-world-graph-view.md`; retest owed |
-| WP44 | S | The house update check | HTOO-495 | PLANNED — `44-update-check.md`; a port of the house module, not a design |
+| WP44 | S | The house update check | HTOO-495 | COMPLETE — `complete/44-update-check.md`; the module ported, and Midir's first outbound request stated |
 
 `00a-backlog.md` now holds only what is not a WP: the non-goals, the debts owed to another repo, and the one conditional rule.
 

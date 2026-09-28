@@ -17,6 +17,7 @@ import { useCharacterStore } from '@renderer/store/characterStore'
 import { useBoardStore } from '@renderer/store/boardStore'
 import { useReportStore } from '@renderer/store/reportStore'
 import ReportIssueDialog from '@renderer/components/ReportIssueDialog'
+import UpdateNotice from '@renderer/components/UpdateNotice'
 import { useDiagnosticsStore } from '@renderer/store/diagnosticsStore'
 import { useSpeakerStore } from '@renderer/store/speakerStore'
 import { useWalkerStore } from '@renderer/store/walkerStore'
@@ -159,6 +160,11 @@ function App(): React.JSX.Element {
         {/* Mounted once, closed, for both openers (the title bar and the About
             card). The error boundary's fallback mounts its own instance. */}
         <ReportIssueDialog open={reportOpen} onClose={() => setReportOpen(false)} />
+        {/* The update notice (WP44). Mounted outside the hydration gate, beside
+            the dialog: it renders nothing until its own check answers, ten
+            seconds after mount, so it competes with neither start nor the
+            splash. */}
+        <UpdateNotice />
         {hydrated ? (
           <>
             <NavBar value={view} onChange={setView} showDiagnostics={showDiagnostics} />

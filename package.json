@@ -22,6 +22,7 @@
     "e2e:only": "playwright test",
     "typecheck": "tsc --build",
     "format": "prettier --write .",
+    "publish:version": "node scripts/publish-version.mjs",
     "lint": "eslint . --fix",
     "lint:check": "eslint . --max-warnings 0",
     "start": "electron-vite preview",
