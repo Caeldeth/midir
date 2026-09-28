@@ -24,10 +24,13 @@ turns that into a versioned, downloadable build.
 6. **App standards are in place first (WP28).** The single-instance lock, the taskbar identity, and
    the icon are correct before a build goes to anyone. A release with two instances writing one store
    is not shippable.
-7. **The update check comes with the first release (HTOO-65).** WP28 deferred it here because a
-   check needs a version to compare against. The template's copy (`updateCheck.ts`,
-   `UpdateSnackbar.tsx`, landed 2026-09-20) is a lift: Midir is a public repository, so the
-   releases-API read works without HTOO-382. It notifies; it does not install (non-goal below).
+7. **The update check is WP44, and this release only feeds it (HTOO-65).** WP28 deferred the check
+   here because a check needs a version to compare against. That is no longer where it belongs: the
+   house standardised one update-check module on 2026-09-28, it reads a manifest rather than the
+   releases API, and a key with no entry answers `no-entry` — so it can land before any release
+   exists. WP44 ports it. **What stays here is one step of the release itself:**
+   `npm run publish:version`, which writes Midir's version into the manifest, and the line for it in
+   `docs/release-process.md`. It notifies; it does not install (non-goal below).
 
 ## Non-goals (stop-lines)
 
