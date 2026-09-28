@@ -4,17 +4,11 @@
 
 ## Goal
 
-Know where the character is standing, and on which map, from the packets alone. This is the WP that
-lets Midir replace DA Walker's `ReadProcessMemory` with a decoder, and it is worth building on its
-own even if the walker never ships: "which map, which tile, since when" is the first thing every
-later assistant asks.
+Know where the character is standing, and on which map, from the packets alone. This is the WP that lets Midir replace DA Walker's `ReadProcessMemory` with a decoder, and it is worth building on its own even if the walker never ships: "which map, which tile, since when" is the first thing every later assistant asks.
 
 ## Why this is not a memory read
 
-DA Walker resolves the map number and the coordinates through a pointer chain in `DAData.xml`
-(`<MapNum o1="26C">00882E68</MapNum>`, `<Coords o1="238" size="4">00882E68</Coords>`). That works
-until the client is rebuilt, and it needs `OpenProcess` on a running game. **The same facts are on
-the wire**, and the document repo already describes them:
+DA Walker resolves the map number and the coordinates through a pointer chain in `DAData.xml` (`<MapNum o1="26C">00882E68</MapNum>`, `<Coords o1="238" size="4">00882E68</Coords>`). That works until the client is rebuilt, and it needs `OpenProcess` on a running game. **The same facts are on the wire**, and the document repo already describes them:
 
 | Opcode | Page                                  | What it gives               |
 | ------ | ------------------------------------- | --------------------------- |
@@ -26,56 +20,36 @@ the wire**, and the document repo already describes them:
 | `0x3C` | `server/0x3C-map-data.md`             | the map's tile data         |
 | `0x58` | `server/0x58-map-load-complete.md`    | the client is done loading  |
 
-**This table was the plan; three rows were wrong.** `0x67`, `0x1F`, and `0x58` do not drive a map
-change on the 7.41 client. `0x15` is the only map signal. See "What shipped" below.
+**This table was the plan; three rows were wrong.** `0x67`, `0x1F`, and `0x58` do not drive a map change on the 7.41 client. `0x15` is the only map signal. See "What shipped" below.
 
-`ServerOpcode.UserPosition` is already named in `opcodes.ts` with **no decoder behind it**, which is
-where this starts.
+`ServerOpcode.UserPosition` is already named in `opcodes.ts` with **no decoder behind it**, which is where this starts.
 
 ## The one way to get this wrong
 
-**The client moves before the server confirms it.** The player walks, the client draws the step
-immediately and sends `CWalk 0x06`, and the server answers — sometimes with a correction. A position
-that only updates on the server's word lags every step; a position that only follows the client's
-own packets drifts through every refusal (a wall, a door, a freeze). Midir sees **both directions**,
-so it can do what the client does: step on the client's own walk, and snap to the server whenever
-the server speaks. Anything else will send the walker into a wall and blame the pathfinder.
+**The client moves before the server confirms it.** The player walks, the client draws the step immediately and sends `CWalk 0x06`, and the server answers — sometimes with a correction. A position that only updates on the server's word lags every step; a position that only follows the client's own packets drifts through every refusal (a wall, a door, a freeze). Midir sees **both directions**, so it can do what the client does: step on the client's own walk, and snap to the server whenever the server speaks. Anything else will send the walker into a wall and blame the pathfinder.
 
 ## Decisions
 
-1. **The position is a reducer, beside the character reducer, and just as pure.** `(state, packet)`
-   in, `{ mapId, x, y, facing, asOfMs, confidence }` out.
-2. **`confidence` is a field, not a comment.** `confirmed` when the server just spoke, `predicted`
-   when only the client's own walk has moved it, `unknown` after a gap or before the first `0x15`.
-   The walker refuses to step on `unknown` and re-syncs instead.
-3. **A map change clears the position rather than guessing it.** `0x67` sets `unknown`; the `0x15`
-   that follows sets the new map; the first `0x04` confirms the tile.
-4. **Position belongs to a connection, like everything else** (WP10's rule). Two clients means two
-   positions.
-5. **It is not persisted.** Where a character stood is a live fact, not a record. `CharacterRecord`
-   does not grow a position field — that would be a stale answer with a confident face on it.
-6. **Map tile data (`0x3C`) is decoded only if the walker needs it.** Walking a route between warps
-   may not need to know which tiles are passable; the world map graph might be enough. Decide with
-   WP15 in hand, and do not decode a large structure speculatively.
+1. **The position is a reducer, beside the character reducer, and just as pure.** `(state, packet)` in, `{ mapId, x, y, facing, asOfMs, confidence }` out.
+2. **`confidence` is a field, not a comment.** `confirmed` when the server just spoke, `predicted` when only the client's own walk has moved it, `unknown` after a gap or before the first `0x15`. The walker refuses to step on `unknown` and re-syncs instead.
+3. **A map change clears the position rather than guessing it.** `0x67` sets `unknown`; the `0x15` that follows sets the new map; the first `0x04` confirms the tile.
+4. **Position belongs to a connection, like everything else** (WP10's rule). Two clients means two positions.
+5. **It is not persisted.** Where a character stood is a live fact, not a record. `CharacterRecord` does not grow a position field — that would be a stale answer with a confident face on it.
+6. **Map tile data (`0x3C`) is decoded only if the walker needs it.** Walking a route between warps may not need to know which tiles are passable; the world map graph might be enough. Decide with WP15 in hand, and do not decode a large structure speculatively.
 
 ## Non-goals (stop-lines)
 
 - **No memory reads.** The whole point.
-- **No other entity's position.** Where the player is standing, not where anyone else is. The mob
-  and player positions on screen are a different feature and a much larger surface.
+- **No other entity's position.** Where the player is standing, not where anyone else is. The mob and player positions on screen are a different feature and a much larger surface.
 - **No map rendering, no minimap, no tile art.** That is a client, not a companion app.
 - **No persistence.**
 
 ## Current state when you start
 
-- [opcodes.ts:74](../../src/main/protocol/opcodes.ts#L74) — `UserPosition: 0x04`, named and
-  undecoded.
-- [decode/index.ts](../../src/main/protocol/decode/index.ts) — the `DECODERS` map to register into,
-  and the `DecodedPacket` union to extend.
-- [model/character.ts](../../src/main/model/character.ts) — the reducer to copy the shape of, not to
-  extend. This is a second reducer over the same packet stream.
-- [captureService.ts](../../src/main/captureService.ts) — where a per-connection position state
-  would live, next to `sessions`.
+- [opcodes.ts:74](../../src/main/protocol/opcodes.ts#L74) — `UserPosition: 0x04`, named and undecoded.
+- [decode/index.ts](../../src/main/protocol/decode/index.ts) — the `DECODERS` map to register into, and the `DecodedPacket` union to extend.
+- [model/character.ts](../../src/main/model/character.ts) — the reducer to copy the shape of, not to extend. This is a second reducer over the same packet stream.
+- [captureService.ts](../../src/main/captureService.ts) — where a per-connection position state would live, next to `sessions`.
 - Both protocol sources describe these opcodes; read both, as always.
 
 ## Contracts
@@ -95,16 +69,13 @@ export interface Position {
 export function reducePosition(state: Position | null, input: ReducerInput): Position | null
 ```
 
-`CaptureStatus` gains nothing. The position reaches the renderer only when an assistant needs to
-show it.
+`CaptureStatus` gains nothing. The position reaches the renderer only when an assistant needs to show it.
 
 ## Acceptance criteria
 
-1. A recorded session yields a position that tracks the character across a walk, and the map name
-   changes when the character changes map.
+1. A recorded session yields a position that tracks the character across a walk, and the map name changes when the character changes map.
 2. A client-side step moves the position to `predicted`; the next server word makes it `confirmed`.
-3. A server correction that disagrees with the prediction wins, without a jump the walker cannot
-   handle.
+3. A server correction that disagrees with the prediction wins, without a jump the walker cannot handle.
 4. A TCP gap sets `unknown`, and nothing reports a position until the next confirmation.
 5. Two connections keep two positions.
 6. Nothing is written to `CharacterRecord`.
@@ -112,46 +83,21 @@ show it.
 ## Verification
 
 1. `npm run typecheck && npm run lint:check && npm test && npm run build`.
-2. Unit tests over decoded-packet literals for each transition, including the correction and the
-   gap.
-3. **A replay of a real recording that contains a walk**, asserting the position track. The
-   recordings from 2026-07-23 contain map changes and movement, so this needs no new capture.
+2. Unit tests over decoded-packet literals for each transition, including the correction and the gap.
+3. **A replay of a real recording that contains a walk**, asserting the position track. The recordings from 2026-07-23 contain map changes and movement, so this needs no new capture.
 
 ## What shipped
 
-Built as three parts: `protocol/decode/movement.ts` decodes the packets, `model/position.ts` holds
-the `reducePosition` reducer, and `captureService.ts` keeps one `Position` for each connection with
-a `positionFor(connectionId)` accessor. The reducer is pure, the position is never saved, and
-`CharacterRecord` gained no field.
+Built as three parts: `protocol/decode/movement.ts` decodes the packets, `model/position.ts` holds the `reducePosition` reducer, and `captureService.ts` keeps one `Position` for each connection with a `positionFor(connectionId)` accessor. The reducer is pure, the position is never saved, and `CharacterRecord` gained no field.
 
-**Two protocol facts corrected the plan. Both were read from both sources and confirmed against a
-live capture.**
+**Two protocol facts corrected the plan. Both were read from both sources and confirmed against a live capture.**
 
-1. **`0x67`, `0x1F`, and `0x58` do not signal a map change. `0x15` (SMapSize) is the only signal.**
-   The original opcode table named `0x67` map-change-pending, `0x1F` map-change-completed, and
-   `0x58` map-load-complete. Both protocol sources agree these are wrong for the 7.41 build: `0x67`
-   is unhandled and the client emits it as a bookend around non-map events (for example the world-map
-   pane), `0x1F` is `SChangeWeather` and reads one byte, and `0x58` has no consumer. **There is no
-   map-change-completed opcode on the wire.** So decision 3 is implemented on `0x15` alone: a
-   `0x15` with a new map id clears the tile to `unknown`, and the first `0x04` confirms it. Midir
-   does not decode `0x67`, `0x1F`, or `0x58`. Gating a map change on `0x67` would send the position
-   `unknown` every time the player opens the world map, which would stop the walker for no reason.
+1. **`0x67`, `0x1F`, and `0x58` do not signal a map change. `0x15` (SMapSize) is the only signal.** The original opcode table named `0x67` map-change-pending, `0x1F` map-change-completed, and `0x58` map-load-complete. Both protocol sources agree these are wrong for the 7.41 build: `0x67` is unhandled and the client emits it as a bookend around non-map events (for example the world-map pane), `0x1F` is `SChangeWeather` and reads one byte, and `0x58` has no consumer. **There is no map-change-completed opcode on the wire.** So decision 3 is implemented on `0x15` alone: a `0x15` with a new map id clears the tile to `unknown`, and the first `0x04` confirms it. Midir does not decode `0x67`, `0x1F`, or `0x58`. Gating a map change on `0x67` would send the position `unknown` every time the player opens the world map, which would stop the walker for no reason.
 
-2. **Coordinates in `0x04` and `0x0B` are big-endian, like the rest of the protocol.** A live
-   capture settled it: `SUserPosition 04 00 2b 00 28` is `x=43, y=40`, not the `0x2b00` that a
-   little-endian read gives. The existing big-endian reader was correct; no new reader was added.
+2. **Coordinates in `0x04` and `0x0B` are big-endian, like the rest of the protocol.** A live capture settled it: `SUserPosition 04 00 2b 00 28` is `x=43, y=40`, not the `0x2b00` that a little-endian read gives. The existing big-endian reader was correct; no new reader was added.
 
-`0x3C` (map tile data) is not decoded. Decision 6 defers it until the walker needs it, and route
-walking between warps does not.
+`0x3C` (map tile data) is not decoded. Decision 6 defers it until the walker needs it, and route walking between warps does not.
 
-`SMove 0x0B` carries the **source** tile and a direction; the destination is the source plus the
-direction's delta. This was verified against a live walk, where each packet's source tile equals the
-previous packet's destination. Directions are `0` North, `1` East, `2` South, `3` West; a direction
-above `3` is a no-step correction that asserts the source tile itself.
+`SMove 0x0B` carries the **source** tile and a direction; the destination is the source plus the direction's delta. This was verified against a live walk, where each packet's source tile equals the previous packet's destination. Directions are `0` North, `1` East, `2` South, `3` West; a direction above `3` is a no-step correction that asserts the source tile itself.
 
-**Verified against the 26 recorded sessions.** The full decode-and-reduce chain produced 2005
-`confirmed`, 1932 `predicted`, and 190 `unknown` position updates across 26 named retail maps
-(Rucesion, Mileth, Abel, Loures, and more). The predicted-then-confirmed ladder held on every step:
-the client's `0x06` drew the tile, and the server's `0x0B` confirmed the same tile. Three confirmed
-steps in about four thousand jumped more than one tile on the same map; each is a within-map warp or
-a server correction, not a decode error.
+**Verified against the 26 recorded sessions.** The full decode-and-reduce chain produced 2005 `confirmed`, 1932 `predicted`, and 190 `unknown` position updates across 26 named retail maps (Rucesion, Mileth, Abel, Loures, and more). The predicted-then-confirmed ladder held on every step: the client's `0x06` drew the tile, and the server's `0x0B` confirmed the same tile. Three confirmed steps in about four thousand jumped more than one tile on the same map; each is a within-map warp or a server correction, not a decode error.

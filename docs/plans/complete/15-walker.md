@@ -1,158 +1,81 @@
 # WP15 — Walker
 
-**Size:** L. **Depends on:** WP13 (the action layer) and WP14 (where the character is). Read
-`00-overview.md` first. **COMPLETE.**
+**Size:** L. **Depends on:** WP13 (the action layer) and WP14 (where the character is). Read `00-overview.md` first. **COMPLETE.**
 
 ## As built
 
 Built as three pure cores, one driver, and the wiring, all provable with no game:
 
-- **The between-maps graph.** `scripts/import-worldmap.mjs` converts DA Walker's `WorldMap.dat` to
-  `src/main/route/worldmap.json` once (378 nodes, 152 named, 2068 exits, 0 lines skipped). The file
-  is messier than the plan's one rule: a header is `mapId arrivalX arrivalY [Name]`, not
-  `mapId -1 -1 Name` — the two coordinate fields are the map's default arrival tile and are `-1 -1`
-  only when unset. A leading `-1` is a flag the importer drops, and a caravan exit gives three ints
-  (destination and arrival coordinates) where a plain exit gives one. The importer is tolerant and
-  reports its coverage. `route/graph.ts` is the pure planner: a breadth-first search over the nodes
-  gives the ordered warps, and it resolves a name or a map id to a destination.
-- **The within-map A\*.** `route/pathfind.ts` is A* over a map's passability, four-connected, to the
-  next warp tile around walls.
-- **Passability from the disk map cache, not the wire.** This is the plan's one correction, and it
-  is a protocol fact. `SMapPart 0x3C` carries the tile rows **only on a cache miss**; a returning
-  player's client loads the map from `maps\lodNNNNN.map` and the server sends no rows. So the wire is
-  silent for almost every map in a normal session. `route/mapSource.ts` reads the map cache from disk
-  — the same six-byte cell format, complete for every visited map — and `sotp.dat` from `ia.dat`
-  through dalib-ts for the collision flags. Both are static game data files, read exactly as WP7
-  reads `legend.dat`: never memory, never a write. The map size comes from the live `SMapSize 0x15`,
-  which is on the wire even on a cache hit. `route/mapGrid.ts` joins the cells and SOTP into one
-  `canMove(x, y, direction)`, and it was checked against the real client: the cache is little-endian
-  (6367 of 6367 static ids on Mileth land inside SOTP's 20,423-entry table under a little-endian
-  read, and 3676 fall out of range under a big-endian read), and Mileth reads as 40% blocked with a
-  walkable centre.
-- **The driver.** `walker.ts` re-plans from the current position every step: it reads a confirmed
-  position, plans the route, A*s to the nearest reachable warp on the current map, posts one arrow
-  key, and waits for the wire to confirm the move before the next. A step that does not confirm is a
-  stall, three stalls in one place is a `blocked` stop, and a map change or a jump it did not ask for
-  is a `lostPosition` stop. The graph, the map source, the position feed, and the action layer are
-  all injected, so the whole driver runs against a fake action layer and a scripted position.
-- **Position gained the map size.** `Position` now carries `mapWidth` and `mapHeight` from
-  `SMapSize`, threaded through the WP14 reducer, so the walker can index the header-less map cache.
-- **The UI.** A Walker tab beside the Speaker: a window picker, a destination autocomplete over the
-  named maps, Go and Stop, the shared "stop everything", and a live status line (where the character
-  stands, the next warp, the steps taken, and how the walk ended).
+- **The between-maps graph.** `scripts/import-worldmap.mjs` converts DA Walker's `WorldMap.dat` to `src/main/route/worldmap.json` once (378 nodes, 152 named, 2068 exits, 0 lines skipped). The file is messier than the plan's one rule: a header is `mapId arrivalX arrivalY [Name]`, not `mapId -1 -1 Name` — the two coordinate fields are the map's default arrival tile and are `-1 -1` only when unset. A leading `-1` is a flag the importer drops, and a caravan exit gives three ints (destination and arrival coordinates) where a plain exit gives one. The importer is tolerant and reports its coverage. `route/graph.ts` is the pure planner: a breadth-first search over the nodes gives the ordered warps, and it resolves a name or a map id to a destination.
+- **The within-map A\*.** `route/pathfind.ts` is A* over a map's passability, four-connected, to the next warp tile around walls.
+- **Passability from the disk map cache, not the wire.** This is the plan's one correction, and it is a protocol fact. `SMapPart 0x3C` carries the tile rows **only on a cache miss**; a returning player's client loads the map from `maps\lodNNNNN.map` and the server sends no rows. So the wire is silent for almost every map in a normal session. `route/mapSource.ts` reads the map cache from disk — the same six-byte cell format, complete for every visited map — and `sotp.dat` from `ia.dat` through dalib-ts for the collision flags. Both are static game data files, read exactly as WP7 reads `legend.dat`: never memory, never a write. The map size comes from the live `SMapSize 0x15`, which is on the wire even on a cache hit. `route/mapGrid.ts` joins the cells and SOTP into one `canMove(x, y, direction)`, and it was checked against the real client: the cache is little-endian (6367 of 6367 static ids on Mileth land inside SOTP's 20,423-entry table under a little-endian read, and 3676 fall out of range under a big-endian read), and Mileth reads as 40% blocked with a walkable centre.
+- **The driver.** `walker.ts` re-plans from the current position every step: it reads a confirmed position, plans the route, A*s to the nearest reachable warp on the current map, posts one arrow key, and waits for the wire to confirm the move before the next. A step that does not confirm is a stall, three stalls in one place is a `blocked` stop, and a map change or a jump it did not ask for is a `lostPosition` stop. The graph, the map source, the position feed, and the action layer are all injected, so the whole driver runs against a fake action layer and a scripted position.
+- **Position gained the map size.** `Position` now carries `mapWidth` and `mapHeight` from `SMapSize`, threaded through the WP14 reducer, so the walker can index the header-less map cache.
+- **The UI.** A Walker tab beside the Speaker: a window picker, a destination autocomplete over the named maps, Go and Stop, the shared "stop everything", and a live status line (where the character stands, the next warp, the steps taken, and how the walk ended).
 
-**Two things wait on a live check.** The walk keys are the arrow keys (`route`/`walker.ts`
-`DIRECTION_KEY`), which is the one fact the GUI check proves. And doors are treated as walls in the
-static grid: A* routes around a closed door, and `SStaticObjectState 0x32` dynamic door state is a
-follow-on, WP31.
+**Two things wait on a live check.** The walk keys are the arrow keys (`route`/`walker.ts` `DIRECTION_KEY`), which is the one fact the GUI check proves. And doors are treated as walls in the static grid: A* routes around a closed door, and `SStaticObjectState 0x32` dynamic door state is a follow-on, WP31.
 
 ## Goal
 
-Replace DA Walker: name a place, and the character walks there, across maps, by the route the world
-allows. It is the largest assistant and the one WP17 is built on.
+Replace DA Walker: name a place, and the character walks there, across maps, by the route the world allows. It is the largest assistant and the one WP17 is built on.
 
 ## What the legacy tool is, and what we keep
 
 `DAWalker.exe` is two things worth taking and one worth dropping:
 
-- **Keep the route graph.** `WorldMap.dat` is a text file of nodes: a map id, a name, and for each
-  neighbour the destination map and the tile that warps to it. It is a hand-built map of how the
-  world connects, and it is the expensive part — years of somebody walking the world. Import it for
-  now; do not rebuild it by hand. **It may be reconstructable later — see the note below** — but
-  that is a future improvement, not a reason to delay this WP.
-- **Keep the shape of the search.** `InitDistRouteTables`, `BPath`, `FindAndMoveToClosest`,
-  `doorWalk` — an all-pairs table over the map graph, then a walk within each map.
+- **Keep the route graph.** `WorldMap.dat` is a text file of nodes: a map id, a name, and for each neighbour the destination map and the tile that warps to it. It is a hand-built map of how the world connects, and it is the expensive part — years of somebody walking the world. Import it for now; do not rebuild it by hand. **It may be reconstructable later — see the note below** — but that is a future improvement, not a reason to delay this WP.
+- **Keep the shape of the search.** `InitDistRouteTables`, `BPath`, `FindAndMoveToClosest`, `doorWalk` — an all-pairs table over the map graph, then a walk within each map.
 - **Drop the memory reads.** `MapNum`, `Coords` and the rest of the pointer table are WP14 now.
 
 ## The route graph may be reconstructable from ceridwen (future)
 
-`WorldMap.dat` is hand-made, which makes it both valuable and stale-prone: it is only as current as
-whoever last walked the world. **Ceridwen already holds the same graph as authored data.** Each map
-XML carries its warps as source:
+`WorldMap.dat` is hand-made, which makes it both valuable and stale-prone: it is only as current as whoever last walked the world. **Ceridwen already holds the same graph as authored data.** Each map XML carries its warps as source:
 
 ```xml
 <Warp X="11" Y="5"><MapTarget X="2" Y="7">Path Temple 6</MapTarget></Warp>
 ```
 
-That is a node (the map), an edge (the warp tile), and its destination — the exact structure the
-`.dat` encodes — and the map XML also carries NPC positions (`<Npc Name="Donnan" X="2" Y="5"/>`),
-which is what WP17's "walk to Antonio" needs and `WorldMap.dat` does not have at all. 231 maps, 80
-with warps, in `Repos/ceridwen/xml/maps/`.
+That is a node (the map), an edge (the warp tile), and its destination — the exact structure the `.dat` encodes — and the map XML also carries NPC positions (`<Npc Name="Donnan" X="2" Y="5"/>`), which is what WP17's "walk to Antonio" needs and `WorldMap.dat` does not have at all. 231 maps, 80 with warps, in `Repos/ceridwen/xml/maps/`.
 
-**Ceridwen is the right source, once it exists.** Its intent is a **1:1 capture of the retail
-world** — not the divergent production data in `Repos/world`, which is a different, Hybrasyl-shaped
-world and must not be used for this. So a ceridwen-built graph is aligned with retail by design,
-which is exactly what a retail-only tool (settled decision 5) needs.
+**Ceridwen is the right source, once it exists.** Its intent is a **1:1 capture of the retail world** — not the divergent production data in `Repos/world`, which is a different, Hybrasyl-shaped world and must not be used for this. So a ceridwen-built graph is aligned with retail by design, which is exactly what a retail-only tool (settled decision 5) needs.
 
-**The catch, and why this is a note and not the plan: ceridwen is not built yet.** What is in
-`xml/maps/` today is partial and in progress, so it cannot be the source now. When it is complete,
-it should still be **verified against the positions WP14 reads off a live retail session** before it
-is trusted — a 1:1 capture is a goal until the wire confirms it, the same way every world-claim in
-these docs is an assumption until someone who knows says otherwise.
+**The catch, and why this is a note and not the plan: ceridwen is not built yet.** What is in `xml/maps/` today is partial and in progress, so it cannot be the source now. When it is complete, it should still be **verified against the positions WP14 reads off a live retail session** before it is trusted — a 1:1 capture is a goal until the wire confirms it, the same way every world-claim in these docs is an assumption until someone who knows says otherwise.
 
-So: ship WP15 on the imported `WorldMap.dat`. Promote a ceridwen-derived graph when ceridwen is
-built out, or sooner if the hand-made graph goes stale or WP17 wants NPC coordinates the `.dat`
-cannot give. That is WP24; WP29 (learn transitions from the wire) is the other source that keeps the
-graph current.
+So: ship WP15 on the imported `WorldMap.dat`. Promote a ceridwen-derived graph when ceridwen is built out, or sooner if the hand-made graph goes stale or WP17 wants NPC coordinates the `.dat` cannot give. That is WP24; WP29 (learn transitions from the wire) is the other source that keeps the graph current.
 
 ## The one way to get this wrong
 
-**Open-loop walking.** The legacy tool presses a direction and assumes the step happened. Every
-failure mode of a walker is the same failure: the step did not happen, and the walker keeps
-counting. A wall, a door that needs opening, a freeze, a monster in the way, a lag spike — all of
-them look identical to a walker that does not read.
+**Open-loop walking.** The legacy tool presses a direction and assumes the step happened. Every failure mode of a walker is the same failure: the step did not happen, and the walker keeps counting. A wall, a door that needs opening, a freeze, a monster in the way, a lag spike — all of them look identical to a walker that does not read.
 
-Midir does read. **Every step is a step-and-confirm**: post the key, wait for WP14 to move the
-position, and re-plan when it does not. Steps that do not land are the normal case, not the error
-case, and a walker that treats them as errors will stop constantly.
+Midir does read. **Every step is a step-and-confirm**: post the key, wait for WP14 to move the position, and re-plan when it does not. Steps that do not land are the normal case, not the error case, and a walker that treats them as errors will stop constantly.
 
-Corollary: **never chain more keys than the confirmations you have.** The temptation to buffer six
-steps for smoothness is what turns a missed step into a walker embedded in a wall.
+Corollary: **never chain more keys than the confirmations you have.** The temptation to buffer six steps for smoothness is what turns a missed step into a walker embedded in a wall.
 
 ## Decisions
 
-1. **The route graph is data, imported once, and versioned in the repo** — converted from
-   `WorldMap.dat` to JSON at import time, not parsed at runtime. Keep a note of where it came from.
-2. **Two levels of planning, as the legacy tool has.** Between maps: a search over the graph, giving
-   a list of warps to take. Within a map: walk to the next warp's tile. They fail differently and
-   are debugged differently, so they stay separate.
-3. **Step, confirm, re-plan.** One key, one confirmation from WP14, then decide again. A step that
-   does not confirm within a timeout is a re-plan, not a retry, and three re-plans in the same place
-   is a stop with a reason.
-4. **`confidence` gates everything.** The walker does not move while the position is `unknown`; it
-   waits for a confirmation or gives up. WP14 exists to make this decidable.
-5. **It stops for the world, not just for the user.** Losing the character, a map change it did not
-   ask for, or a position that jumps further than one step, all stop it. Something else is moving
-   the character, and a walker that argues with it is a walker that walks into the sea.
-6. **Doors are a known special case** (`doorWalk` in the legacy tool). Model them explicitly; do not
-   let them look like a failed step.
-7. **The destination is a place, not a coordinate.** "Antonio", "the Mileth bank" — a named node in
-   the graph. Tiles are how it gets there, not how it is asked.
-8. **The walker drives one selected window** (WP13 decisions 9 and 10). The user picks the window,
-   the layer brings it to the foreground and binds the walker to its connection. A key never reaches
-   another window (WP13 decision 3).
+1. **The route graph is data, imported once, and versioned in the repo** — converted from `WorldMap.dat` to JSON at import time, not parsed at runtime. Keep a note of where it came from.
+2. **Two levels of planning, as the legacy tool has.** Between maps: a search over the graph, giving a list of warps to take. Within a map: walk to the next warp's tile. They fail differently and are debugged differently, so they stay separate.
+3. **Step, confirm, re-plan.** One key, one confirmation from WP14, then decide again. A step that does not confirm within a timeout is a re-plan, not a retry, and three re-plans in the same place is a stop with a reason.
+4. **`confidence` gates everything.** The walker does not move while the position is `unknown`; it waits for a confirmation or gives up. WP14 exists to make this decidable.
+5. **It stops for the world, not just for the user.** Losing the character, a map change it did not ask for, or a position that jumps further than one step, all stop it. Something else is moving the character, and a walker that argues with it is a walker that walks into the sea.
+6. **Doors are a known special case** (`doorWalk` in the legacy tool). Model them explicitly; do not let them look like a failed step.
+7. **The destination is a place, not a coordinate.** "Antonio", "the Mileth bank" — a named node in the graph. Tiles are how it gets there, not how it is asked.
+8. **The walker drives one selected window** (WP13 decisions 9 and 10). The user picks the window, the layer brings it to the foreground and binds the walker to its connection. A key never reaches another window (WP13 decision 3).
 
 ## Non-goals (stop-lines)
 
-- **No combat, no looting, no targeting.** Movement only. This is the line that keeps a walker a
-  walker.
-- **No packet-sent movement.** Walking is the case where posted keys are perfectly adequate, and a
-  forged walk packet is both harder and the most visible thing on the wire. WP18 is not for this.
-- **No map exploration or graph learning.** The graph is data the user imports and can edit; the
-  walker does not go looking.
-- **No unattended running.** It walks when asked; it does not wait for a schedule. That is a
-  different feature with a different risk, and it needs its own decision.
+- **No combat, no looting, no targeting.** Movement only. This is the line that keeps a walker a walker.
+- **No packet-sent movement.** Walking is the case where posted keys are perfectly adequate, and a forged walk packet is both harder and the most visible thing on the wire. WP18 is not for this.
+- **No map exploration or graph learning.** The graph is data the user imports and can edit; the walker does not go looking.
+- **No unattended running.** It walks when asked; it does not wait for a schedule. That is a different feature with a different risk, and it needs its own decision.
 - **No following another player, no "go where my group went".**
 
 ## Current state when you start
 
-- `E:\Games\Dark Ages\Walker\WorldMap.dat` — the graph, as CRLF text: `mapId -1 -1 Name`, then per
-  neighbour a destination map id and an `x y` warp tile. Roughly 23 KB and hand-made.
-- `E:\Games\Dark Ages\Walker\DAData.xml` — the pointer table. Read it once to understand what the
-  legacy tool needed, then leave it: WP14 replaces all of it.
+- `E:\Games\Dark Ages\Walker\WorldMap.dat` — the graph, as CRLF text: `mapId -1 -1 Name`, then per neighbour a destination map id and an `x y` warp tile. Roughly 23 KB and hand-made.
+- `E:\Games\Dark Ages\Walker\DAData.xml` — the pointer table. Read it once to understand what the legacy tool needed, then leave it: WP14 replaces all of it.
 - WP13's `ActionLayer` for the keys; WP14's `Position` for the confirmations.
-- [main/log.ts](../../src/main/log.ts) — a walker that stops must say why, in the log the user can
-  actually send.
+- [main/log.ts](../../src/main/log.ts) — a walker that stops must say why, in the log the user can actually send.
 
 ## Contracts
 
@@ -195,9 +118,6 @@ export type WalkOutcome =
 ## Verification
 
 1. `npm run typecheck && npm run lint:check && npm test && npm run build`.
-2. **The planner is pure and gets the heaviest tests**: the graph search over the imported data,
-   including no-route, same-map, and multi-warp cases. No game and no action layer needed.
-3. The driver against WP13's fake action layer and a scripted WP14 position feed: the confirmed
-   step, the missed step, the re-plan, the blocked stop, the external move.
-4. GUI (hand to Sabrael, and the only check that proves it): a real client, a destination two maps
-   away, and a wall to walk into on purpose.
+2. **The planner is pure and gets the heaviest tests**: the graph search over the imported data, including no-route, same-map, and multi-warp cases. No game and no action layer needed.
+3. The driver against WP13's fake action layer and a scripted WP14 position feed: the confirmed step, the missed step, the re-plan, the blocked stop, the external move.
+4. GUI (hand to Sabrael, and the only check that proves it): a real client, a destination two maps away, and a wall to walk into on purpose.

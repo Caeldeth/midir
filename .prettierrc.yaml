@@ -2,3 +2,9 @@ singleQuote: true
 semi: false
 printWidth: 100
 trailingComma: none
+
+# Markdown prose is never hard-wrapped; the editor soft-wraps it.
+overrides:
+  - files: '*.md'
+    options:
+      proseWrap: never

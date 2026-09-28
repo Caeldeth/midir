@@ -59,9 +59,7 @@ If you install Npcap with the option "Restrict Npcap driver's access to Administ
 
 ## Credits
 
-The stand-in legend marks are from the [Game Icons](https://game-icons.net/) set, used under
-[CC BY 3.0](https://creativecommons.org/licenses/by/3.0/). Midir draws them when it cannot read your
-Dark Ages folder; when it can, it draws the game's own art from the files already on your computer.
+The stand-in legend marks are from the [Game Icons](https://game-icons.net/) set, used under [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/). Midir draws them when it cannot read your Dark Ages folder; when it can, it draws the game's own art from the files already on your computer.
 
 ## Start Midir before you log in
 
@@ -69,16 +67,16 @@ Midir learns the encryption keys from the login handshake. If you start Midir in
 
 ## Commands
 
-| Script                        | What it does                                                       |
-| ----------------------------- | ------------------------------------------------------------------ |
-| `npm run dev`                 | Launch with HMR                                                    |
-| `npm run typecheck`           | `tsc --build` (node and web projects)                              |
-| `npm run lint` / `lint:check` | ESLint (flat config), with and without `--fix`                     |
-| `npm test` / `test:coverage`  | Vitest (node and jsdom projects)                                   |
-| `npm run e2e` / `e2e:only`    | Playwright E2E on the built app (with and without a rebuild first) |
-| `npm run build:win`           | Package Windows nsis and portable                                  |
-| `npm run build:win:portable`  | Portable exe only                                                  |
-| `npm run build:unpack`        | Unpacked build for local smoke tests                               |
+| Script | What it does |
+| --- | --- |
+| `npm run dev` | Launch with HMR |
+| `npm run typecheck` | `tsc --build` (node and web projects) |
+| `npm run lint` / `lint:check` | ESLint (flat config), with and without `--fix` |
+| `npm test` / `test:coverage` | Vitest (node and jsdom projects) |
+| `npm run e2e` / `e2e:only` | Playwright E2E on the built app (with and without a rebuild first) |
+| `npm run build:win` | Package Windows nsis and portable |
+| `npm run build:win:portable` | Portable exe only |
+| `npm run build:unpack` | Unpacked build for local smoke tests |
 
 Run this gate green before you commit: `npm run typecheck && npm run lint:check && npm test && npm run build`.
 

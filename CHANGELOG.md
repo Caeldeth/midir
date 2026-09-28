@@ -1,8 +1,6 @@
 # Changelog
 
-All notable user-facing changes to Midir are recorded here. Format follows
-[Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning is
-[Semantic Versioning](https://semver.org/).
+All notable user-facing changes to Midir are recorded here. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning is [Semantic Versioning](https://semver.org/).
 
 <!--
 Release process (the notes are authored HERE, not edited on GitHub after the fact):
