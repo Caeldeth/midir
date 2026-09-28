@@ -59,6 +59,8 @@ import { createSplashWindow, type SplashController } from './splash'
 import { installGlobalErrorHandlers } from './errorHandlers'
 import { formatErrorLine } from '../shared/diagnostics'
 import { REMOTE_SESSION_CSS, shouldDisableHardwareAcceleration } from './remoteSession'
+import originalFs from 'original-fs'
+import { sweepPortableLeftovers } from './portableSweep'
 import {
   cspForEnvironment,
   guardIpc,
@@ -178,6 +180,9 @@ app.on('second-instance', focusMainWindow)
 function pushToRenderer(channel: string, value: unknown): void {
   if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send(channel, value)
 }
+
+/** How long after boot the portable sweep waits (portableSweep.ts). */
+const PORTABLE_SWEEP_DELAY_MS = 30_000
 
 /** Where the log and the recordings live, beside the settings. */
 const logsPath = join(settingsPath, 'logs')
@@ -755,6 +760,28 @@ app.whenReady().then(() => {
   // Safety backstop: if the renderer errors before signalling `app:ready`, force
   // the window visible so the app can never be left permanently invisible.
   setTimeout(revealMainWindow, 15000)
+
+  // Portable exe only: delete the %TEMP% unpack folders that killed launches
+  // left behind. Delayed so it does not compete with boot for the disk, and
+  // unref'd so it never holds the process open. See portableSweep.ts for why
+  // each of its rules is safe (HTOO-494).
+  setTimeout(() => {
+    void sweepPortableLeftovers({
+      // original-fs, not fs: the patched fs opens a leftover's app.asar and then
+      // holds it, so every rename is refused.
+      fs: originalFs.promises,
+      execPath: process.execPath,
+      isPortable: app.isPackaged && Boolean(process.env['PORTABLE_EXECUTABLE_DIR']),
+      onError: (message) => log.error('portable-sweep', message)
+    }).then((result) => {
+      if (result.removed.length === 0 && result.skipped.length === 0) return
+      log.info(
+        'portable-sweep',
+        `Removed ${result.removed.length} unpack folders an earlier launch left, ` +
+          `and kept ${result.skipped.length} that are in use or too new.`
+      )
+    })
+  }, PORTABLE_SWEEP_DELAY_MS).unref()
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {

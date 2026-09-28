@@ -7,7 +7,10 @@ export default defineConfig(({ command }) => ({
     plugins: [externalizeDepsPlugin()],
     build: {
       // The native addon must stay outside the bundle and be loaded from disk.
-      rollupOptions: { external: ['da-pcap'] }
+      // `original-fs` is an Electron built-in — the fs without the asar patch,
+      // which the portable sweep needs (HTOO-494) — and Rollup cannot resolve
+      // it, so it is external too.
+      rollupOptions: { external: ['da-pcap', 'original-fs'] }
     }
   },
   preload: {
