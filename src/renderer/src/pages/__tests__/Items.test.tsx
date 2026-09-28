@@ -145,3 +145,125 @@ describe('the Items page', () => {
     expect(within(row).getByText('3 days ago')).toBeInTheDocument()
   })
 })
+
+describe('a long index', () => {
+  /**
+   * Windowing (HTOO-85). A row is not cheap — an icon, and a tooltip for each
+   * holder — and the index grows with every character: 25 characters made 703
+   * rows and 1375 holders, 9500 DOM nodes, and over a second of mounting before
+   * anything reached the screen.
+   *
+   * jsdom has no layout, so the visible count is not a number a test can assert.
+   * What it can assert is that the page does not mount every row, that the rows
+   * it does mount are real, and that the height of the rest is reserved.
+   */
+  function manyItems(count: number): CharacterRecord {
+    const inventory: Record<number, ItemRef> = {}
+    for (let index = 0; index < count; index++) {
+      inventory[index + 1] = item(`Item ${String(index).padStart(4, '0')}`, { sprite: 100 + index })
+    }
+    return character('Hoarder', { inventory })
+  }
+
+  /**
+   * A scroller with a size, and something to report it.
+   *
+   * jsdom has neither: no layout, and no `ResizeObserver`. The page's own
+   * fallback means that without both of these it renders every row, which is the
+   * behaviour the last test here pins. These two give the window something to
+   * measure so the windowed path can be exercised at all.
+   */
+  function withLayout(height: number): () => void {
+    const rect = Object.getOwnPropertyDescriptor(Element.prototype, 'getBoundingClientRect')
+    const observer = (globalThis as { ResizeObserver?: unknown }).ResizeObserver
+    Element.prototype.getBoundingClientRect = function (): DOMRect {
+      const box = { x: 0, y: 0, top: 0, left: 0, right: 900, bottom: height, width: 900, height }
+      return { ...box, toJSON: () => box } as DOMRect
+    }
+    // The virtualizer reads `borderBoxSize` first and `offsetWidth`/`offsetHeight`
+    // after it, so both are given here.
+    const offsets = ['offsetWidth', 'offsetHeight'] as const
+    const held = offsets.map((name) => Object.getOwnPropertyDescriptor(HTMLElement.prototype, name))
+    Object.defineProperty(HTMLElement.prototype, 'offsetWidth', { configurable: true, value: 900 })
+    Object.defineProperty(HTMLElement.prototype, 'offsetHeight', {
+      configurable: true,
+      value: height
+    })
+    class Reporter {
+      constructor(private readonly notify: ResizeObserverCallback) {}
+      observe(target: Element): void {
+        this.notify(
+          [
+            {
+              target,
+              borderBoxSize: [{ inlineSize: 900, blockSize: height }]
+            } as unknown as ResizeObserverEntry
+          ],
+          this as unknown as ResizeObserver
+        )
+      }
+      unobserve(): void {
+        // Nothing to stop: the size is reported once, on observe.
+      }
+      disconnect(): void {
+        // As above.
+      }
+    }
+    ;(globalThis as { ResizeObserver?: unknown }).ResizeObserver = Reporter
+    return () => {
+      if (rect) Object.defineProperty(Element.prototype, 'getBoundingClientRect', rect)
+      offsets.forEach((name, at) => {
+        if (held[at]) Object.defineProperty(HTMLElement.prototype, name, held[at]!)
+      })
+      ;(globalThis as { ResizeObserver?: unknown }).ResizeObserver = observer
+    }
+  }
+
+  it('mounts a window of the rows, not all 400 of them', async () => {
+    const restore = withLayout(600)
+    try {
+      await renderWith([manyItems(400)])
+      await screen.findByTestId('item-index')
+      const rows = within(screen.getByTestId('item-index')).getAllByRole('row')
+      // The header, some rows, and the spacers — nowhere near 400.
+      expect(rows.length).toBeLessThan(120)
+      expect(screen.getByTestId('item-summary')).toHaveTextContent('400 items')
+    } finally {
+      restore()
+    }
+  })
+
+  it('reserves the height of the rows it did not mount', async () => {
+    const restore = withLayout(600)
+    try {
+      await renderWith([manyItems(400)])
+      await screen.findByTestId('item-index')
+      const pad = screen.queryByTestId('item-index-pad-bottom')
+      expect(pad).not.toBeNull()
+      expect(Number.parseInt(pad!.style.height, 10)).toBeGreaterThan(0)
+    } finally {
+      restore()
+    }
+  })
+
+  it('renders every row when the index is short, so nothing changes for a small record', async () => {
+    await renderWith([manyItems(20)])
+    await screen.findByTestId('item-index')
+    expect(within(screen.getByTestId('item-index')).getAllByRole('row')).toHaveLength(21)
+    expect(screen.queryByTestId('item-index-pad-top')).toBeNull()
+    expect(screen.queryByTestId('item-index-pad-bottom')).toBeNull()
+  })
+
+  it('still searches a windowed index', async () => {
+    const restore = withLayout(600)
+    try {
+      await renderWith([manyItems(400)])
+      await screen.findByTestId('item-index')
+      await userEvent.type(screen.getByLabelText('Search items'), 'Item 0007')
+      expect(screen.getByTestId('item-summary')).toHaveTextContent('1 item')
+      expect(await screen.findByText('Item 0007')).toBeInTheDocument()
+    } finally {
+      restore()
+    }
+  })
+})

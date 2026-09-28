@@ -198,6 +198,19 @@ Aliases: `@renderer` to `src/renderer/src`, `@shared` to `src/shared`.
   close, with no hook to stop it. Without one the stub runs silent. The cost is a busy cursor while it
   unpacks, which the in-app splash cannot cover because Electron has not started yet. Midir never had
   the image; `scripts/portable-config.test.mjs` is what stops one being added (HTOO-466).
+- **The Items index is windowed above 60 rows, and the bounded lists are not.** A row there is not
+  cheap — the item's icon, and a tooltip for each holder — and the index grows with every character:
+  25 characters make 703 rows and 1375 holders, which measured 9532 DOM nodes and 1866 ms of mounting
+  before anything reached the screen, and 2805 rows measured 5738 ms. Windowed it mounts 14 rows, 278
+  nodes, in 245 ms, and the cost stops following the record: the same page at four times the data
+  measured 221 ms. `@tanstack/react-virtual` is the house choice (oghma, taliesin), with oghma's table
+  pattern — a threshold, spacer rows holding the scroll height, and `measureElement` on every row
+  because a held-by cell wraps and a row with a dozen holders is several times the height of a row with
+  one. **The window is in force only once it has placed something**: a scroller it cannot measure would
+  otherwise be an empty table, which is worse than a slow one, so the full list renders until a
+  measurement arrives (jsdom has no `ResizeObserver`, which is exactly that case). The inventory,
+  bank and legend lists stay unwindowed on purpose: 60 slots, 65 rows and 100 marks are bounded, and the
+  inventory is behind a collapsed accordion already (HTOO-85).
 - **Six shared themes** — four Dark Ages (hybrasyl default, chadul, danaan, grinneal) plus the corporate pair (mundanes light, dubhaimid dark). Cinzel and Crimson fonts. Scrollbar colors go to `:root` CSS variables. The `ThemeName` union lives in `shared/`.
 
 ## Decoding notes that are easy to get wrong
