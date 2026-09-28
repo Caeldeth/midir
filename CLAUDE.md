@@ -184,6 +184,15 @@ Aliases: `@renderer` to `src/renderer/src`, `@shared` to `src/shared`.
   then refused — oghma's first packaged build skipped every real leftover that way while its unit tests
   passed under plain Node. `original-fs` is external in `electron.vite.config.mjs` or Rollup cannot
   resolve it (HTOO-494).
+- **`portable.unpackDirName` is `true`, not the documented `false`.** Unset or `false`,
+  app-builder-lib bakes one KSUID into the exe at build time, so every copy of a build extracts to the
+  same `$TEMP` directory: a second launch does `RMDir /r` on the directory the **running** app executes
+  from, fails on the locked exe, and shows NSIS's own "Midir cannot be closed" Retry/Cancel box. The
+  single-instance lock cannot stop that, because the stub runs before Electron starts. `true` is the one
+  value that leaves `UNPACK_DIR_NAME` undefined, so NSIS uses `$PLUGINSDIR`, unique per process. Do not
+  "correct" it to `false`; creidhne's config carries the artifact-byte measurement that proved the docs
+  wrong. The cost is that a killed launch's folder is never reclaimed by name, which is what the sweep
+  above is for (HTOO-351, fault 2).
 - **The portable target has no `splashImage`, on purpose.** With one the NSIS stub runs in GUI mode and
   re-shows its own hidden "Setup" dialog after the app exits, which is a blank window flashing on every
   close, with no hook to stop it. Without one the stub runs silent. The cost is a busy cursor while it

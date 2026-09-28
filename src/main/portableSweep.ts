@@ -8,10 +8,12 @@
 // the app in all three cases.
 //
 // **If the STUB itself is killed, nothing runs its `RMDir`.** The folder stays
-// under a random name that no later launch reuses, holding the package and the
-// scratch the extraction wrote. Midir does not set `portable.unpackDirName`, so
-// the app folder inside it has a fixed build-time name that the next launch
-// reclaims; the package and the scratch do not, and they are the leak.
+// under a random name that no later launch reuses, holding the package, the
+// scratch the extraction wrote, and the unpacked app itself. Midir sets
+// `portable.unpackDirName: true` (HTOO-351, fault 2) so the unpack directory is
+// unique per launch rather than per build, which is what stops a second launch
+// deleting the running copy's directory — and which is why nothing reclaims a
+// killed launch's folder by name. That trade is why this sweep exists.
 //
 // So a portable launch sweeps what earlier launches left. Each rule below is
 // part of the safety case, which is why none of them is a shortcut:
