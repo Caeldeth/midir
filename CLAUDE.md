@@ -172,6 +172,23 @@ Aliases: `@renderer` to `src/renderer/src`, `@shared` to `src/shared`.
   again when the character list changes, because reachability is from where the character stands
   (WP39) and a connection that opens and closes moves nobody. Main logs a login and a logout by name,
   because a report that the indicator read wrong had no evidence either way.
+- **A killed portable stub leaks its unpack folder, so a portable launch sweeps.** The portable exe is
+  an NSIS stub: it unpacks into `%TEMP%\ns*.tmp`, runs the app, and deletes the folder when the app
+  exits — after a normal close, a second launch, and a crash alike, because it is still waiting on the
+  app. **Kill the stub and nothing runs its `RMDir`.** `portableSweep.ts` removes what earlier launches
+  left, 30 s after boot, under four rules that are the safety case: only as the portable exe and only
+  when it can find its own unpack folder, only `ns*.tmp` folders holding `app\<exe>` and
+  `app\resources\app.asar`, only folders older than ten minutes, and **rename before delete** because
+  Windows refuses the rename while anything runs from the folder. **Pass `original-fs`, never `fs`:**
+  Electron's patched `fs` opens any path ending in `app.asar` and keeps the handle, so every rename is
+  then refused — oghma's first packaged build skipped every real leftover that way while its unit tests
+  passed under plain Node. `original-fs` is external in `electron.vite.config.mjs` or Rollup cannot
+  resolve it (HTOO-494).
+- **The portable target has no `splashImage`, on purpose.** With one the NSIS stub runs in GUI mode and
+  re-shows its own hidden "Setup" dialog after the app exits, which is a blank window flashing on every
+  close, with no hook to stop it. Without one the stub runs silent. The cost is a busy cursor while it
+  unpacks, which the in-app splash cannot cover because Electron has not started yet. Midir never had
+  the image; `scripts/portable-config.test.mjs` is what stops one being added (HTOO-466).
 - **Six shared themes** — four Dark Ages (hybrasyl default, chadul, danaan, grinneal) plus the corporate pair (mundanes light, dubhaimid dark). Cinzel and Crimson fonts. Scrollbar colors go to `:root` CSS variables. The `ThemeName` union lives in `shared/`.
 
 ## Decoding notes that are easy to get wrong
