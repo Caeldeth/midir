@@ -29,8 +29,7 @@ turns that into a versioned, downloadable build.
    house standardised one update-check module on 2026-09-28, it reads a manifest rather than the
    releases API, and a key with no entry answers `no-entry` — so it can land before any release
    exists. WP44 ports it. **What stays here is one step of the release itself:**
-   `npm run publish:version`, which writes Midir's version into the manifest, and the line for it in
-   `docs/release-process.md`. It notifies; it does not install (non-goal below).
+   `npm run publish:version`, which writes Midir's version into the manifest, and the line for it in whatever states the release steps. Midir has no release document today, and the template documents the step in its `README.md`; deciding where Midir's goes belongs to this WP. It notifies; it does not install (non-goal below).
 
 ## Non-goals (stop-lines)
 

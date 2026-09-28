@@ -2,8 +2,7 @@
 
 **Size:** S. **Depends on:** WP28 (the house Electron standard, and `appIdentity.ts`). Read
 `00-overview.md` first. **PLANNED.** **Card:** `HTOO-495`.
-**Trigger to start:** the two steps ahead of Midir in the module's own rollout — the `versions.json`
-seed on cernunnos (`HTOO-382`), and oghma's end-to-end proof. Sabrael, 2026-09-28: queue it.
+**Trigger to start:** none. Sabrael queued this with `HTOO-382` on 2026-09-28. The manifest is already live (cernunnos `a774b9a`), and nothing ahead of Midir in the rollout gates the read side: a key with no entry is the answer this WP has to handle anyway.
 
 ## Goal
 
@@ -50,14 +49,13 @@ Midir copies five files and wires them, exactly as it took the Report Issue modu
 
 ## Current state when you start
 
-- `src/main/appIdentity.ts` — the one per-app file WP26 established; `updateKey` and
-  `releaseUrlPrefix` belong beside the Report Issue fields.
+- `src/shared/appIdentity.ts` — the one per-app file WP26 established; `updateKey` and `releaseUrlPrefix` belong beside the Report Issue fields. The template holds both field names and their comments.
 - `src/main/handlers/index.ts` — `registerHandlers`, where the handler is wired, behind the sender
   guard every channel inherits.
 - `src/preload/index.ts` and `src/shared/types.ts` — the bridge and the API type.
 - `src/renderer/src/components/AboutCard.tsx` — where the button goes.
 - `src/renderer/src/App.tsx` — where the notice mounts.
-- `docs/release-process.md` and `package.json` — the `publish:version` step (WP27 runs it).
+- `package.json` — where `publish:version` is defined. Midir has **no release document**: the template documents the step in its `README.md`, and WP27 decides whether Midir needs a page of its own.
 
 ## Acceptance criteria
 
@@ -74,6 +72,5 @@ Midir copies five files and wires them, exactly as it took the Report Issue modu
 ## Verification
 
 1. The module's own tests, ported with the files.
-2. A run against the live `versions.json` with Midir's key absent, which is the real state until
-   WP27: the check answers `no-entry` and the UI is unchanged.
+2. A run against the live `versions.json` with Midir's key absent, which is the real state until WP27. Checked on 2026-09-28: the file answers 200 and holds seven keys (balor, creidhne, dagda, epona, mabon, oghma, taliesin), with no `midir`. The check answers `no-entry` and the UI is unchanged.
 3. A run with a pretend older version, which is how the template proved it: 1.5.0 offered 1.6.0.
