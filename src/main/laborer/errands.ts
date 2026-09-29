@@ -90,9 +90,25 @@ const RUCESION: CivicIds = { town: 'Rucesion', civicsRow: 1612, pursuit: 588 }
 /** "Mileth Civics" on Riona, and the civic pursuit behind it. */
 const MILETH: CivicIds = { town: 'Mileth', civicsRow: 1603, pursuit: 579 }
 
+/**
+ * The notice that means the support was given.
+ *
+ * "You give political support to <name> for these Temuairan four days" — 91 of
+ * the 99 support attempts in the recordings. The refusal that was captured is
+ * "<name> is not near" (4), and two attempts got nothing at all. The two
+ * refusals Sabrael asked about — a citizen of another town, and one at maximum
+ * clout — appear in none of the 99, and neither is knowable before the attempt:
+ * a target's citizenship is on its own SelfLook and a target's clout is on no
+ * packet. So this names the success and everything else is refused.
+ */
+const SUPPORT_GIVEN = 'You give political support to'
+
 function cloutSteps(
   ids: CivicIds
-): Pick<Errand, 'params' | 'steps' | 'branches' | 'needsCitizenship' | 'needsRegistration'> {
+): Pick<
+  Errand,
+  'params' | 'steps' | 'branches' | 'needsCitizenship' | 'needsRegistration' | 'succeeds'
+> {
   const { town, civicsRow, pursuit } = ids
   const branches: DialogStep[] = [
     {
@@ -108,6 +124,7 @@ function cloutSteps(
     // 2026-09-21; the unregistered refusal is in the capture of the same day).
     needsCitizenship: town,
     needsRegistration: true,
+    succeeds: SUPPORT_GIVEN,
     params: [CITIZEN],
     steps: [
       { pursuit: civicsRow, choose: `${town} Civics` },
@@ -156,9 +173,20 @@ const LABOR_ROW = 1335
 const LABOR_PURSUIT = 311
 const AISLING: ErrandParam = { name: 'aisling', label: 'Aisling to work for' }
 
-function laborSteps(): Pick<Errand, 'params' | 'steps' | 'needsRegistration'> {
+/**
+ * The notice that means labor was given, for either amount.
+ *
+ * "You work for <name> for 1 day" and "You work for <name>, although the Aisling
+ * didn't need much done" both gave something. "<name> doesn't need any jobs done.
+ * The Aisling hasn't done anything" gave nothing and is a refusal, which is what
+ * this prefix separates: all three used to be reported as a finish.
+ */
+const LABOR_GIVEN = 'You work for'
+
+function laborSteps(): Pick<Errand, 'params' | 'steps' | 'needsRegistration' | 'succeeds'> {
   return {
     needsRegistration: true,
+    succeeds: LABOR_GIVEN,
     params: [AISLING],
     steps: [
       { pursuit: LABOR_ROW, choose: 'Labor' },

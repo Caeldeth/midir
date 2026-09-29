@@ -424,6 +424,23 @@ export interface Errand {
    * a step. A branch's `then` says what follows it.
    */
   branches?: DialogStep[]
+  /**
+   * The start of the notice that means the errand WORKED.
+   *
+   * An errand whose last step types a name gets its verdict as a server notice,
+   * and reaching the last step is not the same as the errand having done
+   * anything. Support a Citizen answers `You give political support to <name>
+   * for these Temuairan four days` when it worked and `<name> is not near` when
+   * it did not, and both arrive the same way (measured over 99 support attempts
+   * in the recordings: 91 and 4). So the success is named here and anything else
+   * is `refused`, which is the only way to handle a refusal nobody has captured
+   * yet — a citizen of another town, or one at maximum clout, is a fact about
+   * another player that no packet carries.
+   *
+   * Leave it unset for an errand whose end needs no verdict. Then any notice is
+   * the outcome, as before.
+   */
+  succeeds?: string
 }
 
 /** Why the Laborer stopped before the errand was done. */
@@ -446,6 +463,16 @@ export type ErrandStopReason =
   | 'notCitizen'
   /** The errand needs a registered character, and the record says this one is not. */
   | 'unregistered'
+  /**
+   * Every step ran and the server's verdict was not the errand's `succeeds`.
+   * The text is in `saw`; it is a refusal, not a finish.
+   */
+  | 'refused'
+  /**
+   * Every step ran and the server said nothing at all. An errand that names a
+   * `succeeds` cannot call silence success (2 of 99 support attempts).
+   */
+  | 'noVerdict'
 
 /** How an errand ended. */
 export type ErrandOutcome =
@@ -505,6 +532,10 @@ export function errandStopMessage(reason: ErrandStopReason): string {
       return 'The errand needs a citizen of the town, and this character is not one.'
     case 'unregistered':
       return 'The errand needs a registered character, and this one is not.'
+    case 'refused':
+      return 'The server refused the errand.'
+    case 'noVerdict':
+      return 'The errand finished its steps and the server said nothing.'
   }
 }
 

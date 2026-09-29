@@ -38,6 +38,8 @@ Keep entries user-facing — internal refactors/tests show up in the appended au
 
 ### Fixed
 
+- A refused errand is no longer reported as finished. Supporting a citizen who is not logged in answers "<name> is not near", and working for an Aisling who is full answers "<name> doesn't need any jobs done" — both said "The errand finished" with the refusal inside the text. The Laborer now knows which words mean the errand worked, reports anything else as a refusal, and writes an answer it does not recognise to the log so it can be reviewed. Silence after the last step is reported as no verdict, which it is.
+
 - A character no longer stays “logged in” after you log off. Midir now reads the client’s exit and, whatever happens, follows the connection: a client that crashes or is killed sends nothing, but its connection still ends.
 
 - The pre-login placeholder is no longer saved as a character. The connections before the world server are keyed from a stand-in name such as `socket[295]`; it is a real encryption seed but nobody at all. A placeholder saved by an earlier build is removed the next time Midir loads.

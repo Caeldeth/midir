@@ -65,6 +65,26 @@ function notice(text: string, asOfMs: number): NoticeState {
   return { packet: { kind: 'systemMessage', messageType: 3, text }, asOfMs }
 }
 
+/**
+ * The verdicts of Support a Citizen, both captured. Over the 99 support attempts
+ * in the recordings: `SUPPORTED` 91 times, `NOT_NEAR` 4, and nothing at all
+ * twice. The errand's `succeeds` names the first, so the other two are a refusal
+ * and no verdict rather than a finish.
+ */
+const SUPPORTED = 'You give political support to Pandsala for these Temuairan four days'
+const NOT_NEAR = 'Pandsala is not near'
+
+/**
+ * A verdict notice keyed where the feed ends, and stamped after the last dialog.
+ *
+ * `waitForDialog` takes a notice only when it is newer than the dialog the last
+ * step answered, and the fixtures carry the real capture timestamps.
+ */
+function verdictNotice(list: { asOfMs: number }[], text: string): Record<number, NoticeState> {
+  const last = list[list.length - 1]!.asOfMs
+  return { [list.length]: notice(text, last + 150) }
+}
+
 /** A click on a row, as the Laborer posts it. */
 type Click = { x: number; y: number }
 
@@ -192,6 +212,8 @@ interface Options {
   destinationMapId?: number
   /** Registration and citizenship as the record knows them. Absent: no record. */
   passport?: Passport
+  /** Collects every warning the run logged, for the tests that read the log. */
+  warnings?: string[]
 }
 
 function make(opts: Options): {
@@ -208,6 +230,17 @@ function make(opts: Options): {
     live ? [{ connectionId: CID, name: 'Sabrael' }] : []
   const states: Array<{ running: boolean; reason?: string }> = []
 
+  const warnings = opts.warnings
+  const log: Logger =
+    warnings === undefined
+      ? noop
+      : ({
+          info: () => undefined,
+          warn: (_scope: string, message: string) => warnings.push(message),
+          error: () => undefined,
+          debug: () => undefined
+        } as unknown as Logger)
+
   const laborer = createLaborer({
     actionLayer: fake.layer,
     walker,
@@ -223,7 +256,7 @@ function make(opts: Options): {
     passportFor: (id: string): Passport | null => (id === CID ? (opts.passport ?? null) : null),
     noticeFor: (id: string): NoticeState | null =>
       id === CID ? (opts.feed.noticeAt?.[opts.feed.index] ?? null) : null,
-    log: noop,
+    log,
     errands: [opts.errand],
     onState: (state) =>
       states.push({ running: state.running, ...(state.reason ? { reason: state.reason } : {}) }),
@@ -519,10 +552,11 @@ describe('the recorded clout conversation (Eduardo, 2026-09-21)', () => {
   // player opened and closed; 10 to 15 the already-supporting branch and the
   // withdrawal; 16 to 23 the support again after the player reopened the menu.
   it('supports a citizen with the same keys the player pressed', async () => {
-    const feed = { list: serverDialogs(0, 8), index: 0 }
+    const list = serverDialogs(0, 8)
+    const feed: Feed = { list, index: 0, noticeAt: verdictNotice(list, SUPPORTED) }
     const { laborer, fake } = make({ errand, feed })
     const outcome = await laborer.run(request)
-    expect(outcome).toEqual({ kind: 'done' })
+    expect(outcome).toEqual({ kind: 'done', saw: SUPPORTED })
     const player = playerAnswers(0, 8)
     expect(fake.clicks).toEqual(player.clicks)
     expect(fake.typed).toEqual(player.typed)
@@ -535,11 +569,40 @@ describe('the recorded clout conversation (Eduardo, 2026-09-21)', () => {
     expect(fake.typed).toEqual(['Pandsala'])
   })
 
+  it('reports the captured refusal as refused, not as a finish', async () => {
+    // "<name> is not near" — 4 of the 99 support attempts in the recordings. It
+    // used to read "The errand finished (Pandsala is not near)".
+    const list = serverDialogs(0, 8)
+    const feed: Feed = { list, index: 0, noticeAt: verdictNotice(list, NOT_NEAR) }
+    const { laborer, fake } = make({ errand, feed })
+    const outcome = await laborer.run(request)
+    expect(outcome).toEqual({ kind: 'stopped', reason: 'refused', saw: NOT_NEAR })
+    // It still did the whole conversation; only the verdict differs.
+    expect(fake.typed).toEqual(['Pandsala'])
+  })
+
+  it('logs a verdict it did not expect, so it can be reviewed', async () => {
+    // The log is the Diagnostics tab's record and what Report an issue carries.
+    // The refusals for another town's citizen and for maximum clout have never
+    // been captured; this is how the first one arrives in words we can read.
+    const warnings: string[] = []
+    const list = serverDialogs(0, 8)
+    const feed: Feed = { list, index: 0, noticeAt: verdictNotice(list, NOT_NEAR) }
+    const { laborer } = make({ errand, feed, warnings })
+    await laborer.run(request)
+    const line = warnings.find((w) => w.startsWith('Unexpected verdict'))
+    expect(line).toBeDefined()
+    expect(line).toContain(NOT_NEAR)
+    expect(line).toContain('Review it')
+  })
+
   it('withdraws support from another citizen, restarts, and supports the wanted one', async () => {
-    const feed = { list: serverDialogs(10, 24), index: 0 }
+    const supported = 'You give political support to Sabrael for these Temuairan four days'
+    const list = serverDialogs(10, 24)
+    const feed: Feed = { list, index: 0, noticeAt: verdictNotice(list, supported) }
     const { laborer, fake, states } = make({ errand, feed })
     const outcome = await laborer.run({ ...request, params: { citizen: 'Sabrael' } })
-    expect(outcome).toEqual({ kind: 'done' })
+    expect(outcome).toEqual({ kind: 'done', saw: supported })
     // Civics, Support, Withdraw; then Civics, Support, I am sure, and the name.
     const player = playerAnswers(10, 24)
     expect(fake.clicks).toEqual(player.clicks)
@@ -646,20 +709,49 @@ describe('the recorded labor conversation (Evenue at Antonio, 2026-09-21)', () =
       { x: 540, y: 317 }
     ])
     expect(fake.typed).toEqual(['Pandsala'])
+    // **The captured verdict is a refusal, and used to be reported as a finish.**
+    // "You work for <name> …" is what giving labor says; this says the Aisling
+    // was full and nothing was given.
     expect(outcome).toEqual({
-      kind: 'done',
+      kind: 'stopped',
+      reason: 'refused',
       saw: "Pandsala doesn't need any jobs done. The Aisling hasn't done anything"
     })
   })
 
-  it('is done with no word when the server says nothing after the name', async () => {
+  it('reports no verdict, not a finish, when the server says nothing after the name', async () => {
+    // Two of the 99 support attempts in the recordings ended this way. Typing a
+    // name and hearing nothing is not evidence that anything was given.
     const { laborer } = make({ errand, feed: { list: dialogs, index: 0 } })
     const outcome = await laborer.run({
       connectionId: CID,
       errand: errand.name,
       params: { aisling: 'Pandsala' }
     })
-    expect(outcome).toEqual({ kind: 'done' })
+    expect(outcome).toEqual({ kind: 'stopped', reason: 'noVerdict' })
+  })
+
+  it('reports a verdict it does not know as refused, with the words the server used', async () => {
+    const feed: Feed = {
+      list: dialogs,
+      index: 0,
+      noticeAt: verdictNotice(dialogs, 'The Aisling is not in Temuair')
+    }
+    const { laborer } = make({ errand, feed })
+    const outcome = await laborer.run({
+      connectionId: CID,
+      errand: errand.name,
+      params: { aisling: 'Pandsala' }
+    })
+    // Nobody has captured this one. The rule needs no string for it, which is
+    // the point: the refusals for another town's citizen and for maximum clout
+    // are unknown too, and both are facts about another player that no packet
+    // carries.
+    expect(outcome).toEqual({
+      kind: 'stopped',
+      reason: 'refused',
+      saw: 'The Aisling is not in Temuair'
+    })
   })
 })
 
@@ -731,10 +823,16 @@ describe('opening the conversation', () => {
   it('clicks the NPC where the client draws it, then works the dialog that opens', async () => {
     // Nothing is up at first; the click on Eduardo brings the menu.
     const dialogs = serverDialogs(0, 8)
-    const feed: Feed = { list: [dialogs[0]!, ...dialogs], index: 0, appearAt: { 0: Infinity } }
+    const list = [dialogs[0]!, ...dialogs]
+    const feed: Feed = {
+      list,
+      index: 0,
+      appearAt: { 0: Infinity },
+      noticeAt: verdictNotice(list, SUPPORTED)
+    }
     const { laborer, fake } = make({ errand, feed, position: standing })
     const outcome = await laborer.run(request)
-    expect(outcome).toEqual({ kind: 'done' })
+    expect(outcome).toEqual({ kind: 'done', saw: SUPPORTED })
     expect(fake.clicks[0]).toEqual({ x: 256, y: 187 })
     expect(fake.clicks[0]).toEqual(npcClick)
     expect(fake.clicks.slice(1)).toEqual([rowClick(6, 1), rowClick(2, 1), rowClick(2, 2)])
@@ -856,7 +954,8 @@ describe('a walk that fell short', () => {
       asOfMs: 500,
       confidence: 'confirmed'
     }
-    const feed = { list: serverDialogs(0, 8), index: 0 }
+    const list = serverDialogs(0, 8)
+    const feed: Feed = { list, index: 0, noticeAt: verdictNotice(list, SUPPORTED) }
     const { laborer, fake } = make({
       errand,
       feed,
@@ -865,7 +964,7 @@ describe('a walk that fell short', () => {
       destinationMapId: 3049
     })
     const outcome = await laborer.run(request)
-    expect(outcome).toEqual({ kind: 'done' })
+    expect(outcome).toEqual({ kind: 'done', saw: SUPPORTED })
     expect(fake.clicks.length).toBeGreaterThan(0)
   })
 
