@@ -40,6 +40,24 @@ const OVERSCAN = 12
 const COLUMNS = 4
 
 /**
+ * The column widths, and the table is `table-layout: fixed` so they hold.
+ *
+ * **A windowed table cannot size its columns from its rows.** The automatic
+ * layout measures the cells that are in the DOM, and windowing means that is
+ * fourteen rows out of hundreds — so every scroll put a different longest item
+ * name in view and the browser re-laid every column under the pointer (Sabrael,
+ * 2026-09-28). The same jump waited on the search box, where narrowing the list
+ * under `WINDOW_THRESHOLD` swaps the window for the full list.
+ *
+ * So the widths are stated. `Total` and `Last seen` are bounded content and take
+ * fixed room: a count, and at most "59 minutes ago". `Item` takes a share of the
+ * rest and `Held by` takes what is left, because it is the column that wraps and
+ * a row with a dozen holders is several rows tall. That wrapping is why the rows
+ * are still measured.
+ */
+const COLUMN_WIDTHS = ['30%', '90px', 'auto', '140px'] as const
+
+/**
  * Every item across every character, searchable by name.
  *
  * This is the view Midir exists for. It is derived from the character records
@@ -132,9 +150,14 @@ const ItemRow = React.memo(function ItemRow({
   return (
     <TableRow hover ref={measure} data-index={index}>
       <TableCell sx={{ fontWeight: 'medium' }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        {/* The column is a stated width now, so the name wraps inside it rather
+            than widening it. `minWidth: 0` lets the text shrink past its own
+            content; the icon keeps its size through its own `flexShrink: 0`. */}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
           <ItemIcon sprite={entry.sprite} />
-          {entry.name}
+          <Box component="span" sx={{ minWidth: 0, overflowWrap: 'anywhere' }}>
+            {entry.name}
+          </Box>
         </Box>
       </TableCell>
       <TableCell align="right" sx={{ fontVariantNumeric: 'tabular-nums' }}>
@@ -302,7 +325,12 @@ function Items(): React.JSX.Element {
         </Typography>
       ) : (
         <TableContainer ref={scrollRef} sx={{ flex: 1, minHeight: 0, px: 2.5, pb: 2.5 }}>
-          <Table size="small" stickyHeader data-testid="item-index">
+          <Table size="small" stickyHeader data-testid="item-index" sx={{ tableLayout: 'fixed' }}>
+            <colgroup>
+              {COLUMN_WIDTHS.map((width) => (
+                <col key={width} style={{ width }} />
+              ))}
+            </colgroup>
             <TableHead>
               <TableRow>
                 <TableCell>Item</TableCell>

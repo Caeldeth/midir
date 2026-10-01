@@ -254,6 +254,39 @@ describe('a long index', () => {
     expect(screen.queryByTestId('item-index-pad-bottom')).toBeNull()
   })
 
+  /**
+   * The columns do not move while the list scrolls (Sabrael, 2026-09-28).
+   *
+   * The automatic table layout measures the cells that are in the DOM, and a
+   * windowed table has fourteen rows of hundreds in it — so each scroll put a
+   * different longest name in view and the first column jumped. jsdom computes
+   * no table layout, so the jump itself is not something a test can see. What it
+   * can hold is the mechanism that prevents it: a fixed layout, and a stated
+   * width for every column. Remove either and this fails.
+   */
+  it('states its column widths, so a window of rows cannot decide them', async () => {
+    const restore = withLayout(600)
+    try {
+      await renderWith([manyItems(400)])
+      const table = await screen.findByTestId('item-index')
+      expect(table).toHaveStyle({ tableLayout: 'fixed' })
+      const widths = Array.from(table.querySelectorAll('col')).map((col) => col.style.width)
+      expect(widths).toHaveLength(4)
+      expect(widths.every((width) => width !== '')).toBe(true)
+    } finally {
+      restore()
+    }
+  })
+
+  it('states the same widths when the list is short enough to render whole', async () => {
+    // The threshold is crossed by typing in the search box, so the two paths
+    // have to agree or narrowing a search moves the columns.
+    await renderWith([manyItems(20)])
+    const table = await screen.findByTestId('item-index')
+    expect(table).toHaveStyle({ tableLayout: 'fixed' })
+    expect(Array.from(table.querySelectorAll('col')).map((col) => col.style.width)).toHaveLength(4)
+  })
+
   it('still searches a windowed index', async () => {
     const restore = withLayout(600)
     try {
