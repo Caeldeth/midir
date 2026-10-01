@@ -144,6 +144,8 @@ const NEAR_ENOUGH_TILES = 6
  * a dialog: "<name> doesn't need any jobs done …". The run waits this long for
  * the first notice after its last key and reports it, so "done" says what was
  * done. Nothing is posted in this wait.
+ *
+ * The verdict also decides whether the errand worked at all. See `errand.succeeds`.
  */
 const OUTCOME_WAIT_MS = 1500
 
@@ -530,6 +532,16 @@ export function createLaborer(options: LaborerOptions): Laborer {
     let restarts = 0
     let distractions = 0
     let closedText: string | undefined
+    /**
+     * True when the run ended because a step or a branch said `then: 'done'`,
+     * rather than by running out of steps.
+     *
+     * The `succeeds` rule is about the verdict for a run that did the whole
+     * errand. A branch that ends it has matched an exact `when`, so the dialog
+     * is already the evidence: "I continue to support the Aisling" ends a
+     * support errand with nothing to do and no notice, and that is a finish.
+     */
+    let endedEarly = false
 
     for (let index = 0; index < steps.length; index++) {
       if (!runState.running)
@@ -630,7 +642,10 @@ export function createLaborer(options: LaborerOptions): Laborer {
         return finish(runState, { kind: 'stopped', reason: 'lostCharacter' })
       }
 
-      if (acted.then === 'done') break
+      if (acted.then === 'done') {
+        endedEarly = true
+        break
+      }
       if (acted.then === 'restart') {
         if (restarts >= MAX_RESTARTS) {
           const saw = describeDialog(view)
@@ -646,14 +661,41 @@ export function createLaborer(options: LaborerOptions): Laborer {
 
     // The server's word after the last step, when it gives one: a notice, or
     // the text of the dialog a close step closed.
+    //
+    // **Reaching the last step is not the same as the errand having worked.**
+    // An errand that names its `succeeds` is judged on the verdict: the notice
+    // that says it worked, and everything else a refusal. "<name> is not near"
+    // used to be reported as a finish with the refusal inside the text.
     const after = await waitForDialog(runState, lastAsOf, OUTCOME_WAIT_MS, true)
+    const succeeds = endedEarly ? undefined : errand.succeeds
     if (after.kind === 'notice') {
       const saw = after.notice.packet.text.trim()
-      log.info('laborer', `The server said, after the last step: ${saw}.`)
-      return finish(runState, { kind: 'done', saw })
+      if (succeeds === undefined || saw.startsWith(succeeds)) {
+        log.info('laborer', `The server said, after the last step: ${saw}.`)
+        return finish(runState, { kind: 'done', saw })
+      }
+      // Unexpected: worth a review. The log is the Diagnostics tab's record and
+      // what Report an issue carries, so a verdict nobody has seen before is
+      // kept in the words the server used. Two of the refusals this rule exists
+      // for have never been captured, and this is how the first one arrives.
+      log.warn(
+        'laborer',
+        `Unexpected verdict after the last step of ${errand.name}: "${saw}". ` +
+          `It does not start with "${succeeds}", so the errand is reported as refused. ` +
+          'Review it: if it is a verdict the errand should know, add it.'
+      )
+      return finish(runState, { kind: 'stopped', reason: 'refused', saw })
     }
     if (closedText !== undefined && closedText !== '') {
       return finish(runState, { kind: 'done', saw: closedText })
+    }
+    if (succeeds !== undefined) {
+      log.warn(
+        'laborer',
+        `No verdict after the last step of ${errand.name}: the server said nothing within ` +
+          `${String(OUTCOME_WAIT_MS)} ms. Reported as no verdict, not as a finish.`
+      )
+      return finish(runState, { kind: 'stopped', reason: 'noVerdict' })
     }
     return finish(runState, { kind: 'done' })
   }
