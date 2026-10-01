@@ -31,6 +31,7 @@ Keep entries user-facing — internal refactors/tests show up in the appended au
 - A log file under `%LOCALAPPDATA%\Erisco\Midir\logs`. Midir writes one file each time it opens and keeps the last ten. An installed build has no console, so this is how a failure can be reported at all. A failure in the window is written there too, and no longer leaves a blank screen.
 - Bank contents. Retail has no bank packet, so Midir reads the bank from the NPC dialog when you visit a banker and choose “Withdraw Item”. What it held then appears on the character sheet and in the Items view, always with the time it was read.
 - A limit on the disk that recordings use. Midir deletes the oldest ones when a capture starts, and never the one it is writing. The limit is a setting; the default is 1024 MB and zero means no limit. You can also delete recordings one at a time, or all at once, in Diagnostics.
+- An update notice. Midir tells you when a newer version is available, and gives you the link to it. Midir downloads nothing and installs nothing. There is also a **Check for updates** button on the About card in Settings. This is the only request that Midir makes of its own: it reads a small list of version numbers, and it sends no personal data. Close the notice and Midir does not show that version again.
 
 ### Security
 

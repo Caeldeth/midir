@@ -25,11 +25,31 @@ export interface AppIdentity {
    * module doc, section 9).
    */
   appLabel: string
+  /**
+   * Midir's key in the house version manifest (update-check module, WP44).
+   *
+   * Set here and nowhere else, so a package rename cannot move Midir to a key
+   * that nothing writes. The release step writes this same key
+   * (`scripts/publish-version.mjs`), and the manifest holds no `midir` entry
+   * until the first release: that is `no-entry`, which shows nothing.
+   */
+  updateKey: string
+  /**
+   * The update notice opens a manifest `url` only when it starts with this.
+   *
+   * Anyone with push access to the intake repository can edit the manifest, so
+   * this is what stops an edit sending Midir's users to another site. Midir is
+   * the one house app outside `hybrasyl/` and `eriscorp/`, so the prefix is not
+   * the one the other apps carry.
+   */
+  releaseUrlPrefix: string
 }
 
 export const appIdentity: AppIdentity = {
   productName: 'Midir',
   intakeOwner: 'hybrasyl',
   intakeRepo: 'cernunnos',
-  appLabel: 'app:midir'
+  appLabel: 'app:midir',
+  updateKey: 'midir',
+  releaseUrlPrefix: 'https://github.com/Caeldeth/midir/releases/'
 }

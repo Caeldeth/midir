@@ -11,6 +11,10 @@ export function createMockApi(): MidirApi {
     closeWindow: vi.fn(),
     getAppVersion: vi.fn(async () => '0.0.0-test'),
     appReady: vi.fn(),
+    // The update check answers `no-entry` by default, which is the live state
+    // until Midir's first release: no notice, and nothing for a test to clean up
+    // unless it asks for something else (WP44).
+    checkForUpdate: vi.fn(async () => ({ ok: false, reason: 'no-entry' }) as const),
     settings: {
       load: vi.fn(async () => ({ ...DEFAULT_SETTINGS })),
       save: vi.fn(async () => undefined)

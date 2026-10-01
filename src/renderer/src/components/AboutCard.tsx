@@ -4,6 +4,7 @@ import BugReportOutlinedIcon from '@mui/icons-material/BugReportOutlined'
 import FolderOpenOutlinedIcon from '@mui/icons-material/FolderOpenOutlined'
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined'
 import AboutDialog from '@renderer/components/AboutDialog'
+import UpdateCheckButton from '@renderer/components/UpdateCheckButton'
 import appIcon from '@renderer/assets/midir.webp'
 import { useReportStore } from '@renderer/store/reportStore'
 
@@ -102,6 +103,14 @@ function AboutCard(): React.JSX.Element {
           Reveal recordings folder
         </Button>
       </Stack>
+
+      {/* The update check (WP44). It sits on its own line rather than in the row
+          above, because it answers under itself: the row is buttons, and this is
+          a button with a result. It runs the same check as the start-up notice
+          and, unlike the notice, explains a failure — the user asked. */}
+      <Box sx={{ mt: 1.5 }}>
+        <UpdateCheckButton currentVersion={version} />
+      </Box>
 
       <AboutDialog open={aboutOpen} onClose={() => setAboutOpen(false)} />
 

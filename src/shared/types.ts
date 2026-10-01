@@ -10,6 +10,7 @@ import type {
 } from './boards'
 import type { CharacterRecord } from './character'
 import type { LogEntry, LogFileInfo, RecordingInfo } from './log'
+import type { UpdateCheckResult } from './updateVersion'
 import type {
   AssistState,
   AssistWindow,
@@ -36,6 +37,7 @@ export * from './actionLayer'
 export * from './boards'
 export * from './map'
 export * from './graph'
+export * from './updateVersion'
 import type { MapPosition, MapSummary, MapViewResult, WarpEdit } from './map'
 import type { WorldGraphView } from './graph'
 
@@ -219,6 +221,10 @@ export interface MidirApi {
   /** Signals main that the renderer has hydrated so it can reveal the window
    *  and dismiss the startup splash. */
   appReady: () => void
+  /** The update check (WP44). It never rejects on a network failure: an
+   *  `{ ok: false, reason }` says why it could not tell, which is not the same
+   *  answer as up to date. */
+  checkForUpdate: () => Promise<UpdateCheckResult>
 
   settings: {
     load: () => Promise<MidirSettings>

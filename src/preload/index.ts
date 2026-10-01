@@ -30,6 +30,7 @@ import type {
   RecordingInfo,
   SpeakerConfig,
   SpeakerState,
+  UpdateCheckResult,
   WalkerDestination,
   WalkerState,
   WalkOutcome,
@@ -55,6 +56,9 @@ const api: MidirApi = {
   // Tell the main process the renderer has hydrated, so it can reveal the main
   // window and close the splash.
   appReady: (): void => ipcRenderer.send('app:ready'),
+  // The update check (WP44). Midir's one outbound request. It never rejects on a
+  // network failure; the result says whether it could tell.
+  checkForUpdate: (): Promise<UpdateCheckResult> => ipcRenderer.invoke('app:checkForUpdate'),
 
   settings: {
     // Settings are a readable JSON file at

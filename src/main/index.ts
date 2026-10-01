@@ -6,6 +6,7 @@ import {
   dialog,
   globalShortcut,
   ipcMain,
+  net,
   protocol,
   session,
   shell
@@ -566,6 +567,12 @@ const ctx: HandlerContext = {
   settingsPath,
   settingsManager,
   appGetVersion: () => app.getVersion(),
+  // `net.fetch`, never the global one, for the update check's one request (WP44).
+  // Electron's `net` takes the system proxy configuration and the OS certificate
+  // store, which is what makes the check work behind a corporate MITM root; the
+  // global fetch fails there with an opaque socket error. Wrapped rather than
+  // passed bare, so `net` is not touched before `ready`.
+  fetchImpl: (url, init) => net.fetch(url, init),
   captureAvailability,
   captureService,
   characterStore,

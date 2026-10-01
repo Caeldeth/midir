@@ -49,6 +49,17 @@ Midir reads from the network, and acts through the game's own window.
 
 Automation of a game is against the terms of service of most operators. You turn on an assistant feature at your own risk.
 
+## What Midir sends
+
+Midir makes one request of its own. Midir reads a small list of version numbers from GitHub, ten seconds after start and each time you select **Check for updates** in Settings. The answer tells you if a newer Midir is available.
+
+- The request carries no personal data. It names the app and nothing more.
+- Midir downloads no update and installs no update. Midir shows the version, and you select the link and download the release yourself.
+- GitHub receives the request, as it does for a web page that you open.
+- Your character record, your recordings, and your settings stay on your computer.
+
+Until the first release of Midir, the list holds no entry for Midir. Midir then shows nothing, which is correct.
+
 ## Requirements
 
 - Windows 10 or later.
