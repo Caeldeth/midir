@@ -14,7 +14,7 @@ Cut the first release. `package.json` is `0.1.0`, the changelog holds one `[Unre
 4. **Windows-only and unsigned, and say so.** Signing is a separate decision with its own cost; this release does not block on it, but it names the gap.
 5. **Gate on quality.** The full gate (`typecheck`, `lint`, `test`, `build`) is green, and the GUI checks handed to Sabrael for the shipped features have passed.
 6. **App standards are in place first (WP28).** The single-instance lock, the taskbar identity, and the icon are correct before a build goes to anyone. A release with two instances writing one store is not shippable.
-7. **The update check is WP44, and this release only feeds it (HTOO-65).** WP28 deferred the check here because a check needs a version to compare against. That is no longer where it belongs: the house standardised one update-check module on 2026-09-28, it reads a manifest rather than the releases API, and a key with no entry answers `no-entry` — so it can land before any release exists. WP44 ports it. **What stays here is one step of the release itself:** `npm run publish:version`, which writes Midir's version into the manifest, and the line for it in whatever states the release steps. Midir has no release document today, and the template documents the step in its `README.md`; deciding where Midir's goes belongs to this WP. It notifies; it does not install (non-goal below).
+7. **The update check is WP44, and this release only feeds it (HTOO-65).** WP28 deferred the check here because a check needs a version to compare against. That is no longer where it belongs: the house standardised one update-check module on 2026-09-28, it reads a manifest rather than the releases API, and a key with no entry answers `no-entry` — so it can land before any release exists. **WP44 shipped it on 2026-10-01**, before any release, and the check answers `no-entry` against the live manifest until this WP runs. **What stays here is one step of the release itself:** `npm run publish:version`, which writes Midir's `midir` key into the manifest and must run **after** the GitHub Release is published, because the script checks for it. Midir has no release document, and the template documents the step in its `README.md`; deciding where Midir's goes belongs to this WP. The check notifies; it does not install (non-goal below).
 
 ## Non-goals (stop-lines)
 
@@ -27,6 +27,7 @@ Cut the first release. `package.json` is `0.1.0`, the changelog holds one `[Unre
 - `package.json` at `0.1.0`; the changelog's single `[Unreleased]` section.
 - `release.yml` — from the template, unexercised.
 - `npm run build:win:portable` — the packaged portable Windows build.
+- `npm run publish:version` — in place since WP44, never run. It commits and pushes `versions.json` from a sibling `../cernunnos` checkout with the developer's own access, so no token is needed and no CI step runs it.
 
 ## Acceptance criteria
 
@@ -34,9 +35,11 @@ Cut the first release. `package.json` is `0.1.0`, the changelog holds one `[Unre
 2. The changelog names the release and its limits.
 3. The release notes state the credential caveats.
 4. The full gate is green before the tag.
+5. `npm run publish:version -- v<X.Y.Z>` has run, and the live manifest holds a `midir` entry whose `url` is under `appIdentity.releaseUrlPrefix`. Until this, the update check answers `no-entry` for every user, which is correct and says nothing.
 
 ## Verification
 
 1. `npm run typecheck && npm run lint:check && npm test && npm run build`.
 2. `npm run build:win:portable` produces a runnable portable build.
 3. GUI (hand to Sabrael): install the portable build on a clean machine and confirm it launches.
+4. GUI (hand to Sabrael): on a build whose version is older than the manifest entry, the update notice names the new version and its link opens the release page. WP44 could only prove `no-entry` against the live file, because Midir had no entry to compare against.
