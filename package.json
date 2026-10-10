@@ -12,7 +12,6 @@
     "packages/*"
   ],
   "scripts": {
-    "prepare": "git config core.hooksPath .githooks || exit 0",
     "validate": "npm run lint:check && npm run typecheck && npm test",
     "validate:linux": "node scripts/validate-linux.mjs",
     "verify:preload": "node scripts/verify-preload-sandbox.mjs",

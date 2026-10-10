@@ -9,9 +9,9 @@
 # on every pull request and every push checked each change twice whether or not
 # it could reach the code under test. One day of that across the house
 # (2026-08-12) exhausted the shared Actions allowance mid-merge. The house
-# answer is the pre-push hook: `npm run validate` through `.githooks/pre-push`,
-# armed by the `prepare` script. The jobs below run the same commands, so a CI
-# failure reproduces locally with the identical command.
+# answer is `npm run validate`, run by hand before a push. The jobs below run
+# the same commands, so a CI failure reproduces locally with the identical
+# command.
 #
 # **Mind the part `validate` does NOT cover.** `validate` is lint, typecheck,
 # and the unit tests. The `check` job also runs `npm run build`,
