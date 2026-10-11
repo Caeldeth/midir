@@ -1,17 +1,19 @@
 import { createTheme, responsiveFontSizes } from '@mui/material/styles'
 import { baseTypography } from './baseTypography'
+import { midirOverrides } from './midirOverrides'
 
 const hybrasylTheme = responsiveFontSizes(
   createTheme({
     palette: {
       mode: 'dark',
-      // `main` was `#0d182f`, the same value as `background.default`, so every
+      // `main` was `#0d182f` — the same value as `background.default` — so every
       // control that signals "active" through `color="primary"` painted itself
       // the colour of the page and vanished (HTOO-341). The blue that was
       // `light` is now `main`: 4.66:1 against the page, 5.18:1 against paper.
       // `contrastText` is navy, not the theme's cream: cream on this blue is
       // 3.05:1, which fails WCAG AA for the normal-sized text chip and button
-      // labels are. `palette.test.ts` pins all three numbers.
+      // labels are, and no cream-preserving blue clears both thresholds with
+      // any margin. `palette.test.ts` pins all three numbers.
       primary: {
         main: '#4d84d1',
         light: '#7fa9e0',
@@ -61,48 +63,7 @@ const hybrasylTheme = responsiveFontSizes(
     shape: { borderRadius: 2 },
 
     components: {
-      MuiAccordion: {
-        styleOverrides: {
-          root: ({ theme }) => ({
-            backgroundImage: 'none',
-            border: `1px solid ${theme.palette.divider}`,
-            boxShadow: 'none',
-            '&::before': { display: 'none' },
-            '&.Mui-expanded': { margin: 0 }
-          })
-        }
-      },
-      MuiAccordionSummary: {
-        styleOverrides: {
-          root: ({ theme }) => ({
-            backgroundColor: theme.palette.background.paperDark,
-            minHeight: 0,
-            '& .MuiAccordionSummary-content': {
-              marginTop: theme.spacing(1),
-              marginBottom: theme.spacing(1)
-            }
-          })
-        }
-      },
-      MuiAccordionDetails: {
-        styleOverrides: {
-          root: ({ theme }) => ({ padding: theme.spacing(2) })
-        }
-      },
-      MuiTooltip: {
-        styleOverrides: {
-          tooltip: ({ theme }) => ({
-            backgroundColor: theme.palette.background.paperDark,
-            color: theme.palette.text.primary,
-            border: `1px solid ${theme.palette.divider}`,
-            borderRadius: theme.shape.borderRadius,
-            boxShadow: theme.shadows[6],
-            fontSize: '0.8rem',
-            padding: theme.spacing(0.75, 1)
-          }),
-          arrow: ({ theme }) => ({ color: theme.palette.background.paperDark })
-        }
-      },
+      ...midirOverrides,
       MuiPaper: {
         styleOverrides: {
           root: {
@@ -181,9 +142,22 @@ const hybrasylTheme = responsiveFontSizes(
             fontFamily: '"Cinzel", serif',
             fontSize: '0.65rem',
             letterSpacing: '0.1em',
-            backgroundColor: 'rgba(58,158,144,0.14)',
-            color: '#3a9e90',
-            border: '1px solid rgba(58,158,144,0.3)'
+            border: '1px solid rgba(58,158,144,0.3)',
+            // The tint is for a plain chip only. On `root` it beat MUI's own fill
+            // for every colour, so a warning or a selected chip looked plain
+            // (HTOO-572).
+            '&.MuiChip-colorDefault': {
+              backgroundColor: 'rgba(58,158,144,0.14)',
+              color: '#3a9e90'
+            },
+            // A selected chip (color="primary", filled) takes the accent and its
+            // label, as MUI's own fill does, and keeps the accent on hover.
+            '&.MuiChip-filled.MuiChip-colorPrimary': {
+              backgroundColor: '#4d84d1',
+              color: '#0d182f',
+              borderColor: '#4d84d1',
+              '&.MuiChip-clickable:hover': { backgroundColor: '#4d84d1' }
+            }
           }
         }
       },

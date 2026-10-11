@@ -153,6 +153,9 @@ function LogSection(): React.JSX.Element {
               size="small"
               label={level}
               onClick={() => toggleLevel(level)}
+              // A level that is on is a selected chip. The variant alone does not
+              // show it, because each theme tints a plain chip in both variants.
+              color={levels.includes(level) ? 'primary' : 'default'}
               variant={levels.includes(level) ? 'filled' : 'outlined'}
               sx={{ textTransform: 'uppercase' }}
             />

@@ -1,21 +1,29 @@
 import { createTheme, responsiveFontSizes } from '@mui/material/styles'
 import { baseTypography } from './baseTypography'
+import { midirOverrides } from './midirOverrides'
 
 const grinnealTheme = responsiveFontSizes(
   createTheme({
     palette: {
       mode: 'dark',
+      // HTOO-355: the olive is a middle tone, so the cream label could not pass on
+      // it (3.46:1). A lighter olive with a dark label, as hybrasyl (HTOO-341):
+      // 4.69:1 on the page, 5.54:1 on paper, and the label is 4.69:1 on it.
+      // `light` moved with it (it was 1.11:1 from the new main; now 1.52:1).
       primary: {
-        main: '#6a7a50',
-        light: '#8a9a68',
+        main: '#7f9360',
+        light: '#a3b580',
         dark: '#4a5838',
-        contrastText: '#f0dcb8'
+        contrastText: '#27221c'
       },
       secondary: {
         main: '#907858',
         light: '#b89870',
         dark: '#604830',
-        contrastText: '#f8f0df'
+        // The bar is a mid-tone tan, and no light colour reaches 4.5:1 on it (white
+        // is 4.19:1). Near-black is 4.72:1, and the title bar engraves it
+        // (ENGRAVED_CHROME_THEMES) rather than keylining it (HTOO-572).
+        contrastText: '#0c0a06'
       },
       background: {
         default: '#27221c',
@@ -29,7 +37,7 @@ const grinnealTheme = responsiveFontSizes(
         tableBorderL: 'rgba(122,106,80,0.15)',
         tableBorderD: 'rgba(122,106,80,0.30)',
         scrollbarDark: '#4a5838',
-        scrollbarLight: '#6a7a50'
+        scrollbarLight: '#7f9360'
       },
       text: {
         primary: '#d4c4a8',
@@ -38,7 +46,7 @@ const grinnealTheme = responsiveFontSizes(
         headline: '#dcb864',
         link: '#a0b078',
         linkHover: '#c0d090',
-        visited: '#6a7a50',
+        visited: '#7f9360',
         button: '#d4c4a8',
         dark: '#1a1408'
       },
@@ -54,48 +62,7 @@ const grinnealTheme = responsiveFontSizes(
     shape: { borderRadius: 2 },
 
     components: {
-      MuiAccordion: {
-        styleOverrides: {
-          root: ({ theme }) => ({
-            backgroundImage: 'none',
-            border: `1px solid ${theme.palette.divider}`,
-            boxShadow: 'none',
-            '&::before': { display: 'none' },
-            '&.Mui-expanded': { margin: 0 }
-          })
-        }
-      },
-      MuiAccordionSummary: {
-        styleOverrides: {
-          root: ({ theme }) => ({
-            backgroundColor: theme.palette.background.paperDark,
-            minHeight: 0,
-            '& .MuiAccordionSummary-content': {
-              marginTop: theme.spacing(1),
-              marginBottom: theme.spacing(1)
-            }
-          })
-        }
-      },
-      MuiAccordionDetails: {
-        styleOverrides: {
-          root: ({ theme }) => ({ padding: theme.spacing(2) })
-        }
-      },
-      MuiTooltip: {
-        styleOverrides: {
-          tooltip: ({ theme }) => ({
-            backgroundColor: theme.palette.background.paperDark,
-            color: theme.palette.text.primary,
-            border: `1px solid ${theme.palette.divider}`,
-            borderRadius: theme.shape.borderRadius,
-            boxShadow: theme.shadows[6],
-            fontSize: '0.8rem',
-            padding: theme.spacing(0.75, 1)
-          }),
-          arrow: ({ theme }) => ({ color: theme.palette.background.paperDark })
-        }
-      },
+      ...midirOverrides,
       MuiPaper: {
         styleOverrides: {
           root: {
@@ -114,15 +81,15 @@ const grinnealTheme = responsiveFontSizes(
             border: '1px solid #8a9a68',
             color: '#b0c088',
             '&:hover': {
-              backgroundColor: 'rgba(106,122,80,0.18)',
+              backgroundColor: 'rgba(127,147,96,0.18)',
               borderColor: '#c0d090',
               color: '#c8d898'
             }
           },
           contained: {
-            backgroundColor: 'rgba(106,122,80,0.22)',
+            backgroundColor: 'rgba(127,147,96,0.22)',
             color: '#d4c4a8',
-            '&:hover': { backgroundColor: 'rgba(106,122,80,0.36)' }
+            '&:hover': { backgroundColor: 'rgba(127,147,96,0.36)' }
           }
         }
       },
@@ -153,8 +120,8 @@ const grinnealTheme = responsiveFontSizes(
             color: '#9a8a70',
             borderBottom: '1px solid rgba(122,106,80,0.08)',
             '&.Mui-selected': {
-              backgroundColor: 'rgba(106,122,80,0.12)',
-              borderLeft: '2px solid #6a7a50',
+              backgroundColor: 'rgba(127,147,96,0.12)',
+              borderLeft: '2px solid #7f9360',
               color: '#8a9a68'
             },
             '&:hover': { backgroundColor: 'rgba(122,106,80,0.1)', paddingLeft: '20px' }
@@ -179,9 +146,22 @@ const grinnealTheme = responsiveFontSizes(
             fontFamily: '"Cinzel", serif',
             fontSize: '0.65rem',
             letterSpacing: '0.1em',
-            backgroundColor: 'rgba(106,122,80,0.22)',
-            color: '#b0c088',
-            border: '1px solid rgba(160,140,100,0.48)'
+            border: '1px solid rgba(160,140,100,0.48)',
+            // The tint is for a plain chip only. On `root` it beat MUI's own fill
+            // for every colour, so a warning or a selected chip looked plain
+            // (HTOO-572).
+            '&.MuiChip-colorDefault': {
+              backgroundColor: 'rgba(127,147,96,0.22)',
+              color: '#b0c088'
+            },
+            // A selected chip (color="primary", filled) takes the accent and its
+            // label, as MUI's own fill does, and keeps the accent on hover.
+            '&.MuiChip-filled.MuiChip-colorPrimary': {
+              backgroundColor: '#7f9360',
+              color: '#27221c',
+              borderColor: '#7f9360',
+              '&.MuiChip-clickable:hover': { backgroundColor: '#7f9360' }
+            }
           }
         }
       },
@@ -198,12 +178,12 @@ const grinnealTheme = responsiveFontSizes(
             },
             backgroundColor: '#907858',
             color: '#d4c4a8',
-            border: '1px solid #6a7a50',
+            border: '1px solid #7f9360',
             '&:hover': { backgroundColor: '#b89870', borderColor: '#8a9a68' },
             '&.Mui-selected': {
-              backgroundColor: '#6a7a50',
+              backgroundColor: '#7f9360',
               borderColor: '#8a9a68',
-              color: '#d4c4a8'
+              color: '#27221c'
             },
             '&.Mui-disabled': {
               backgroundColor: 'rgba(144,120,88,0.3)',
@@ -223,15 +203,15 @@ const grinnealTheme = responsiveFontSizes(
           }
         }
       },
-      MuiTabs: { styleOverrides: { indicator: { backgroundColor: '#6a7a50' } } },
+      MuiTabs: { styleOverrides: { indicator: { backgroundColor: '#7f9360' } } },
       MuiInputLabel: {
-        styleOverrides: { root: { '&.Mui-focused': { color: '#6a7a50' } } }
+        styleOverrides: { root: { '&.Mui-focused': { color: '#7f9360' } } }
       },
       MuiCheckbox: {
         styleOverrides: {
           root: {
-            color: 'rgba(106,122,80,0.5)',
-            '&.Mui-checked': { color: '#6a7a50' }
+            color: 'rgba(127,147,96,0.5)',
+            '&.Mui-checked': { color: '#7f9360' }
           }
         }
       },
@@ -240,7 +220,7 @@ const grinnealTheme = responsiveFontSizes(
           root: {
             '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(122,106,80,0.3)' },
             '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(122,106,80,0.6)' },
-            '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#6a7a50' }
+            '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#7f9360' }
           }
         }
       },
@@ -260,7 +240,7 @@ const grinnealTheme = responsiveFontSizes(
             color: '#a0b078',
             textDecoration: 'none',
             '&:hover': { color: '#c0d090' },
-            '&:visited': { color: '#6a7a50' }
+            '&:visited': { color: '#7f9360' }
           }
         }
       },

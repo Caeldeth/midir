@@ -39,7 +39,10 @@ export default defineConfig({
           environment: 'jsdom',
           include: [
             'src/renderer/src/__tests__/**/*.test.{ts,tsx}',
-            'src/renderer/src/{components,pages,hooks,store}/**/__tests__/**/*.test.{ts,tsx}'
+            'src/renderer/src/{components,pages,hooks,store}/**/__tests__/**/*.test.{ts,tsx}',
+            // A test directory that matches NO glob here fails silently: vitest
+            // collects nothing and still reports success. Name each one.
+            'src/renderer/src/themes/__tests__/**/*.test.{ts,tsx}'
           ],
           setupFiles: ['./src/renderer/src/__tests__/setup/vitest.setup.ts']
         }

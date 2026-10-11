@@ -1,5 +1,6 @@
 import { createTheme, responsiveFontSizes } from '@mui/material/styles'
 import { plainTypography } from './plainTypography'
+import { midirOverrides } from './midirOverrides'
 
 // Dubhaimid — the dark "corporate/boring" theme. Neutral charcoal grays
 // (VS Code-ish), light-gray text, a single muted blue accent, plain
@@ -10,9 +11,12 @@ const dubhaimidTheme = responsiveFontSizes(
     palette: {
       mode: 'dark',
       primary: {
-        main: '#5c8bc4',
+        // HTOO-355: a darker blue, so the white label passes (it was 3.53:1).
+        // 3.62:1 on the page, 3.32:1 on paper, and white is 4.61:1 on it. `dark`
+        // moved with it (it was 1.21:1 from the new main, an invisible hover).
+        main: '#4277b7',
         light: '#82a9d6',
-        dark: '#3f6a9e',
+        dark: '#2c5487',
         contrastText: '#ffffff'
       },
       // secondary is the title-bar / chrome color. Dubhaimid shares Mundanes'
@@ -43,7 +47,7 @@ const dubhaimidTheme = responsiveFontSizes(
         secondary: '#9aa0a6',
         disabled: '#6a6a6e',
         headline: '#e0e0e0',
-        link: '#5c8bc4',
+        link: '#4277b7',
         linkHover: '#82a9d6',
         visited: '#9a8bc4',
         button: '#ffffff',
@@ -61,48 +65,7 @@ const dubhaimidTheme = responsiveFontSizes(
     shape: { borderRadius: 6 },
 
     components: {
-      MuiAccordion: {
-        styleOverrides: {
-          root: ({ theme }) => ({
-            backgroundImage: 'none',
-            border: `1px solid ${theme.palette.divider}`,
-            boxShadow: 'none',
-            '&::before': { display: 'none' },
-            '&.Mui-expanded': { margin: 0 }
-          })
-        }
-      },
-      MuiAccordionSummary: {
-        styleOverrides: {
-          root: ({ theme }) => ({
-            backgroundColor: theme.palette.background.paperDark,
-            minHeight: 0,
-            '& .MuiAccordionSummary-content': {
-              marginTop: theme.spacing(1),
-              marginBottom: theme.spacing(1)
-            }
-          })
-        }
-      },
-      MuiAccordionDetails: {
-        styleOverrides: {
-          root: ({ theme }) => ({ padding: theme.spacing(2) })
-        }
-      },
-      MuiTooltip: {
-        styleOverrides: {
-          tooltip: ({ theme }) => ({
-            backgroundColor: theme.palette.background.paperDark,
-            color: theme.palette.text.primary,
-            border: `1px solid ${theme.palette.divider}`,
-            borderRadius: theme.shape.borderRadius,
-            boxShadow: theme.shadows[6],
-            fontSize: '0.8rem',
-            padding: theme.spacing(0.75, 1)
-          }),
-          arrow: ({ theme }) => ({ color: theme.palette.background.paperDark })
-        }
-      },
+      ...midirOverrides,
       MuiPaper: {
         styleOverrides: {
           root: {
@@ -136,8 +99,8 @@ const dubhaimidTheme = responsiveFontSizes(
           root: {
             color: '#9aa0a6',
             '&.Mui-selected': {
-              backgroundColor: 'rgba(92,139,196,0.16)',
-              borderLeft: '2px solid #5c8bc4',
+              backgroundColor: 'rgba(66,119,183,0.16)',
+              borderLeft: '2px solid #4277b7',
               color: '#82a9d6'
             },
             '&:hover': { backgroundColor: 'rgba(255,255,255,0.06)' }
@@ -159,13 +122,26 @@ const dubhaimidTheme = responsiveFontSizes(
       MuiChip: {
         styleOverrides: {
           root: {
-            backgroundColor: '#3e3e42',
-            color: '#c4c8cc',
-            border: '1px solid rgba(255,255,255,0.12)'
+            border: '1px solid rgba(255,255,255,0.12)',
+            // The tint is for a plain chip only. On `root` it beat MUI's own fill
+            // for every colour, so a warning or a selected chip looked plain
+            // (HTOO-572).
+            '&.MuiChip-colorDefault': {
+              backgroundColor: '#3e3e42',
+              color: '#c4c8cc'
+            },
+            // A selected chip (color="primary", filled) takes the accent and its
+            // label, as MUI's own fill does, and keeps the accent on hover.
+            '&.MuiChip-filled.MuiChip-colorPrimary': {
+              backgroundColor: '#4277b7',
+              color: '#ffffff',
+              borderColor: '#4277b7',
+              '&.MuiChip-clickable:hover': { backgroundColor: '#4277b7' }
+            }
           }
         }
       },
-      MuiTabs: { styleOverrides: { indicator: { backgroundColor: '#5c8bc4' } } },
+      MuiTabs: { styleOverrides: { indicator: { backgroundColor: '#4277b7' } } },
       MuiTab: {
         styleOverrides: {
           root: {
@@ -175,13 +151,13 @@ const dubhaimidTheme = responsiveFontSizes(
         }
       },
       MuiInputLabel: {
-        styleOverrides: { root: { '&.Mui-focused': { color: '#5c8bc4' } } }
+        styleOverrides: { root: { '&.Mui-focused': { color: '#4277b7' } } }
       },
       MuiCheckbox: {
         styleOverrides: {
           root: {
             color: 'rgba(255,255,255,0.4)',
-            '&.Mui-checked': { color: '#5c8bc4' }
+            '&.Mui-checked': { color: '#4277b7' }
           }
         }
       },
@@ -190,7 +166,7 @@ const dubhaimidTheme = responsiveFontSizes(
           root: {
             '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.23)' },
             '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.5)' },
-            '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#5c8bc4' }
+            '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#4277b7' }
           }
         }
       },

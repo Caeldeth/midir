@@ -41,9 +41,12 @@ declare module '@mui/material/styles' {
     linkHover: string
     /** Visited link color. */
     visited: string
-    /** Text color used inside contained buttons. */
+    /** Headings on the page and on cards (4.5:1 on both, palette.test.ts). The
+     *  bars use `secondary.contrastText` instead: one token cannot read on both
+     *  a light page and a dark bar (mundanes), or the reverse (HTOO-572). */
     button: string
-    /** Very dark text for use on light backgrounds in mostly-dark themes. */
+    /** Dark text on a light fill, e.g. a chrome button on hover over
+     *  `info.main` (4.5:1, palette.test.ts). */
     dark: string
   }
 }
