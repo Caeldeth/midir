@@ -2,8 +2,6 @@
   "name": "midir",
   "productName": "Midir",
   "version": "0.1.0",
-  "//desktopName": "Linux window association (HTOO-63). Electron uses this as app_id / WM_CLASS; without it a desktop environment cannot link the running window to the installed .desktop entry. It is a package.json field, NOT an electron-builder one. Lowercase, matching win.executableName. Read with linux.syncDesktopName in electron-builder.yml.",
-  "desktopName": "midir.desktop",
   "description": "Companion app for retail Dark Ages — a searchable item index and character record across all of your characters",
   "main": "./out/main/index.js",
   "author": "Caeldeth",
@@ -30,9 +28,7 @@
     "postinstall": "electron-builder install-app-deps",
     "build:unpack": "npm run build && electron-builder --dir",
     "build:win": "npm run build && electron-builder --win",
-    "build:win:portable": "npm run build && electron-builder --win portable",
-    "build:mac": "npm run build && electron-builder --mac",
-    "build:linux": "npm run build && electron-builder --linux"
+    "build:win:portable": "npm run build && electron-builder --win portable"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",

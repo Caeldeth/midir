@@ -2,7 +2,7 @@
 
 Midir is a companion app for **retail Dark Ages** (USDA client 7.41, `da0.kru.com`). It captures the game client's network traffic, decodes the protocol, and keeps a persistent record of every character the player logs in on. The record drives a searchable cross-character item index and a per-character detail view. The model is Altoholic for World of Warcraft.
 
-Retail is the only target. Hybrasyl is not supported.
+Retail is the only target. Hybrasyl is not supported. Windows is the only platform: the game client runs on nothing else, so Midir builds no macOS or Linux package, and a house standard for those platforms (the macOS title bar and menu, Linux icons) does not apply. `scripts/icons.test.mjs` keeps `electron-builder.yml` Windows-only.
 
 ## The rules that make this app what it is
 

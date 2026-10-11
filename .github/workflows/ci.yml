@@ -22,8 +22,8 @@
 # `npm run build && npm run verify:preload` after touching the preload or its
 # imports.
 #
-# release.yml is untouched: it fires on a `v*` tag and on dispatch, and it
-# builds the macOS and Linux artifacts a Windows dev box cannot.
+# release.yml is separate: it fires on a `v*` tag and on dispatch, and it
+# builds the Windows artifacts. Midir builds for Windows only.
 #
 # ## When to spend a run
 #

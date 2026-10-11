@@ -92,42 +92,12 @@ portable:
   # app included, because no later launch reuses that name. `portableSweep.ts`
   # removes those on the next portable launch (HTOO-494).
   unpackDirName: true
-mac:
-  category: public.app-category.developer-tools
-  # The square tile (docs/logos/macros/midir_fixed.png) inset to Apple's grid by
-  # scripts/make-icons.mjs, never the Windows master, which is a round emblem.
-  icon: build/icon-mac.png
-  hardenedRuntime: true
-  gatekeeperAssess: false
-  entitlements: build/entitlements.mac.plist
-  entitlementsInherit: build/entitlements.mac.plist
-  target:
-    - target: dmg
-      arch:
-        - universal
-  notarize: true
-dmg:
-  artifactName: ${name}-${version}.${ext}
-linux:
-  # MUST be explicit, and must be a DIRECTORY (HTOO-38). electron-builder
-  # resolves the Linux icon as [linux.icon, mac.icon ?? icon]: mac.icon outranks
-  # the top-level icon, so leaving this unset ships the macOS artwork on Linux,
-  # and a single PNG is never resampled, so a 1024 master becomes one hicolor
-  # entry at a size no desktop indexes, a blank document icon. Regenerate with
-  #   node scripts/make-icons.mjs
-  icon: build/icons
-  # Derives the installed .desktop filename from package.json's `desktopName`,
-  # so it matches StartupWMClass and Electron's app_id (HTOO-63). Without it the
-  # desktop environment cannot associate the running window with the .desktop
-  # entry and shows a generic icon regardless of build/icons/.
-  syncDesktopName: true
-  target:
-    - AppImage
-    - deb
-  maintainer: Caeldeth
-  category: Utility
-appImage:
-  artifactName: ${name}-${version}.${ext}
+# WINDOWS ONLY, on purpose. Midir captures the Dark Ages client's traffic and
+# drives its window, and that client runs on Windows only. A macOS or Linux
+# build has no game to read and no window to drive, so there is no mac, dmg,
+# linux or appImage block, and release.yml builds Windows alone.
+# `scripts/icons.test.mjs` pins the absence: the template's blocks come back
+# with every port from it.
 publish:
   provider: github
   owner: Caeldeth
