@@ -39,6 +39,8 @@ Keep entries user-facing — internal refactors/tests show up in the appended au
 
 ### Fixed
 
+- Every theme: a warning chip, such as "Mail waiting" on a character or a walker's stop reason on the map, now shows its warning colour instead of looking like a plain chip. On the Diagnostics log, a level that is on now looks different from a level that is off. The accent colours of Chadul, Danaan, Grinneal, Mundanes and Dubhaimid now read against the page, button hovers stay readable, and the dark title-bar text on Danaan and Grinneal is engraved instead of outlined. Chadul now has a green accent and purple bars. On Danaan, the walker's path on the map no longer fades into the parchment.
+
 - A refused errand is no longer reported as finished. Supporting a citizen who is not logged in answers "<name> is not near", and working for an Aisling who is full answers "<name> doesn't need any jobs done" — both said "The errand finished" with the refusal inside the text. The Laborer now knows which words mean the errand worked, reports anything else as a refusal, and writes an answer it does not recognise to the log so it can be reviewed. Silence after the last step is reported as no verdict, which it is.
 
 - A character no longer stays “logged in” after you log off. Midir now reads the client’s exit and, whatever happens, follows the connection: a client that crashes or is killed sends nothing, but its connection still ends.

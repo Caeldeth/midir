@@ -196,7 +196,10 @@ function PathLayer({
       <polyline
         points={points}
         fill="none"
-        stroke={theme.palette.primary.light}
+        // primary.main, not .light: the path crosses open tiles, which are
+        // background.paper, and the palette test holds main at 3:1 on paper.
+        // On danaan .light is near the parchment (1.54:1) (HTOO-572).
+        stroke={theme.palette.primary.main}
         strokeWidth={Math.max(2, scale / 3)}
         strokeLinejoin="round"
         strokeLinecap="round"

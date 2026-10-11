@@ -1,12 +1,15 @@
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { ThemeProvider } from '@mui/material/styles'
+import { themesByName } from '@renderer/themes'
 import { useDiagnosticsStore } from '@renderer/store/diagnosticsStore'
 import { useSettingsStore } from '@renderer/store/settingsStore'
 import {
   DEFAULT_SETTINGS,
   type LogEntry,
   type LogFileInfo,
-  type RecordingInfo
+  type RecordingInfo,
+  type ThemeName
 } from '@shared/types'
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -117,6 +120,33 @@ describe('the Diagnostics page', () => {
     }
     expect(screen.getByTestId('log-lines')).toHaveTextContent('The save failed.')
   })
+
+  // A level that is on is a selected chip, so it is `color="primary"`. With only
+  // the variant to tell them apart, an on chip and an off chip drew the same
+  // fill in every theme: each theme tints a plain chip whatever its variant
+  // (HTOO-572).
+  it.each(Object.keys(themesByName) as ThemeName[])(
+    '%s: a level that is on looks different from a level that is off',
+    async (name) => {
+      const theme = themesByName[name]
+      window.api.diagnostics.listLogs = vi.fn(async () => [THIS_SESSION])
+      window.api.diagnostics.readLog = vi.fn(async () => ENTRIES)
+      window.api.diagnostics.listRecordings = vi.fn(async () => [])
+      render(
+        <ThemeProvider theme={theme}>
+          <Diagnostics />
+        </ThemeProvider>
+      )
+      await screen.findByTestId('log-lines')
+      await userEvent.click(screen.getByRole('button', { name: 'info' }))
+
+      const on = getComputedStyle(screen.getByRole('button', { name: 'warn' }))
+      const off = getComputedStyle(screen.getByRole('button', { name: 'info' }))
+      const n = parseInt(theme.palette.primary.main.slice(1), 16)
+      expect(on.backgroundColor).toBe(`rgb(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255})`)
+      expect(on.backgroundColor).not.toBe(off.backgroundColor)
+    }
+  )
 
   it('filters the log by text', async () => {
     await renderWith({ logFiles: [THIS_SESSION], entries: ENTRIES })
