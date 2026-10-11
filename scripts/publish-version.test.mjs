@@ -1,6 +1,5 @@
 // house module: update-check v1 — change it in the template, then port
-import { execFileSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync, chmodSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -44,16 +43,17 @@ describe('readUpdateKey', () => {
     expect(readUpdateKey("  updateKey: 'oghma',\n")).toBe('oghma')
   })
 
-  // The ONE line of the ported module that is not portable: it asserts the
-  // adopting app's own key, so every copy has to change it. The template says
-  // 'template' here. Worth fixing in the template so the next app's port is a
-  // plain copy (noted on HTOO-382).
-  it('reads the real appIdentity of this app', () => {
+  it('reads the real appIdentity', () => {
+    // Checks the file's own literal, not a name typed here, so this file copies
+    // to every app unchanged (HTOO-516). What it guards is that readUpdateKey
+    // works on the real source, not on a string in a test.
     const src = readFileSync(
       join(import.meta.dirname, '..', 'src', 'shared', 'appIdentity.ts'),
       'utf8'
     )
-    expect(readUpdateKey(src)).toBe('midir')
+    const key = readUpdateKey(src)
+    expect(key).toMatch(/^[a-z0-9-]+$/)
+    expect(src).toMatch(new RegExp(`updateKey:\\s*['"]${key}['"]`))
   })
 
   it('fails without one', () => {
@@ -94,24 +94,48 @@ describe('updateManifest', () => {
   })
 })
 
-// The git path, end to end, against temporary repos: a bare "origin" that
-// stands in for cernunnos on GitHub, a clone that stands in for ../cernunnos,
-// and a fake app repo. Only `gh` is faked.
+// The git step, against a fake git (HTOO-516). `publish()` takes `git` the way
+// it takes `release`, and `git(cwd, ...args)` is the only thing in it that
+// starts a process. So these tests start none: the fake records each call and
+// answers from a script. Before, this block ran real repos (a bare origin and
+// two clones), about 8 git processes to set up and more in each test. Under a
+// loaded full suite that passed 30 s, and then 120 s was needed, and the
+// pre-push hook still failed on it. The git commands are plain (`rev-parse`,
+// `status`, `pull --ff-only`, `commit -- versions.json`, `push`), so the order
+// and the arguments are what to check.
+//
+// The checkout is still a real temp folder: `versions.json` and `.git` are
+// plain files, and reading and writing them starts no process.
+
+/**
+ * A fake `git(cwd, ...args)`. `answers` maps a subcommand to its output, or to a
+ * function that returns it or throws. Every call is recorded in `calls`.
+ */
+function fakeGit(answers = {}) {
+  const calls = []
+  const answer = { 'rev-parse': 'main', status: '', ...answers }
+  const git = (cwd, ...args) => {
+    calls.push({ cwd, args })
+    const a = answer[args[0]]
+    return typeof a === 'function' ? a(args) : (a ?? '')
+  }
+  return { git, calls, commands: () => calls.map((c) => c.args.join(' ')) }
+}
+
+/** A push that is rejected `times` times, then succeeds. */
+const pushRejected = (times) => {
+  let left = times
+  return () => {
+    if (left-- > 0) throw new Error('! [rejected] main -> main (fetch first)')
+    return ''
+  }
+}
+
 describe('publish', () => {
   let root
-  let origin
-  let clone
-  let other
   let app
+  let cernunnos
 
-  const g = (cwd, ...args) =>
-    execFileSync('git', args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim()
-  const configure = (cwd) => {
-    g(cwd, 'config', 'user.name', 'Test')
-    g(cwd, 'config', 'user.email', 'test@example.invalid')
-    g(cwd, 'config', 'core.hooksPath', '.git/hooks')
-    g(cwd, 'config', 'core.autocrlf', 'false')
-  }
   const release = (tag) => ({
     tagName: tag,
     url: `https://github.com/x/app/releases/tag/${tag}`,
@@ -119,97 +143,140 @@ describe('publish', () => {
     isDraft: false,
     isPrerelease: false
   })
-  const originFile = () => g(origin, 'show', 'main:versions.json')
+  const manifest = () => readFileSync(join(cernunnos, 'versions.json'), 'utf8')
 
   beforeEach(() => {
     root = mkdtempSync(join(tmpdir(), 'publish-version-'))
-    origin = join(root, 'origin.git')
-    clone = join(root, 'cernunnos')
-    other = join(root, 'other')
     app = join(root, 'app')
-    g(root, 'init', '--quiet', '--bare', '-b', 'main', origin)
-    g(root, 'clone', '--quiet', origin, clone)
-    configure(clone)
-    writeFileSync(join(clone, 'versions.json'), seedText)
-    g(clone, 'add', 'versions.json')
-    g(clone, 'commit', '--quiet', '-m', 'seed')
-    g(clone, 'push', '--quiet', '-u', 'origin', 'main')
-    g(root, 'clone', '--quiet', origin, other)
-    configure(other)
+    cernunnos = join(root, 'cernunnos')
     mkdirSync(join(app, 'src', 'shared'), { recursive: true })
     writeFileSync(join(app, 'package.json'), JSON.stringify({ version: '1.7.0' }))
     writeFileSync(
       join(app, 'src', 'shared', 'appIdentity.ts'),
       "export const a = { updateKey: 'mid' }\n"
     )
+    mkdirSync(join(cernunnos, '.git'), { recursive: true })
+    writeFileSync(join(cernunnos, 'versions.json'), seedText)
   })
 
   afterEach(() => {
-    rmSync(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 })
+    rmSync(root, { recursive: true, force: true })
   })
 
-  const run = (extra = {}) =>
-    publish({ tag: 'v1.7.0', repoRoot: app, cernunnos: clone, release, log: () => {}, ...extra })
+  const run = (fake, extra = {}) =>
+    publish({
+      tag: 'v1.7.0',
+      repoRoot: app,
+      cernunnos,
+      release,
+      git: fake.git,
+      log: () => {},
+      ...extra
+    })
 
   it('commits and pushes this app’s entry only', () => {
-    expect(run()).toEqual({ key: 'mid', version: '1.7.0', pushed: true })
-    const data = JSON.parse(originFile())
+    const fake = fakeGit()
+    expect(run(fake)).toEqual({ key: 'mid', version: '1.7.0', pushed: true })
+    expect(fake.commands()).toEqual([
+      'rev-parse --abbrev-ref HEAD',
+      'status --porcelain',
+      'pull --ff-only --quiet',
+      'commit --quiet -m versions: mid 1.7.0 -- versions.json',
+      'push --quiet'
+    ])
+    expect(fake.calls.every((c) => c.cwd === cernunnos)).toBe(true)
+    const data = JSON.parse(manifest())
     expect(data.apps.mid).toEqual({
       version: '1.7.0',
       released: '2026-09-28T12:00:00Z',
       url: 'https://github.com/x/app/releases/tag/v1.7.0'
     })
     expect(data.apps.alpha).toEqual(SEED.apps.alpha)
-    expect(g(origin, 'log', '-1', '--format=%s', 'main')).toBe('versions: mid 1.7.0')
+    expect(data.apps.zeta).toEqual(SEED.apps.zeta)
   })
 
-  it('a dry run changes nothing', () => {
-    expect(run({ dryRun: true }).pushed).toBe(false)
-    expect(originFile()).toBe(seedText.trim())
-    expect(g(clone, 'status', '--porcelain')).toBe('')
-  })
-
-  it('recovers when another release pushed between our commit and our push', () => {
-    // A post-commit hook in our clone makes the other clone push first: the
-    // exact window a second developer's release would hit.
-    const hook = join(clone, '.git', 'hooks', 'post-commit')
+  it('reads the manifest after the pull, not before it', () => {
+    // Another app's release can land between our last pull and this one. The
+    // entry must be added to the file the pull brought, or it would be lost.
     const theirs =
       JSON.stringify(
         { ...SEED, apps: { ...SEED.apps, alpha: { ...SEED.apps.alpha, version: '1.1.0' } } },
         null,
         2
       ) + '\n'
-    writeFileSync(join(root, 'theirs.json'), theirs)
-    writeFileSync(
-      hook,
-      `#!/bin/sh\ncp "${join(root, 'theirs.json').replace(/\\/g, '/')}" "${join(other, 'versions.json').replace(/\\/g, '/')}"\ngit -C "${other.replace(/\\/g, '/')}" commit --quiet -am "versions: alpha 1.1.0"\ngit -C "${other.replace(/\\/g, '/')}" push --quiet\nrm "$0"\n`
-    )
-    chmodSync(hook, 0o755)
-    expect(run().pushed).toBe(true)
-    const data = JSON.parse(originFile())
+    const fake = fakeGit({ pull: () => writeFileSync(join(cernunnos, 'versions.json'), theirs) })
+    run(fake)
+    const data = JSON.parse(manifest())
     expect(data.apps.alpha.version).toBe('1.1.0')
     expect(data.apps.mid.version).toBe('1.7.0')
   })
 
-  it('refuses a release that is not published as stable', () => {
-    expect(() => run({ release: (t) => ({ ...release(t), isDraft: true }) })).toThrow(
-      /not published/
-    )
-    expect(originFile()).toBe(seedText.trim())
+  it('a dry run makes no commit and no push, and writes nothing', () => {
+    const fake = fakeGit()
+    expect(run(fake, { dryRun: true }).pushed).toBe(false)
+    expect(fake.commands().some((c) => /^(commit|push)/.test(c))).toBe(false)
+    expect(manifest()).toBe(seedText)
   })
 
-  it('refuses a tag that does not match package.json', () => {
-    expect(() => run({ tag: 'v1.8.0' })).toThrow(/does not match package.json/)
+  it('after a rejected push, pulls with a rebase and pushes once more', () => {
+    const fake = fakeGit({ push: pushRejected(1) })
+    expect(run(fake).pushed).toBe(true)
+    expect(fake.commands().slice(-3)).toEqual([
+      'push --quiet',
+      'pull --rebase --quiet',
+      'push --quiet'
+    ])
+  })
+
+  it('throws when the second push is rejected too, and does not try a third', () => {
+    const fake = fakeGit({ push: pushRejected(2) })
+    expect(() => run(fake)).toThrow(/rejected/)
+    expect(fake.commands().filter((c) => c.startsWith('push'))).toHaveLength(2)
+  })
+
+  it('refuses a cernunnos checkout that is not on main', () => {
+    const fake = fakeGit({ 'rev-parse': 'feature' })
+    expect(() => run(fake)).toThrow(/on feature, not main/)
+    expect(fake.commands()).toEqual(['rev-parse --abbrev-ref HEAD'])
   })
 
   it('refuses a dirty cernunnos checkout: that work is someone else’s', () => {
-    writeFileSync(join(clone, 'README.md'), 'local edit\n')
-    expect(() => run()).toThrow(/uncommitted changes/)
-    expect(originFile()).toBe(seedText.trim())
+    const fake = fakeGit({ status: ' M README.md' })
+    expect(() => run(fake)).toThrow(/uncommitted changes/)
+    expect(fake.commands().some((c) => /^(pull|commit|push)/.test(c))).toBe(false)
+    expect(manifest()).toBe(seedText)
+  })
+
+  it('refuses a folder that is not a git checkout, before any git call', () => {
+    rmSync(join(cernunnos, '.git'), { recursive: true })
+    const fake = fakeGit()
+    expect(() => run(fake)).toThrow(/no git checkout/)
+    expect(fake.calls).toHaveLength(0)
+  })
+
+  it('refuses a release that is not published as stable', () => {
+    const fake = fakeGit()
+    expect(() => run(fake, { release: (t) => ({ ...release(t), isDraft: true }) })).toThrow(
+      /not published/
+    )
+    expect(() => run(fake, { release: (t) => ({ ...release(t), isPrerelease: true }) })).toThrow(
+      /not published/
+    )
+    expect(fake.calls).toHaveLength(0)
+  })
+
+  it('refuses a tag that is not a stable release tag', () => {
+    expect(() => run(fakeGit(), { tag: 'v1.7.0-beta.1' })).toThrow(/not a stable release tag/)
+  })
+
+  it('refuses a tag that does not match package.json', () => {
+    expect(() => run(fakeGit(), { tag: 'v1.8.0' })).toThrow(/does not match package.json/)
   })
 
   it('refuses to publish the same version twice', () => {
-    run()
-    expect(() => run()).toThrow(/not newer/)
+    run(fakeGit())
+    const fake = fakeGit()
+    expect(() => run(fake)).toThrow(/not newer/)
+    expect(fake.commands().some((c) => /^(commit|push)/.test(c))).toBe(false)
   })
 })

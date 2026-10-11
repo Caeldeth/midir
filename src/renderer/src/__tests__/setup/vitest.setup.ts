@@ -110,7 +110,7 @@ export function createMockApi(): MidirApi {
       readLog: vi.fn(async () => []),
       openLogsFolder: vi.fn(async () => undefined),
       buildReport: vi.fn(async () => 'App: Midir 0.0.0 / No errors captured this session.'),
-      openIssue: vi.fn(async () => ({ ok: true as const, truncated: false })),
+      openIssue: vi.fn(async () => ({ ok: true as const, truncated: false, copied: true })),
       copyReport: vi.fn(async () => ({ ok: true as const })),
       report: vi.fn(async () => undefined),
       onLogEntry: vi.fn(() => () => undefined),

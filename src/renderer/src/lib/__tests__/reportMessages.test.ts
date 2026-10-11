@@ -38,7 +38,7 @@ describe('composeIssueBody', () => {
 
 describe('openIssueMessage', () => {
   it('names the clipboard on the ordinary success', () => {
-    const m = openIssueMessage({ ok: true, truncated: false })
+    const m = openIssueMessage({ ok: true, truncated: false, copied: true })
     expect(m.severity).toBe('success')
     expect(m.text).toContain('clipboard')
   })
@@ -46,17 +46,46 @@ describe('openIssueMessage', () => {
   it('treats truncation as information, not failure, and asks for one paste', () => {
     // Nothing went wrong: the report was longer than a link may be. Wording it as an
     // error would send people back to retype a description already in their hands.
-    const m = openIssueMessage({ ok: true, truncated: true })
+    const m = openIssueMessage({ ok: true, truncated: true, copied: true })
     expect(m.severity).not.toBe('error')
     expect(m.text).toContain('paste')
   })
 
   it('offers the manual route when the URL was refused, and still names the clipboard', () => {
-    const m = openIssueMessage({ ok: false, reason: 'unsafe-url' })
+    const m = openIssueMessage({ ok: false, reason: 'unsafe-url', copied: true })
     expect(m.severity).toBe('error')
     expect(m.text).toContain('clipboard')
     // The intake is named so the user can finish by hand. It comes from
     // `appIdentity`, so the sentence cannot drift from the URL the button opens.
+    expect(m.text).toContain('github.com/hybrasyl/cernunnos')
+  })
+})
+
+describe('openIssueMessage when the copy failed (HTOO-553)', () => {
+  // Electron 44's clipboard is async and can fail or time out. Then no sentence
+  // may say the report is on the clipboard.
+  it('never promises the clipboard', () => {
+    for (const result of [
+      { ok: true as const, truncated: false, copied: false },
+      { ok: true as const, truncated: true, copied: false },
+      { ok: false as const, reason: 'unsafe-url' as const, copied: false }
+    ]) {
+      expect(openIssueMessage(result).text).not.toMatch(/is on your clipboard|from your clipboard/)
+    }
+  })
+
+  it('asks for a manual copy only when the link holds part of the report', () => {
+    expect(openIssueMessage({ ok: true, truncated: true, copied: false }).text).toContain(
+      'Copy the report'
+    )
+    expect(openIssueMessage({ ok: true, truncated: false, copied: false }).text).toContain(
+      'holds all of it'
+    )
+  })
+
+  it('names the intake when the page did not open either', () => {
+    const m = openIssueMessage({ ok: false, reason: 'unsafe-url', copied: false })
+    expect(m.severity).toBe('error')
     expect(m.text).toContain('github.com/hybrasyl/cernunnos')
   })
 })

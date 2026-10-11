@@ -3,7 +3,8 @@ import type { BoardPollRequest } from '../../../shared/boards'
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import type { Dialog, IpcMain } from 'electron'
+import type { IpcMain } from 'electron'
+import type { PickerDialog } from '../../pickerStart'
 import { afterAll, describe, expect, it, vi } from 'vitest'
 import type { CaptureService } from '../../captureService'
 import { createBoardStore, withPost, withPostList } from '../../store/boardStore'
@@ -148,7 +149,7 @@ describe('the board handlers', () => {
     const target = join(dir, 'out.json')
     const dialog = {
       showSaveDialog: vi.fn(async () => ({ canceled: false, filePath: target }))
-    } as unknown as Dialog
+    } as unknown as PickerDialog
     expect(await exportBoard(ctx, dialog, null, '10', 5000)).toBe(target)
     expect(ctx.flushed).toBe(1)
     expect(JSON.parse(readFileSync(target, 'utf-8')).postCount).toBe(2)
@@ -158,7 +159,7 @@ describe('the board handlers', () => {
     const ctx = await context()
     const dialog = {
       showSaveDialog: vi.fn(async () => ({ canceled: true, filePath: undefined }))
-    } as unknown as Dialog
+    } as unknown as PickerDialog
     expect(await exportBoard(ctx, dialog, null, '10')).toBeNull()
     expect(await exportBoard(ctx, dialog, null, 'nope')).toBeNull()
     expect(dialog.showSaveDialog).toHaveBeenCalledTimes(1)
@@ -169,7 +170,7 @@ describe('the board handlers', () => {
     const handle = vi.fn()
     registerBoardHandlers(
       { handle } as unknown as IpcMain,
-      {} as Dialog,
+      {} as PickerDialog,
       { fromWebContents: () => null } as never,
       ctx
     )

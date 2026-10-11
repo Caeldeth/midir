@@ -23,6 +23,7 @@ import { createWalker } from './walker'
 import { createLaborer } from './laborer'
 import { createExplorer } from './explorer'
 import { createBoardPoll } from './boardPoll'
+import { pickerDialog, withPickerStart } from './pickerStart'
 import { builtinErrands } from './laborer/errands'
 import { createPaneWatcher } from './paneWatcher'
 import { createMapSource } from './route/mapSource'
@@ -597,7 +598,9 @@ const ctx: HandlerContext = {
   // The report's two side effects, injected so the handler module stays free of
   // electron at test time.
   diagnosticsIo: {
+    // A Promise since Electron 44: the report flow awaits it, bounded (HTOO-553).
     writeClipboard: (text) => clipboard.writeText(text),
+    onCopyFailed: (reason) => log.warn('diagnostics', `Clipboard write failed: ${reason}`),
     openExternal: (url) => void shell.openExternal(url)
   },
   recordingsPath,
@@ -827,4 +830,19 @@ app.on('before-quit', (event) => {
 // guardIpc, not bare ipcMain: every channel registered here, and every channel
 // added later, rejects an IPC whose sender is not the top frame of a trusted
 // window, by construction rather than by remembering to opt in.
-registerHandlers({ ipcMain: guardIpc(ipcMain), BrowserWindow, shell, dialog }, ctx)
+//
+// withPickerStart, not the bare dialog, for the same reason: since Electron 43 a
+// picker with no start folder opens in Downloads, and every picker added later
+// gets the rule without remembering it (HTOO-553).
+registerHandlers(
+  {
+    ipcMain: guardIpc(ipcMain),
+    BrowserWindow,
+    shell,
+    dialog: withPickerStart(pickerDialog(dialog), {
+      gameFolder: () => darkAgesPath,
+      fallbacks: () => [app.getPath('documents'), app.getPath('home')]
+    })
+  },
+  ctx
+)

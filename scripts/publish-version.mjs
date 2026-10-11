@@ -69,7 +69,8 @@ export function updateManifest(text, key, entry) {
   return JSON.stringify({ ...data, apps: sorted }, null, 2) + '\n'
 }
 
-function git(cwd, ...args) {
+/** `git <args>` in `cwd`: the only thing in `publish()` that starts a process. */
+export function realGit(cwd, ...args) {
   return execFileSync('git', args, {
     cwd,
     encoding: 'utf8',
@@ -88,8 +89,8 @@ function releaseFromGh(tag, repoRoot) {
 }
 
 /**
- * The whole step. `deps` lets the test drive it against temporary repos and a
- * fake release, without `gh` or the network.
+ * The whole step. `release` and `git` are injected, so the test drives it with
+ * a fake release and a fake git: no `gh`, no network and no git process.
  */
 export function publish({
   tag,
@@ -97,6 +98,7 @@ export function publish({
   cernunnos,
   dryRun = false,
   release = releaseFromGh,
+  git = realGit,
   log = console.log
 }) {
   const version = parseTag(tag)

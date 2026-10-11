@@ -1,5 +1,6 @@
-import type { BrowserWindow as BrowserWindowType, Dialog, IpcMain } from 'electron'
+import type { BrowserWindow as BrowserWindowType, IpcMain } from 'electron'
 import { writeFile } from 'node:fs/promises'
+import type { PickerDialog } from '../pickerStart'
 import { z } from 'zod'
 import type {
   BoardExport,
@@ -114,7 +115,7 @@ export function exportFileName(board: BoardRecord, nowMs: number): string {
  */
 export async function exportBoard(
   ctx: BoardHandlerContext,
-  dialog: Dialog,
+  dialog: PickerDialog,
   window: BrowserWindowType | null,
   key: unknown,
   nowMs = Date.now()
@@ -128,10 +129,9 @@ export async function exportBoard(
     defaultPath: exportFileName(fresh, nowMs),
     filters: [{ name: 'JSON', extensions: ['json'] }]
   }
-  const result =
-    window !== null
-      ? await dialog.showSaveDialog(window, options)
-      : await dialog.showSaveDialog(options)
+  // A bare file name: `withPickerStart` puts it in the last folder used, the
+  // Dark Ages folder, or Documents. Electron 43+ would put it in Downloads.
+  const result = await dialog.showSaveDialog(window, options)
   if (result.canceled || result.filePath === undefined || result.filePath === '') return null
   await writeFile(result.filePath, JSON.stringify(exportOf(fresh, nowMs), null, 2), 'utf-8')
   return result.filePath
@@ -139,7 +139,7 @@ export async function exportBoard(
 
 export function registerBoardHandlers(
   ipcMain: IpcMain,
-  dialog: Dialog,
+  dialog: PickerDialog,
   BrowserWindow: typeof BrowserWindowType,
   ctx: BoardHandlerContext
 ): void {

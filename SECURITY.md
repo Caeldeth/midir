@@ -45,11 +45,11 @@ The latest release only. Midir ships forward; there are no maintenance branches.
 - **The dev tree is audited by hand**, not gated. Build-time tools do not ship inside the app, so an advisory in one is something to schedule rather than something that should block an unrelated change. Run a bare `npm audit` whenever you touch dependencies.
 - **There is no Dependabot, and that is a decision rather than an oversight.** It was tried across these projects and produced noise instead of signal. Dependency and action bumps are made by hand, deliberately, when a deprecation or an advisory surfaces one.
 - **Windows artifacts are Authenticode-signed** when signing credentials are configured; the step self-skips otherwise, so unsigned builds are possible and are what unofficial builds will be. **`app.asar` is packaging, not a security boundary**: anyone holding a build can read its contents.
+- **Electron fuses are set and read back** (HTOO-374, HTOO-381). The packaged `midir.exe` refuses `ELECTRON_RUN_AS_NODE`, `NODE_OPTIONS` and the `--inspect` arguments, loads its code from `app.asar` only, and checks `app.asar` against the hash in the executable: a changed archive exits with `ASAR Integrity Violation` and opens no window. `electron-builder.yml` sets them, `scripts/verify-fuses.test.mjs` checks that block on every test run, and the release job reads the wire off the packaged binary before it signs it. The unpacked trees (`resources/` and the addon) are outside the asar check.
 - **The native addon** (`packages/da-pcap`) opens a capture handle through Npcap and reads the Windows TCP table and window list; it writes to no other process. It is built from source in the repository by `@electron/rebuild` at packaging time.
 
 ## Known gaps
 
-- **Electron fuses are not yet set** (`runAsNode`, `--inspect`, `NODE_OPTIONS`, asar-only loading). Tracked house-wide as HTOO-374; Midir's row is owed.
 - **No automatic update.** Midir notices a newer release and says so (HTOO-65). Midir does not download it, and no code path writes over the installation. The player downloads a release themselves, which also means an unsigned build is never replaced by something Midir chose.
 
 ## Out of scope

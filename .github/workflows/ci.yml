@@ -22,8 +22,8 @@
 # `npm run build && npm run verify:preload` after touching the preload or its
 # imports.
 #
-# release.yml is untouched: it fires on a `v*` tag and on dispatch, and it
-# builds the macOS and Linux artifacts a Windows dev box cannot.
+# release.yml is separate: it fires on a `v*` tag and on dispatch, and it
+# builds the Windows artifacts. Midir builds for Windows only.
 #
 # ## When to spend a run
 #
@@ -33,6 +33,17 @@
 # needs it.
 #
 # `lint:check` runs with `--max-warnings 0`: any warning fails the job.
+
+# CHECKOUT DEPTH: 1, the `actions/checkout` default, on purpose (HTOO-328).
+# A depth-1 clone has no parents for the commit it checks out, so every commit
+# reads as a root commit, and anything that reads ancestry (commit parents,
+# merge-base, ahead/behind, `git describe`) answers wrongly in CI. Nothing in
+# these jobs reads the CLONE's history: nothing in src/ or the e2e specs reads
+# git (Midir runs no git), publish-version.mjs and validate-linux.mjs run git
+# only on the developer's machine, and changelog-extract.mjs reads CHANGELOG.md.
+# So depth 1 gives no wrong answer today. Set `fetch-depth: 0` on a job the
+# moment one of its steps reads commit parents, `merge-base`, ahead/behind or
+# `git describe` from the checkout. The same note heads release.yml.
 
 name: CI
 
@@ -56,16 +67,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # `fetch-depth` is left at the default of 1, deliberately (HTOO-328). A
-      # depth-1 clone records NO PARENTS for the commit it checks out, so
-      # anything reading ancestry (commit parents, merge-base, ahead/behind,
-      # `git describe`) answers confidently and wrongly in CI.
-      #
-      # Nothing in Midir reads git. No source, script, unit test, or e2e spec
-      # shells out to it or parses its output: `scripts/changelog-extract.mjs`
-      # reads CHANGELOG.md, and release.yml's release notes come from the API.
-      # Revisit the moment anything here reads parents, merge-base,
-      # ahead/behind, or `git describe`. Same note in release.yml.
+      # Depth 1 (the default) is deliberate — see the CHECKOUT DEPTH note at the top.
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
         with:
@@ -140,6 +142,7 @@ jobs:
     runs-on: windows-2022
 
     steps:
+      # Depth 1 (the default) is deliberate — see the CHECKOUT DEPTH note at the top.
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
         with:

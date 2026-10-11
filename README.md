@@ -76,6 +76,12 @@ The stand-in legend marks are from the [Game Icons](https://game-icons.net/) set
 
 Midir learns the encryption keys from the login handshake. If you start Midir in the middle of a game session, it cannot read that session. Start Midir first, then start Dark Ages.
 
+## Remote Desktop
+
+Over Remote Desktop, Midir changes to software rendering by itself. A remote session has no GPU, and Chromium's GPU compositing is what makes a window drag slowly and the app use about 10% CPU when it does nothing. You do not set anything: Midir reads the session type when it starts.
+
+**Midir cannot see a reconnected session.** Windows records the session type at logon and does not change it, so a console session that you later connect to over Remote Desktop still shows as local. If a window drags slowly over Remote Desktop, set `MIDIR_DISABLE_GPU=1` in the environment before you start Midir. The same variable works the other way: `MIDIR_DISABLE_GPU=0` turns hardware rendering on again if the detection is wrong on your computer. Any other value that is not empty means on.
+
 ## Commands
 
 | Script | What it does |
@@ -88,6 +94,7 @@ Midir learns the encryption keys from the login handshake. If you start Midir in
 | `npm run build:win` | Package Windows nsis and portable |
 | `npm run build:win:portable` | Portable exe only |
 | `npm run build:unpack` | Unpacked build for local smoke tests |
+| `npm run verify:fuses -- <exe>` | Read the Electron fuses off a packaged binary |
 
 Run this gate green before you commit: `npm run typecheck && npm run lint:check && npm test && npm run build`.
 
@@ -97,7 +104,8 @@ Release notes are written in **`CHANGELOG.md`**. Do not edit the GitHub release 
 
 1. As PRs land, add the user-facing change under `## [Unreleased]` (Keep a Changelog format).
 2. To cut a release, promote `## [Unreleased]` to `## [X.Y.Z] - YYYY-MM-DD`, add a fresh empty `[Unreleased]` above it, and bump the version with `npm version X.Y.Z --no-git-tag-version`.
-3. Tag `vX.Y.Z` and push. `release.yml` builds and signs the artifacts. Then `scripts/changelog-extract.mjs` pulls that version's section into the release body, and `generate_release_notes` appends the automatic PR list below it.
+3. Start the packaged app before you tag. Run `npm run build:win`, then open each exe in `dist/` and make sure that the window opens. The asar integrity fuse makes a damaged package exit with no window and no message, so a package that nobody started is not known to work (HTOO-381). `npm run verify:fuses -- dist/win-unpacked/midir.exe` reads the fuses off the package; the release job runs it too.
+4. Tag `vX.Y.Z` and push. `release.yml` builds and signs the artifacts. Then `scripts/changelog-extract.mjs` pulls that version's section into the release body, and `generate_release_notes` appends the automatic PR list below it.
 
 A missing section falls back to the automatic notes, so a forgotten entry never fails the release.
 

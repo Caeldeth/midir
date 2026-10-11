@@ -42,7 +42,14 @@ import type { MapPosition, MapSummary, MapViewResult, WarpEdit } from './map'
 import type { WorldGraphView } from './graph'
 
 /** How **Open GitHub issue** ended. The copy to the clipboard happened in both cases. */
-export type OpenIssueResult = { ok: true; truncated: boolean } | { ok: false; reason: 'unsafe-url' }
+/**
+ * The outcome of **Open GitHub issue**. `copied` is false when the clipboard write
+ * failed or timed out: the page still opens, and the message says the clipboard
+ * holds no report.
+ */
+export type OpenIssueResult =
+  | { ok: true; truncated: boolean; copied: boolean }
+  | { ok: false; reason: 'unsafe-url'; copied: boolean }
 
 export type ThemeName = 'hybrasyl' | 'chadul' | 'danaan' | 'grinneal' | 'mundanes' | 'dubhaimid'
 
