@@ -2,33 +2,35 @@ name: Release
 
 # Cribbed from taliesin (the most complete sibling variant). Requires these
 # repository secrets before the first tagged release:
-#   ES_USERNAME / ES_PASSWORD / ES_CREDENTIAL_ID / ES_TOTP_SECRET  (SSL.com eSigner, Windows)
+#   ES_USERNAME / ES_PASSWORD / ES_CREDENTIAL_ID / ES_TOTP_SECRET  (SSL.com eSigner, Windows, through CodeSignTool)
 #   DISCORD_WEBHOOK_URL                                            (release announcement)
 #
 # WINDOWS ONLY. The Dark Ages client runs on Windows only, so Midir has nothing
 # to read or drive on macOS or Linux. The template's build-mac and build-linux
-# jobs are removed; electron-builder.yml has no mac or linux block either.
+# jobs are removed; electron-builder.yml has no mac or linux block either, and
+# scripts/icons.test.mjs pins that. This file is otherwise the house template's
+# (HTOO-517, HTOO-374, HTOO-328), so a later fix there ports by diff.
 
-# TAGS AND MANUAL ONLY (HTOO-390). This used to fire on `pull_request` AND on
-# every push to `main`, and the second was the expensive one by a wide margin:
-# the build jobs are guarded only by `github.event_name != 'pull_request'`, so a
-# push to main ran build-windows, build-linux AND build-mac in full -- and then
-# skipped `release`, because that one checks `ref_type == 'tag'`. Every merge
-# built three platforms' artifacts and threw them away.
+# TAGS AND MANUAL ONLY (HTOO-390). The `pull_request` trigger is gone. The build
+# job is guarded only by `github.event_name != 'pull_request'`, so a push trigger
+# on `main` would build and discard the Windows artifacts on every merge.
+# GitHub bills Windows runners at 2x.
 #
-# GitHub bills macOS runners at 10x and windows at 2x. One day of house-wide CI
-# on 2026-08-12 exhausted the shared Actions allowance and hit the account's
-# spending limit mid-merge; this workflow was the largest single contributor.
+# The per-PR check is replaced by a LOCAL gate, run by hand before a push:
+# `npm run validate`.
 #
-# What replaces the lost per-PR check is a LOCAL gate, run by hand before a
-# push: `npm run validate`, plus `npm run validate:linux` for real Linux
-# through WSL.
-#
-# Everything below still runs on a `v*` tag and on workflow_dispatch, including
-# validate, so a release is still gated.
-#
-# Fire it by hand when a change is platform-shaped:
-#   gh workflow run release.yml --ref <branch>
+# A `v*` tag and workflow_dispatch still run everything.
+
+# CHECKOUT DEPTH: 1, the `actions/checkout` default, on purpose (HTOO-328).
+# A depth-1 clone has no parents for the commit it checks out, so every commit
+# reads as a root commit. Nothing in this workflow reads the CLONE's history:
+# nothing in src/ or the e2e specs reads git (Midir runs no git), publish-version.mjs and
+# validate-linux.mjs run git only on the developer's machine,
+# changelog-extract.mjs reads CHANGELOG.md, the release notes come from the
+# GitHub API, and no e2e runs here. So depth 1 gives no wrong answer today. The
+# trigger is written down: set `fetch-depth: 0` on a job
+# the moment one of its steps reads commit parents, `merge-base`, ahead/behind or
+# `git describe` from the checkout.
 on:
   push:
     tags:
@@ -38,8 +40,14 @@ on:
 permissions:
   contents: write
 
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+# The actions/* below are pinned to current-latest majors (checkout/setup-node/
+# upload-artifact @v7, download-artifact @v8, setup-java @v5) — all native Node
+# 24, as is softprops/action-gh-release@v3.
+#
+# No FORCE_JAVASCRIPT_ACTIONS_TO_NODE24 env. It was here for one holdout,
+# `sslcom/esigner-codesign` (it declares `using: node20`). That action is gone:
+# the Windows job runs CodeSignTool itself (see "Sign installer + portable exe").
+# Do not add the env again without a holdout that needs it (HTOO-517).
 
 jobs:
   # Fast validation gate — runs on every PR to main (and before any release
@@ -49,8 +57,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      # Depth 1 (the default) is deliberate — see the CHECKOUT DEPTH note at the top.
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
 
@@ -63,8 +72,27 @@ jobs:
       - name: Lint
         run: npm run lint:check
 
+      # ESLint checks Prettier on source only. This covers everything else,
+      # including Markdown, where proseWrap: never rejects a hard wrap.
+      - name: Format check
+        run: npm run format:check
+
       - name: Test + coverage gate
         run: npm run test:coverage
+
+      # Production dependencies only, and only high/critical.
+      #
+      # Both narrowings are deliberate. `--omit=dev` because nothing in the dev
+      # tree ships: eslint and electron-builder are build-time tools, and an
+      # advisory in one of them is a thing to schedule, not a thing that should
+      # red an unrelated PR. A gate that cries wolf gets deleted, and then there
+      # is no gate. `--audit-level=high` for the same reason at a finer grain.
+      #
+      # The dev tree is not therefore ignored — it is handled by hand, which is
+      # the house's recorded position on dependency updates (no dependabot). Run
+      # a bare `npm audit` when you touch dependencies.
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
 
   build-windows:
     runs-on: windows-latest
@@ -72,8 +100,9 @@ jobs:
     if: github.event_name != 'pull_request'
 
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      # Depth 1 (the default) is deliberate — see the CHECKOUT DEPTH note at the top.
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
 
@@ -83,8 +112,22 @@ jobs:
       - name: Build app
         run: npm run build
 
-      - name: Package portable exe
-        run: npx electron-builder --win portable --publish never
+      # Before packaging, in every build job. A preload that cannot load in the
+      # sandbox produces an app that boots to a blank page, and the only place
+      # that is visible before a human runs the binary is the built file this
+      # reads (HTOO-54). Cheap to run; the alternative is signing it.
+      - name: Verify the built preload can load in the sandbox
+        run: npm run verify:preload
+
+      # NO TARGET LIST HERE. The Windows targets live in electron-builder.yml
+      # and nowhere else. That file declares BOTH `nsis` and `portable`; this
+      # step used to name one of them, so it quietly built only the portable exe
+      # and every release would have shipped without an installer. Mabon, dagda,
+      # taliesin and balor had the same defect. A target list in two places is a
+      # target list that disagrees with itself, and the config is the half a
+      # reader checks. scripts/release-signing.test.mjs pins the absence.
+      - name: Package installer + portable exe
+        run: npx electron-builder --win --publish never
 
       # The fuses are burned into the packaged binary, and nothing else here can
       # see them: lint, test, build and e2e all pass on a package that silently
@@ -100,23 +143,104 @@ jobs:
           echo "name=$(node -p "require('./package.json').name")" >> "$GITHUB_OUTPUT"
           echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
 
-      - name: Sign portable exe (SSL.com eSigner)
-        uses: sslcom/esigner-codesign@cf5f6c1d38ad10f47e3ed9aca873f429b1a8d85b # v1.3.2
+      # WINDOWS SIGNING: CodeSignTool on a CURRENT JDK, never its bundled one
+      # (HTOO-517).
+      #
+      # Every CodeSignTool release (v1.3.2 is the newest) bundles JDK 11.0.2 from
+      # 2019, and its CodeSignTool.bat always runs that JDK. On 2026-09-30 SSL.com
+      # renewed the certificate of login.ssl.com, the OAuth host CodeSignTool
+      # signs in at. The new chain ends at "SSL.com TLS RSA Root CA 2022" with no
+      # cross-signed copy, and that old trust store does not have the 2022 root:
+      # every sign failed with `PKIX path building failed`. The action
+      # `sslcom/esigner-codesign`, which this job used before, runs the bundled
+      # JDK. Temurin 17 and 21 have the 2022 root.
+      #
+      # No `if:` guard on the secrets, on purpose: a run without them fails
+      # here rather than shipping unsigned files.
+      - name: Set up Java 17 for CodeSignTool
+        uses: actions/setup-java@v5
         with:
-          command: sign
-          username: ${{ secrets.ES_USERNAME }}
-          password: ${{ secrets.ES_PASSWORD }}
-          credential_id: ${{ secrets.ES_CREDENTIAL_ID }}
-          totp_secret: ${{ secrets.ES_TOTP_SECRET }}
-          file_path: ${{ github.workspace }}/dist/${{ steps.pkg.outputs.name }}-${{ steps.pkg.outputs.version }}-portable.exe
-          override: true
+          distribution: temurin
+          java-version: '17'
 
-      - name: Upload Windows artifact
-        uses: actions/upload-artifact@v4
+      # ONE step signs BOTH artifacts, so they cannot get apart. Signing one of
+      # the two would be worse than signing neither: a user handed a signed
+      # installer beside an unsigned portable exe has no way to read that as
+      # "credentials are configured for one artifact". Any failure stops the job
+      # before the upload.
+      #
+      # Only these two outer files are signed. electron-builder.yml configures no
+      # Windows signing, so the app exe and the uninstaller inside them are not
+      # signed.
+      #
+      # CodeSignTool is pinned (as in epona, mabon and oghma): the eSigner
+      # protocol has changed between releases. It reads conf/ from its working
+      # directory, so it runs in its own folder. -output_dir_path stops it from
+      # asking whether to replace the input. That prompt would wait until the job
+      # times out.
+      #
+      # CodeSignTool can print an error and still exit 0, and write no file. Thus
+      # the step reads each signature back and requires the status `Valid`.
+      - name: Sign installer + portable exe (SSL.com eSigner)
+        shell: pwsh
+        env:
+          ES_USERNAME: ${{ secrets.ES_USERNAME }}
+          ES_PASSWORD: ${{ secrets.ES_PASSWORD }}
+          ES_CREDENTIAL_ID: ${{ secrets.ES_CREDENTIAL_ID }}
+          ES_TOTP_SECRET: ${{ secrets.ES_TOTP_SECRET }}
+          CODESIGNTOOL_VERSION: '1.3.2'
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $files = @(
+            "${{ github.workspace }}/dist/${{ steps.pkg.outputs.name }}-${{ steps.pkg.outputs.version }}-setup.exe",
+            "${{ github.workspace }}/dist/${{ steps.pkg.outputs.name }}-${{ steps.pkg.outputs.version }}-portable.exe"
+          )
+          $archive = "CodeSignTool-v$env:CODESIGNTOOL_VERSION-windows.zip"
+          $url = "https://github.com/SSLcom/CodeSignTool/releases/download/v$env:CODESIGNTOOL_VERSION/$archive"
+          Invoke-WebRequest -Uri $url -OutFile "$env:RUNNER_TEMP/$archive" -UseBasicParsing
+          Expand-Archive -Path "$env:RUNNER_TEMP/$archive" -DestinationPath "$env:RUNNER_TEMP/codesigntool" -Force
+          $jar = Get-ChildItem "$env:RUNNER_TEMP/codesigntool" -Recurse -Filter 'code_sign_tool-*.jar' | Select-Object -First 1
+          if (-not $jar) { throw "no code_sign_tool jar in $archive" }
+          $toolDir = $jar.Directory.Parent.FullName
+          $java = Join-Path $env:JAVA_HOME 'bin/java.exe'
+          & $java -version
+          foreach ($file in $files) {
+            if (-not (Test-Path $file)) { throw "not found: $file" }
+            $out = Join-Path $env:RUNNER_TEMP 'esigner-output'
+            New-Item -ItemType Directory -Force -Path $out | Out-Null
+            Push-Location $toolDir
+            try {
+              & $java -jar $jar.FullName sign "-username=$env:ES_USERNAME" "-password=$env:ES_PASSWORD" "-credential_id=$env:ES_CREDENTIAL_ID" "-totp_secret=$env:ES_TOTP_SECRET" "-input_file_path=$file" "-output_dir_path=$out" "-override=true"
+              if ($LASTEXITCODE -ne 0) { throw "CodeSignTool exited $LASTEXITCODE for $file" }
+            } finally {
+              Pop-Location
+            }
+            $signed = Join-Path $out (Split-Path $file -Leaf)
+            if (-not (Test-Path $signed)) { throw "CodeSignTool wrote no signed file for $file" }
+            Move-Item -Force $signed $file
+            $sig = Get-AuthenticodeSignature $file
+            if ($sig.Status -ne 'Valid') { throw "signature on $file is $($sig.Status)" }
+            Write-Host "signed: $file ($($sig.SignerCertificate.Subject))"
+          }
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v7
         with:
-          name: windows-portable
-          path: dist/*-portable.exe
+          name: windows
+          # Both, and `if-no-files-found: error` covers both. The `.blockmap`
+          # electron-builder writes beside the installer is NOT collected: it is
+          # for electron-updater's differential download, and the house update
+          # check notifies rather than downloads (HTOO-65).
+          path: |
+            dist/*-setup.exe
+            dist/*-portable.exe
           if-no-files-found: error
+          # These artifacts only hand the build off to the `release` job in this
+          # same run; the published Release keeps its own copy of every file and
+          # release assets do not count against Actions storage. Without a
+          # retention they sit for 90 days at ~630MB per release and eventually
+          # fail every build with "Artifact storage quota has been hit".
+          retention-days: 1
 
   release:
     runs-on: ubuntu-latest
@@ -126,10 +250,11 @@ jobs:
     steps:
       # Checkout (the release job otherwise only downloads artifacts) so the
       # CHANGELOG + extract script are on disk.
-      - uses: actions/checkout@v4
+      # Depth 1 (the default) is deliberate — see the CHECKOUT DEPTH note at the top.
+      - uses: actions/checkout@v7
 
       - name: Download all artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: artifacts
 
@@ -139,9 +264,10 @@ jobs:
         run: node scripts/changelog-extract.mjs "${{ github.ref_name }}" > RELEASE_NOTES.md
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: |
+            artifacts/**/*-setup.exe
             artifacts/**/*-portable.exe
           # Curated CHANGELOG section on top; generate_release_notes appends the
           # auto PR list + Full Changelog link below it.
@@ -158,3 +284,23 @@ jobs:
           curl -sf -H "Content-Type: application/json" \
             -d "{\"content\": \"**${REPO#*/} $TAG** is now available!\n$RELEASE_URL\"}" \
             "${{ secrets.DISCORD_WEBHOOK_URL }}"
+      # The house version manifest (versions.json in hybrasyl/cernunnos, update-check
+      # module v1) is NOT written here. That write is a commit and push by the
+      # developer who releases, with their own git access: the workflow has no
+      # credential for cernunnos, by decision. Running apps learn of this release only
+      # after that step, so this step prints the command on the run page (a notice)
+      # and in the job summary.
+      - name: Remind to publish the version manifest
+        if: success()
+        run: |
+          CMD="npm run publish:version -- ${{ github.ref_name }}"
+          echo "::notice title=Publish the version manifest::Start the packaged app, then run: $CMD"
+          {
+            echo "### Next: publish the version manifest"
+            echo
+            echo "Start the packaged app from the release. Then run this in the app checkout:"
+            echo
+            echo "    $CMD"
+            echo
+            echo "Running copies of the app do not see this release until you do."
+          } >> "$GITHUB_STEP_SUMMARY"

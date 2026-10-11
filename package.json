@@ -10,7 +10,7 @@
     "packages/*"
   ],
   "scripts": {
-    "validate": "npm run lint:check && npm run typecheck && npm test",
+    "validate": "npm run lint:check && npm run format:check && npm run typecheck && npm test",
     "validate:linux": "node scripts/validate-linux.mjs",
     "verify:preload": "node scripts/verify-preload-sandbox.mjs",
     "test": "vitest run",
@@ -19,6 +19,7 @@
     "e2e:only": "playwright test",
     "typecheck": "tsc --build --force",
     "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "publish:version": "node scripts/publish-version.mjs",
     "lint": "eslint . --fix",
     "lint:check": "eslint . --max-warnings 0",
