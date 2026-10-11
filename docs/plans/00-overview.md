@@ -167,6 +167,7 @@ Each is a real WP with a doc, but is trigger-gated: it starts when its trigger f
 | WP42 | S | Legend badges from the client | HTOO-482 | COMPLETE 2026-09-27 (#46) — `complete/42-legend-badges.md` |
 | WP43 | M | The world graph view | HTOO-483 | COMPLETE 2026-09-27 (#48) — `complete/43-world-graph-view.md`; retest owed |
 | WP44 | S | The house update check | HTOO-495 | COMPLETE — `complete/44-update-check.md`; the module ported, and Midir's first outbound request stated |
+| WP45 | M | Windows only, Electron 44, the house rows | HTOO-553 et al. | IN PR — `45-house-sweep.md` |
 
 `00a-backlog.md` now holds only what is not a WP: the non-goals, the debts owed to another repo, and the one conditional rule.
 
@@ -174,7 +175,7 @@ Both features deferred out of WP19 have now shipped, neither as a WP doc. The co
 
 ## Conventions every WP follows
 
-- **Gate before committing:** `npm run typecheck && npm run lint:check && npm test && npm run build`.
+- **Gate before committing:** `npm run validate && npm run build` (`validate` is lint, format, typecheck and the unit tests).
 - **`npm run dev` needs a GUI.** It cannot run headless or sandboxed. An agent verifies with the gate and a replay; GUI click-throughs are handed to Sabrael, and the doc says so plainly.
 - **The live capture path cannot be verified by an agent** — it needs Npcap, an adapter, and a real game session. Use `replaySource` and a recorded session for everything below the seam.
 - **A protocol claim cites its source.** Both descriptions get read, because neither is a superset of the other, and where they disagree the document repo wins. A claim verified against a live capture says so, with the numbers.
