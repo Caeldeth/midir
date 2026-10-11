@@ -6,6 +6,51 @@ productName: Midir
 icon: build/icon.png
 directories:
   buildResources: build
+# Turn off escape hatches built into the Electron binary that the app never uses
+# (HTOO-374). The one that matters is runAsNode: without it,
+#   ELECTRON_RUN_AS_NODE=1 midir.exe -e "<script>"
+# turns the shipped binary into a general-purpose Node interpreter. Midir has
+# Npcap open and posts input to another process's window, so that interpreter
+# would inherit a real capability. It also makes the app immune to the trap
+# where that variable, exported in a shell, makes a healthy launch look like a
+# crash.
+#
+# onlyLoadAppFromAsar can break a packaged launch, so start the built app once
+# after a change here. Midir HAS a native addon: da-pcap is asarUnpack'd below,
+# because a .node file cannot load from inside an archive. The fuse governs where
+# the app's code loads from, not the unpacked addon, and Electron's asar
+# redirection still finds the addon in app.asar.unpacked. That was checked on a
+# packaged --dir build with the fuses on: the window opened and capture loaded the
+# addon. Check it again after any change to asarUnpack.
+#
+# Native electron-builder config, NOT an afterPack hook, as in the house template.
+# resetAdHocDarwinSignature does nothing for a Windows-only build; it stays so the
+# block is the house block and verify-fuses.test.mjs is the house test.
+#
+# scripts/verify-fuses.test.mjs asserts this block on every `npm test`;
+# scripts/verify-fuses.mjs reads the wire off the packaged binary in the release
+# build job (`npm run verify:fuses -- dist/win-unpacked/midir.exe`).
+electronFuses:
+  runAsNode: false
+  enableNodeCliInspectArguments: false
+  enableNodeOptionsEnvironmentVariable: false
+  onlyLoadAppFromAsar: true
+  # Electron checks app.asar against the hash electron-builder embeds in the
+  # executable, file by file as it reads (HTOO-381; house decision, Sabrael,
+  # 2026-09-28). electron-builder writes the hashes whatever the fuse says, so
+  # this only makes Electron enforce them.
+  #
+  # A changed asar is then a DEAD app: exit code 1 and `ASAR Integrity Violation`
+  # on stderr only, no window and no message. That is why it lands WITH the
+  # reader, and why the release process starts the packaged build before tagging
+  # (README, Releasing). The asarUnpack'd trees (resources/ and the da-pcap addon)
+  # are outside the check. On Windows the hash lives in the inner midir.exe and
+  # the release job signs the outer files, so this catches a damaged or changed
+  # package, not a local attacker.
+  # Cost (HTOO-399, measured in oghma): nothing warm, 10-25 ms on a launch from
+  # new files, which is every portable start.
+  enableEmbeddedAsarIntegrityValidation: true
+  resetAdHocDarwinSignature: true
 files:
   - '!**/.vscode/*'
   - '!src/*'

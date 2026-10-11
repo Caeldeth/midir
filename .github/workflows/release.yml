@@ -86,6 +86,13 @@ jobs:
       - name: Package portable exe
         run: npx electron-builder --win portable --publish never
 
+      # The fuses are burned into the packaged binary, and nothing else here can
+      # see them: lint, test, build and e2e all pass on a package that silently
+      # stopped applying them (HTOO-374). Read the wire back before signing, so
+      # a wrong one never gets a signature.
+      - name: Verify Electron fuses
+        run: npm run verify:fuses -- dist/win-unpacked/midir.exe
+
       - name: Resolve artifact name + version
         id: pkg
         shell: bash

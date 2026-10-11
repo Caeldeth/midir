@@ -9,7 +9,9 @@ Release process (the notes are authored HERE, not edited on GitHub after the fac
   2. To cut a release: rename ## [Unreleased] to ## [X.Y.Z] - YYYY-MM-DD, add a
      fresh empty ## [Unreleased] above it, and bump package.json to X.Y.Z
      (npm version X.Y.Z --no-git-tag-version).
-  3. Tag vX.Y.Z and push. The release workflow runs scripts/changelog-extract.mjs
+  3. Start the packaged builds and confirm each opens its window: the asar
+     integrity fuse makes a damaged package exit with no window and no message.
+  4. Tag vX.Y.Z and push. The release workflow runs scripts/changelog-extract.mjs
      to pull THIS version's section into the GitHub release body, then appends the
      auto-generated PR list below it.
 Keep entries user-facing — internal refactors/tests show up in the appended auto list.
@@ -36,6 +38,7 @@ Keep entries user-facing — internal refactors/tests show up in the appended au
 ### Security
 
 - A session recording no longer holds your account password. Midir removes every game packet that carries one before it writes the file: signing in, creating an account, and changing a password. A recording still holds your character name and that session's keys, so keep treating the file as private. Delete any recording made by an earlier build: the password in it can be recovered.
+- The packaged app can no longer be started as a general-purpose Node.js interpreter, and it refuses to start when its app archive has been changed.
 
 ### Fixed
 
