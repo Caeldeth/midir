@@ -51,6 +51,21 @@ export function composeIssueBody(description: string, diagnostics: string): stri
 
 /** The outcome of **Open GitHub issue**. */
 export function openIssueMessage(result: OpenIssueResult): ReportMessage {
+  // The clipboard write failed or timed out (HTOO-553). Every sentence below
+  // promises a clipboard, so none of them may be used.
+  if (!result.copied) {
+    return result.ok
+      ? {
+          severity: 'info',
+          text: result.truncated
+            ? 'Issue opened in your browser, but Midir could not copy the report and the link holds only part of it. Copy the report to your clipboard, then paste it into the issue.'
+            : 'Issue opened in your browser. Midir could not copy the report to your clipboard, but the issue holds all of it.'
+        }
+      : {
+          severity: 'error',
+          text: `Midir could not open the issue page or copy the report. Copy the report to your clipboard, then paste it into a new issue at ${INTAKE}.`
+        }
+  }
   if (result.ok) {
     return result.truncated
       ? {

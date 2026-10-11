@@ -2,7 +2,7 @@ import os from 'os'
 import { appIdentity } from '../shared/appIdentity'
 import { simplifyPlatform } from '../shared/osName'
 import { buildDiagnosticsBlock, type ErrorEntry } from '../shared/diagnostics'
-import { truncateBodyForUrl } from '../shared/issueUrl'
+import { TRUNCATION_NOTE, TRUNCATION_NOTE_NOT_COPIED, truncateBodyForUrl } from '../shared/issueUrl'
 import { scrubText } from '../shared/scrub'
 import { isSafeExternalUrl } from '../shared/externalUrl'
 import type { LogEntry } from '../shared/log'
@@ -29,8 +29,13 @@ import type { OpenIssueResult } from '../shared/types'
  * is the only text that leaves the machine.
  */
 export interface DiagnosticsIo {
-  /** `clipboard.writeText`. */
-  writeClipboard: (text: string) => void
+  /**
+   * `clipboard.writeText`. It returns a Promise since Electron 44, and the copy
+   * is not done until it settles (HTOO-553).
+   */
+  writeClipboard: (text: string) => Promise<void>
+  /** Told why a clipboard write failed or timed out, for the session log. */
+  onCopyFailed?: (reason: string) => void
   /** `shell.openExternal`, already gated on `isSafeExternalUrl` by its caller. */
   openExternal: (url: string) => void
 }
@@ -87,6 +92,36 @@ export function buildDiagnostics(version: string, entries: LogEntry[]): string {
   return scrubText(block, { homeDir: os.homedir(), userName })
 }
 
+/** How long the report flow waits for the clipboard before it gives up on it. */
+export const CLIPBOARD_WAIT_MS = 3000
+
+/**
+ * Write `text` to the clipboard and wait for it, at most `CLIPBOARD_WAIT_MS`.
+ * Returns whether the write finished. A clipboard that another process holds
+ * must not hang the report flow, so a timeout counts as a failure.
+ */
+export async function copyToClipboard(
+  io: DiagnosticsIo,
+  text: string,
+  waitMs = CLIPBOARD_WAIT_MS
+): Promise<boolean> {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  try {
+    await Promise.race([
+      io.writeClipboard(text),
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new Error(`timed out after ${waitMs} ms`)), waitMs)
+      })
+    ])
+    return true
+  } catch (err) {
+    io.onCopyFailed?.(err instanceof Error ? err.message : String(err))
+    return false
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
 /**
  * Open a prefilled issue on the shared public intake, after copying the full report.
  *
@@ -96,12 +131,19 @@ export function buildDiagnostics(version: string, entries: LogEntry[]): string {
  * the copy is not skipped when nothing was truncated: the user has no way to know
  * in advance which case they are in.
  *
+ * The copy is awaited before the browser opens, because the page tells the user
+ * to paste. A failed copy does not stop the report: the URL still carries the
+ * body, and the truncation note and the result then say the clipboard is empty.
+ *
  * Only the stable per-app label rides in the URL. GitHub applies a `labels=` value
  * only for a label that already exists and drops it silently otherwise, so the
  * version is in the body instead, where nothing can drop it.
  */
-export function openIssue(io: DiagnosticsIo, p: { title: string; body: string }): OpenIssueResult {
-  io.writeClipboard(p.body)
+export async function openIssue(
+  io: DiagnosticsIo,
+  p: { title: string; body: string }
+): Promise<OpenIssueResult> {
+  const copied = await copyToClipboard(io, p.body)
 
   const { url, truncated } = truncateBodyForUrl(
     {
@@ -111,17 +153,18 @@ export function openIssue(io: DiagnosticsIo, p: { title: string; body: string })
       body: p.body,
       labels: [appIdentity.appLabel]
     },
-    MAX_URL_LEN
+    MAX_URL_LEN,
+    copied ? TRUNCATION_NOTE : TRUNCATION_NOTE_NOT_COPIED
   )
 
   // Main composed this URL from its own constants, so the check can only fail if
   // `appIdentity` is edited into something that is not a web address. It runs
   // anyway: `shell.openExternal` hands a string to the operating system, and
   // `externalUrl.ts` exists precisely so no caller is trusted to have checked.
-  if (!isSafeExternalUrl(url)) return { ok: false, reason: 'unsafe-url' }
+  if (!isSafeExternalUrl(url)) return { ok: false, reason: 'unsafe-url', copied }
 
   io.openExternal(url)
-  return { ok: true, truncated }
+  return { ok: true, truncated, copied }
 }
 
 /**
@@ -129,7 +172,7 @@ export function openIssue(io: DiagnosticsIo, p: { title: string; body: string })
  * For the user with no GitHub account, the machine with no browser handler, and
  * the report that is going into a chat window instead.
  */
-export function copyReport(io: DiagnosticsIo, p: { body: string }): { ok: true } {
-  io.writeClipboard(p.body)
+export async function copyReport(io: DiagnosticsIo, p: { body: string }): Promise<{ ok: true }> {
+  if (!(await copyToClipboard(io, p.body))) throw new Error('Clipboard write failed')
   return { ok: true }
 }

@@ -5,7 +5,8 @@
  * import it and call it directly. `registerHandlers` wires each one to its
  * channel with the supplied `ipcMain` and `BrowserWindow`.
  */
-import type { BrowserWindow as BrowserWindowType, Dialog, IpcMain, Shell } from 'electron'
+import type { BrowserWindow as BrowserWindowType, IpcMain, Shell } from 'electron'
+import type { PickerDialog } from '../pickerStart'
 import type { CaptureService } from '../captureService'
 import type { CharacterStore } from '../store/characterStore'
 import type { createSettingsManager } from '../settingsManager'
@@ -67,8 +68,8 @@ interface RegisterDeps {
   BrowserWindow: typeof BrowserWindowType
   /** Used to open a folder Midir owns. */
   shell: Shell
-  /** Used for the Dark Ages folder picker. */
-  dialog: Dialog
+  /** The pickers, already wrapped by `withPickerStart` (HTOO-553). */
+  dialog: PickerDialog
 }
 
 export function registerHandlers(deps: RegisterDeps, ctx: HandlerContext): void {

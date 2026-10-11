@@ -2,9 +2,10 @@
 // for `legend.dat` beside it. The pixels themselves never cross IPC — they are
 // served over the `midir-icon://` protocol (see icons/protocol.ts).
 
-import type { BrowserWindow as BrowserWindowType, Dialog, IpcMain } from 'electron'
+import type { BrowserWindow as BrowserWindowType, IpcMain } from 'electron'
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
+import type { PickerDialog } from '../pickerStart'
 
 /**
  * Whether a folder holds a readable `legend.dat`. This is the whole test for
@@ -22,27 +23,25 @@ export function legendPresent(folderPath: unknown): boolean {
 
 /**
  * Open the folder picker for the Dark Ages install and return the chosen path,
- * or `null` when the user cancels.
+ * or `null` when the user cancels. The dialog is `withPickerStart`'s, so it opens
+ * in the folder already chosen, or in Documents (HTOO-553).
  */
 export async function chooseDarkAgesFolder(
-  dialog: Dialog,
+  dialog: PickerDialog,
   window: BrowserWindowType | null
 ): Promise<string | null> {
   const options = {
     title: 'Choose your Dark Ages folder',
     properties: ['openDirectory' as const]
   }
-  const result =
-    window !== null
-      ? await dialog.showOpenDialog(window, options)
-      : await dialog.showOpenDialog(options)
+  const result = await dialog.showOpenDialog(window, options)
   if (result.canceled || result.filePaths.length === 0) return null
   return result.filePaths[0]
 }
 
 export function registerIconsHandlers(
   ipcMain: IpcMain,
-  dialog: Dialog,
+  dialog: PickerDialog,
   BrowserWindow: typeof BrowserWindowType,
   onLegendFound?: (path: string) => void,
   legend?: { palette: () => Promise<string[] | null> }

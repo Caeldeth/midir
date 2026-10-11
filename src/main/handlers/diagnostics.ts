@@ -54,7 +54,7 @@ export function openIssue(
   ctx: DiagnosticsHandlerContext,
   title: unknown,
   body: unknown
-): OpenIssueResult {
+): Promise<OpenIssueResult> {
   const parsedTitle = issueTitleSchema.safeParse(title)
   const parsedBody = issueBodySchema.safeParse(body)
   if (!parsedTitle.success || !parsedBody.success) throw new Error('Invalid issue payload')
@@ -62,7 +62,7 @@ export function openIssue(
 }
 
 /** The clipboard alone: for no GitHub account, no browser, or a chat window. */
-export function copyReport(ctx: DiagnosticsHandlerContext, body: unknown): { ok: true } {
+export function copyReport(ctx: DiagnosticsHandlerContext, body: unknown): Promise<{ ok: true }> {
   const parsed = issueBodySchema.safeParse(body)
   if (!parsed.success) throw new Error('Invalid report payload')
   return copyDiagnosticsReport(ctx.diagnosticsIo, { body: parsed.data })

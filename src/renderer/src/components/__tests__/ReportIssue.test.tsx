@@ -32,7 +32,7 @@ describe('the two openers', () => {
 describe('the report dialog', () => {
   it('fetches the block on open, shows it editable, and sends what the user reviewed', async () => {
     window.api.diagnostics.buildReport = vi.fn(async () => 'App: Midir 1.2.3\nOS: windows')
-    const openIssue = vi.fn(async () => ({ ok: true as const, truncated: false }))
+    const openIssue = vi.fn(async () => ({ ok: true as const, truncated: false, copied: true }))
     window.api.diagnostics.openIssue = openIssue
     render(<ReportIssueDialog open onClose={() => undefined} />)
     const block = await screen.findByLabelText('Diagnostics (editable)')

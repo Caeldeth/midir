@@ -1,7 +1,7 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { formatLogLine } from '../../shared/log'
 import type { CaptureStatus } from '../../shared/types'
 import type { CaptureService } from '../captureService'
@@ -17,6 +17,7 @@ import {
   openIssue,
   type DiagnosticsHandlerContext
 } from '../handlers/diagnostics'
+import { copyToClipboard } from '../diagnostics'
 import { logFileName } from '../log'
 import { fakeLogger } from './handlers.test'
 
@@ -71,7 +72,7 @@ function context(
     recordingsPath,
     captureService: service,
     appGetVersion: () => '0.1.0',
-    diagnosticsIo: { writeClipboard: () => undefined, openExternal: () => undefined }
+    diagnosticsIo: { writeClipboard: async () => undefined, openExternal: () => undefined }
   }
 }
 
@@ -215,35 +216,105 @@ describe('the report (the house Report Issue module)', () => {
     expect(buildReport(ctx)).toContain('No errors captured this session.')
   })
 
-  it('copies the full body before it opens the issue, with the app label', () => {
+  it('copies the full body before it opens the issue, with the app label', async () => {
     const calls: string[] = []
     const ctx = context()
     ctx.diagnosticsIo = {
-      writeClipboard: (text) => calls.push(`copy:${text.length}`),
+      writeClipboard: async (text) => {
+        calls.push(`copy:${text.length}`)
+      },
       openExternal: (url) => calls.push(`open:${url}`)
     }
     const body = ['What happened', '', '```', 'App: Midir 0.1.0', '```'].join(
       String.fromCharCode(10)
     )
-    const result = openIssue(ctx, 'It broke', body)
-    expect(result).toEqual({ ok: true, truncated: false })
+    const result = await openIssue(ctx, 'It broke', body)
+    expect(result).toEqual({ ok: true, truncated: false, copied: true })
     expect(calls[0]).toBe(`copy:${body.length}`)
     expect(calls[1]).toMatch(/^open:https:\/\/github\.com\/hybrasyl\/cernunnos\/issues\/new\?/)
     expect(calls[1]).toContain('labels=app%3Amidir')
   })
 
-  it('refuses an invalid payload before it touches the clipboard', () => {
+  it('refuses an invalid payload before it touches the clipboard', async () => {
     const calls: string[] = []
     const ctx = context()
     ctx.diagnosticsIo = {
-      writeClipboard: () => calls.push('copy'),
+      writeClipboard: async () => {
+        calls.push('copy')
+      },
       openExternal: () => calls.push('open')
     }
     expect(() => openIssue(ctx, 42, 'body')).toThrow('Invalid issue payload')
     expect(() => copyReport(ctx, null)).toThrow('Invalid report payload')
     expect(calls).toEqual([])
-    expect(copyReport(ctx, 'the report')).toEqual({ ok: true })
+    expect(await copyReport(ctx, 'the report')).toEqual({ ok: true })
     expect(calls).toEqual(['copy'])
+  })
+})
+
+describe('the clipboard on Electron 44 (HTOO-553)', () => {
+  // Electron 44's clipboard.writeText returns a Promise. The page the report
+  // opens tells the user to paste, so the copy must finish before it opens.
+  it('opens the issue only after the clipboard write settles', async () => {
+    const calls: string[] = []
+    let finish: () => void = () => undefined
+    const ctx = context()
+    ctx.diagnosticsIo = {
+      writeClipboard: () =>
+        new Promise<void>((resolve) => {
+          calls.push('copy started')
+          finish = () => {
+            calls.push('copy done')
+            resolve()
+          }
+        }),
+      openExternal: () => calls.push('open')
+    }
+    const pending = openIssue(ctx, 'It broke', 'body')
+    await Promise.resolve()
+    expect(calls).toEqual(['copy started'])
+    finish()
+    expect(await pending).toMatchObject({ ok: true, copied: true })
+    expect(calls).toEqual(['copy started', 'copy done', 'open'])
+  })
+
+  it('still opens the issue when the copy fails, and says so', async () => {
+    const calls: string[] = []
+    const failures: string[] = []
+    const ctx = context()
+    ctx.diagnosticsIo = {
+      writeClipboard: async () => {
+        throw new Error('clipboard busy')
+      },
+      onCopyFailed: (reason) => failures.push(reason),
+      openExternal: () => calls.push('open')
+    }
+    expect(await openIssue(ctx, 'It broke', 'body')).toEqual({
+      ok: true,
+      truncated: false,
+      copied: false
+    })
+    expect(calls).toEqual(['open'])
+    expect(failures).toEqual(['clipboard busy'])
+    await expect(copyReport(ctx, 'the report')).rejects.toThrow('Clipboard write failed')
+  })
+
+  it('gives up on a clipboard that never answers', async () => {
+    vi.useFakeTimers()
+    try {
+      const failures: string[] = []
+      const io = {
+        writeClipboard: () => new Promise<void>(() => undefined),
+        onCopyFailed: (reason: string) => failures.push(reason),
+        openExternal: () => undefined
+      }
+      const copied = copyToClipboard(io, 'text', 3000)
+      await vi.advanceTimersByTimeAsync(3000)
+      expect(await copied).toBe(false)
+      expect(failures).toEqual(['timed out after 3000 ms'])
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })
 

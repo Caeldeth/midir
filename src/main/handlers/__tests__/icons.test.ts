@@ -1,7 +1,8 @@
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import type { Dialog, IpcMain } from 'electron'
+import type { IpcMain } from 'electron'
+import type { PickerDialog } from '../../pickerStart'
 import { afterAll, describe, expect, it, vi } from 'vitest'
 import { chooseDarkAgesFolder, legendPresent, registerIconsHandlers } from '../icons'
 
@@ -29,14 +30,14 @@ describe('chooseDarkAgesFolder', () => {
   it('returns the chosen folder', async () => {
     const dialog = {
       showOpenDialog: vi.fn(async () => ({ canceled: false, filePaths: ['C:/Dark Ages'] }))
-    } as unknown as Dialog
+    } as unknown as PickerDialog
     expect(await chooseDarkAgesFolder(dialog, null)).toBe('C:/Dark Ages')
   })
 
   it('returns null when the user cancels', async () => {
     const dialog = {
       showOpenDialog: vi.fn(async () => ({ canceled: true, filePaths: [] }))
-    } as unknown as Dialog
+    } as unknown as PickerDialog
     expect(await chooseDarkAgesFolder(dialog, null)).toBeNull()
   })
 })
@@ -56,7 +57,7 @@ describe('icons:probe handler', () => {
     return { ipcMain, call: async (channel, arg) => handlers.get(channel)!({}, arg) }
   }
 
-  const dialog = {} as unknown as Dialog
+  const dialog = {} as unknown as PickerDialog
   const BrowserWindow = { fromWebContents: () => null } as never
 
   it('arms the live path when legend.dat is found', async () => {
