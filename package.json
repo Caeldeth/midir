@@ -17,7 +17,7 @@
     "test:coverage": "vitest run --coverage",
     "e2e": "npm run build && playwright test",
     "e2e:only": "playwright test",
-    "typecheck": "tsc --build",
+    "typecheck": "tsc --build --force",
     "format": "prettier --write .",
     "publish:version": "node scripts/publish-version.mjs",
     "lint": "eslint . --fix",
@@ -25,7 +25,7 @@
     "start": "electron-vite preview",
     "dev": "electron-vite dev",
     "build": "electron-vite build",
-    "postinstall": "electron-builder install-app-deps",
+    "postinstall": "install-electron && electron-builder install-app-deps",
     "build:unpack": "npm run build && electron-builder --dir",
     "build:win": "npm run build && electron-builder --win",
     "build:win:portable": "npm run build && electron-builder --win portable"
@@ -45,6 +45,10 @@
     "zod": "^4.3.6",
     "zustand": "^5.0.2"
   },
+  "//overrides": "ONE override, global-agent@3 -> ^4.1.3 (GHSA-hp3w-g68c-fv3c, 8 moderate findings in one chain). The advisory is on sprintf-js and covers every version, so no sprintf-js release fixes it. The path is electron-builder -> app-builder-lib -> @electron/get@3 -> global-agent@3 -> roarr -> sprintf-js, and electron-builder 26.17 and the 27 alpha still pin @electron/get@3. global-agent 4 has no roarr and keeps the bootstrap export that @electron/get calls. Build-time only: nothing here ships. The selector stops matching when @electron/get moves off 3.x; remove it then. BEFORE YOU ADD ANOTHER: check whether every consumer's existing range already permits a patched version. Often npm update <pkg> is the whole fix, and it was here for source-map-js and http-cache-semantics. If you do need an override, SCOPE IT TO THE MAJOR (\"pkg@1\": \"^1.1.18\"), because an advisory is usually patched within every major. A bare \"pkg\": \"^5\" drags every consumer across majors and breaks any that depends on the old export shape. A green typecheck/lint/test/package proves nothing against that class of bug. The house template carries the same override and this note.",
+  "overrides": {
+    "global-agent@3": "^4.1.3"
+  },
   "devDependencies": {
     "@electron-toolkit/eslint-config-prettier": "^3.0.0",
     "@electron-toolkit/eslint-config-ts": "^3.1.0",
@@ -58,8 +62,8 @@
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^5.2.0",
     "@vitest/coverage-v8": "^4.1.11",
-    "electron": "^41.1.0",
-    "electron-builder": "^26.8.1",
+    "electron": "^44.7.0",
+    "electron-builder": "^26.17.0",
     "electron-vite": "^5.0.0",
     "eslint": "^9.39.4",
     "eslint-plugin-react": "^7.37.5",
@@ -72,10 +76,10 @@
     "vite": "^7.3.2",
     "vitest": "^4.1.11"
   },
-  "//allowScripts": "npm 12 blocks every dependency install script unless it is listed here, and it blocks SILENTLY on 'npm install' — a warning at the end of the output, exit 0, node_modules populated. electron's postinstall is what downloads the runtime binary into node_modules/electron/dist, so a checkout without this block installs clean and then cannot launch, package, or run e2e. esbuild's postinstall selects its platform binary the same way, and electron-winstaller's picks the 7z build. Nothing else in the tree has an install script; 'npm install-scripts ls' reports anything new.",
+  "//allowScripts": "npm 12 runs a dependency's install script only when this block approves it, and it skips the rest SILENTLY: a warning at the end of npm install or npm ci, exit 0 (HTOO-542). esbuild's postinstall selects its platform binary. electron-winstaller is denied: its script only selects a 7-Zip binary for Squirrel.Windows installers, and electron-builder.yml ships NSIS and portable only. fsevents is the macOS file watcher behind vite, rollup and Playwright; it is optional and installs on macOS only, so it is approved for a checkout that runs the unit tests on a Mac, although Midir builds for Windows only. electron is absent: since Electron 42 it has no install script. The project's OWN postinstall runs install-electron instead (a no-op when the binary is there), because electron-vite dev reads the binary's path without require(), so a fresh clone could not run npm run dev ('Electron uninstall') without it (HTOO-553). The workspace addon packages/da-pcap is not gated by this block: npm 12 runs a workspace member's own gyp build. The postinstall's install-app-deps then rebuilds it for Electron's ABI. Approvals are by name, never pkg@version: a pinned approval stops matching at the next bump. npm install-scripts ls reports anything new.",
   "allowScripts": {
-    "electron": true,
     "esbuild": true,
-    "electron-winstaller": true
+    "electron-winstaller": false,
+    "fsevents": true
   }
 }
