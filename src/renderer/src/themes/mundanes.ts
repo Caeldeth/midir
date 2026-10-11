@@ -1,5 +1,6 @@
 import { createTheme, responsiveFontSizes } from '@mui/material/styles'
 import { plainTypography } from './plainTypography'
+import { midirOverrides } from './midirOverrides'
 
 // Mundanes — the light "corporate/boring" theme. White and light-gray
 // surfaces, dark text, a single restrained slate-blue accent, plain
@@ -10,7 +11,9 @@ const mundanesTheme = responsiveFontSizes(
     palette: {
       mode: 'light',
       primary: {
-        main: '#1976d2',
+        // HTOO-355: a slightly darker blue. The old #1976d2 was 2.89:1 on the grey page;
+        // this is 3.10:1 on the page, 4.95:1 on paper, and white is 4.95:1 on it.
+        main: '#1871c9',
         light: '#4a97e0',
         dark: '#115293',
         contrastText: '#ffffff'
@@ -45,10 +48,12 @@ const mundanesTheme = responsiveFontSizes(
         secondary: '#5f6368',
         disabled: '#9aa0a6',
         headline: '#1a1a1a',
-        link: '#1976d2',
+        link: '#1871c9',
         linkHover: '#115293',
         visited: '#6a4fb0',
-        button: '#ffffff',
+        // Headings on the page and on cards. White was 1.6:1 on the grey page and
+        // 1:1 on the white cards (HTOO-355). The navy bars use secondary.contrastText.
+        button: '#1a1a1a',
         dark: '#1a1a1a'
       },
       divider: 'rgba(0,0,0,0.12)',
@@ -63,48 +68,7 @@ const mundanesTheme = responsiveFontSizes(
     shape: { borderRadius: 6 },
 
     components: {
-      MuiAccordion: {
-        styleOverrides: {
-          root: ({ theme }) => ({
-            backgroundImage: 'none',
-            border: `1px solid ${theme.palette.divider}`,
-            boxShadow: 'none',
-            '&::before': { display: 'none' },
-            '&.Mui-expanded': { margin: 0 }
-          })
-        }
-      },
-      MuiAccordionSummary: {
-        styleOverrides: {
-          root: ({ theme }) => ({
-            backgroundColor: theme.palette.background.paperDark,
-            minHeight: 0,
-            '& .MuiAccordionSummary-content': {
-              marginTop: theme.spacing(1),
-              marginBottom: theme.spacing(1)
-            }
-          })
-        }
-      },
-      MuiAccordionDetails: {
-        styleOverrides: {
-          root: ({ theme }) => ({ padding: theme.spacing(2) })
-        }
-      },
-      MuiTooltip: {
-        styleOverrides: {
-          tooltip: ({ theme }) => ({
-            backgroundColor: theme.palette.background.paperDark,
-            color: theme.palette.text.primary,
-            border: `1px solid ${theme.palette.divider}`,
-            borderRadius: theme.shape.borderRadius,
-            boxShadow: theme.shadows[6],
-            fontSize: '0.8rem',
-            padding: theme.spacing(0.75, 1)
-          }),
-          arrow: ({ theme }) => ({ color: theme.palette.background.paperDark })
-        }
-      },
+      ...midirOverrides,
       MuiPaper: {
         styleOverrides: {
           root: {
@@ -138,9 +102,9 @@ const mundanesTheme = responsiveFontSizes(
           root: {
             color: '#5f6368',
             '&.Mui-selected': {
-              backgroundColor: 'rgba(25,118,210,0.08)',
-              borderLeft: '2px solid #1976d2',
-              color: '#1976d2'
+              backgroundColor: 'rgba(24,113,201,0.08)',
+              borderLeft: '2px solid #1871c9',
+              color: '#1871c9'
             },
             '&:hover': { backgroundColor: 'rgba(0,0,0,0.04)' }
           }
@@ -162,29 +126,42 @@ const mundanesTheme = responsiveFontSizes(
       MuiChip: {
         styleOverrides: {
           root: {
-            backgroundColor: '#eceff1',
-            color: '#455a64',
-            border: '1px solid rgba(0,0,0,0.12)'
+            border: '1px solid rgba(0,0,0,0.12)',
+            // The tint is for a plain chip only. On `root` it beat MUI's own fill
+            // for every colour, so a warning or a selected chip looked plain
+            // (HTOO-572).
+            '&.MuiChip-colorDefault': {
+              backgroundColor: '#eceff1',
+              color: '#455a64'
+            },
+            // A selected chip (color="primary", filled) takes the accent and its
+            // label, as MUI's own fill does, and keeps the accent on hover.
+            '&.MuiChip-filled.MuiChip-colorPrimary': {
+              backgroundColor: '#1871c9',
+              color: '#ffffff',
+              borderColor: '#1871c9',
+              '&.MuiChip-clickable:hover': { backgroundColor: '#1871c9' }
+            }
           }
         }
       },
-      MuiTabs: { styleOverrides: { indicator: { backgroundColor: '#1976d2' } } },
+      MuiTabs: { styleOverrides: { indicator: { backgroundColor: '#1871c9' } } },
       MuiTab: {
         styleOverrides: {
           root: {
             color: '#5f6368',
-            '&.Mui-selected': { color: '#1976d2' }
+            '&.Mui-selected': { color: '#1871c9' }
           }
         }
       },
       MuiInputLabel: {
-        styleOverrides: { root: { '&.Mui-focused': { color: '#1976d2' } } }
+        styleOverrides: { root: { '&.Mui-focused': { color: '#1871c9' } } }
       },
       MuiCheckbox: {
         styleOverrides: {
           root: {
             color: 'rgba(0,0,0,0.4)',
-            '&.Mui-checked': { color: '#1976d2' }
+            '&.Mui-checked': { color: '#1871c9' }
           }
         }
       },
@@ -193,7 +170,7 @@ const mundanesTheme = responsiveFontSizes(
           root: {
             '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(0,0,0,0.23)' },
             '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(0,0,0,0.5)' },
-            '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#1976d2' }
+            '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#1871c9' }
           }
         }
       },

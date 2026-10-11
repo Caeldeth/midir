@@ -1,21 +1,29 @@
 import { createTheme, responsiveFontSizes } from '@mui/material/styles'
 import { baseTypography } from './baseTypography'
+import { midirOverrides } from './midirOverrides'
 
 const chadulTheme = responsiveFontSizes(
   createTheme({
     palette: {
       mode: 'dark',
+      // Chadul mixes green and purple (Sabrael, 2026-10-10): a GREEN accent and
+      // PURPLE bars, as Taliesin has (HTOO-572). The purple accent was 1.76:1 on
+      // the page (HTOO-355); this green is 3.81:1 on the page and 3.71:1 on
+      // paper, and its pale label is 4.68:1 on it. The component overrides
+      // already drew the accent green (tabs, checkboxes, focus, buttons).
       primary: {
-        main: '#4a2870',
-        light: '#7a5a9a',
-        dark: '#2e1a4a',
-        contrastText: '#ede4f5'
-      },
-      secondary: {
         main: '#2e7a3a',
         light: '#4ab858',
         dark: '#1a4a22',
-        contrastText: '#c7f5bf'
+        contrastText: '#e6f5e2'
+      },
+      // The bars. The lavender text family stays (Sabrael, 2026-10-11): the
+      // title bar's icons and wordmark are 11.14:1 on this purple.
+      secondary: {
+        main: '#2e1a4a',
+        light: '#4a2870',
+        dark: '#1e1030',
+        contrastText: '#e0d8ea'
       },
       background: {
         default: '#020804',
@@ -38,7 +46,8 @@ const chadulTheme = responsiveFontSizes(
         headline: '#a8d8a0',
         link: '#c0a0e8',
         linkHover: '#d4b8f0',
-        visited: '#4a2870',
+        // Lavender, not the old accent: #4a2870 was 1.6:1 on the page; this is 5.84:1.
+        visited: '#9a7ad0',
         button: '#a8d8a0',
         dark: '#020804'
       },
@@ -54,48 +63,7 @@ const chadulTheme = responsiveFontSizes(
     shape: { borderRadius: 2 },
 
     components: {
-      MuiAccordion: {
-        styleOverrides: {
-          root: ({ theme }) => ({
-            backgroundImage: 'none',
-            border: `1px solid ${theme.palette.divider}`,
-            boxShadow: 'none',
-            '&::before': { display: 'none' },
-            '&.Mui-expanded': { margin: 0 }
-          })
-        }
-      },
-      MuiAccordionSummary: {
-        styleOverrides: {
-          root: ({ theme }) => ({
-            backgroundColor: theme.palette.background.paperDark,
-            minHeight: 0,
-            '& .MuiAccordionSummary-content': {
-              marginTop: theme.spacing(1),
-              marginBottom: theme.spacing(1)
-            }
-          })
-        }
-      },
-      MuiAccordionDetails: {
-        styleOverrides: {
-          root: ({ theme }) => ({ padding: theme.spacing(2) })
-        }
-      },
-      MuiTooltip: {
-        styleOverrides: {
-          tooltip: ({ theme }) => ({
-            backgroundColor: theme.palette.background.paperDark,
-            color: theme.palette.text.primary,
-            border: `1px solid ${theme.palette.divider}`,
-            borderRadius: theme.shape.borderRadius,
-            boxShadow: theme.shadows[6],
-            fontSize: '0.8rem',
-            padding: theme.spacing(0.75, 1)
-          }),
-          arrow: ({ theme }) => ({ color: theme.palette.background.paperDark })
-        }
-      },
+      ...midirOverrides,
       MuiPaper: {
         styleOverrides: {
           root: {
@@ -182,9 +150,22 @@ const chadulTheme = responsiveFontSizes(
             fontFamily: '"Cinzel", serif',
             fontSize: '0.65rem',
             letterSpacing: '0.1em',
-            backgroundColor: 'rgba(74,40,112,0.22)',
-            color: '#c0a0e8',
-            border: '1px solid rgba(154,122,208,0.4)'
+            border: '1px solid rgba(154,122,208,0.4)',
+            // The tint is for a plain chip only. On `root` it beat MUI's own fill
+            // for every colour, so a warning or a selected chip looked plain
+            // (HTOO-572).
+            '&.MuiChip-colorDefault': {
+              backgroundColor: 'rgba(74,40,112,0.22)',
+              color: '#c0a0e8'
+            },
+            // A selected chip (color="primary", filled) takes the accent and its
+            // label, as MUI's own fill does, and keeps the accent on hover.
+            '&.MuiChip-filled.MuiChip-colorPrimary': {
+              backgroundColor: '#2e7a3a',
+              color: '#e6f5e2',
+              borderColor: '#2e7a3a',
+              '&.MuiChip-clickable:hover': { backgroundColor: '#2e7a3a' }
+            }
           }
         }
       },
@@ -206,7 +187,7 @@ const chadulTheme = responsiveFontSizes(
             '&.Mui-selected': {
               backgroundColor: '#2e7a3a',
               borderColor: '#4ab858',
-              color: '#a8d8a0'
+              color: '#e6f5e2'
             },
             '&.Mui-disabled': {
               backgroundColor: 'rgba(46,26,74,0.3)',

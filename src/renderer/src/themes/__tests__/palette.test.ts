@@ -1,0 +1,160 @@
+import { describe, it, expect } from 'vitest'
+import type { Theme } from '@mui/material/styles'
+import { themesByName } from '../index'
+import type { ThemeName } from '@shared/types'
+import { contrast, luminance } from './contrast'
+
+// Derived from the registry rather than a hand-kept list, so a theme added to
+// `themesByName` is covered without anyone remembering to add it here.
+const THEME_NAMES = Object.keys(themesByName) as ThemeName[]
+
+/**
+ * Palette invariants. The template holds the canonical six palettes and these
+ * tests (HTOO-572); each app takes both, and keeps its own component overrides
+ * only where its own tests say why.
+ *
+ * The Hybrasyl theme shipped with `primary.main` set to the same value as
+ * `background.default` (`#0d182f`). Every control that signals its active state
+ * through `color="primary"` therefore painted itself the colour of the page
+ * behind it, and the affordance INVERTED: a filled Chip takes `primary.main` as
+ * its background while an unselected one keeps MUI's default grey, so the
+ * selected chip was the one that disappeared (HTOO-341). Five more themes then
+ * failed the same contrast rules more quietly (HTOO-355). Every rule below runs
+ * for EVERY theme, with no exemption list: a theme that fails needs a new value,
+ * never a lower threshold.
+ */
+
+/** Each style object under `node` that sets `backgroundColor` to `main` and a
+ *  `color` (#rrggbb), with its path in the overrides. */
+function accentFills(
+  node: unknown,
+  main: string,
+  path: string[] = []
+): { path: string; backgroundColor: string; color: string }[] {
+  if (!node || typeof node !== 'object') return []
+  const o = node as Record<string, unknown>
+  const out: { path: string; backgroundColor: string; color: string }[] = []
+  if (
+    typeof o.backgroundColor === 'string' &&
+    o.backgroundColor.toLowerCase() === main.toLowerCase() &&
+    typeof o.color === 'string' &&
+    /^#[0-9a-f]{6}$/i.test(o.color)
+  )
+    out.push({ path: path.join(' > '), backgroundColor: o.backgroundColor, color: o.color })
+  for (const [k, v] of Object.entries(o)) out.push(...accentFills(v, main, [...path, k]))
+  return out
+}
+
+type Style = Record<string, unknown> & { '&:hover'?: Record<string, unknown> }
+
+/**
+ * A contained primary button as the theme draws it, at rest and on hover, or
+ * null when the theme draws contained buttons as a tint rather than an accent
+ * fill (hybrasyl, chadul, grinneal: their accent fill is the selected chip).
+ * Read from the overrides, because jsdom cannot apply `:hover`.
+ */
+function containedPrimary(theme: Theme): { hover: string; label: string } | null {
+  const p = theme.palette
+  const o = (theme.components?.MuiButton?.styleOverrides ?? {}) as Record<string, Style>
+  const contained = o.contained ?? {}
+  const own = o.containedPrimary ?? {}
+  const rest = (own.backgroundColor ?? contained.backgroundColor ?? p.primary.main) as string
+  if (rest.toLowerCase() !== p.primary.main.toLowerCase()) return null
+  const hover = (own['&:hover']?.backgroundColor ??
+    contained['&:hover']?.backgroundColor ??
+    p.primary.dark) as string
+  const label = (own.color ?? contained.color ?? p.primary.contrastText) as string
+  return { hover, label }
+}
+
+describe('theme palettes', () => {
+  it('registers all six themes', () => {
+    expect(THEME_NAMES).toHaveLength(6)
+    for (const name of THEME_NAMES) expect(themesByName[name]).toBeDefined()
+  })
+
+  it.each(THEME_NAMES)('%s: primary.main is not the page background', (name) => {
+    const p = themesByName[name].palette
+    expect(p.primary.main.toLowerCase()).not.toBe(p.background.default.toLowerCase())
+  })
+
+  it('draws at least one contained button as an accent fill, so the hover rule runs', () => {
+    expect(THEME_NAMES.filter((n) => containedPrimary(themesByName[n]) !== null).length).toBe(3)
+  })
+
+  describe.each(THEME_NAMES)('%s', (name) => {
+    const theme = themesByName[name]
+    const p = theme.palette
+
+    it('primary.main reads as a control against the page and against paper', () => {
+      // 3:1 is the WCAG floor for a UI component boundary (1.4.11). This is what
+      // "the selected chip is visible at all" reduces to. Translucent paper is
+      // blended over the page first.
+      expect(contrast(p.primary.main, p.background.default)).toBeGreaterThanOrEqual(3)
+      expect(
+        contrast(p.primary.main, p.background.paper, p.background.default)
+      ).toBeGreaterThanOrEqual(3)
+    })
+
+    it('contrastText is legible on primary.main', () => {
+      // 4.5:1 (1.4.3): chip and button labels are normal-sized text, not large
+      // text. This rule ruled out hybrasyl's cream (#f0e6cc on #4d84d1: 3.05:1).
+      expect(contrast(p.primary.contrastText, p.primary.main)).toBeGreaterThanOrEqual(4.5)
+    })
+
+    it('primary.light and primary.dark follow main, and differ from it visibly', () => {
+      // HTOO-572 fault 4: the ramp did not move with main. A hover that does not
+      // change cannot be seen (dubhaimid's dark was 1.21:1 from its main).
+      expect(luminance(p.primary.light)).toBeGreaterThan(luminance(p.primary.main))
+      expect(luminance(p.primary.dark)).toBeLessThan(luminance(p.primary.main))
+      expect(contrast(p.primary.light, p.primary.main)).toBeGreaterThanOrEqual(1.3)
+      expect(contrast(p.primary.dark, p.primary.main)).toBeGreaterThanOrEqual(1.3)
+    })
+
+    it('a filled contained button keeps its label on hover', () => {
+      // MUI hovers a filled button to primary.dark. Under a DARK label that
+      // drops the label's contrast, so such a theme hovers to the lighter end
+      // instead (Sabrael, 2026-10-11). A light label hovers darker, as MUI does.
+      const button = containedPrimary(theme)
+      if (!button) return
+      const darkLabel = luminance(button.label) < luminance(p.primary.main)
+      if (darkLabel) expect(luminance(button.hover)).toBeGreaterThan(luminance(p.primary.main))
+      else expect(luminance(button.hover)).toBeLessThan(luminance(p.primary.main))
+      expect(contrast(button.label, button.hover)).toBeGreaterThanOrEqual(4.5)
+    })
+
+    it('text.button reads on the page and on paper', () => {
+      // Headings on the page and on cards use it. A palette without it makes
+      // every `color: 'text.button'` an invalid colour, which the browser drops
+      // (see themes/augmentation.ts). The bars use secondary.contrastText.
+      const button = p.text.button
+      expect(button, 'text.button is set').toMatch(/^#[0-9a-f]{6}$/i)
+      expect(contrast(button, p.background.default)).toBeGreaterThanOrEqual(4.5)
+      expect(contrast(button, p.background.paper, p.background.default)).toBeGreaterThanOrEqual(4.5)
+    })
+
+    it('secondary.contrastText reads on secondary.main, the bars', () => {
+      // The title bar paints secondary.main, and its icons and wordmark take
+      // secondary.contrastText.
+      expect(contrast(p.secondary.contrastText, p.secondary.main)).toBeGreaterThanOrEqual(4.5)
+    })
+
+    it('text.dark reads on info.main, the chrome hover', () => {
+      expect(p.text.dark, 'text.dark is set').toMatch(/^#[0-9a-f]{6}$/i)
+      expect(contrast(p.text.dark, p.info.main)).toBeGreaterThanOrEqual(4.5)
+    })
+
+    it('an override that fills with primary.main gives its text 4.5:1', () => {
+      // The component overrides paint the accent themselves, with their own label
+      // colour. danaan's contained button put cream on its gold (2.76:1) while
+      // the palette said otherwise.
+      const fills = accentFills(theme.components ?? {}, p.primary.main)
+      // At least the selected chip fills with the accent in every theme, so an
+      // empty list means the walk broke, not that there is nothing to check.
+      expect(fills.length).toBeGreaterThan(0)
+      for (const f of fills) {
+        expect(contrast(f.color, f.backgroundColor), f.path).toBeGreaterThanOrEqual(4.5)
+      }
+    })
+  })
+})
