@@ -4,7 +4,7 @@ import { GiContract, GiExpand, GiDeathSkull } from 'react-icons/gi'
 import RemoveIcon from '@mui/icons-material/Remove'
 import CropSquareIcon from '@mui/icons-material/CropSquare'
 import CloseIcon from '@mui/icons-material/Close'
-import { PLAIN_CHROME_THEMES } from '@shared/types'
+import { ENGRAVED_CHROME_THEMES, PLAIN_CHROME_THEMES } from '@shared/types'
 import CaptureIndicator from '@renderer/components/CaptureIndicator'
 import { useSettingsStore } from '@renderer/store/settingsStore'
 // A 128px webp, not the icon master: this draws at 24px, and vite hashes it
@@ -21,6 +21,14 @@ const DEPTH = '0 2px 3px rgba(0,0,0,0.55)'
 // The wordmark is real text: CSS text-shadow paints every layer independently
 // from the glyph, so keyline + depth both read at full strength.
 const TITLE_TEXT_SHADOW = [...KEYLINE, DEPTH].join(', ')
+
+// The keyline and the depth are dark, so they outline LIGHT title text. Around
+// dark text (danaan's #1a1008 on its gold bar, grinneal's near-black on its tan
+// one) they merge with the glyph and double its edges. Those bars are engraved
+// instead: a thin cream edge below and right, as if cut into the bar. Which
+// themes engrave is ENGRAVED_CHROME_THEMES in shared/types (HTOO-572; from
+// the house template).
+const ENGRAVE = '1px 1px 0 rgba(255,248,232,0.75)'
 
 // Gamified chrome (the four stylized themes): stroked glyphs, keyline/depth.
 const iconSx = {
@@ -49,6 +57,12 @@ const gameBtnSx = {
   }
 } as const
 
+// The engraved glyphs: no #000 stroke, and the cream edge for the depth.
+const engravedBtnSx = {
+  ...gameBtnSx,
+  '& svg': { fontSize: '1.4em', filter: `drop-shadow(${ENGRAVE})` }
+} as const
+
 // Plain chrome (corporate themes): standard MUI icons, flat, no stroke/shadow.
 // The bar is the navy secondary.main, so hover uses a translucent-white wash
 // (a dark action.hover overlay would be invisible on navy).
@@ -65,7 +79,9 @@ function TitleBar(): React.JSX.Element {
   const themeName = useSettingsStore((s) => s.theme)
   const plain = PLAIN_CHROME_THEMES.includes(themeName)
 
-  const winBtnSx = plain ? plainBtnSx : gameBtnSx
+  const engraved = !plain && ENGRAVED_CHROME_THEMES.includes(themeName)
+
+  const winBtnSx = plain ? plainBtnSx : engraved ? engravedBtnSx : gameBtnSx
   const closeBtnSx = {
     ...winBtnSx,
     '&:hover': plain
@@ -114,7 +130,7 @@ function TitleBar(): React.JSX.Element {
           // Cinzel font.)
           '&&': { fontSize: '1.5rem' },
           color: 'secondary.contrastText',
-          textShadow: plain ? 'none' : TITLE_TEXT_SHADOW
+          textShadow: plain ? 'none' : engraved ? ENGRAVE : TITLE_TEXT_SHADOW
         }}
       >
         Midir
