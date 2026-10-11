@@ -25,3 +25,4 @@ Read `00-overview.md` first. This register now holds only what is **not** a WP: 
 - **Hybrasyl support.** Retail is the target. Hybrasyl's server is a sibling project with its own tools; supporting both would make every protocol decision a compatibility argument.
 - **Reading a credential, even one Midir could read.** `CLogin`'s password field is deliberately not decoded: a value that is never read cannot be logged, saved, or leaked.
 - **An account-wide or shared library.** One person, one machine, one record file.
+- **macOS or Linux.** The Dark Ages client runs on Windows only, and Midir reads its traffic and drives its window, so another platform has nothing to read or drive (Sabrael, 2026-10-11). `electron-builder.yml` and `release.yml` build Windows alone, and `scripts/icons.test.mjs` keeps the template's other platforms out. A house standard for those platforms is n/a here. See WP45.

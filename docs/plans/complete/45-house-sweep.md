@@ -1,6 +1,6 @@
 # WP45 — Windows only, Electron 44, and the house rows of 2026-10-11
 
-**Size:** M. **Depends on:** WP28 (the first standards pass) and WP44 (the update check). Read `00-overview.md` first. **IN PR** on `chore/house-sweep-2026-10`. **Card:** the Midir row of every house Electron card named below. This is a record of what the branch did, as WP28 is, not a plan written first.
+**Size:** M. **Depends on:** WP28 (the first standards pass) and WP44 (the update check). Read `00-overview.md` first. **COMPLETE 2026-10-11** (#54, with the palette in #55). **Card:** the Midir row of every house Electron card named below. This is a record of what the branch did, as WP28 is, not a plan written first.
 
 ## Goal
 

@@ -167,7 +167,7 @@ Each is a real WP with a doc, but is trigger-gated: it starts when its trigger f
 | WP42 | S | Legend badges from the client | HTOO-482 | COMPLETE 2026-09-27 (#46) — `complete/42-legend-badges.md` |
 | WP43 | M | The world graph view | HTOO-483 | COMPLETE 2026-09-27 (#48) — `complete/43-world-graph-view.md`; retest owed |
 | WP44 | S | The house update check | HTOO-495 | COMPLETE — `complete/44-update-check.md`; the module ported, and Midir's first outbound request stated |
-| WP45 | M | Windows only, Electron 44, the house rows | HTOO-553 et al. | IN PR — `45-house-sweep.md` |
+| WP45 | M | Windows only, Electron 44, the house rows | HTOO-553 et al. | COMPLETE 2026-10-11 (#54, #55) — `complete/45-house-sweep.md` |
 
 `00a-backlog.md` now holds only what is not a WP: the non-goals, the debts owed to another repo, and the one conditional rule.
 
