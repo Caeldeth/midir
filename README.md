@@ -76,6 +76,12 @@ The stand-in legend marks are from the [Game Icons](https://game-icons.net/) set
 
 Midir learns the encryption keys from the login handshake. If you start Midir in the middle of a game session, it cannot read that session. Start Midir first, then start Dark Ages.
 
+## Remote Desktop
+
+Over Remote Desktop, Midir changes to software rendering by itself. A remote session has no GPU, and Chromium's GPU compositing is what makes a window drag slowly and the app use about 10% CPU when it does nothing. You do not set anything: Midir reads the session type when it starts.
+
+**Midir cannot see a reconnected session.** Windows records the session type at logon and does not change it, so a console session that you later connect to over Remote Desktop still shows as local. If a window drags slowly over Remote Desktop, set `MIDIR_DISABLE_GPU=1` in the environment before you start Midir. The same variable works the other way: `MIDIR_DISABLE_GPU=0` turns hardware rendering on again if the detection is wrong on your computer. Any other value that is not empty means on.
+
 ## Commands
 
 | Script | What it does |
