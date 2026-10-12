@@ -27,10 +27,13 @@
 #
 # ## When to spend a run
 #
-# Before a release, before a platform-shaped change, and before merging
-# anything that touches main, the preload, the capture path, the window
-# lifecycle, or packaging. A renderer-only change with green unit tests rarely
-# needs it.
+# Before a release, or for a platform-shaped change, when a second machine is
+# worth it. Not before a merge: the house dropped remote CI on merge
+# (2026-10-11). The merge gate is local: `npm run validate`, plus `npm run
+# build` and the e2e specs for a change that touches main, the preload, the
+# capture path, the window lifecycle, or packaging. This workflow tests; it
+# does not build the release, so a run before a release does not build twice
+# (release.yml has the tag-directly rule).
 #
 # `lint:check` runs with `--max-warnings 0`: any warning fails the job.
 
