@@ -68,7 +68,9 @@ describe('CaptureIndicator', () => {
           <CaptureIndicator />
         </ThemeProvider>
       )
-      const shadow = getComputedStyle(screen.getByTestId('capture-dot')).boxShadow.toLowerCase()
+      const shadow = getComputedStyle(
+        screen.getByTestId('capture-indicator').firstElementChild!
+      ).boxShadow.toLowerCase()
       expect(shadow).toContain(theme.palette.secondary.contrastText.toLowerCase())
       cleanup()
     }

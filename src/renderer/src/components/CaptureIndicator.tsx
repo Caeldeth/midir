@@ -86,7 +86,6 @@ function CaptureIndicator(): React.JSX.Element {
         }}
       >
         <Box
-          data-testid="capture-dot"
           sx={{
             width: DOT_SIZE,
             height: DOT_SIZE,
