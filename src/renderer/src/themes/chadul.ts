@@ -1,21 +1,28 @@
 import { createTheme, responsiveFontSizes } from '@mui/material/styles'
-import { baseTypography } from './baseTypography'
+import { filledControls } from './filledControls'
 import { midirOverrides } from './midirOverrides'
+import { baseTypography } from './baseTypography'
 
 const chadulTheme = responsiveFontSizes(
   createTheme({
     palette: {
       mode: 'dark',
+      // MUI picks a status label (a filled chip or alert) by this ratio. Its
+      // default, 3, takes white on #ff0000 at 4.00:1; labels are text, so 4.5.
+      contrastThreshold: 4.5,
       // Chadul mixes green and purple (Sabrael, 2026-10-10): a GREEN accent and
       // PURPLE bars, as Taliesin has (HTOO-572). The purple accent was 1.76:1 on
       // the page (HTOO-355); this green is 3.81:1 on the page and 3.71:1 on
       // paper, and its pale label is 4.68:1 on it. The component overrides
       // already drew the accent green (tabs, checkboxes, focus, buttons).
+      // The accent is text on the page too (text buttons, links), so 4.5:1 on the
+      // page and on paper (HTOO-572): 4.62:1 and 4.51:1. A light label no longer
+      // reaches 4.5:1 on it; the near-black page colour is 4.62:1.
       primary: {
-        main: '#2e7a3a',
+        main: '#42874d',
         light: '#4ab858',
         dark: '#1a4a22',
-        contrastText: '#e6f5e2'
+        contrastText: '#020804'
       },
       // The bars. The lavender text family stays (Sabrael, 2026-10-11): the
       // title bar's icons and wordmark are 11.14:1 on this purple.
@@ -37,7 +44,7 @@ const chadulTheme = responsiveFontSizes(
         tableBorderL: 'rgba(154,122,208,0.18)',
         tableBorderD: 'rgba(154,122,208,0.32)',
         scrollbarDark: '#1a4a22',
-        scrollbarLight: '#2e7a3a'
+        scrollbarLight: '#42874d'
       },
       text: {
         primary: '#e0d8ea',
@@ -51,7 +58,7 @@ const chadulTheme = responsiveFontSizes(
         button: '#a8d8a0',
         dark: '#020804'
       },
-      divider: 'rgba(46,122,58,0.28)',
+      divider: 'rgba(66,135,77,0.28)',
       error: { main: '#ff0000' },
       warning: { main: '#FFFF00' },
       info: { main: '#6de7f7' },
@@ -63,6 +70,7 @@ const chadulTheme = responsiveFontSizes(
     shape: { borderRadius: 2 },
 
     components: {
+      ...filledControls,
       ...midirOverrides,
       MuiPaper: {
         styleOverrides: {
@@ -88,9 +96,9 @@ const chadulTheme = responsiveFontSizes(
             }
           },
           contained: {
-            backgroundColor: 'rgba(46,122,58,0.25)',
+            backgroundColor: 'rgba(66,135,77,0.25)',
             color: '#a8d8a0',
-            '&:hover': { backgroundColor: 'rgba(46,122,58,0.4)' }
+            '&:hover': { backgroundColor: 'rgba(66,135,77,0.4)' }
           }
         }
       },
@@ -99,7 +107,7 @@ const chadulTheme = responsiveFontSizes(
           root: {
             backgroundColor: 'rgba(2,8,4,0.97)',
             backgroundImage: 'none',
-            borderBottom: '1px solid rgba(46,122,58,0.25)',
+            borderBottom: '1px solid rgba(66,135,77,0.25)',
             boxShadow: 'none'
           }
         }
@@ -108,7 +116,7 @@ const chadulTheme = responsiveFontSizes(
         styleOverrides: {
           paper: {
             backgroundColor: 'rgba(4,14,6,0.95)',
-            borderRight: '1px solid rgba(46,122,58,0.32)'
+            borderRight: '1px solid rgba(66,135,77,0.32)'
           }
         }
       },
@@ -161,10 +169,10 @@ const chadulTheme = responsiveFontSizes(
             // A selected chip (color="primary", filled) takes the accent and its
             // label, as MUI's own fill does, and keeps the accent on hover.
             '&.MuiChip-filled.MuiChip-colorPrimary': {
-              backgroundColor: '#2e7a3a',
-              color: '#e6f5e2',
-              borderColor: '#2e7a3a',
-              '&.MuiChip-clickable:hover': { backgroundColor: '#2e7a3a' }
+              backgroundColor: '#42874d',
+              color: '#020804',
+              borderColor: '#42874d',
+              '&.MuiChip-clickable:hover': { backgroundColor: '#42874d' }
             }
           }
         }
@@ -182,12 +190,12 @@ const chadulTheme = responsiveFontSizes(
             },
             backgroundColor: '#2e1a4a',
             color: '#a8d8a0',
-            border: '1px solid #2e7a3a',
+            border: '1px solid #42874d',
             '&:hover': { backgroundColor: '#4a2870', borderColor: '#4ab858' },
             '&.Mui-selected': {
-              backgroundColor: '#2e7a3a',
+              backgroundColor: '#42874d',
               borderColor: '#4ab858',
-              color: '#e6f5e2'
+              color: '#020804'
             },
             '&.Mui-disabled': {
               backgroundColor: 'rgba(46,26,74,0.3)',
@@ -207,24 +215,24 @@ const chadulTheme = responsiveFontSizes(
           }
         }
       },
-      MuiTabs: { styleOverrides: { indicator: { backgroundColor: '#2e7a3a' } } },
+      MuiTabs: { styleOverrides: { indicator: { backgroundColor: '#42874d' } } },
       MuiInputLabel: {
-        styleOverrides: { root: { '&.Mui-focused': { color: '#2e7a3a' } } }
+        styleOverrides: { root: { '&.Mui-focused': { color: '#42874d' } } }
       },
       MuiCheckbox: {
         styleOverrides: {
           root: {
-            color: 'rgba(46,122,58,0.5)',
-            '&.Mui-checked': { color: '#2e7a3a' }
+            color: 'rgba(66,135,77,0.5)',
+            '&.Mui-checked': { color: '#42874d' }
           }
         }
       },
       MuiOutlinedInput: {
         styleOverrides: {
           root: {
-            '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(46,122,58,0.3)' },
-            '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(46,122,58,0.6)' },
-            '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#2e7a3a' }
+            '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(66,135,77,0.3)' },
+            '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(66,135,77,0.6)' },
+            '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#42874d' }
           }
         }
       },

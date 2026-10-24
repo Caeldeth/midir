@@ -1,11 +1,15 @@
 import { createTheme, responsiveFontSizes } from '@mui/material/styles'
-import { baseTypography } from './baseTypography'
+import { filledControls } from './filledControls'
 import { midirOverrides } from './midirOverrides'
+import { baseTypography } from './baseTypography'
 
 const grinnealTheme = responsiveFontSizes(
   createTheme({
     palette: {
       mode: 'dark',
+      // MUI picks a status label (a filled chip or alert) by this ratio. Its
+      // default, 3, takes white on #ff0000 at 4.00:1; labels are text, so 4.5.
+      contrastThreshold: 4.5,
       // HTOO-355: the olive is a middle tone, so the cream label could not pass on
       // it (3.46:1). A lighter olive with a dark label, as hybrasyl (HTOO-341):
       // 4.69:1 on the page, 5.54:1 on paper, and the label is 4.69:1 on it.
@@ -17,13 +21,13 @@ const grinnealTheme = responsiveFontSizes(
         contrastText: '#27221c'
       },
       secondary: {
-        main: '#907858',
+        // The bar: a dark brown with cream text (6.25:1), keylined like the other
+        // decorated bars (Sabrael, 2026-10-23). The old mid-tone tan, #907858,
+        // took near-black text that the bar had to engrave.
+        main: '#604830',
         light: '#b89870',
-        dark: '#604830',
-        // The bar is a mid-tone tan, and no light colour reaches 4.5:1 on it (white
-        // is 4.19:1). Near-black is 4.72:1, and the title bar engraves it
-        // (ENGRAVED_CHROME_THEMES) rather than keylining it (HTOO-572).
-        contrastText: '#0c0a06'
+        dark: '#3c3020',
+        contrastText: '#e8dcc0'
       },
       background: {
         default: '#27221c',
@@ -51,7 +55,9 @@ const grinnealTheme = responsiveFontSizes(
         dark: '#1a1408'
       },
       divider: 'rgba(160,140,100,0.40)',
-      error: { main: '#ff0000' },
+      // Status colours are text on the page as well as fills (outlined chips,
+      // text buttons), so each reads 4.5:1 on the page and on paper (HTOO-572).
+      error: { main: '#ff3e3e' },
       warning: { main: '#FFFF00' },
       info: { main: '#6de7f7' },
       success: { main: '#38ff4f' }
@@ -62,6 +68,7 @@ const grinnealTheme = responsiveFontSizes(
     shape: { borderRadius: 2 },
 
     components: {
+      ...filledControls,
       ...midirOverrides,
       MuiPaper: {
         styleOverrides: {

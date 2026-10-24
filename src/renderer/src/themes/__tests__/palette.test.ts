@@ -1,8 +1,9 @@
 import { describe, it, expect } from 'vitest'
 import type { Theme } from '@mui/material/styles'
 import { themesByName } from '../index'
+import { filledControls } from '../filledControls'
 import type { ThemeName } from '@shared/types'
-import { contrast, luminance } from './contrast'
+import { blend, contrast, luminance } from '@renderer/lib/contrast'
 
 // Derived from the registry rather than a hand-kept list, so a theme added to
 // `themesByName` is covered without anyone remembering to add it here.
@@ -60,7 +61,11 @@ function containedPrimary(theme: Theme): { hover: string; label: string } | null
   const own = o.containedPrimary ?? {}
   const rest = (own.backgroundColor ?? contained.backgroundColor ?? p.primary.main) as string
   if (rest.toLowerCase() !== p.primary.main.toLowerCase()) return null
+  // MUI v9 has no containedPrimary override key, so a theme scopes a primary
+  // hover under `contained` with the colour class.
+  const scoped = contained['&.MuiButton-colorPrimary:hover'] as Record<string, unknown> | undefined
   const hover = (own['&:hover']?.backgroundColor ??
+    scoped?.backgroundColor ??
     contained['&:hover']?.backgroundColor ??
     p.primary.dark) as string
   const label = (own.color ?? contained.color ?? p.primary.contrastText) as string
@@ -86,15 +91,43 @@ describe('theme palettes', () => {
     const theme = themesByName[name]
     const p = theme.palette
 
-    it('primary.main reads as a control against the page and against paper', () => {
-      // 3:1 is the WCAG floor for a UI component boundary (1.4.11). This is what
-      // "the selected chip is visible at all" reduces to. Translucent paper is
-      // blended over the page first.
-      expect(contrast(p.primary.main, p.background.default)).toBeGreaterThanOrEqual(3)
+    it('carries the shared filledControls rules, and does not replace them', () => {
+      // A theme key of its own would replace the spread one, and only the
+      // rendered filledControls.test.tsx would see the loss.
+      const components = theme.components ?? {}
+      for (const key of Object.keys(filledControls) as (keyof typeof filledControls)[])
+        expect(components[key], key).toEqual(filledControls[key])
+    })
+
+    it('picks status labels at 4.5:1, not MUI’s default 3:1', () => {
+      expect(p.contrastThreshold).toBe(4.5)
+    })
+
+    it('primary.main reads as text against the page and against paper', () => {
+      // The accent is a control (3:1, WCAG 1.4.11), but the apps draw it as TEXT
+      // too: text buttons (the commonest button in every app), links and outlined
+      // chips. So it is held to 4.5:1 (1.4.3), Sabrael, 2026-10-23. Translucent
+      // paper is blended over the page first.
+      expect(contrast(p.primary.main, p.background.default)).toBeGreaterThanOrEqual(4.5)
       expect(
         contrast(p.primary.main, p.background.paper, p.background.default)
-      ).toBeGreaterThanOrEqual(3)
+      ).toBeGreaterThanOrEqual(4.5)
     })
+
+    it.each(['error', 'warning', 'info', 'success'] as const)(
+      '%s.main reads as text against the page and against paper',
+      (status) => {
+        // The apps draw status colours as text as well as fills: outlined chips,
+        // text error buttons, `color: 'error.main'` (HTOO-572). danaan's DA yellow
+        // was 1.05:1 on its parchment.
+        const c = p[status].main
+        expect(contrast(c, p.background.default), 'page').toBeGreaterThanOrEqual(4.5)
+        expect(
+          contrast(c, p.background.paper, p.background.default),
+          'paper'
+        ).toBeGreaterThanOrEqual(4.5)
+      }
+    )
 
     it('contrastText is legible on primary.main', () => {
       // 4.5:1 (1.4.3): chip and button labels are normal-sized text, not large
@@ -139,9 +172,27 @@ describe('theme palettes', () => {
       expect(contrast(p.secondary.contrastText, p.secondary.main)).toBeGreaterThanOrEqual(4.5)
     })
 
-    it('text.dark reads on info.main, the chrome hover', () => {
+    it('text.dark is set, and is dark', () => {
+      // The chrome hover over info.main takes info.contrastText now, because a
+      // light theme's info colour is dark (chromeContrast.test.tsx checks it).
       expect(p.text.dark, 'text.dark is set').toMatch(/^#[0-9a-f]{6}$/i)
-      expect(contrast(p.text.dark, p.info.main)).toBeGreaterThanOrEqual(4.5)
+      expect(luminance(p.text.dark)).toBeLessThan(0.05)
+    })
+
+    it('a plain chip label reads on its tint, on the page and on paper', () => {
+      // The plain chip is the commonest chip, and its tint is translucent, so
+      // the label is measured on the tint over the page and over paper. danaan's
+      // `#7a5e18` was 4.02:1 on the page (corvath, HTOO-572).
+      const root = (theme.components?.MuiChip?.styleOverrides?.root ?? {}) as Record<
+        string,
+        Record<string, string>
+      >
+      const plain = root['&.MuiChip-colorDefault']
+      expect(plain, 'the plain chip rule').toBeDefined()
+      const { backgroundColor: tint, color: label } = plain
+      const paper = blend(p.background.paper, p.background.default)
+      expect(contrast(label, blend(tint, p.background.default)), 'page').toBeGreaterThanOrEqual(4.5)
+      expect(contrast(label, blend(tint, paper)), 'paper').toBeGreaterThanOrEqual(4.5)
     })
 
     it('an override that fills with primary.main gives its text 4.5:1', () => {

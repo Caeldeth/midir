@@ -1,11 +1,15 @@
 import { createTheme, responsiveFontSizes } from '@mui/material/styles'
-import { baseTypography } from './baseTypography'
+import { filledControls } from './filledControls'
 import { midirOverrides } from './midirOverrides'
+import { baseTypography } from './baseTypography'
 
 const hybrasylTheme = responsiveFontSizes(
   createTheme({
     palette: {
       mode: 'dark',
+      // MUI picks a status label (a filled chip or alert) by this ratio. Its
+      // default, 3, takes white on #ff0000 at 4.00:1; labels are text, so 4.5.
+      contrastThreshold: 4.5,
       // `main` was `#0d182f` — the same value as `background.default` — so every
       // control that signals "active" through `color="primary"` painted itself
       // the colour of the page and vanished (HTOO-341). The blue that was
@@ -52,7 +56,9 @@ const hybrasylTheme = responsiveFontSizes(
         dark: '#0c1018'
       },
       divider: 'rgba(58,158,144,0.22)',
-      error: { main: '#ff0000' },
+      // Status colours are text on the page as well as fills (outlined chips,
+      // text buttons), so each reads 4.5:1 on the page and on paper (HTOO-572).
+      error: { main: '#ff1313' },
       warning: { main: '#FFFF00' },
       info: { main: '#6de7f7' },
       success: { main: '#38ff4f' }
@@ -63,6 +69,7 @@ const hybrasylTheme = responsiveFontSizes(
     shape: { borderRadius: 2 },
 
     components: {
+      ...filledControls,
       ...midirOverrides,
       MuiPaper: {
         styleOverrides: {
@@ -148,7 +155,8 @@ const hybrasylTheme = responsiveFontSizes(
             // (HTOO-572).
             '&.MuiChip-colorDefault': {
               backgroundColor: 'rgba(58,158,144,0.14)',
-              color: '#3a9e90'
+              // 4.65:1 on the tint over the page; #3a9e90 was 4.49:1.
+              color: '#3ba193'
             },
             // A selected chip (color="primary", filled) takes the accent and its
             // label, as MUI's own fill does, and keeps the accent on hover.

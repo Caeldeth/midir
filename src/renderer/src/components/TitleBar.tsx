@@ -1,176 +1,181 @@
-import React from 'react'
+// house module: title-bar v1 — change it in the template, then port
+//
+// The house title bar (HTOO-572). This file and `titleChrome.ts` are copied
+// into each app as they are; a JS app copies the editions in `house-js/`. The
+// app does not edit them: it wires them in its own `AppTitleBar`, which passes
+// these props. This file reads no store and no `window.api`.
+//
+// - `name`: the wordmark, as users see the app's name.
+// - `icon`: a 128px webp, not the icon master. Make it with
+//   `magick build/icon.png -resize 128x128 -strip -quality 90 <app>.webp`.
+// - `theme`: the active theme's name.
+// - `platform`: `window.api.platform`. On `darwin` the system draws the window
+//   buttons, and the bar shows no logo and no name.
+// - `controls`: `{ minimize, maximize, close }`. Leave out `maximize` for a
+//   window of a fixed size.
+// - `children`: the app's own controls (page navigation, a status indicator),
+//   between the wordmark and the window buttons. Make an icon control a
+//   `ChromeButton`, so that it takes the bar's glyphs, colours and hover.
+import React, { createContext, useContext } from 'react'
 import { Toolbar, IconButton, Tooltip, Box, Typography } from '@mui/material'
-import { GiContract, GiExpand, GiDeathSkull } from 'react-icons/gi'
-import RemoveIcon from '@mui/icons-material/Remove'
-import CropSquareIcon from '@mui/icons-material/CropSquare'
-import CloseIcon from '@mui/icons-material/Close'
-import { ENGRAVED_CHROME_THEMES, PLAIN_CHROME_THEMES } from '@shared/types'
-import CaptureIndicator from '@renderer/components/CaptureIndicator'
-import { useSettingsStore } from '@renderer/store/settingsStore'
-// A 128px webp, not the icon master: this draws at 24px, and vite hashes it
-// into the bundle. Regenerate with:
-//   magick build/icon.png -resize 128x128 -strip -quality 90 //     src/renderer/src/assets/midir.webp
-import appIcon from '@renderer/assets/midir.webp'
+import type { ThemeName } from '@shared/types'
+import {
+  GLYPHS,
+  LOGO_FILTER,
+  TITLE_SHADOW,
+  chromeKind,
+  windowButtonSx,
+  type ChromeKind
+} from './titleChrome'
 
-// Shared shadow vocabulary for the title bar. KEYLINE is the crisp four-way
-// #000 outline; DEPTH is the soft layer that lifts the glyph off the bar.
-// These drive the "gamified" chrome; the plain/corporate themes drop them.
-const KEYLINE = ['1px 1px 0 #000', '-1px -1px 0 #000', '1px -1px 0 #000', '-1px 1px 0 #000']
-const DEPTH = '0 2px 3px rgba(0,0,0,0.55)'
-
-// The wordmark is real text: CSS text-shadow paints every layer independently
-// from the glyph, so keyline + depth both read at full strength.
-const TITLE_TEXT_SHADOW = [...KEYLINE, DEPTH].join(', ')
-
-// The keyline and the depth are dark, so they outline LIGHT title text. Around
-// dark text (danaan's #1a1008 on its gold bar, grinneal's near-black on its tan
-// one) they merge with the glyph and double its edges. Those bars are engraved
-// instead: a thin cream edge below and right, as if cut into the bar. Which
-// themes engrave is ENGRAVED_CHROME_THEMES in shared/types (HTOO-572; from
-// the house template).
-const ENGRAVE = '1px 1px 0 rgba(255,248,232,0.75)'
-
-// Gamified chrome (the four stylized themes): stroked glyphs, keyline/depth.
-const iconSx = {
-  '& svg': {
-    fontSize: '1.4em',
-    // SVG glyphs can't take text-shadow, so the keyline comes from a solid
-    // (full-opacity) stroke and the depth from a SINGLE drop-shadow. Earlier
-    // this chained the four keyline offsets as drop-shadows too, but chained
-    // filters compound — the depth layer ended up cast from the icon *plus*
-    // its four hard shadows and washed out, which is why the icons read
-    // flatter than the wordmark. One depth shadow off the crisp stroked glyph
-    // matches the wordmark's lift.
-    stroke: '#000',
-    strokeWidth: 11,
-    filter: `drop-shadow(${DEPTH})`
-  }
+/** The window calls. Leave out `maximize` for a window of a fixed size. */
+export interface WindowControls {
+  minimize: () => void
+  maximize?: () => void
+  close: () => void
 }
 
-const gameBtnSx = {
-  WebkitAppRegion: 'no-drag',
-  color: 'secondary.contrastText',
-  ...iconSx,
-  '&:hover': {
-    backgroundColor: 'info.main',
-    color: 'text.dark'
-  }
-} as const
+export interface TitleBarProps {
+  /** The wordmark, as users see the app's name. */
+  name: string
+  /**
+   * A 128px webp, not the icon master: it draws at 24px, and vite hashes it
+   * into the bundle. Make it with
+   * `magick build/icon.png -resize 128x128 -strip -quality 90 <app>.webp`.
+   */
+  icon: string
+  theme: ThemeName
+  /** `window.api.platform`. On `darwin` the system draws the window buttons. */
+  platform: string
+  controls: WindowControls
+  children?: React.ReactNode
+}
 
-// The engraved glyphs: no #000 stroke, and the cream edge for the depth.
-const engravedBtnSx = {
-  ...gameBtnSx,
-  '& svg': { fontSize: '1.4em', filter: `drop-shadow(${ENGRAVE})` }
-} as const
+const ChromeKindContext = createContext<ChromeKind>('keyline')
 
-// Plain chrome (corporate themes): standard MUI icons, flat, no stroke/shadow.
-// The bar is the navy secondary.main, so hover uses a translucent-white wash
-// (a dark action.hover overlay would be invisible on navy).
-const plainBtnSx = {
-  WebkitAppRegion: 'no-drag',
-  color: 'secondary.contrastText',
-  '& svg': { fontSize: '1.15em' },
-  '&:hover': { backgroundColor: 'rgba(255,255,255,0.16)' }
-} as const
+interface ChromeButtonProps {
+  label: string
+  onClick?: () => void
+  children: React.ReactNode
+}
 
-function TitleBar(): React.JSX.Element {
-  // Corporate themes get plain MUI window icons and a flat bar; the four
-  // stylized themes keep the gamified skull glyph + #000 keyline shadows.
-  const themeName = useSettingsStore((s) => s.theme)
-  const plain = PLAIN_CHROME_THEMES.includes(themeName)
+/** An icon control on the title bar, drawn like the window buttons. */
+export function ChromeButton({ label, onClick, children }: ChromeButtonProps): React.JSX.Element {
+  const kind = useContext(ChromeKindContext)
+  return (
+    <Tooltip title={label}>
+      <IconButton size="small" aria-label={label} sx={windowButtonSx(kind)} onClick={onClick}>
+        {children}
+      </IconButton>
+    </Tooltip>
+  )
+}
 
-  const engraved = !plain && ENGRAVED_CHROME_THEMES.includes(themeName)
+function TitleBar({
+  name,
+  icon,
+  theme,
+  platform,
+  controls,
+  children
+}: TitleBarProps): React.JSX.Element {
+  // The corporate themes take plain MUI window icons and a flat bar. The four
+  // decorated themes take the game glyphs and the keyline.
+  const kind = chromeKind(theme)
+  const plain = kind === 'plain'
 
-  const winBtnSx = plain ? plainBtnSx : engraved ? engravedBtnSx : gameBtnSx
-  const closeBtnSx = {
-    ...winBtnSx,
-    '&:hover': plain
-      ? { backgroundColor: 'error.main', color: 'error.contrastText' }
-      : { backgroundColor: 'info.main', color: 'warning.main' }
-  }
+  // macOS draws its own stoplight buttons, inset at the bar's left edge (main's
+  // `titleBarStyle: 'hiddenInset'`), and a Mac title bar carries no app name or
+  // logo. The bar is a drag region that holds the lights and the app's own
+  // controls; a double-click on it zooms the window natively (macos-chrome.md §2).
+  const isMac = platform === 'darwin'
+
+  const Minimize = plain ? GLYPHS.minimize.plain : GLYPHS.minimize.decorated
+  const Maximize = plain ? GLYPHS.maximize.plain : GLYPHS.maximize.decorated
+  const Close = plain ? GLYPHS.close.plain : GLYPHS.close.decorated
+  const windowButtons = [
+    { label: 'Minimize', Glyph: Minimize, onClick: controls.minimize, close: false },
+    ...(controls.maximize
+      ? [{ label: 'Maximize', Glyph: Maximize, onClick: controls.maximize, close: false }]
+      : []),
+    { label: 'Close', Glyph: Close, onClick: controls.close, close: true }
+  ]
 
   return (
-    <Toolbar
-      data-testid="title-bar"
-      variant="dense"
-      sx={{
-        bgcolor: 'secondary.main',
-        minHeight: 36,
-        px: 1.5,
-        WebkitAppRegion: 'drag',
-        userSelect: 'none',
-        flexShrink: 0
-      }}
-    >
-      <Box
-        component="img"
-        src={appIcon}
-        alt=""
-        aria-hidden
+    <ChromeKindContext.Provider value={kind}>
+      <Toolbar
+        data-testid="title-bar"
+        variant="dense"
+        // The Toolbar's gutters are a media query (24 px from `sm` up), and an
+        // `sx` padding without a breakpoint does not override it. So
+        // `disableGutters`, and both paddings set here: 24 px (3) on Windows and
+        // Linux, and 78 px on macOS to clear the stoplights, which end near x = 66.
+        disableGutters
         sx={{
-          height: 24,
-          width: 24,
-          mr: 1,
-          objectFit: 'contain',
-          // Match the wordmark's lift on the gamified themes; the plain themes
-          // drop the shadow vocabulary entirely.
-          filter: plain ? 'none' : `drop-shadow(${DEPTH})`
-        }}
-      />
-
-      <Typography
-        variant="h6"
-        sx={{
-          fontWeight: 'bold',
-          flexGrow: 0,
-          // responsiveFontSizes() attaches sm/md/lg font-size media queries to
-          // the h6 variant, so the title would grow when the window crosses a
-          // breakpoint on resize. The doubled-class `&&` outranks those media
-          // queries to pin the size at every width. (variant="h6" kept for its
-          // Cinzel font.)
-          '&&': { fontSize: '1.5rem' },
-          color: 'secondary.contrastText',
-          textShadow: plain ? 'none' : engraved ? ENGRAVE : TITLE_TEXT_SHADOW
+          bgcolor: 'secondary.main',
+          minHeight: 36,
+          pr: 3,
+          pl: isMac ? '78px' : 3,
+          WebkitAppRegion: 'drag',
+          userSelect: 'none',
+          flexShrink: 0
         }}
       >
-        Midir
-      </Typography>
+        {!isMac && (
+          <>
+            <Box
+              component="img"
+              src={icon}
+              alt=""
+              aria-hidden
+              sx={{ height: 24, width: 24, mr: 1, objectFit: 'contain', filter: LOGO_FILTER[kind] }}
+            />
+            <Typography
+              variant="h6"
+              sx={{
+                fontWeight: 'bold',
+                flexGrow: 0,
+                // responsiveFontSizes() attaches sm/md/lg font-size media queries to
+                // the h6 variant, so the title would grow when the window crosses a
+                // breakpoint on resize. The doubled-class `&&` outranks those media
+                // queries to pin the size at every width. (variant="h6" keeps its
+                // Cinzel font.)
+                '&&': { fontSize: '1.5rem' },
+                color: 'secondary.contrastText',
+                textShadow: TITLE_SHADOW[kind]
+              }}
+            >
+              {name}
+            </Typography>
+          </>
+        )}
 
-      <Box sx={{ flexGrow: 1 }} />
+        <Box sx={{ flexGrow: 1 }} />
 
-      <CaptureIndicator />
+        {children && (
+          <Box
+            data-testid="title-bar-controls"
+            sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mr: isMac ? 0 : 2 }}
+          >
+            {children}
+          </Box>
+        )}
 
-      <Tooltip title="Minimize">
-        <IconButton
-          size="small"
-          aria-label="Minimize"
-          sx={winBtnSx}
-          onClick={() => window.api.minimizeWindow()}
-        >
-          {plain ? <RemoveIcon /> : <GiContract />}
-        </IconButton>
-      </Tooltip>
-      <Tooltip title="Maximize">
-        <IconButton
-          size="small"
-          aria-label="Maximize"
-          sx={winBtnSx}
-          onClick={() => window.api.maximizeWindow()}
-        >
-          {plain ? <CropSquareIcon /> : <GiExpand />}
-        </IconButton>
-      </Tooltip>
-      <Tooltip title="Close">
-        <IconButton
-          size="small"
-          aria-label="Close"
-          sx={closeBtnSx}
-          onClick={() => window.api.closeWindow()}
-        >
-          {plain ? <CloseIcon /> : <GiDeathSkull />}
-        </IconButton>
-      </Tooltip>
-    </Toolbar>
+        {!isMac &&
+          windowButtons.map(({ label, Glyph, onClick, close }) => (
+            <Tooltip key={label} title={label}>
+              <IconButton
+                size="small"
+                aria-label={label}
+                sx={windowButtonSx(kind, close)}
+                onClick={onClick}
+              >
+                <Glyph />
+              </IconButton>
+            </Tooltip>
+          ))}
+      </Toolbar>
+    </ChromeKindContext.Provider>
   )
 }
 

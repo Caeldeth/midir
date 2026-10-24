@@ -3,9 +3,11 @@ import type { Components, Theme } from '@mui/material/styles'
 /**
  * The component overrides that Midir adds to each of the six house themes.
  * The template does not have them. Each theme file is the template's file,
- * plus one spread of this object at the start of its `components`. Keep them
- * in this one file, so that the next port of the template's palettes is a copy
- * of the six theme files and the spread line.
+ * plus one spread of this object in its `components`, after the template's
+ * `...filledControls`. Keep them in this one file, so that the next port of the
+ * template's palettes is a copy of the six theme files and the spread line.
+ * Do not set `MuiButtonBase` or `MuiAlert` here: that key replaces the one in
+ * `filledControls`, and `palette.test.ts` fails.
  *
  * - `MuiAccordion`, `MuiAccordionSummary`, `MuiAccordionDetails`: the
  *   character sheet and the Boards page put their sections in accordions. MUI's
