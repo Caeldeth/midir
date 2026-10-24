@@ -33,7 +33,12 @@ const cardSx = { p: 3, display: 'flex', flexDirection: 'column', height: '100%' 
 const headingSx = { color: 'text.button', fontWeight: 'bold' } as const
 const descriptionSx = { color: 'text.secondary', mb: 2 } as const
 
-function Settings(): React.JSX.Element {
+interface SettingsProps {
+  /** Open the theme gallery (HTOO-572). It has no tab of its own. */
+  onOpenGallery: () => void
+}
+
+function Settings({ onOpenGallery }: SettingsProps): React.JSX.Element {
   const theme = useSettingsStore((s) => s.theme)
   const setTheme = useSettingsStore((s) => s.setTheme)
   const captureDevice = useSettingsStore((s) => s.captureDevice)
@@ -257,6 +262,9 @@ function Settings(): React.JSX.Element {
             Choose the theme Midir uses.
           </Typography>
           <ThemePicker value={theme} onChange={setTheme} />
+          <Box sx={{ mt: 2 }}>
+            <Button onClick={onOpenGallery}>Theme gallery</Button>
+          </Box>
         </Paper>
 
         <Paper sx={cardSx} data-testid="hotkey-settings">

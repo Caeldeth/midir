@@ -40,6 +40,12 @@ function readViews() {
 
 const VIEWS = readViews()
 
+// The pages that have no tab, each with the tab and the button that open it.
+// The theme gallery opens from the Appearance card on Settings (HTOO-572).
+const UNTABBED = [
+  { view: 'gallery', tab: 'Settings', button: 'Theme gallery', testId: 'theme-gallery-page' }
+]
+
 /** How long each page runs before it is checked, so a fault in the render that
  *  its first IPC replies start is charged to this page and not the next one.
  *  Taliesin and epona both found faults that a check without it missed. */
@@ -74,6 +80,18 @@ test.describe('every page opens', () => {
         await page.waitForTimeout(SETTLE_MS)
 
         // And it rendered without throwing. Named per page so a failure says which.
+        await expect(boundary, `${view} went to the error boundary`).toHaveCount(0)
+        expect(errors, `${view}: page error`).toEqual([])
+      })
+    }
+
+    for (const { view, tab, button, testId } of UNTABBED) {
+      await test.step(button, async () => {
+        await page.getByRole('tab', { name: tab, exact: true }).click()
+        await page.getByRole('button', { name: button, exact: true }).click()
+        await expect(page.getByTestId(`page-${view}`)).toBeVisible()
+        await expect(page.getByTestId(testId)).toBeVisible()
+        await page.waitForTimeout(SETTLE_MS)
         await expect(boundary, `${view} went to the error boundary`).toHaveCount(0)
         expect(errors, `${view}: page error`).toEqual([])
       })

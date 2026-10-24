@@ -37,6 +37,7 @@ import GraphPage from '@renderer/pages/GraphPage'
 import Laborer from '@renderer/pages/Laborer'
 import Diagnostics from '@renderer/pages/Diagnostics'
 import Settings from '@renderer/pages/Settings'
+import ThemeGallery from '@renderer/pages/ThemeGallery'
 
 const themes: Record<ThemeName, Theme> = {
   hybrasyl: hybrasylTheme,
@@ -196,7 +197,8 @@ function App(): React.JSX.Element {
                 ) : null}
                 {view === 'laborer' ? <Laborer /> : null}
                 {view === 'diagnostics' && showDiagnostics ? <Diagnostics /> : null}
-                {view === 'settings' ? <Settings /> : null}
+                {view === 'settings' ? <Settings onOpenGallery={() => setView('gallery')} /> : null}
+                {view === 'gallery' ? <ThemeGallery onBack={() => setView('settings')} /> : null}
               </ErrorBoundary>
             </Box>
           </>
