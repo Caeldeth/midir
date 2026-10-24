@@ -55,7 +55,7 @@ test('the theme gallery measures every sample in every theme', async () => {
             sample.tagName.toLowerCase()
           const section = badge.closest('section')?.querySelector('h6')?.textContent
           const row = badge.closest('div')?.parentElement?.querySelector('.MuiTypography-caption')
-          const surface = badge.closest('.MuiPaper-root') ? 'paper' : 'page'
+          const surface = badge.closest('[data-surface]')?.dataset.surface ?? 'bar'
           return {
             section,
             row: row?.textContent,

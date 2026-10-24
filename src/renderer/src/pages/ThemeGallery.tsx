@@ -206,7 +206,7 @@ interface SectionProps {
   children: React.ReactNode
 }
 
-/** One section, drawn twice: on the page and on paper. */
+/** One section, drawn three times: on the page, on paper and on paperDark. */
 function Section({ title, usedBy, children }: SectionProps): React.JSX.Element {
   return (
     <Box component="section" sx={{ mb: 4 }}>
@@ -219,22 +219,32 @@ function Section({ title, usedBy, children }: SectionProps): React.JSX.Element {
       <Box
         sx={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(480px, 1fr))',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))',
           gap: 2
         }}
       >
-        <Box sx={{ p: 2, border: 1, borderColor: 'divider' }}>
+        <Box data-surface="page" sx={{ p: 2, border: 1, borderColor: 'divider' }}>
           <Typography variant="overline" sx={{ color: 'text.secondary' }}>
             On the page
           </Typography>
           {children}
         </Box>
-        <Paper sx={{ p: 2 }}>
+        <Paper data-surface="paper" sx={{ p: 2 }}>
           <Typography variant="overline" sx={{ color: 'text.secondary' }}>
             On paper
           </Typography>
           {children}
         </Paper>
+        {/* The panel and tooltip surface: a sidebar, a log panel, a tooltip. */}
+        <Box
+          data-surface="paperDark"
+          sx={{ p: 2, border: 1, borderColor: 'divider', bgcolor: 'background.paperDark' }}
+        >
+          <Typography variant="overline" sx={{ color: 'text.secondary' }}>
+            On paperDark
+          </Typography>
+          {children}
+        </Box>
       </Box>
     </Box>
   )
@@ -334,6 +344,43 @@ function Alerts(): React.JSX.Element {
           ))}
         </Row>
       ))}
+    </>
+  )
+}
+
+/**
+ * The house rule for a status fill: `main` with `contrastText`. A fill of
+ * `.dark` picks its label against `.dark` with getContrastText, because
+ * `contrastText` is picked against `main` and can be dark on a dark `.dark`
+ * (elatha's error strip, 2.8:1).
+ */
+function StatusFills(): React.JSX.Element {
+  const theme = useTheme()
+  const fill = { px: 1.5, py: 0.5, borderRadius: 1 }
+  return (
+    <>
+      <Row label="main, with contrastText">
+        {SEVERITIES.map((s) => (
+          <Measure key={s}>
+            <Box sx={{ ...fill, bgcolor: `${s}.main`, color: `${s}.contrastText` }}>{s}</Box>
+          </Measure>
+        ))}
+      </Row>
+      <Row label=".dark, with its own label (getContrastText)">
+        {SEVERITIES.map((s) => (
+          <Measure key={s}>
+            <Box
+              sx={{
+                ...fill,
+                bgcolor: `${s}.dark`,
+                color: theme.palette.getContrastText(theme.palette[s].dark)
+              }}
+            >
+              {s}
+            </Box>
+          </Measure>
+        ))}
+      </Row>
     </>
   )
 }
@@ -663,6 +710,12 @@ function ThemeGallery({ onBack }: { onBack: () => void }): React.JSX.Element {
         usedBy={`${ALL}; the website uses standard info only (filled: the update notice in the apps)`}
       >
         <Alerts />
+      </Section>
+      <Section
+        title="Status fills"
+        usedBy="status strips and banners (elatha), filled chips and alerts in every app"
+      >
+        <StatusFills />
       </Section>
       <Section
         title="Selection: checkbox, switch, slider, toggles, tabs"

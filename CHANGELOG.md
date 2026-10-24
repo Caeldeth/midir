@@ -49,6 +49,8 @@ Keep entries user-facing — internal refactors/tests show up in the appended au
 ### Fixed
 
 - Every theme: a warning chip, such as "Mail waiting" on a character or a walker's stop reason on the map, now shows its warning colour instead of looking like a plain chip. On the Diagnostics log, a level that is on now looks different from a level that is off. The accent colours of Chadul, Danaan, Grinneal, Mundanes and Dubhaimid now read against the page, button hovers stay readable, and the title-bar text reads on each bar. Chadul now has a green accent and purple bars. On Danaan, the walker's path on the map no longer fades into the parchment.
+- Hybrasyl, Chadul, Danaan and Grinneal: an error or warning button now shows its own colour. Before, every button had the theme's button colour, so the Stop buttons on Speaker, Walker and Errands, and the delete buttons in Diagnostics, looked like any other button.
+- Danaan: text on its darker panels and tooltips now reads as well as on the page. This includes item names in tooltips and the warn and error levels in the Diagnostics log.
 - Every theme: in the update notice and in other filled alerts, the action, the close button and the icon now take the alert's text colour. Status labels on filled chips and alerts read on their fill, and alert icons show their status colour. The close button's hover on the title bar is now red, not a yellow skull on cyan.
 - The Map tab: an imported warp is now drawn in the text colour, not the title-bar colour, so it shows on the open tiles in every theme. A picked warp now has an outline in the accent colour.
 

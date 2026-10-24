@@ -86,13 +86,26 @@ const hybrasylTheme = responsiveFontSizes(
         styleOverrides: {
           root: {
             borderRadius: 2,
-            border: '1px solid #3a9e90',
-            color: '#5ecfbe',
-            '&:hover': { backgroundColor: 'rgba(58,158,144,0.15)', borderColor: '#5ecfbe' }
+            border: '1px solid currentColor',
+            // The theme draws its own look on PRIMARY buttons only. On `root` it beat
+            // MUI for every colour, so an error or a warning button drew like a
+            // primary one (HTOO-572, as the chip did). Other colours take MUI's own
+            // colour, which the palette test holds at 4.5:1, and a border in it.
+            '&.MuiButton-text.MuiButton-colorPrimary, &.MuiButton-outlined.MuiButton-colorPrimary':
+              {
+                borderColor: '#3a9e90',
+                color: '#5ecfbe',
+                '&:hover': { backgroundColor: 'rgba(58,158,144,0.15)', borderColor: '#5ecfbe' }
+              }
           },
           contained: {
-            backgroundColor: 'rgba(58,158,144,0.2)',
-            '&:hover': { backgroundColor: 'rgba(58,158,144,0.35)' }
+            '&.MuiButton-colorPrimary, &.MuiButton-colorInherit': {
+              backgroundColor: 'rgba(58,158,144,0.2)',
+              borderColor: '#3a9e90',
+              color: '#5ecfbe',
+              '&:hover': { backgroundColor: 'rgba(58,158,144,0.35)' }
+            },
+            '&.MuiButton-colorInherit': { color: 'inherit' }
           }
         }
       },

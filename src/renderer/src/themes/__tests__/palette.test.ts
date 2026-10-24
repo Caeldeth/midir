@@ -49,6 +49,20 @@ function accentFills(
 type Style = Record<string, unknown> & { '&:hover'?: Record<string, unknown> }
 
 /**
+ * The surfaces that apps draw text on, each opaque: the page, paper over the
+ * page, and paperDark over the page. paperDark is the panel and tooltip
+ * surface (dagda's sidebar, midir's tooltips and log panel). danaan's text on
+ * it fell below 4.5:1 while the page and paper passed (HTOO-572).
+ */
+function surfaces(p: Theme['palette']): [string, string][] {
+  return [
+    ['page', p.background.default],
+    ['paper', blend(p.background.paper, p.background.default)],
+    ['paperDark', blend(p.background.paperDark, p.background.default)]
+  ]
+}
+
+/**
  * A contained primary button as the theme draws it, at rest and on hover, or
  * null when the theme draws contained buttons as a tint rather than an accent
  * fill (hybrasyl, chadul, grinneal: their accent fill is the selected chip).
@@ -59,16 +73,26 @@ function containedPrimary(theme: Theme): { hover: string; label: string } | null
   const o = (theme.components?.MuiButton?.styleOverrides ?? {}) as Record<string, Style>
   const contained = o.contained ?? {}
   const own = o.containedPrimary ?? {}
-  const rest = (own.backgroundColor ?? contained.backgroundColor ?? p.primary.main) as string
+  // MUI v9 has no containedPrimary override key, so a theme scopes its primary
+  // fill under `contained` with the colour class, alone or with colorInherit.
+  const scopedRest = (contained['&.MuiButton-colorPrimary'] ??
+    contained['&.MuiButton-colorPrimary, &.MuiButton-colorInherit'] ??
+    {}) as Style
+  const rest = (own.backgroundColor ??
+    scopedRest.backgroundColor ??
+    contained.backgroundColor ??
+    p.primary.main) as string
   if (rest.toLowerCase() !== p.primary.main.toLowerCase()) return null
-  // MUI v9 has no containedPrimary override key, so a theme scopes a primary
-  // hover under `contained` with the colour class.
   const scoped = contained['&.MuiButton-colorPrimary:hover'] as Record<string, unknown> | undefined
   const hover = (own['&:hover']?.backgroundColor ??
+    scopedRest['&:hover']?.backgroundColor ??
     scoped?.backgroundColor ??
     contained['&:hover']?.backgroundColor ??
     p.primary.dark) as string
-  const label = (own.color ?? contained.color ?? p.primary.contrastText) as string
+  const label = (own.color ??
+    scopedRest.color ??
+    contained.color ??
+    p.primary.contrastText) as string
   return { hover, label }
 }
 
@@ -103,29 +127,37 @@ describe('theme palettes', () => {
       expect(p.contrastThreshold).toBe(4.5)
     })
 
-    it('primary.main reads as text against the page and against paper', () => {
+    it('primary.main reads as text on every surface', () => {
       // The accent is a control (3:1, WCAG 1.4.11), but the apps draw it as TEXT
       // too: text buttons (the commonest button in every app), links and outlined
-      // chips. So it is held to 4.5:1 (1.4.3), Sabrael, 2026-10-23. Translucent
-      // paper is blended over the page first.
-      expect(contrast(p.primary.main, p.background.default)).toBeGreaterThanOrEqual(4.5)
-      expect(
-        contrast(p.primary.main, p.background.paper, p.background.default)
-      ).toBeGreaterThanOrEqual(4.5)
+      // chips. So it is held to 4.5:1 (1.4.3), Sabrael, 2026-10-23.
+      for (const [name, surface] of surfaces(p))
+        expect(contrast(p.primary.main, surface), name).toBeGreaterThanOrEqual(4.5)
     })
 
     it.each(['error', 'warning', 'info', 'success'] as const)(
-      '%s.main reads as text against the page and against paper',
+      '%s.main reads as text on every surface',
       (status) => {
         // The apps draw status colours as text as well as fills: outlined chips,
         // text error buttons, `color: 'error.main'` (HTOO-572). danaan's DA yellow
         // was 1.05:1 on its parchment.
-        const c = p[status].main
-        expect(contrast(c, p.background.default), 'page').toBeGreaterThanOrEqual(4.5)
-        expect(
-          contrast(c, p.background.paper, p.background.default),
-          'paper'
-        ).toBeGreaterThanOrEqual(4.5)
+        for (const [name, surface] of surfaces(p))
+          expect(contrast(p[status].main, surface), name).toBeGreaterThanOrEqual(4.5)
+      }
+    )
+
+    it.each(['error', 'warning', 'info', 'success'] as const)(
+      'a %s.dark fill has a label that reads on it',
+      (status) => {
+        // The house rule: a status fill is `main` with `contrastText`. An app
+        // that fills with `.dark` picks its label against that fill, with
+        // getContrastText, as a dark-mode filled alert does. With
+        // contrastThreshold 4.5, `contrastText` is dark wherever white fails on
+        // `main`, so it cannot be the label on a dark `.dark`: elatha's error
+        // strip drew it at 2.8:1. This holds getContrastText(.dark) to 4.5:1.
+        const fill = p[status].dark
+        const label = p.getContrastText(fill)
+        expect(contrast(label, fill, fill), `${label} on ${fill}`).toBeGreaterThanOrEqual(4.5)
       }
     )
 
@@ -156,14 +188,16 @@ describe('theme palettes', () => {
       expect(contrast(button.label, button.hover)).toBeGreaterThanOrEqual(4.5)
     })
 
-    it('text.button reads on the page and on paper', () => {
-      // Headings on the page and on cards use it. A palette without it makes
-      // every `color: 'text.button'` an invalid colour, which the browser drops
-      // (see themes/augmentation.ts). The bars use secondary.contrastText.
-      const button = p.text.button
-      expect(button, 'text.button is set').toMatch(/^#[0-9a-f]{6}$/i)
-      expect(contrast(button, p.background.default)).toBeGreaterThanOrEqual(4.5)
-      expect(contrast(button, p.background.paper, p.background.default)).toBeGreaterThanOrEqual(4.5)
+    it.each(['button', 'headline', 'link'] as const)('text.%s reads on every surface', (key) => {
+      // text.button: headings on the page and on cards. A palette without it
+      // makes every `color: 'text.button'` an invalid colour, which the browser
+      // drops (see themes/augmentation.ts). The bars use secondary.contrastText.
+      // text.headline: the website's commonest token (73 uses), midir's tooltip
+      // names. text.link: links in every app. Neither had a check before.
+      const c = p.text[key]
+      expect(c, `text.${key} is set`).toMatch(/^#[0-9a-f]{6}$/i)
+      for (const [name, surface] of surfaces(p))
+        expect(contrast(c, surface), name).toBeGreaterThanOrEqual(4.5)
     })
 
     it('secondary.contrastText reads on secondary.main, the bars', () => {
@@ -179,7 +213,7 @@ describe('theme palettes', () => {
       expect(luminance(p.text.dark)).toBeLessThan(0.05)
     })
 
-    it('a plain chip label reads on its tint, on the page and on paper', () => {
+    it('a plain chip label reads on its tint, on every surface', () => {
       // The plain chip is the commonest chip, and its tint is translucent, so
       // the label is measured on the tint over the page and over paper. danaan's
       // `#7a5e18` was 4.02:1 on the page (corvath, HTOO-572).
@@ -190,9 +224,22 @@ describe('theme palettes', () => {
       const plain = root['&.MuiChip-colorDefault']
       expect(plain, 'the plain chip rule').toBeDefined()
       const { backgroundColor: tint, color: label } = plain
-      const paper = blend(p.background.paper, p.background.default)
-      expect(contrast(label, blend(tint, p.background.default)), 'page').toBeGreaterThanOrEqual(4.5)
-      expect(contrast(label, blend(tint, paper)), 'paper').toBeGreaterThanOrEqual(4.5)
+      for (const [name, surface] of surfaces(p))
+        expect(contrast(label, blend(tint, surface)), name).toBeGreaterThanOrEqual(4.5)
+    })
+
+    it('a selected list item reads on its tint, on every surface', () => {
+      // Navigation lists (dagda's sidebar, on paperDark) mark the selected item
+      // with a tint and a label colour. danaan's `#7a5e18` was 3.77:1 on paperDark.
+      const root = (theme.components?.MuiListItemButton?.styleOverrides?.root ?? {}) as Record<
+        string,
+        Record<string, string>
+      >
+      const selected = root['&.Mui-selected']
+      if (!selected) return
+      const { backgroundColor: tint, color: label } = selected
+      for (const [name, surface] of surfaces(p))
+        expect(contrast(label, blend(tint, surface)), name).toBeGreaterThanOrEqual(4.5)
     })
 
     it('an override that fills with primary.main gives its text 4.5:1', () => {

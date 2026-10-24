@@ -112,7 +112,7 @@ const mundanesTheme = responsiveFontSizes(
             '&.Mui-selected': {
               backgroundColor: 'rgba(19,88,157,0.08)',
               borderLeft: '2px solid #13589d',
-              color: '#13589d'
+              color: '#11508f'
             },
             '&:hover': { backgroundColor: 'rgba(0,0,0,0.04)' }
           }

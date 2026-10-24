@@ -87,18 +87,30 @@ const chadulTheme = responsiveFontSizes(
         styleOverrides: {
           root: {
             borderRadius: 2,
-            border: '1px solid #7a5a9a',
-            color: '#c0a0e8',
-            '&:hover': {
-              backgroundColor: 'rgba(154,122,208,0.15)',
-              borderColor: '#b89ad8',
-              boxShadow: '0 0 10px rgba(154,122,208,0.45)'
-            }
+            border: '1px solid currentColor',
+            // The theme draws its own look on PRIMARY buttons only. On `root` it beat
+            // MUI for every colour, so an error or a warning button drew like a
+            // primary one (HTOO-572, as the chip did). Other colours take MUI's own
+            // colour, which the palette test holds at 4.5:1, and a border in it.
+            '&.MuiButton-text.MuiButton-colorPrimary, &.MuiButton-outlined.MuiButton-colorPrimary':
+              {
+                borderColor: '#7a5a9a',
+                color: '#c0a0e8',
+                '&:hover': {
+                  backgroundColor: 'rgba(154,122,208,0.15)',
+                  borderColor: '#b89ad8',
+                  boxShadow: '0 0 10px rgba(154,122,208,0.45)'
+                }
+              }
           },
           contained: {
-            backgroundColor: 'rgba(66,135,77,0.25)',
-            color: '#a8d8a0',
-            '&:hover': { backgroundColor: 'rgba(66,135,77,0.4)' }
+            '&.MuiButton-colorPrimary, &.MuiButton-colorInherit': {
+              backgroundColor: 'rgba(66,135,77,0.25)',
+              borderColor: '#7a5a9a',
+              color: '#a8d8a0',
+              '&:hover': { backgroundColor: 'rgba(66,135,77,0.4)' }
+            },
+            '&.MuiButton-colorInherit': { color: 'inherit' }
           }
         }
       },

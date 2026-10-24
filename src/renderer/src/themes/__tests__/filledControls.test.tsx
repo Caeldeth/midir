@@ -122,6 +122,34 @@ describe('a filled control', () => {
       expect(drawn(button.querySelector('svg')!)).toBe(drawn(button))
     })
 
+    it.each(['text', 'outlined', 'contained'] as const)(
+      'a %s error button does not draw like a primary one',
+      (variant) => {
+        // The DA themes' MuiButton root set one colour for every button, so a
+        // destructive button drew like any other (HTOO-572). jsdom leaves MUI's
+        // own colours as `var(...)`, which it cannot resolve; only a resolved
+        // colour is compared. mundanes and dubhaimid have no button override,
+        // so MUI draws their colours and Chromium resolves them.
+        render(
+          <ThemeProvider theme={theme}>
+            <Button variant={variant} color="primary">
+              Save
+            </Button>
+            <Button variant={variant} color="error">
+              Delete
+            </Button>
+          </ThemeProvider>
+        )
+        const look = (name: string): string => {
+          const s = getComputedStyle(screen.getByRole('button', { name }))
+          return variant === 'contained' ? s.backgroundColor : s.color
+        }
+        const [primary, error] = [look('Save'), look('Delete')]
+        if (primary.startsWith('var(') || error.startsWith('var(')) return
+        expect(error, `error ${error}, primary ${primary}`).not.toBe(primary)
+      }
+    )
+
     it('an inherit button and icon button take the colour around them', () => {
       render(
         <ThemeProvider theme={theme}>

@@ -85,18 +85,30 @@ const grinnealTheme = responsiveFontSizes(
         styleOverrides: {
           root: {
             borderRadius: 2,
-            border: '1px solid #8a9a68',
-            color: '#b0c088',
-            '&:hover': {
-              backgroundColor: 'rgba(127,147,96,0.18)',
-              borderColor: '#c0d090',
-              color: '#c8d898'
-            }
+            border: '1px solid currentColor',
+            // The theme draws its own look on PRIMARY buttons only. On `root` it beat
+            // MUI for every colour, so an error or a warning button drew like a
+            // primary one (HTOO-572, as the chip did). Other colours take MUI's own
+            // colour, which the palette test holds at 4.5:1, and a border in it.
+            '&.MuiButton-text.MuiButton-colorPrimary, &.MuiButton-outlined.MuiButton-colorPrimary':
+              {
+                borderColor: '#8a9a68',
+                color: '#b0c088',
+                '&:hover': {
+                  backgroundColor: 'rgba(127,147,96,0.18)',
+                  borderColor: '#c0d090',
+                  color: '#c8d898'
+                }
+              }
           },
           contained: {
-            backgroundColor: 'rgba(127,147,96,0.22)',
-            color: '#d4c4a8',
-            '&:hover': { backgroundColor: 'rgba(127,147,96,0.36)' }
+            '&.MuiButton-colorPrimary, &.MuiButton-colorInherit': {
+              backgroundColor: 'rgba(127,147,96,0.22)',
+              borderColor: '#8a9a68',
+              color: '#d4c4a8',
+              '&:hover': { backgroundColor: 'rgba(127,147,96,0.36)' }
+            },
+            '&.MuiButton-colorInherit': { color: 'inherit' }
           }
         }
       },
@@ -129,7 +141,7 @@ const grinnealTheme = responsiveFontSizes(
             '&.Mui-selected': {
               backgroundColor: 'rgba(127,147,96,0.12)',
               borderLeft: '2px solid #7f9360',
-              color: '#8a9a68'
+              color: '#8f9f6f'
             },
             '&:hover': { backgroundColor: 'rgba(122,106,80,0.1)', paddingLeft: '20px' }
           }
