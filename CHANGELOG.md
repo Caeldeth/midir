@@ -35,6 +35,12 @@ Keep entries user-facing — internal refactors/tests show up in the appended au
 - A limit on the disk that recordings use. Midir deletes the oldest ones when a capture starts, and never the one it is writing. The limit is a setting; the default is 1024 MB and zero means no limit. You can also delete recordings one at a time, or all at once, in Diagnostics.
 - An update notice. Midir tells you when a newer version is available, and gives you the link to it. Midir downloads nothing and installs nothing. There is also a **Check for updates** button on the About card in Settings. This is the only request that Midir makes of its own: it reads a small list of version numbers, and it sends no personal data. Close the notice and Midir does not show that version again.
 
+### Changed
+
+- Danaan and Grinneal: the title bar is now dark (bronze and brown) with light, outlined text, like Hybrasyl and Chadul.
+- Every theme: the accent colour and the status colours (error, warning, info, success) now read as text on the page and on cards. Danaan's status colours are now darker, so they read on the parchment. Chadul's and Dubhaimid's selected chips and filled buttons now have dark labels.
+- A new Theme gallery page (Settings → Appearance → Theme gallery) shows each control in the active theme, with its measured contrast.
+
 ### Security
 
 - A session recording no longer holds your account password. Midir removes every game packet that carries one before it writes the file: signing in, creating an account, and changing a password. A recording still holds your character name and that session's keys, so keep treating the file as private. Delete any recording made by an earlier build: the password in it can be recovered.
@@ -42,7 +48,9 @@ Keep entries user-facing — internal refactors/tests show up in the appended au
 
 ### Fixed
 
-- Every theme: a warning chip, such as "Mail waiting" on a character or a walker's stop reason on the map, now shows its warning colour instead of looking like a plain chip. On the Diagnostics log, a level that is on now looks different from a level that is off. The accent colours of Chadul, Danaan, Grinneal, Mundanes and Dubhaimid now read against the page, button hovers stay readable, and the dark title-bar text on Danaan and Grinneal is engraved instead of outlined. Chadul now has a green accent and purple bars. On Danaan, the walker's path on the map no longer fades into the parchment.
+- Every theme: a warning chip, such as "Mail waiting" on a character or a walker's stop reason on the map, now shows its warning colour instead of looking like a plain chip. On the Diagnostics log, a level that is on now looks different from a level that is off. The accent colours of Chadul, Danaan, Grinneal, Mundanes and Dubhaimid now read against the page, button hovers stay readable, and the title-bar text reads on each bar. Chadul now has a green accent and purple bars. On Danaan, the walker's path on the map no longer fades into the parchment.
+- Every theme: in the update notice and in other filled alerts, the action, the close button and the icon now take the alert's text colour. Status labels on filled chips and alerts read on their fill, and alert icons show their status colour. The close button's hover on the title bar is now red, not a yellow skull on cyan.
+- The Map tab: an imported warp is now drawn in the text colour, not the title-bar colour, so it shows on the open tiles in every theme. A picked warp now has an outline in the accent colour.
 
 - A refused errand is no longer reported as finished. Supporting a citizen who is not logged in answers "<name> is not near", and working for an Aisling who is full answers "<name> doesn't need any jobs done" — both said "The errand finished" with the refusal inside the text. The Laborer now knows which words mean the errand worked, reports anything else as a refusal, and writes an answer it does not recognise to the log so it can be reviewed. Silence after the last step is reported as no verdict, which it is.
 
