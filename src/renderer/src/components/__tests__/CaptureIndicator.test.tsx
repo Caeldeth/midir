@@ -1,4 +1,7 @@
-import { render, screen } from '@testing-library/react'
+import { cleanup, render, screen } from '@testing-library/react'
+import { ThemeProvider } from '@mui/material/styles'
+import { themesByName } from '@renderer/themes'
+import type { ThemeName } from '@shared/types'
 import { STOPPED_STATUS, type CaptureStatus } from '@shared/types'
 import React from 'react'
 import { beforeEach, describe, expect, it } from 'vitest'
@@ -53,4 +56,21 @@ describe('CaptureIndicator', () => {
     expect(screen.getByTestId('capture-indicator')).toHaveAttribute('data-state', 'warning')
     expect(screen.getByText('Idle')).toBeInTheDocument()
   })
+
+  it.each(Object.keys(themesByName) as ThemeName[])(
+    '%s: rings the dot in the bar text colour, so it shows on the bar',
+    (name) => {
+      // The dot's status colour can be close to the bar colour. The ring is
+      // secondary.contrastText, which the palette test holds at 4.5:1 on the bar.
+      const theme = themesByName[name]
+      render(
+        <ThemeProvider theme={theme}>
+          <CaptureIndicator />
+        </ThemeProvider>
+      )
+      const shadow = getComputedStyle(screen.getByTestId('capture-dot')).boxShadow.toLowerCase()
+      expect(shadow).toContain(theme.palette.secondary.contrastText.toLowerCase())
+      cleanup()
+    }
+  )
 })

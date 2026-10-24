@@ -86,12 +86,18 @@ function CaptureIndicator(): React.JSX.Element {
         }}
       >
         <Box
+          data-testid="capture-dot"
           sx={{
             width: DOT_SIZE,
             height: DOT_SIZE,
             borderRadius: '50%',
             bgcolor: color,
-            flexShrink: 0
+            flexShrink: 0,
+            // A status colour can be close to the bar: the success dot was
+            // about 1.7:1 on danaan's bronze bar and 2.0:1 on mundanes' navy
+            // one. A ring in the bar's text colour (4.5:1 on every bar) keeps
+            // the dot visible (Sabrael, 2026-10-24).
+            boxShadow: (theme) => `0 0 0 1.5px ${theme.palette.secondary.contrastText}`
           }}
         />
         <Typography variant="caption" sx={{ color: 'secondary.contrastText', fontWeight: 'bold' }}>
