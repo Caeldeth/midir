@@ -1,6 +1,7 @@
 import { createTheme, responsiveFontSizes } from '@mui/material/styles'
-import { plainTypography } from './plainTypography'
+import { filledControls } from './filledControls'
 import { midirOverrides } from './midirOverrides'
+import { plainTypography } from './plainTypography'
 
 // Dubhaimid — the dark "corporate/boring" theme. Neutral charcoal grays
 // (VS Code-ish), light-gray text, a single muted blue accent, plain
@@ -10,14 +11,17 @@ const dubhaimidTheme = responsiveFontSizes(
   createTheme({
     palette: {
       mode: 'dark',
+      // MUI picks a status label (a filled chip or alert) by this ratio. Its
+      // default, 3, takes white on #ff0000 at 4.00:1; labels are text, so 4.5.
+      contrastThreshold: 4.5,
       primary: {
-        // HTOO-355: a darker blue, so the white label passes (it was 3.53:1).
-        // 3.62:1 on the page, 3.32:1 on paper, and white is 4.61:1 on it. `dark`
-        // moved with it (it was 1.21:1 from the new main, an invisible hover).
-        main: '#4277b7',
+        // The accent is text on the page too (text buttons, links), so 4.5:1 on the
+        // page and on paper (HTOO-572): 4.90:1 and 4.50:1. White is 3.4:1 on it, so
+        // the label is near-black (5.12:1), and a filled button hovers LIGHTER.
+        main: '#628ec3',
         light: '#82a9d6',
         dark: '#2c5487',
-        contrastText: '#ffffff'
+        contrastText: '#1a1a1b'
       },
       // secondary is the title-bar / chrome color. Dubhaimid shares Mundanes'
       // classic Windows active-title navy (#0a246a) so both corporate themes
@@ -47,16 +51,20 @@ const dubhaimidTheme = responsiveFontSizes(
         secondary: '#9aa0a6',
         disabled: '#6a6a6e',
         headline: '#e0e0e0',
-        link: '#4277b7',
+        link: '#628ec3',
         linkHover: '#82a9d6',
         visited: '#9a8bc4',
         button: '#ffffff',
         dark: '#1a1a1b'
       },
       divider: 'rgba(255,255,255,0.12)',
-      error: { main: '#f44336' },
+      // Status colours are text on the page as well as fills (outlined chips,
+      // text buttons), so each reads 4.5:1 on the page and on paper (HTOO-572).
+      error: { main: '#f55246' },
       warning: { main: '#ffa726' },
-      info: { main: '#29b6f6' },
+      // A filled dark-mode alert fills with .dark. MUI's derived #1c7fac is a
+      // mid-tone that no label reaches 4.5:1 on; white is 4.81:1 on this one.
+      info: { main: '#29b6f6', dark: '#0277bd' },
       success: { main: '#66bb6a' }
     },
 
@@ -65,7 +73,15 @@ const dubhaimidTheme = responsiveFontSizes(
     shape: { borderRadius: 6 },
 
     components: {
+      ...filledControls,
       ...midirOverrides,
+      // MUI hovers a filled button to primary.dark, which drops the dark label to
+      // 3.91:1. It hovers to primary.light instead (6.66:1).
+      MuiButton: {
+        styleOverrides: {
+          contained: { '&.MuiButton-colorPrimary:hover': { backgroundColor: '#82a9d6' } }
+        }
+      },
       MuiPaper: {
         styleOverrides: {
           root: {
@@ -99,8 +115,8 @@ const dubhaimidTheme = responsiveFontSizes(
           root: {
             color: '#9aa0a6',
             '&.Mui-selected': {
-              backgroundColor: 'rgba(66,119,183,0.16)',
-              borderLeft: '2px solid #4277b7',
+              backgroundColor: 'rgba(98,142,195,0.16)',
+              borderLeft: '2px solid #628ec3',
               color: '#82a9d6'
             },
             '&:hover': { backgroundColor: 'rgba(255,255,255,0.06)' }
@@ -123,25 +139,39 @@ const dubhaimidTheme = responsiveFontSizes(
         styleOverrides: {
           root: {
             border: '1px solid rgba(255,255,255,0.12)',
-            // The tint is for a plain chip only. On `root` it beat MUI's own fill
-            // for every colour, so a warning or a selected chip looked plain
-            // (HTOO-572).
-            '&.MuiChip-colorDefault': {
-              backgroundColor: '#3e3e42',
-              color: '#c4c8cc'
-            },
             // A selected chip (color="primary", filled) takes the accent and its
             // label, as MUI's own fill does, and keeps the accent on hover.
             '&.MuiChip-filled.MuiChip-colorPrimary': {
-              backgroundColor: '#4277b7',
-              color: '#ffffff',
-              borderColor: '#4277b7',
-              '&.MuiChip-clickable:hover': { backgroundColor: '#4277b7' }
+              backgroundColor: '#628ec3',
+              color: '#1a1a1b',
+              borderColor: '#628ec3',
+              '&.MuiChip-clickable:hover': { backgroundColor: '#628ec3' }
             }
           }
-        }
+        },
+        // The tint is for a plain chip only, as a variant on its colour. On `root`
+        // it beat MUI's own fill for every colour, so a warning or a selected chip
+        // looked plain. Under `&.MuiChip-colorDefault` (two classes) it beat a
+        // chip's own `sx` colour (one class), so a chip coloured in its sx looked
+        // plain (oghma, the website). A variant has one class and comes before the
+        // sx, so the sx wins (HTOO-572).
+        variants: [
+          {
+            props: { color: 'default' },
+            style: {
+              backgroundColor: '#3e3e42',
+              color: '#c4c8cc'
+            }
+          },
+          {
+            // MUI hovers a clickable chip to a grey wash, and the label can fall
+            // below 4.5:1 on it. The tint stays, and the border takes the accent.
+            props: { color: 'default', clickable: true },
+            style: { '&:hover': { backgroundColor: '#3e3e42', borderColor: '#628ec3' } }
+          }
+        ]
       },
-      MuiTabs: { styleOverrides: { indicator: { backgroundColor: '#4277b7' } } },
+      MuiTabs: { styleOverrides: { indicator: { backgroundColor: '#628ec3' } } },
       MuiTab: {
         styleOverrides: {
           root: {
@@ -151,13 +181,13 @@ const dubhaimidTheme = responsiveFontSizes(
         }
       },
       MuiInputLabel: {
-        styleOverrides: { root: { '&.Mui-focused': { color: '#4277b7' } } }
+        styleOverrides: { root: { '&.Mui-focused': { color: '#628ec3' } } }
       },
       MuiCheckbox: {
         styleOverrides: {
           root: {
             color: 'rgba(255,255,255,0.4)',
-            '&.Mui-checked': { color: '#4277b7' }
+            '&.Mui-checked': { color: '#628ec3' }
           }
         }
       },
@@ -166,7 +196,20 @@ const dubhaimidTheme = responsiveFontSizes(
           root: {
             '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.23)' },
             '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.5)' },
-            '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#4277b7' }
+            '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#628ec3' }
+          }
+        }
+      },
+      // Plain `<a>` links (Markdown, rendered HTML) take the link colours too.
+      // With no rule they were browser blue: 1.8:1 on dubhaimid (the website,
+      // HTOO-572).
+      MuiCssBaseline: {
+        styleOverrides: {
+          a: {
+            color: '#628ec3',
+            textDecoration: 'none',
+            '&:hover': { color: '#82a9d6' },
+            '&:visited': { color: '#9a8bc4' }
           }
         }
       },

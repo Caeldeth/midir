@@ -24,7 +24,7 @@ import { useWalkerStore } from '@renderer/store/walkerStore'
 import { useLaborerStore } from '@renderer/store/laborerStore'
 import { useMapStore } from '@renderer/store/mapStore'
 import ErrorBoundary from '@renderer/components/ErrorBoundary'
-import TitleBar from '@renderer/components/TitleBar'
+import AppTitleBar from '@renderer/components/AppTitleBar'
 import NavBar, { type ViewName } from '@renderer/components/NavBar'
 import Live from '@renderer/pages/Live'
 import Items from '@renderer/pages/Items'
@@ -37,6 +37,7 @@ import GraphPage from '@renderer/pages/GraphPage'
 import Laborer from '@renderer/pages/Laborer'
 import Diagnostics from '@renderer/pages/Diagnostics'
 import Settings from '@renderer/pages/Settings'
+import ThemeGallery from '@renderer/pages/ThemeGallery'
 
 const themes: Record<ThemeName, Theme> = {
   hybrasyl: hybrasylTheme,
@@ -156,7 +157,7 @@ function App(): React.JSX.Element {
           bgcolor: 'background.default'
         }}
       >
-        <TitleBar />
+        <AppTitleBar />
         {/* Mounted once, closed, for both openers (the title bar and the About
             card). The error boundary's fallback mounts its own instance. */}
         <ReportIssueDialog open={reportOpen} onClose={() => setReportOpen(false)} />
@@ -196,7 +197,8 @@ function App(): React.JSX.Element {
                 ) : null}
                 {view === 'laborer' ? <Laborer /> : null}
                 {view === 'diagnostics' && showDiagnostics ? <Diagnostics /> : null}
-                {view === 'settings' ? <Settings /> : null}
+                {view === 'settings' ? <Settings onOpenGallery={() => setView('gallery')} /> : null}
+                {view === 'gallery' ? <ThemeGallery onBack={() => setView('settings')} /> : null}
               </ErrorBoundary>
             </Box>
           </>

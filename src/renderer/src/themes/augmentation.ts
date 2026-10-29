@@ -45,8 +45,8 @@ declare module '@mui/material/styles' {
      *  bars use `secondary.contrastText` instead: one token cannot read on both
      *  a light page and a dark bar (mundanes), or the reverse (HTOO-572). */
     button: string
-    /** Dark text on a light fill, e.g. a chrome button on hover over
-     *  `info.main` (4.5:1, palette.test.ts). */
+    /** Dark text on a light fill. Not on `info.main`: the chrome hover takes
+     *  `info.contrastText`, because a light theme's info colour is dark (HTOO-572). */
     dark: string
   }
 }

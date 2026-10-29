@@ -1,6 +1,7 @@
 import { createTheme, responsiveFontSizes } from '@mui/material/styles'
-import { plainTypography } from './plainTypography'
+import { filledControls } from './filledControls'
 import { midirOverrides } from './midirOverrides'
+import { plainTypography } from './plainTypography'
 
 // Mundanes — the light "corporate/boring" theme. White and light-gray
 // surfaces, dark text, a single restrained slate-blue accent, plain
@@ -10,12 +11,16 @@ const mundanesTheme = responsiveFontSizes(
   createTheme({
     palette: {
       mode: 'light',
+      // MUI picks a status label (a filled chip or alert) by this ratio. Its
+      // default, 3, takes white on #ff0000 at 4.00:1; labels are text, so 4.5.
+      contrastThreshold: 4.5,
       primary: {
-        // HTOO-355: a slightly darker blue. The old #1976d2 was 2.89:1 on the grey page;
-        // this is 3.10:1 on the page, 4.95:1 on paper, and white is 4.95:1 on it.
-        main: '#1871c9',
+        // The accent is text on the page too (text buttons, links), so 4.5:1 on the
+        // grey page and on paper (HTOO-572): 4.52:1 and 7.22:1. White is 7.22:1 on it.
+        // `light` cannot read as text on the page: it is lighter than `main`.
+        main: '#13589d',
         light: '#4a97e0',
-        dark: '#115293',
+        dark: '#0f477f',
         contrastText: '#ffffff'
       },
       // secondary is the title-bar / chrome color in every theme. Mundanes
@@ -45,22 +50,25 @@ const mundanesTheme = responsiveFontSizes(
       },
       text: {
         primary: '#1a1a1a',
-        secondary: '#5f6368',
+        secondary: '#54575c',
         disabled: '#9aa0a6',
         headline: '#1a1a1a',
-        link: '#1871c9',
-        linkHover: '#115293',
-        visited: '#6a4fb0',
+        link: '#13589d',
+        linkHover: '#0f477f',
+        // 4.99:1 on the page. #6a4fb0 was 3.92:1.
+        visited: '#5a3f9e',
         // Headings on the page and on cards. White was 1.6:1 on the grey page and
         // 1:1 on the white cards (HTOO-355). The navy bars use secondary.contrastText.
         button: '#1a1a1a',
         dark: '#1a1a1a'
       },
       divider: 'rgba(0,0,0,0.12)',
-      error: { main: '#d32f2f' },
-      warning: { main: '#ed6c02' },
-      info: { main: '#0288d1' },
-      success: { main: '#2e7d32' }
+      // Status colours are text on the page as well as fills (outlined chips,
+      // text buttons), so each reads 4.5:1 on the page and on paper (HTOO-572).
+      error: { main: '#a62525' },
+      warning: { main: '#8f4101' },
+      info: { main: '#015c8e' },
+      success: { main: '#256328' }
     },
 
     typography: plainTypography,
@@ -68,6 +76,7 @@ const mundanesTheme = responsiveFontSizes(
     shape: { borderRadius: 6 },
 
     components: {
+      ...filledControls,
       ...midirOverrides,
       MuiPaper: {
         styleOverrides: {
@@ -100,11 +109,11 @@ const mundanesTheme = responsiveFontSizes(
       MuiListItemButton: {
         styleOverrides: {
           root: {
-            color: '#5f6368',
+            color: '#54575c',
             '&.Mui-selected': {
-              backgroundColor: 'rgba(24,113,201,0.08)',
-              borderLeft: '2px solid #1871c9',
-              color: '#1871c9'
+              backgroundColor: 'rgba(19,88,157,0.08)',
+              borderLeft: '2px solid #13589d',
+              color: '#11508f'
             },
             '&:hover': { backgroundColor: 'rgba(0,0,0,0.04)' }
           }
@@ -127,41 +136,56 @@ const mundanesTheme = responsiveFontSizes(
         styleOverrides: {
           root: {
             border: '1px solid rgba(0,0,0,0.12)',
-            // The tint is for a plain chip only. On `root` it beat MUI's own fill
-            // for every colour, so a warning or a selected chip looked plain
-            // (HTOO-572).
-            '&.MuiChip-colorDefault': {
-              backgroundColor: '#eceff1',
-              color: '#455a64'
-            },
             // A selected chip (color="primary", filled) takes the accent and its
             // label, as MUI's own fill does, and keeps the accent on hover.
             '&.MuiChip-filled.MuiChip-colorPrimary': {
-              backgroundColor: '#1871c9',
+              backgroundColor: '#13589d',
               color: '#ffffff',
-              borderColor: '#1871c9',
-              '&.MuiChip-clickable:hover': { backgroundColor: '#1871c9' }
+              borderColor: '#13589d',
+              '&.MuiChip-clickable:hover': { backgroundColor: '#13589d' }
             }
           }
-        }
+        },
+        // The tint is for a plain chip only, as a variant on its colour. On `root`
+        // it beat MUI's own fill for every colour, so a warning or a selected chip
+        // looked plain. Under `&.MuiChip-colorDefault` (two classes) it beat a
+        // chip's own `sx` colour (one class), so a chip coloured in its sx looked
+        // plain (oghma, the website). A variant has one class and comes before the
+        // sx, so the sx wins (HTOO-572).
+        variants: [
+          {
+            props: { color: 'default' },
+            style: {
+              backgroundColor: '#eceff1',
+              color: '#455a64'
+            }
+          },
+          {
+            // MUI hovers a clickable chip to a grey wash, and the label can fall
+            // below 4.5:1 on it. The tint stays, and the border takes the accent.
+            props: { color: 'default', clickable: true },
+            style: { '&:hover': { backgroundColor: '#eceff1', borderColor: '#13589d' } }
+          }
+        ]
       },
-      MuiTabs: { styleOverrides: { indicator: { backgroundColor: '#1871c9' } } },
+      MuiTabs: { styleOverrides: { indicator: { backgroundColor: '#13589d' } } },
       MuiTab: {
         styleOverrides: {
           root: {
-            color: '#5f6368',
-            '&.Mui-selected': { color: '#1871c9' }
+            color: '#54575c',
+            '&.Mui-selected': { color: '#13589d' }
           }
         }
       },
       MuiInputLabel: {
-        styleOverrides: { root: { '&.Mui-focused': { color: '#1871c9' } } }
+        styleOverrides: { root: { '&.Mui-focused': { color: '#13589d' } } }
       },
       MuiCheckbox: {
         styleOverrides: {
           root: {
-            color: 'rgba(0,0,0,0.4)',
-            '&.Mui-checked': { color: '#1871c9' }
+            // MUI's own action colour: 4.0:1 on the page. 0.4 was 2.66:1.
+            color: 'rgba(0,0,0,0.54)',
+            '&.Mui-checked': { color: '#13589d' }
           }
         }
       },
@@ -170,7 +194,20 @@ const mundanesTheme = responsiveFontSizes(
           root: {
             '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(0,0,0,0.23)' },
             '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(0,0,0,0.5)' },
-            '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#1871c9' }
+            '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#13589d' }
+          }
+        }
+      },
+      // Plain `<a>` links (Markdown, rendered HTML) take the link colours too.
+      // With no rule they were browser blue: 1.8:1 on dubhaimid (the website,
+      // HTOO-572).
+      MuiCssBaseline: {
+        styleOverrides: {
+          a: {
+            color: '#13589d',
+            textDecoration: 'none',
+            '&:hover': { color: '#0f477f' },
+            '&:visited': { color: '#5a3f9e' }
           }
         }
       },

@@ -1,21 +1,28 @@
 import { createTheme, responsiveFontSizes } from '@mui/material/styles'
-import { baseTypography } from './baseTypography'
+import { filledControls } from './filledControls'
 import { midirOverrides } from './midirOverrides'
+import { baseTypography } from './baseTypography'
 
 const chadulTheme = responsiveFontSizes(
   createTheme({
     palette: {
       mode: 'dark',
+      // MUI picks a status label (a filled chip or alert) by this ratio. Its
+      // default, 3, takes white on #ff0000 at 4.00:1; labels are text, so 4.5.
+      contrastThreshold: 4.5,
       // Chadul mixes green and purple (Sabrael, 2026-10-10): a GREEN accent and
       // PURPLE bars, as Taliesin has (HTOO-572). The purple accent was 1.76:1 on
       // the page (HTOO-355); this green is 3.81:1 on the page and 3.71:1 on
       // paper, and its pale label is 4.68:1 on it. The component overrides
       // already drew the accent green (tabs, checkboxes, focus, buttons).
+      // The accent is text on the page too (text buttons, links), so 4.5:1 on the
+      // page and on paper (HTOO-572): 4.62:1 and 4.51:1. A light label no longer
+      // reaches 4.5:1 on it; the near-black page colour is 4.62:1.
       primary: {
-        main: '#2e7a3a',
+        main: '#42874d',
         light: '#4ab858',
         dark: '#1a4a22',
-        contrastText: '#e6f5e2'
+        contrastText: '#020804'
       },
       // The bars. The lavender text family stays (Sabrael, 2026-10-11): the
       // title bar's icons and wordmark are 11.14:1 on this purple.
@@ -37,7 +44,7 @@ const chadulTheme = responsiveFontSizes(
         tableBorderL: 'rgba(154,122,208,0.18)',
         tableBorderD: 'rgba(154,122,208,0.32)',
         scrollbarDark: '#1a4a22',
-        scrollbarLight: '#2e7a3a'
+        scrollbarLight: '#42874d'
       },
       text: {
         primary: '#e0d8ea',
@@ -51,7 +58,7 @@ const chadulTheme = responsiveFontSizes(
         button: '#a8d8a0',
         dark: '#020804'
       },
-      divider: 'rgba(46,122,58,0.28)',
+      divider: 'rgba(66,135,77,0.28)',
       error: { main: '#ff0000' },
       warning: { main: '#FFFF00' },
       info: { main: '#6de7f7' },
@@ -63,6 +70,7 @@ const chadulTheme = responsiveFontSizes(
     shape: { borderRadius: 2 },
 
     components: {
+      ...filledControls,
       ...midirOverrides,
       MuiPaper: {
         styleOverrides: {
@@ -79,18 +87,30 @@ const chadulTheme = responsiveFontSizes(
         styleOverrides: {
           root: {
             borderRadius: 2,
-            border: '1px solid #7a5a9a',
-            color: '#c0a0e8',
-            '&:hover': {
-              backgroundColor: 'rgba(154,122,208,0.15)',
-              borderColor: '#b89ad8',
-              boxShadow: '0 0 10px rgba(154,122,208,0.45)'
-            }
+            border: '1px solid currentColor',
+            // The theme draws its own look on PRIMARY buttons only. On `root` it beat
+            // MUI for every colour, so an error or a warning button drew like a
+            // primary one (HTOO-572, as the chip did). Other colours take MUI's own
+            // colour, which the palette test holds at 4.5:1, and a border in it.
+            '&.MuiButton-text.MuiButton-colorPrimary, &.MuiButton-outlined.MuiButton-colorPrimary':
+              {
+                borderColor: '#7a5a9a',
+                color: '#c0a0e8',
+                '&:hover': {
+                  backgroundColor: 'rgba(154,122,208,0.15)',
+                  borderColor: '#b89ad8',
+                  boxShadow: '0 0 10px rgba(154,122,208,0.45)'
+                }
+              }
           },
           contained: {
-            backgroundColor: 'rgba(46,122,58,0.25)',
-            color: '#a8d8a0',
-            '&:hover': { backgroundColor: 'rgba(46,122,58,0.4)' }
+            '&.MuiButton-colorPrimary, &.MuiButton-colorInherit': {
+              backgroundColor: 'rgba(66,135,77,0.25)',
+              borderColor: '#7a5a9a',
+              color: '#a8d8a0',
+              '&:hover': { backgroundColor: 'rgba(66,135,77,0.4)' }
+            },
+            '&.MuiButton-colorInherit': { color: 'inherit' }
           }
         }
       },
@@ -99,7 +119,7 @@ const chadulTheme = responsiveFontSizes(
           root: {
             backgroundColor: 'rgba(2,8,4,0.97)',
             backgroundImage: 'none',
-            borderBottom: '1px solid rgba(46,122,58,0.25)',
+            borderBottom: '1px solid rgba(66,135,77,0.25)',
             boxShadow: 'none'
           }
         }
@@ -108,7 +128,7 @@ const chadulTheme = responsiveFontSizes(
         styleOverrides: {
           paper: {
             backgroundColor: 'rgba(4,14,6,0.95)',
-            borderRight: '1px solid rgba(46,122,58,0.32)'
+            borderRight: '1px solid rgba(66,135,77,0.32)'
           }
         }
       },
@@ -151,23 +171,39 @@ const chadulTheme = responsiveFontSizes(
             fontSize: '0.65rem',
             letterSpacing: '0.1em',
             border: '1px solid rgba(154,122,208,0.4)',
-            // The tint is for a plain chip only. On `root` it beat MUI's own fill
-            // for every colour, so a warning or a selected chip looked plain
-            // (HTOO-572).
-            '&.MuiChip-colorDefault': {
-              backgroundColor: 'rgba(74,40,112,0.22)',
-              color: '#c0a0e8'
-            },
             // A selected chip (color="primary", filled) takes the accent and its
             // label, as MUI's own fill does, and keeps the accent on hover.
             '&.MuiChip-filled.MuiChip-colorPrimary': {
-              backgroundColor: '#2e7a3a',
-              color: '#e6f5e2',
-              borderColor: '#2e7a3a',
-              '&.MuiChip-clickable:hover': { backgroundColor: '#2e7a3a' }
+              backgroundColor: '#42874d',
+              color: '#020804',
+              borderColor: '#42874d',
+              '&.MuiChip-clickable:hover': { backgroundColor: '#42874d' }
             }
           }
-        }
+        },
+        // The tint is for a plain chip only, as a variant on its colour. On `root`
+        // it beat MUI's own fill for every colour, so a warning or a selected chip
+        // looked plain. Under `&.MuiChip-colorDefault` (two classes) it beat a
+        // chip's own `sx` colour (one class), so a chip coloured in its sx looked
+        // plain (oghma, the website). A variant has one class and comes before the
+        // sx, so the sx wins (HTOO-572).
+        variants: [
+          {
+            props: { color: 'default' },
+            style: {
+              backgroundColor: 'rgba(74,40,112,0.22)',
+              color: '#c0a0e8'
+            }
+          },
+          {
+            // MUI hovers a clickable chip to a grey wash, and the label can fall
+            // below 4.5:1 on it. The tint stays, and the border takes the accent.
+            props: { color: 'default', clickable: true },
+            style: {
+              '&:hover': { backgroundColor: 'rgba(74,40,112,0.22)', borderColor: '#9a7ad0' }
+            }
+          }
+        ]
       },
       MuiPaginationItem: {
         styleOverrides: {
@@ -182,12 +218,17 @@ const chadulTheme = responsiveFontSizes(
             },
             backgroundColor: '#2e1a4a',
             color: '#a8d8a0',
-            border: '1px solid #2e7a3a',
+            border: '1px solid #42874d',
             '&:hover': { backgroundColor: '#4a2870', borderColor: '#4ab858' },
+            // The keyline is for light text; the selected label is dark.
+            // The selected page keeps its fill under the pointer: MUI hovers it to
+            // a grey wash (three classes), under a label picked for this fill.
             '&.Mui-selected': {
-              backgroundColor: '#2e7a3a',
+              backgroundColor: '#42874d',
               borderColor: '#4ab858',
-              color: '#e6f5e2'
+              color: '#020804',
+              textShadow: 'none',
+              '&:hover': { backgroundColor: '#42874d' }
             },
             '&.Mui-disabled': {
               backgroundColor: 'rgba(46,26,74,0.3)',
@@ -207,24 +248,24 @@ const chadulTheme = responsiveFontSizes(
           }
         }
       },
-      MuiTabs: { styleOverrides: { indicator: { backgroundColor: '#2e7a3a' } } },
+      MuiTabs: { styleOverrides: { indicator: { backgroundColor: '#42874d' } } },
       MuiInputLabel: {
-        styleOverrides: { root: { '&.Mui-focused': { color: '#2e7a3a' } } }
+        styleOverrides: { root: { '&.Mui-focused': { color: '#42874d' } } }
       },
       MuiCheckbox: {
         styleOverrides: {
           root: {
-            color: 'rgba(46,122,58,0.5)',
-            '&.Mui-checked': { color: '#2e7a3a' }
+            color: 'rgba(66,135,77,0.5)',
+            '&.Mui-checked': { color: '#42874d' }
           }
         }
       },
       MuiOutlinedInput: {
         styleOverrides: {
           root: {
-            '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(46,122,58,0.3)' },
-            '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(46,122,58,0.6)' },
-            '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#2e7a3a' }
+            '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(66,135,77,0.3)' },
+            '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(66,135,77,0.6)' },
+            '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#42874d' }
           }
         }
       },
@@ -244,7 +285,8 @@ const chadulTheme = responsiveFontSizes(
             color: '#c0a0e8',
             textDecoration: 'none',
             '&:hover': { color: '#d4b8f0' },
-            '&:visited': { color: '#7a5a9a' }
+            // text.visited: 5.84:1 on the page. #7a5a9a was 3.62:1.
+            '&:visited': { color: '#9a7ad0' }
           }
         }
       },

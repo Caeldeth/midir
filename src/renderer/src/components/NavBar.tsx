@@ -16,6 +16,8 @@ export type ViewName =
   | 'laborer'
   | 'diagnostics'
   | 'settings'
+  /** The theme gallery. It has no tab: the Appearance card in Settings opens it. */
+  | 'gallery'
 
 export const VIEWS: readonly { name: ViewName; label: string }[] = [
   { name: 'live', label: 'Live' },
@@ -52,7 +54,9 @@ function NavBar({ value, onChange, showDiagnostics }: NavBarProps): React.JSX.El
       }}
     >
       <Tabs
-        value={value}
+        // A view with no tab (the theme gallery) selects no tab. MUI reports a
+        // value that matches no tab as an error.
+        value={views.some((view) => view.name === value) ? value : false}
         onChange={(_event, next: ViewName) => onChange(next)}
         aria-label="Views"
         data-testid="nav-bar"

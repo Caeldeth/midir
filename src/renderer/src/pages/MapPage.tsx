@@ -13,6 +13,7 @@ import {
   useTheme
 } from '@mui/material'
 import Guidance from '@renderer/components/Guidance'
+import { PICKED_WARP_BORDER, warpColor } from '@renderer/lib/warpColor'
 import { useMapStore } from '@renderer/store/mapStore'
 import {
   mapViewFailureMessage,
@@ -531,14 +532,7 @@ function MapPage(): React.JSX.Element {
             <TileCanvas view={view} scale={scale} />
 
             {view.warps.map((warp) => {
-              const color =
-                warp.via === 'dialog'
-                  ? 'warning.main'
-                  : warp.source === 'learned' || warp.source === 'curated'
-                    ? 'success.main'
-                    : warp.source === 'xml'
-                      ? 'info.main'
-                      : 'secondary.main'
+              const color = warpColor(warp)
               const picked = warpKey(warp) === pickedWarp
               return (
                 <Tooltip key={warpKey(warp)} title={`${warpTarget(warp)}${warpProvenance(warp)}`}>
@@ -559,7 +553,7 @@ function MapPage(): React.JSX.Element {
                       boxSizing: 'border-box',
                       bgcolor: warp.state === 'candidate' ? 'transparent' : color,
                       border: warp.state === 'candidate' || picked ? 2 : 0,
-                      borderColor: picked ? 'text.primary' : color,
+                      borderColor: picked ? PICKED_WARP_BORDER : color,
                       opacity: warp.state === 'rejected' ? 0.3 : 0.85,
                       cursor: 'pointer'
                     }}

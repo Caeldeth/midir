@@ -1,11 +1,15 @@
 import { createTheme, responsiveFontSizes } from '@mui/material/styles'
-import { baseTypography } from './baseTypography'
+import { filledControls } from './filledControls'
 import { midirOverrides } from './midirOverrides'
+import { baseTypography } from './baseTypography'
 
 const grinnealTheme = responsiveFontSizes(
   createTheme({
     palette: {
       mode: 'dark',
+      // MUI picks a status label (a filled chip or alert) by this ratio. Its
+      // default, 3, takes white on #ff0000 at 4.00:1; labels are text, so 4.5.
+      contrastThreshold: 4.5,
       // HTOO-355: the olive is a middle tone, so the cream label could not pass on
       // it (3.46:1). A lighter olive with a dark label, as hybrasyl (HTOO-341):
       // 4.69:1 on the page, 5.54:1 on paper, and the label is 4.69:1 on it.
@@ -17,13 +21,13 @@ const grinnealTheme = responsiveFontSizes(
         contrastText: '#27221c'
       },
       secondary: {
-        main: '#907858',
+        // The bar: a dark brown with cream text (6.25:1), keylined like the other
+        // decorated bars (Sabrael, 2026-10-23). The old mid-tone tan, #907858,
+        // took near-black text that the bar had to engrave.
+        main: '#604830',
         light: '#b89870',
-        dark: '#604830',
-        // The bar is a mid-tone tan, and no light colour reaches 4.5:1 on it (white
-        // is 4.19:1). Near-black is 4.72:1, and the title bar engraves it
-        // (ENGRAVED_CHROME_THEMES) rather than keylining it (HTOO-572).
-        contrastText: '#0c0a06'
+        dark: '#3c3020',
+        contrastText: '#e8dcc0'
       },
       background: {
         default: '#27221c',
@@ -51,7 +55,9 @@ const grinnealTheme = responsiveFontSizes(
         dark: '#1a1408'
       },
       divider: 'rgba(160,140,100,0.40)',
-      error: { main: '#ff0000' },
+      // Status colours are text on the page as well as fills (outlined chips,
+      // text buttons), so each reads 4.5:1 on the page and on paper (HTOO-572).
+      error: { main: '#ff3e3e' },
       warning: { main: '#FFFF00' },
       info: { main: '#6de7f7' },
       success: { main: '#38ff4f' }
@@ -62,6 +68,7 @@ const grinnealTheme = responsiveFontSizes(
     shape: { borderRadius: 2 },
 
     components: {
+      ...filledControls,
       ...midirOverrides,
       MuiPaper: {
         styleOverrides: {
@@ -78,18 +85,30 @@ const grinnealTheme = responsiveFontSizes(
         styleOverrides: {
           root: {
             borderRadius: 2,
-            border: '1px solid #8a9a68',
-            color: '#b0c088',
-            '&:hover': {
-              backgroundColor: 'rgba(127,147,96,0.18)',
-              borderColor: '#c0d090',
-              color: '#c8d898'
-            }
+            border: '1px solid currentColor',
+            // The theme draws its own look on PRIMARY buttons only. On `root` it beat
+            // MUI for every colour, so an error or a warning button drew like a
+            // primary one (HTOO-572, as the chip did). Other colours take MUI's own
+            // colour, which the palette test holds at 4.5:1, and a border in it.
+            '&.MuiButton-text.MuiButton-colorPrimary, &.MuiButton-outlined.MuiButton-colorPrimary':
+              {
+                borderColor: '#8a9a68',
+                color: '#b0c088',
+                '&:hover': {
+                  backgroundColor: 'rgba(127,147,96,0.18)',
+                  borderColor: '#c0d090',
+                  color: '#c8d898'
+                }
+              }
           },
           contained: {
-            backgroundColor: 'rgba(127,147,96,0.22)',
-            color: '#d4c4a8',
-            '&:hover': { backgroundColor: 'rgba(127,147,96,0.36)' }
+            '&.MuiButton-colorPrimary, &.MuiButton-colorInherit': {
+              backgroundColor: 'rgba(127,147,96,0.22)',
+              borderColor: '#8a9a68',
+              color: '#d4c4a8',
+              '&:hover': { backgroundColor: 'rgba(127,147,96,0.36)' }
+            },
+            '&.MuiButton-colorInherit': { color: 'inherit' }
           }
         }
       },
@@ -122,7 +141,7 @@ const grinnealTheme = responsiveFontSizes(
             '&.Mui-selected': {
               backgroundColor: 'rgba(127,147,96,0.12)',
               borderLeft: '2px solid #7f9360',
-              color: '#8a9a68'
+              color: '#8f9f6f'
             },
             '&:hover': { backgroundColor: 'rgba(122,106,80,0.1)', paddingLeft: '20px' }
           }
@@ -147,13 +166,6 @@ const grinnealTheme = responsiveFontSizes(
             fontSize: '0.65rem',
             letterSpacing: '0.1em',
             border: '1px solid rgba(160,140,100,0.48)',
-            // The tint is for a plain chip only. On `root` it beat MUI's own fill
-            // for every colour, so a warning or a selected chip looked plain
-            // (HTOO-572).
-            '&.MuiChip-colorDefault': {
-              backgroundColor: 'rgba(127,147,96,0.22)',
-              color: '#b0c088'
-            },
             // A selected chip (color="primary", filled) takes the accent and its
             // label, as MUI's own fill does, and keeps the accent on hover.
             '&.MuiChip-filled.MuiChip-colorPrimary': {
@@ -163,7 +175,30 @@ const grinnealTheme = responsiveFontSizes(
               '&.MuiChip-clickable:hover': { backgroundColor: '#7f9360' }
             }
           }
-        }
+        },
+        // The tint is for a plain chip only, as a variant on its colour. On `root`
+        // it beat MUI's own fill for every colour, so a warning or a selected chip
+        // looked plain. Under `&.MuiChip-colorDefault` (two classes) it beat a
+        // chip's own `sx` colour (one class), so a chip coloured in its sx looked
+        // plain (oghma, the website). A variant has one class and comes before the
+        // sx, so the sx wins (HTOO-572).
+        variants: [
+          {
+            props: { color: 'default' },
+            style: {
+              backgroundColor: 'rgba(127,147,96,0.22)',
+              color: '#b0c088'
+            }
+          },
+          {
+            // MUI hovers a clickable chip to a grey wash, and the label can fall
+            // below 4.5:1 on it. The tint stays, and the border takes the accent.
+            props: { color: 'default', clickable: true },
+            style: {
+              '&:hover': { backgroundColor: 'rgba(127,147,96,0.22)', borderColor: '#7f9360' }
+            }
+          }
+        ]
       },
       MuiPaginationItem: {
         styleOverrides: {
@@ -176,17 +211,24 @@ const grinnealTheme = responsiveFontSizes(
               filter:
                 'drop-shadow(1px 0 0 #000) drop-shadow(-1px 0 0 #000) drop-shadow(0 1px 0 #000) drop-shadow(0 -1px 0 #000)'
             },
-            backgroundColor: '#907858',
+            // 4.94:1 under the label. The bar tan #907858 was 2.45:1.
+            backgroundColor: '#5c4a34',
             color: '#d4c4a8',
             border: '1px solid #7f9360',
-            '&:hover': { backgroundColor: '#b89870', borderColor: '#8a9a68' },
+            // A light label hovers darker (7.50:1). #b89870 was 1.58:1 under it.
+            '&:hover': { backgroundColor: '#3c3020', borderColor: '#8a9a68' },
+            // The keyline is for light text; the selected label is dark.
+            // The selected page keeps its fill under the pointer: MUI hovers it to
+            // a grey wash (three classes), under a label picked for this fill.
             '&.Mui-selected': {
               backgroundColor: '#7f9360',
               borderColor: '#8a9a68',
-              color: '#27221c'
+              color: '#27221c',
+              textShadow: 'none',
+              '&:hover': { backgroundColor: '#7f9360' }
             },
             '&.Mui-disabled': {
-              backgroundColor: 'rgba(144,120,88,0.3)',
+              backgroundColor: 'rgba(92,74,52,0.3)',
               color: 'rgba(212,196,168,0.4)'
             }
           }

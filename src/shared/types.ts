@@ -62,24 +62,6 @@ export const THEME_NAMES: ThemeName[] = [
   'dubhaimid'
 ]
 
-/**
- * The "corporate/plain" themes. Chrome that's stylized for the four fantasy
- * themes (skull window glyphs, #000 keyline/drop shadows) drops to flat MUI
- * icons and no shadows for these — see TitleBar.
- */
-export const PLAIN_CHROME_THEMES: ThemeName[] = ['mundanes', 'dubhaimid']
-
-/**
- * The decorated themes whose bar text (`secondary.contrastText`) is dark. The
- * #000 keyline outlines LIGHT text; around dark text it merges with the glyph
- * and doubles its edges, so these bars are engraved instead (a thin cream edge
- * below and right, as if cut into the bar). An explicit list, not a luminance
- * rule in the component, so a palette tweak near the line cannot flip a theme's
- * chrome by accident (HTOO-572). `chromeContrast.test.tsx` fails when the list
- * and the palettes disagree.
- */
-export const ENGRAVED_CHROME_THEMES: ThemeName[] = ['danaan', 'grinneal']
-
 export interface MidirSettings {
   theme: ThemeName
   /** The capture adapter to use. Empty means "ask the user to choose one". */
