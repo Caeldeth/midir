@@ -79,7 +79,7 @@ export interface MidirSettings {
    * deleted.
    */
   recordingCapMb: number
-  /** Show the Diagnostics tab in the navigation bar. */
+  /** Show the Diagnostics page's button in the nav bar. */
   showDiagnostics: boolean
   /**
    * The Dark Ages install folder, the one that holds `legend.dat`. Midir reads

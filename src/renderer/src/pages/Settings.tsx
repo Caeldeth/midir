@@ -228,10 +228,10 @@ function Settings({ onOpenGallery }: SettingsProps): React.JSX.Element {
             }
             label={
               <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
-                Show the Diagnostics tab
+                Show the Diagnostics page
                 <InfoTip
-                  label="About the Diagnostics tab"
-                  title="The Diagnostics tab holds the session log and the recording list. Turn it off to hide the tab."
+                  label="About the Diagnostics page"
+                  title="The Diagnostics page holds the session log and the recording list. Turn it off to remove its button from the nav bar."
                 />
               </Box>
             }

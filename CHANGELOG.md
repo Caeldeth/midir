@@ -40,7 +40,7 @@ Keep entries user-facing — internal refactors/tests show up in the appended au
 
 - Danaan and Grinneal: the title bar is now dark (bronze and brown) with light, outlined text, like Hybrasyl and Chadul.
 - Every theme: the accent colour and the status colours (error, warning, info, success) now read as text on the page and on cards. Danaan's status colours are now darker, so they read on the parchment. Chadul's and Dubhaimid's selected chips and filled buttons now have dark labels.
-- The row of tabs under the title bar is now a nav bar in its own colour, with a button for each view, as in the other house apps. Report an issue is at its end.
+- The row of tabs under the title bar is now a nav bar in its own colour, with a button for each page, as in the other house apps. Report an issue is at its end. Midir now calls each of these a page: the switch in Settings is **Show the Diagnostics page**.
 - A new Theme gallery page (Settings → Appearance → Theme gallery) shows each control in the active theme, with its measured contrast.
 
 ### Security
@@ -54,11 +54,11 @@ Keep entries user-facing — internal refactors/tests show up in the appended au
 - Hybrasyl, Chadul, Danaan and Grinneal: an error or warning button now shows its own colour. Before, every button had the theme's button colour, so the Stop buttons on Speaker, Walker and Errands, and the delete buttons in Diagnostics, looked like any other button.
 - Danaan: text on its darker panels and tooltips now reads as well as on the page. This includes item names in tooltips and the warn and error levels in the Diagnostics log.
 - Every theme: in the update notice and in other filled alerts, the action, the close button and the icon now take the alert's text colour. Status labels on filled chips and alerts read on their fill, and alert icons show their status colour. The close button's hover on the title bar is now red, not a yellow skull on cyan.
-- The Map tab: an imported warp is now drawn in the text colour, not the title-bar colour, so it shows on the open tiles in every theme. A picked warp now has an outline in the accent colour.
-- Every theme: a plain chip that you can click, such as a walker pin or a map chip on the World tab, keeps its colour under the pointer and shows the hover in its border.
+- The Map page: an imported warp is now drawn in the text colour, not the title-bar colour, so it shows on the open tiles in every theme. A picked warp now has an outline in the accent colour.
+- Every theme: a plain chip that you can click, such as a walker pin or a map chip on the World page, keeps its colour under the pointer and shows the hover in its border.
 - Hybrasyl, Chadul and Mundanes: a visited link, such as a link on the About card, now reads on the page.
 - Every theme: a disabled button now looks disabled. Before, it kept the colours of a button you can click.
-- Hybrasyl, Chadul, Danaan and Grinneal: an icon takes its own colour, or the colour of the control or text around it. Before, every icon had the theme's accent colour, so the icon in a coloured button and the faint "no bank reading" and "no legend reading" marks on the Characters tab were drawn in the accent.
+- Hybrasyl, Chadul, Danaan and Grinneal: an icon takes its own colour, or the colour of the control or text around it. Before, every icon had the theme's accent colour, so the icon in a coloured button and the faint "no bank reading" and "no legend reading" marks on the Characters page were drawn in the accent.
 - Every theme: an unchecked checkbox now reads against the page.
 
 - A refused errand is no longer reported as finished. Supporting a citizen who is not logged in answers "<name> is not near", and working for an Aisling who is full answers "<name> doesn't need any jobs done" — both said "The errand finished" with the refusal inside the text. The Laborer now knows which words mean the errand worked, reports anything else as a refusal, and writes an answer it does not recognise to the log so it can be reviewed. Silence after the last step is reported as no verdict, which it is.

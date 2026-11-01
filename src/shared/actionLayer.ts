@@ -779,7 +779,7 @@ export function explorerStopMessage(reason: ExplorerStopReason): string {
     case 'budget':
       return 'The run reached its budget.'
     case 'stuck':
-      return 'The explorer could not walk on from this map. Walk somewhere with a known way out, or add a warp on the Map tab.'
+      return 'The explorer could not walk on from this map. Walk somewhere with a known way out, or add a warp on the Map page.'
     case 'done':
       return 'Every map this run was looking for has been reached.'
   }
