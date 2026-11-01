@@ -120,3 +120,5 @@ Remove-Item Env:ELECTRON_RUN_AS_NODE; npm run dev
 ```bash
 unset ELECTRON_RUN_AS_NODE && npm run dev
 ```
+
+An npm script that runs a script under Electron calls `node scripts/run-electron.mjs <script>`, not `electron <script>`. The launcher removes `ELECTRON_RUN_AS_NODE` before it starts Electron. Some shells export that variable, and then a bare `electron` runs as plain Node. Give the script its own guard for a direct `electron` run, and make the guard's message name the npm script (HTOO-612). Midir has no such script yet; the helper is here for the first one.
