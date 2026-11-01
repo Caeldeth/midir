@@ -13,6 +13,7 @@ import type { Logger } from '../log'
 import type { DollAppearance } from '../../shared/doll'
 import { composeDoll, dollLayers, type DollFrameSource, type DollLayer } from './doll'
 import type { RenderedFrame } from './iconService'
+import { hasPixels } from './epfFrame'
 import { encodePng } from './png'
 
 /**
@@ -220,7 +221,7 @@ export async function createKhanFrameSource(
     frame(layer, anim, frameIndex): RenderedFrame | null {
       const view = sheets.get(sheetName(layer, anim))
       const frame = view?.tryGet(frameIndex)
-      if (frame === undefined || frame === null) return null
+      if (frame === undefined || frame === null || !hasPixels(frame)) return null
 
       let palette: Palette | undefined
       if (layer.bodyPalette) {

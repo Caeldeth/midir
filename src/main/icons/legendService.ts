@@ -2,6 +2,7 @@ import { join } from 'node:path'
 import { readFile } from 'node:fs/promises'
 import { DataArchive, EpfView, Palette, renderEpf } from '@eriscorp/dalib-ts'
 import type { Logger } from '../log'
+import { hasPixels } from './epfFrame'
 import { encodePng } from './png'
 import { LEGEND_ICON_FRAMES } from '../../shared/labels'
 
@@ -98,7 +99,7 @@ export function createBadgeRenderer(archive: DataArchive, log: Logger): BadgeRen
       if (sheet === null || palette === null) return null
 
       const frame = sheet.tryGet(icon)
-      if (frame === undefined) return null
+      if (frame === undefined || !hasPixels(frame)) return null
       const rgba = renderEpf(frame, palette)
       if (rgba.width === 0 || rgba.height === 0) return null
       return encodePng(rgba.data, rgba.width, rgba.height)
