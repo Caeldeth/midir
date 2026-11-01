@@ -147,7 +147,7 @@ describe('the world graph view', () => {
   it('hands a map to the Map tab, where the tiles are', async () => {
     await renderPage()
     await userEvent.click(within(screen.getByTestId('graph-report')).getByText('Loures Garden'))
-    await userEvent.click(screen.getByRole('button', { name: 'Open on the Map tab' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Open on the Map page' }))
     expect(onOpenMap).toHaveBeenCalledWith(9000)
   })
 

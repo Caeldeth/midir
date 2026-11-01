@@ -1,36 +1,130 @@
+// house module: title-bar v1 — change it in the template, then port
 import React from 'react'
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { ThemeProvider } from '@mui/material/styles'
-import { hybrasylTheme } from '@renderer/themes'
-import TitleBar from '../TitleBar'
+import StarIcon from '@mui/icons-material/Star'
+import { themesByName } from '@renderer/themes'
+import type { ThemeName } from '@shared/types'
+import TitleBar, { ChromeButton, type TitleBarProps } from '../TitleBar'
 
-function renderTitleBar(): void {
+function renderBar(props: Partial<TitleBarProps> = {}): TitleBarProps['controls'] {
+  const controls = props.controls ?? {
+    minimize: vi.fn(),
+    maximize: vi.fn(),
+    close: vi.fn()
+  }
+  const theme: ThemeName = props.theme ?? 'hybrasyl'
   render(
-    <ThemeProvider theme={hybrasylTheme}>
-      <TitleBar />
+    <ThemeProvider theme={themesByName[theme]}>
+      <TitleBar
+        name="Sample"
+        icon="sample.webp"
+        theme={theme}
+        platform="win32"
+        {...props}
+        controls={controls}
+      />
     </ThemeProvider>
   )
+  return controls
 }
 
 describe('TitleBar', () => {
-  it('renders the app title', () => {
-    renderTitleBar()
-    expect(screen.getByTestId('title-bar')).toHaveTextContent('Midir')
+  it('draws the name and the icon it is given', () => {
+    renderBar()
+    const bar = screen.getByTestId('title-bar')
+    expect(bar).toHaveTextContent('Sample')
+    expect(bar.querySelector('img')?.getAttribute('src')).toBe('sample.webp')
   })
 
-  it('wires the window-control buttons to the preload bridge', async () => {
+  it('calls the window controls it is given', async () => {
     const user = userEvent.setup()
-    renderTitleBar()
-
+    const controls = renderBar()
     await user.click(screen.getByRole('button', { name: 'Minimize' }))
-    expect(window.api.minimizeWindow).toHaveBeenCalledOnce()
-
     await user.click(screen.getByRole('button', { name: 'Maximize' }))
-    expect(window.api.maximizeWindow).toHaveBeenCalledOnce()
-
     await user.click(screen.getByRole('button', { name: 'Close' }))
-    expect(window.api.closeWindow).toHaveBeenCalledOnce()
+    expect(controls.minimize).toHaveBeenCalledOnce()
+    expect(controls.maximize).toHaveBeenCalledOnce()
+    expect(controls.close).toHaveBeenCalledOnce()
+  })
+
+  it('draws no Maximize button for a window of a fixed size', () => {
+    renderBar({ controls: { minimize: vi.fn(), close: vi.fn() } })
+    expect(screen.queryByRole('button', { name: 'Maximize' })).not.toBeInTheDocument()
+    expect(screen.getAllByRole('button')).toHaveLength(2)
+  })
+
+  it("puts the app's controls between the wordmark and the window buttons", async () => {
+    const user = userEvent.setup()
+    const onClick = vi.fn()
+    render(
+      <ThemeProvider theme={themesByName.hybrasyl}>
+        <TitleBar
+          name="Sample"
+          icon="sample.webp"
+          theme="hybrasyl"
+          platform="win32"
+          controls={{ minimize: vi.fn(), close: vi.fn() }}
+        >
+          <ChromeButton label="Favourites" onClick={onClick}>
+            <StarIcon />
+          </ChromeButton>
+        </TitleBar>
+      </ThemeProvider>
+    )
+    const buttons = screen.getAllByRole('button').map((b) => b.getAttribute('aria-label'))
+    expect(buttons).toEqual(['Favourites', 'Minimize', 'Close'])
+    await user.click(screen.getByRole('button', { name: 'Favourites' }))
+    expect(onClick).toHaveBeenCalledOnce()
+  })
+
+  it.each(Object.keys(themesByName) as ThemeName[])(
+    '%s: a ChromeButton draws like a window button',
+    (theme) => {
+      render(
+        <ThemeProvider theme={themesByName[theme]}>
+          <TitleBar
+            name="Sample"
+            icon="sample.webp"
+            theme={theme}
+            platform="win32"
+            controls={{ minimize: vi.fn(), close: vi.fn() }}
+          >
+            <ChromeButton label="Favourites">
+              <StarIcon />
+            </ChromeButton>
+          </TitleBar>
+        </ThemeProvider>
+      )
+      const drawn = (name: string): string =>
+        getComputedStyle(screen.getByRole('button', { name })).color
+      expect(drawn('Favourites')).toBe(drawn('Minimize'))
+    }
+  )
+
+  it("draws no window buttons, name or logo on macOS, and keeps the app's controls", () => {
+    render(
+      <ThemeProvider theme={themesByName.hybrasyl}>
+        <TitleBar
+          name="Sample"
+          icon="sample.webp"
+          theme="hybrasyl"
+          platform="darwin"
+          controls={{ minimize: vi.fn(), maximize: vi.fn(), close: vi.fn() }}
+        >
+          <ChromeButton label="Favourites">
+            <StarIcon />
+          </ChromeButton>
+        </TitleBar>
+      </ThemeProvider>
+    )
+    const bar = screen.getByTestId('title-bar')
+    expect(bar).not.toHaveTextContent('Sample')
+    expect(bar.querySelector('img')).toBeNull()
+    expect(screen.getAllByRole('button').map((b) => b.getAttribute('aria-label'))).toEqual([
+      'Favourites'
+    ])
   })
 })

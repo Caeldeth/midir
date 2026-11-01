@@ -28,8 +28,8 @@ The Walker and the Speaker replace DA Walker and DA Speaker. These two community
 ## What Midir learns while you play
 
 - **The way between maps.** Your character walks through a warp, and Midir learns that warp from the wire. After two crossings, Midir plans routes through it.
-- **A correction that you make.** The Map tab shows each warp that Midir knows, and where the warp came from. You can accept a warp, refuse it, move it to the correct tile, or add one. Your correction has more authority than the map data that Midir imported.
-- **A place that needs a route.** The Walker shows such a place dim, and the Go button stays off. Walk that warp one time by hand, or add the warp on the Map tab.
+- **A correction that you make.** The Map page shows each warp that Midir knows, and where the warp came from. You can accept a warp, refuse it, move it to the correct tile, or add one. Your correction has more authority than the map data that Midir imported.
+- **A place that needs a route.** The Walker shows such a place dim, and the Go button stays off. Walk that warp one time by hand, or add the warp on the Map page.
 - **The name of each map.** Midir learns the game's own name for a map on your first visit there. Until then it uses the names in its own data files.
 - **The bank, the legend, and the boards.** The game sends these only when you open them. Midir keeps what it reads, and always gives the time that it read them.
 

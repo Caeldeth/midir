@@ -41,7 +41,7 @@ test.describe('Capture surface', () => {
     ;({ electronApp } = await launchApp())
     const page = await getMainWindow(electronApp)
 
-    await page.getByRole('tab', { name: 'Characters' }).click()
+    await page.getByTestId('nav-bar').getByRole('button', { name: 'Characters' }).click()
     await expect(page.getByText('No characters yet')).toBeVisible()
   })
 
@@ -49,7 +49,7 @@ test.describe('Capture surface', () => {
     ;({ electronApp } = await launchApp())
     const page = await getMainWindow(electronApp)
 
-    await page.getByRole('tab', { name: 'Items' }).click()
+    await page.getByTestId('nav-bar').getByRole('button', { name: 'Items' }).click()
     await expect(page.getByText('No items yet')).toBeVisible()
   })
 })

@@ -33,7 +33,12 @@ const cardSx = { p: 3, display: 'flex', flexDirection: 'column', height: '100%' 
 const headingSx = { color: 'text.button', fontWeight: 'bold' } as const
 const descriptionSx = { color: 'text.secondary', mb: 2 } as const
 
-function Settings(): React.JSX.Element {
+interface SettingsProps {
+  /** Open the theme gallery (HTOO-572). It has no nav-bar button of its own. */
+  onOpenGallery: () => void
+}
+
+function Settings({ onOpenGallery }: SettingsProps): React.JSX.Element {
   const theme = useSettingsStore((s) => s.theme)
   const setTheme = useSettingsStore((s) => s.setTheme)
   const captureDevice = useSettingsStore((s) => s.captureDevice)
@@ -223,10 +228,10 @@ function Settings(): React.JSX.Element {
             }
             label={
               <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
-                Show the Diagnostics tab
+                Show the Diagnostics page
                 <InfoTip
-                  label="About the Diagnostics tab"
-                  title="The Diagnostics tab holds the session log and the recording list. Turn it off to hide the tab."
+                  label="About the Diagnostics page"
+                  title="The Diagnostics page holds the session log and the recording list. Turn it off to remove its button from the nav bar."
                 />
               </Box>
             }
@@ -257,6 +262,9 @@ function Settings(): React.JSX.Element {
             Choose the theme Midir uses.
           </Typography>
           <ThemePicker value={theme} onChange={setTheme} />
+          <Box sx={{ mt: 2 }}>
+            <Button onClick={onOpenGallery}>Theme gallery</Button>
+          </Box>
         </Paper>
 
         <Paper sx={cardSx} data-testid="hotkey-settings">

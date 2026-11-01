@@ -14,6 +14,8 @@ const THEME_LABELS: Record<ThemeName, string> = {
   chadul: 'Chadul',
   danaan: 'Danaan',
   grinneal: 'Grinneal',
+  shattered: 'Shattered',
+  untamed: 'Untamed',
   mundanes: 'Mundanes (light)',
   dubhaimid: 'Dubhaimid (dark)'
 }

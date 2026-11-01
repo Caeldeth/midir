@@ -7,6 +7,8 @@ import {
   chadulTheme,
   danaanTheme,
   grinnealTheme,
+  shatteredTheme,
+  untamedTheme,
   mundanesTheme,
   dubhaimidTheme
 } from '@renderer/themes'
@@ -24,7 +26,7 @@ import { useWalkerStore } from '@renderer/store/walkerStore'
 import { useLaborerStore } from '@renderer/store/laborerStore'
 import { useMapStore } from '@renderer/store/mapStore'
 import ErrorBoundary from '@renderer/components/ErrorBoundary'
-import TitleBar from '@renderer/components/TitleBar'
+import AppTitleBar from '@renderer/components/AppTitleBar'
 import NavBar, { type ViewName } from '@renderer/components/NavBar'
 import Live from '@renderer/pages/Live'
 import Items from '@renderer/pages/Items'
@@ -37,12 +39,15 @@ import GraphPage from '@renderer/pages/GraphPage'
 import Laborer from '@renderer/pages/Laborer'
 import Diagnostics from '@renderer/pages/Diagnostics'
 import Settings from '@renderer/pages/Settings'
+import ThemeGallery from '@renderer/pages/ThemeGallery'
 
 const themes: Record<ThemeName, Theme> = {
   hybrasyl: hybrasylTheme,
   chadul: chadulTheme,
   danaan: danaanTheme,
   grinneal: grinnealTheme,
+  shattered: shatteredTheme,
+  untamed: untamedTheme,
   mundanes: mundanesTheme,
   dubhaimid: dubhaimidTheme
 }
@@ -54,8 +59,8 @@ function App(): React.JSX.Element {
   const showDiagnostics = useSettingsStore((s) => s.showDiagnostics)
   const [view, setView] = useState<ViewName>('live')
 
-  // The Diagnostics tab can hide while it is the open view. Move back to Live,
-  // so the navigation does not point at a tab that is gone.
+  // The Diagnostics view can hide while it is the open view. Move back to Live,
+  // so the nav bar does not point at a button that is gone.
   useEffect(() => {
     if (!showDiagnostics && view === 'diagnostics') setView('live')
   }, [showDiagnostics, view])
@@ -156,7 +161,7 @@ function App(): React.JSX.Element {
           bgcolor: 'background.default'
         }}
       >
-        <TitleBar />
+        <AppTitleBar />
         {/* Mounted once, closed, for both openers (the title bar and the About
             card). The error boundary's fallback mounts its own instance. */}
         <ReportIssueDialog open={reportOpen} onClose={() => setReportOpen(false)} />
@@ -196,7 +201,8 @@ function App(): React.JSX.Element {
                 ) : null}
                 {view === 'laborer' ? <Laborer /> : null}
                 {view === 'diagnostics' && showDiagnostics ? <Diagnostics /> : null}
-                {view === 'settings' ? <Settings /> : null}
+                {view === 'settings' ? <Settings onOpenGallery={() => setView('gallery')} /> : null}
+                {view === 'gallery' ? <ThemeGallery onBack={() => setView('settings')} /> : null}
               </ErrorBoundary>
             </Box>
           </>

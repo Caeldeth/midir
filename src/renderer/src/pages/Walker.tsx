@@ -130,7 +130,7 @@ function Walker(): React.JSX.Element {
   // the wire has never crossed. The walk is offered: crossing it is what
   // confirms it, and a tile that is a tile off stops the leg and nothing worse.
   const unconfirmed = named?.viaUnconfirmed === true
-  const noWayText = `Midir knows no way to walk there from where the character stands. Walk a warp it has not seen yet, or add one on the Map tab.`
+  const noWayText = `Midir knows no way to walk there from where the character stands. Walk a warp it has not seen yet, or add one on the Map page.`
   const unconfirmedText = `The only way Midir knows there comes from its imported map data, which no walk has confirmed yet. The walk may stop early; crossing it is what proves it.`
 
   const onGo = (): void => {

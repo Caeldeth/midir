@@ -466,7 +466,7 @@ function GraphPage({ onOpenMap }: GraphPageProps): React.JSX.Element {
               sx={{ alignSelf: 'flex-start', mb: 1 }}
               onClick={() => onOpenMap(chosen.mapId)}
             >
-              Open on the Map tab
+              Open on the Map page
             </Button>
             <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
               Warps out: {out.length}

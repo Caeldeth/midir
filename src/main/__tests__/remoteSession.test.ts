@@ -159,12 +159,20 @@ describe('REMOTE_SESSION_CSS — the half the first adopter shipped without (HTO
     // If a later change drops `backdropFilter` from the theme set, this mitigation
     // becomes a no-op injected on every remote launch and nothing else in the
     // repository would say so. The house theme set is a common ancestor, not a
-    // shared dependency — oghma's copies carry no blur and ship no CSS — so this
-    // is measured here rather than assumed from the card.
+    // shared dependency (oghma's own themes had no blur, and it shipped no CSS
+    // until it took the house themes), so this is measured here rather than
+    // assumed from the card.
     const dir = join(__dirname, '../../renderer/src/themes')
     const withBlur = readdirSync(dir)
       .filter((f) => f.endsWith('.ts'))
       .filter((f) => readFileSync(join(dir, f), 'utf-8').includes('backdropFilter'))
-    expect(withBlur.sort()).toEqual(['chadul.ts', 'danaan.ts', 'grinneal.ts', 'hybrasyl.ts'])
+    expect(withBlur.sort()).toEqual([
+      'chadul.ts',
+      'danaan.ts',
+      'grinneal.ts',
+      'hybrasyl.ts',
+      'shattered.ts',
+      'untamed.ts'
+    ])
   })
 })

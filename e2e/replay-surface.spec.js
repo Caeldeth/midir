@@ -32,7 +32,7 @@ test.describe('Replayed session surface', () => {
     ;({ electronApp } = await launchReplay())
     const page = await getMainWindow(electronApp)
 
-    await page.getByRole('tab', { name: 'Characters' }).click()
+    await page.getByTestId('nav-bar').getByRole('button', { name: 'Characters' }).click()
     const list = page.getByTestId('character-list')
     await expect(list).toBeVisible({ timeout: 15_000 })
     await expect(list).toContainText('Fintan')
@@ -55,7 +55,7 @@ test.describe('Replayed session surface', () => {
     ;({ electronApp } = await launchReplay())
     const page = await getMainWindow(electronApp)
 
-    await page.getByRole('tab', { name: 'Items' }).click()
+    await page.getByTestId('nav-bar').getByRole('button', { name: 'Items' }).click()
     const index = page.getByTestId('item-index')
     await expect(index).toBeVisible({ timeout: 15_000 })
     await expect(index).toContainText('Raw Fish')
@@ -82,7 +82,7 @@ test.describe('Replayed session surface', () => {
     mkdirSync(recordingsDir, { recursive: true })
     copyFileSync(FIXTURE, join(recordingsDir, 'session-2026-07-23T13-13-44-000Z.ndjson'))
 
-    await page.getByRole('tab', { name: 'Diagnostics' }).click()
+    await page.getByTestId('nav-bar').getByRole('button', { name: 'Diagnostics' }).click()
 
     const log = page.getByTestId('log-section')
     await expect(log).toBeVisible()

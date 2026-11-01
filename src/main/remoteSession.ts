@@ -108,8 +108,8 @@ export function shouldDisableHardwareAcceleration(
  * The second half of the mitigation, and the half the first adopter shipped
  * without (HTOO-327).
  *
- * Turning the GPU off is only half an answer, because four of the six house
- * themes — `chadul`, `danaan`, `grinneal`, `hybrasyl` — put
+ * Turning the GPU off is only half an answer, because six of the eight house
+ * themes — `chadul`, `danaan`, `grinneal`, `hybrasyl`, `shattered`, `untamed` — put
  * `backdropFilter: blur(2px)` on `MuiPaper.root`, and `MuiPaper` backs `Card`,
  * `Dialog`, `Accordion` and `Menu`. A blur makes Chromium read back everything
  * behind the surface and blur it on **every repaint**, including every frame of
@@ -134,8 +134,9 @@ export function shouldDisableHardwareAcceleration(
  * a keyline outline at ZERO blur radius — cheap, and what keeps the fantasy
  * themes legible. Stripping it would restyle the app for almost no saving. The
  * house theme set is a common ancestor, not a shared dependency, so **measure
- * your own themes before copying either rule** — oghma's carry no blur at all
- * and ship no CSS.
+ * your own themes before copying either rule**. Oghma's own themes had no blur
+ * and it shipped no CSS; when it took the house themes (HTOO-572), it had to
+ * take this rule too.
  *
  * Unconditional across themes on purpose: it is a no-op where there is no blur,
  * which is what makes a mid-session theme switch need no second decision.

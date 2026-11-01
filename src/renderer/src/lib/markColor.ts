@@ -3,7 +3,7 @@
  *
  * A mark's `color` byte indexes the client's own text palette, and the game
  * paints the row in that colour. Midir paints it too — but the game draws on one
- * dark parchment and Midir has six themes, two of them light. The palette holds
+ * dark parchment and Midir has eight themes, two of them light. The palette holds
  * near-white entries (index 32 is 255, 231, 235) and near-black ones, so taken
  * literally a mark can be written in the background colour and disappear.
  *
