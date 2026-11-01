@@ -34,7 +34,7 @@ const headingSx = { color: 'text.button', fontWeight: 'bold' } as const
 const descriptionSx = { color: 'text.secondary', mb: 2 } as const
 
 interface SettingsProps {
-  /** Open the theme gallery (HTOO-572). It has no tab of its own. */
+  /** Open the theme gallery (HTOO-572). It has no nav-bar button of its own. */
   onOpenGallery: () => void
 }
 

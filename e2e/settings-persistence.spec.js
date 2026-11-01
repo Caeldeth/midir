@@ -21,7 +21,7 @@ test.describe('Settings persist across a restart', () => {
 
     // The theme picker lives on the Settings tab. It is a radiogroup of
     // preview cards, one radio per theme, not a dropdown.
-    await page.getByRole('tab', { name: 'Settings' }).click()
+    await page.getByTestId('nav-bar').getByRole('button', { name: 'Settings' }).click()
     await page.getByRole('radio', { name: 'Mundanes (light)' }).click()
 
     // Wait until the write has actually landed on disk — settings.load() reads
@@ -44,7 +44,7 @@ test.describe('Settings persist across a restart', () => {
 
     // …and it's actually applied in the hydrated UI.
     await expect(page.getByTestId('app-root')).toHaveAttribute('data-theme', 'mundanes')
-    await page.getByRole('tab', { name: 'Settings' }).click()
+    await page.getByTestId('nav-bar').getByRole('button', { name: 'Settings' }).click()
     await expect(page.getByRole('radio', { name: 'Mundanes (light)' })).toHaveAttribute(
       'aria-checked',
       'true'

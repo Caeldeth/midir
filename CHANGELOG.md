@@ -40,6 +40,7 @@ Keep entries user-facing — internal refactors/tests show up in the appended au
 
 - Danaan and Grinneal: the title bar is now dark (bronze and brown) with light, outlined text, like Hybrasyl and Chadul.
 - Every theme: the accent colour and the status colours (error, warning, info, success) now read as text on the page and on cards. Danaan's status colours are now darker, so they read on the parchment. Chadul's and Dubhaimid's selected chips and filled buttons now have dark labels.
+- The row of tabs under the title bar is now a nav bar in its own colour, with a button for each view, as in the other house apps. Report an issue is at its end.
 - A new Theme gallery page (Settings → Appearance → Theme gallery) shows each control in the active theme, with its measured contrast.
 
 ### Security

@@ -34,7 +34,7 @@ test('the theme gallery measures every sample in every theme', async () => {
   const { electronApp } = await launchApp()
   try {
     const page = await getMainWindow(electronApp)
-    await page.getByRole('tab', { name: 'Settings', exact: true }).click()
+    await page.getByTestId('nav-bar').getByRole('button', { name: 'Settings', exact: true }).click()
     await page.getByRole('button', { name: 'Theme gallery', exact: true }).click()
     await expect(page.getByTestId('theme-gallery-page')).toBeVisible()
 

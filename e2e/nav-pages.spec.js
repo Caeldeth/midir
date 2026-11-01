@@ -25,7 +25,7 @@ import { launchApp, getMainWindow, repoRoot } from './helpers.js'
 // **The page list is READ from NavBar's `VIEWS`, never typed here.** A hand-kept
 // list is the fault this card is about, one level down: WP43 added the World
 // tab, and this spec's own list went on without it. Parsing the source means a
-// tab added later is opened here on the day it is added. Each tab's marker is
+// view added later is opened here on the day it is added. Each view's marker is
 // `page-<view>` on the view container in App.tsx. Diagnostics is behind a
 // setting that is on by default. (Taliesin reads its PAGES the same way.)
 function readViews() {
@@ -40,10 +40,11 @@ function readViews() {
 
 const VIEWS = readViews()
 
-// The pages that have no tab, each with the tab and the button that open it.
+// The pages that have no nav-bar button, each with the view and the button
+// that open it.
 // The theme gallery opens from the Appearance card on Settings (HTOO-572).
-const UNTABBED = [
-  { view: 'gallery', tab: 'Settings', button: 'Theme gallery', testId: 'theme-gallery-page' }
+const UNLISTED = [
+  { view: 'gallery', from: 'Settings', button: 'Theme gallery', testId: 'theme-gallery-page' }
 ]
 
 /** How long each page runs before it is checked, so a fault in the render that
@@ -72,9 +73,9 @@ test.describe('every page opens', () => {
 
     for (const { view, label } of VIEWS) {
       await test.step(label, async () => {
-        await page.getByRole('tab', { name: label, exact: true }).click()
+        await page.getByTestId('nav-bar').getByRole('button', { name: label, exact: true }).click()
 
-        // The page rendered. Without this the loop would pass on a nav tab that
+        // The page rendered. Without this the loop would pass on a nav button that
         // silently changed nothing — the zero-wire pass, one suite over.
         await expect(page.getByTestId(`page-${view}`)).toBeVisible()
         await page.waitForTimeout(SETTLE_MS)
@@ -85,9 +86,9 @@ test.describe('every page opens', () => {
       })
     }
 
-    for (const { view, tab, button, testId } of UNTABBED) {
+    for (const { view, from, button, testId } of UNLISTED) {
       await test.step(button, async () => {
-        await page.getByRole('tab', { name: tab, exact: true }).click()
+        await page.getByTestId('nav-bar').getByRole('button', { name: from, exact: true }).click()
         await page.getByRole('button', { name: button, exact: true }).click()
         await expect(page.getByTestId(`page-${view}`)).toBeVisible()
         await expect(page.getByTestId(testId)).toBeVisible()

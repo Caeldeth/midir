@@ -59,8 +59,8 @@ function App(): React.JSX.Element {
   const showDiagnostics = useSettingsStore((s) => s.showDiagnostics)
   const [view, setView] = useState<ViewName>('live')
 
-  // The Diagnostics tab can hide while it is the open view. Move back to Live,
-  // so the navigation does not point at a tab that is gone.
+  // The Diagnostics view can hide while it is the open view. Move back to Live,
+  // so the nav bar does not point at a button that is gone.
   useEffect(() => {
     if (!showDiagnostics && view === 'diagnostics') setView('live')
   }, [showDiagnostics, view])
