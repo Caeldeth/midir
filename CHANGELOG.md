@@ -21,6 +21,7 @@ Keep entries user-facing — internal refactors/tests show up in the appended au
 
 ### Added
 
+- Two new themes, Shattered and Untamed. Midir now has eight themes.
 - Passive packet capture through Npcap. Midir reads the game client's own TCP connections and never sends a packet, never connects to the game server, and never changes the client.
 - A live character sheet: statistics, health and mana, equipped items, inventory, visible appearance, legend marks, gold, title, and guild. It fills as the packets arrive.
 - A character list. Every character you log in on is recorded and kept, with the time it was last seen.
@@ -55,6 +56,9 @@ Keep entries user-facing — internal refactors/tests show up in the appended au
 - The Map tab: an imported warp is now drawn in the text colour, not the title-bar colour, so it shows on the open tiles in every theme. A picked warp now has an outline in the accent colour.
 - Every theme: a plain chip that you can click, such as a walker pin or a map chip on the World tab, keeps its colour under the pointer and shows the hover in its border.
 - Hybrasyl, Chadul and Mundanes: a visited link, such as a link on the About card, now reads on the page.
+- Every theme: a disabled button now looks disabled. Before, it kept the colours of a button you can click.
+- Hybrasyl, Chadul, Danaan and Grinneal: an icon takes its own colour, or the colour of the control or text around it. Before, every icon had the theme's accent colour, so the icon in a coloured button and the faint "no bank reading" and "no legend reading" marks on the Characters tab were drawn in the accent.
+- Every theme: an unchecked checkbox now reads against the page.
 
 - A refused errand is no longer reported as finished. Supporting a citizen who is not logged in answers "<name> is not near", and working for an Aisling who is full answers "<name> doesn't need any jobs done" — both said "The errand finished" with the refusal inside the text. The Laborer now knows which words mean the errand worked, reports anything else as a refusal, and writes an answer it does not recognise to the log so it can be reviewed. Silence after the last step is reported as no verdict, which it is.
 

@@ -11,7 +11,7 @@ import React from 'react'
  * so the age is part of the answer.
  *
  * The panel takes its surface and border from the active theme, the way
- * `ItemTooltip` does, so it belongs to all six themes.
+ * `ItemTooltip` does, so it belongs to all eight themes.
  */
 function GoldTooltip({
   contributions,

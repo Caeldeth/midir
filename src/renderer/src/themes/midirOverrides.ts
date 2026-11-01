@@ -1,11 +1,11 @@
 import type { Components, Theme } from '@mui/material/styles'
 
 /**
- * The component overrides that Midir adds to each of the six house themes.
+ * The component overrides that Midir adds to each of the eight house themes.
  * The template does not have them. Each theme file is the template's file,
  * plus one spread of this object in its `components`, after the template's
  * `...filledControls`. Keep them in this one file, so that the next port of the
- * template's palettes is a copy of the six theme files and the spread line.
+ * template's palettes is a copy of the eight theme files and the spread line.
  * Do not set `MuiButtonBase` or `MuiAlert` here: that key replaces the one in
  * `filledControls`, and `palette.test.ts` fails.
  *

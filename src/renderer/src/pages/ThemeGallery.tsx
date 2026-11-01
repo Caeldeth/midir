@@ -279,7 +279,7 @@ function Buttons(): React.JSX.Element {
             </Measure>
           ))}
           <Measure min={0}>
-            <Button variant={variant} disabled>
+            <Button variant={variant} disabled startIcon={<AddIcon />}>
               disabled
             </Button>
           </Measure>
@@ -308,6 +308,16 @@ function IconButtons(): React.JSX.Element {
           </span>
         </Tooltip>
       ))}
+      {/* A disabled icon button takes MUI's grey (HTOO-639). */}
+      <Tooltip title="disabled">
+        <span>
+          <Measure min={0} part="svg">
+            <IconButton disabled aria-label="disabled">
+              <DeleteIcon />
+            </IconButton>
+          </Measure>
+        </span>
+      </Tooltip>
     </Row>
   )
 }
@@ -602,7 +612,8 @@ function BarButtons({ kind, hovered }: { kind: ChromeKind; hovered: boolean }): 
 
 /**
  * A nav bar under the title bar, as four apps draw one: a plain button, the
- * current page, and a hovered button, with `navButtonSx`.
+ * current page, and a hovered button, with `navButtonSx`. It paints
+ * `tertiary.main`, so it reads as a second bar (tertiary.test.ts).
  */
 function NavBarPreview({ kind }: { kind: ChromeKind }): React.JSX.Element {
   const buttons = [
@@ -614,7 +625,7 @@ function NavBarPreview({ kind }: { kind: ChromeKind }): React.JSX.Element {
     <Toolbar
       variant="dense"
       disableGutters
-      sx={{ bgcolor: 'secondary.main', minHeight: 40, px: 3, gap: 1 }}
+      sx={{ bgcolor: 'tertiary.main', minHeight: 40, px: 3, gap: 1 }}
     >
       {buttons.map(([label, current, hovered]) => (
         <Measure key={label} part="svg">

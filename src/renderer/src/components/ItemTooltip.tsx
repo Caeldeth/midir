@@ -12,7 +12,7 @@ import React from 'react'
  * knows: which slot each one is in, and how long ago it read that character.
  *
  * The panel takes its surface, border, and name colour from the active theme,
- * so it belongs to the six themes rather than to one of them.
+ * so it belongs to the eight themes rather than to one of them.
  */
 
 /** The durability colour the client uses. It needs a darker pair on a light theme. */

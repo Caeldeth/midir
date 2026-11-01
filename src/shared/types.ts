@@ -51,13 +51,16 @@ export type OpenIssueResult =
   | { ok: true; truncated: boolean; copied: boolean }
   | { ok: false; reason: 'unsafe-url'; copied: boolean }
 
-export type ThemeName = 'hybrasyl' | 'chadul' | 'danaan' | 'grinneal' | 'mundanes' | 'dubhaimid'
+export type ThemeName =
+  'hybrasyl' | 'chadul' | 'danaan' | 'grinneal' | 'shattered' | 'untamed' | 'mundanes' | 'dubhaimid'
 
 export const THEME_NAMES: ThemeName[] = [
   'hybrasyl',
   'chadul',
   'danaan',
   'grinneal',
+  'shattered',
+  'untamed',
   'mundanes',
   'dubhaimid'
 ]

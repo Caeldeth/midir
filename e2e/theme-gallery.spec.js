@@ -23,6 +23,8 @@ const THEMES = [
   { label: 'Chadul', name: 'chadul' },
   { label: 'Danaan', name: 'danaan' },
   { label: 'Grinneal', name: 'grinneal' },
+  { label: 'Shattered', name: 'shattered' },
+  { label: 'Untamed', name: 'untamed' },
   { label: 'Mundanes (light)', name: 'mundanes' },
   { label: 'Dubhaimid (dark)', name: 'dubhaimid' }
 ]

@@ -663,8 +663,8 @@ function createWindow(): void {
   })
   mainWindow = win
 
-  // The other half of the remote-session mitigation (HTOO-327). Four of the
-  // six themes put `backdropFilter: blur(2px)` on `MuiPaper.root`, a readback
+  // The other half of the remote-session mitigation (HTOO-327). Six of the
+  // eight themes put `backdropFilter: blur(2px)` on `MuiPaper.root`, a readback
   // and convolve on every repaint that is nearly free with a GPU and is the
   // most expensive thing left once it is gone. `dom-ready` fires before first
   // paint, so there is no flash of the blurred style; a failure is logged, not

@@ -7,6 +7,8 @@ import {
   chadulTheme,
   danaanTheme,
   grinnealTheme,
+  shatteredTheme,
+  untamedTheme,
   mundanesTheme,
   dubhaimidTheme
 } from '@renderer/themes'
@@ -44,6 +46,8 @@ const themes: Record<ThemeName, Theme> = {
   chadul: chadulTheme,
   danaan: danaanTheme,
   grinneal: grinnealTheme,
+  shattered: shatteredTheme,
+  untamed: untamedTheme,
   mundanes: mundanesTheme,
   dubhaimid: dubhaimidTheme
 }
