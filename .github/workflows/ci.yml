@@ -94,7 +94,7 @@ jobs:
       # Both the env var and the path are STEP-level: the `runner` context does
       # not exist at job level and expands to an empty string there.
       - name: Cache the Electron binary
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ${{ runner.temp }}/electron-cache
           key: electron-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
@@ -160,7 +160,7 @@ jobs:
           package-manager-cache: false
 
       - name: Cache the Electron binary
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ${{ runner.temp }}/electron-cache
           key: electron-${{ runner.os }}-${{ hashFiles('package-lock.json') }}

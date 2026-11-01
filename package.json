@@ -35,7 +35,7 @@
   "dependencies": {
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
-    "@eriscorp/dalib-ts": "^3.0.0",
+    "@eriscorp/dalib-ts": "^3.3.0",
     "@fontsource/cinzel": "^5.2.8",
     "@fontsource/cinzel-decorative": "^5.2.8",
     "@fontsource/crimson-pro": "^5.2.8",
@@ -44,7 +44,7 @@
     "@tanstack/react-virtual": "^3.14.13",
     "da-pcap": "file:packages/da-pcap",
     "react-icons": "^5.6.0",
-    "zod": "^4.3.6",
+    "zod": "^4.6.7",
     "zustand": "^5.0.2"
   },
   "//overrides": "ONE override, global-agent@3 -> ^4.1.3 (GHSA-hp3w-g68c-fv3c, 8 moderate findings in one chain). The advisory is on sprintf-js and covers every version, so no sprintf-js release fixes it. The path is electron-builder -> app-builder-lib -> @electron/get@3 -> global-agent@3 -> roarr -> sprintf-js, and electron-builder 26.17 and the 27 alpha still pin @electron/get@3. global-agent 4 has no roarr and keeps the bootstrap export that @electron/get calls. Build-time only: nothing here ships. The selector stops matching when @electron/get moves off 3.x; remove it then. BEFORE YOU ADD ANOTHER: check whether every consumer's existing range already permits a patched version. Often npm update <pkg> is the whole fix, and it was here for source-map-js and http-cache-semantics. If you do need an override, SCOPE IT TO THE MAJOR (\"pkg@1\": \"^1.1.18\"), because an advisory is usually patched within every major. A bare \"pkg\": \"^5\" drags every consumer across majors and breaks any that depends on the old export shape. A green typecheck/lint/test/package proves nothing against that class of bug. The house template carries the same override and this note.",
@@ -65,8 +65,8 @@
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^5.2.0",
-    "@vitest/coverage-v8": "^4.1.11",
-    "electron": "^44.7.0",
+    "@vitest/coverage-v8": "^4.1.12",
+    "electron": "^44.10.0",
     "electron-builder": "^26.17.0",
     "electron-vite": "^5.0.0",
     "eslint": "^9.39.4",
@@ -77,8 +77,8 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "typescript": "^5.7.0",
-    "vite": "^7.3.2",
-    "vitest": "^4.1.11"
+    "vite": "^7.3.7",
+    "vitest": "^4.1.12"
   },
   "//allowScripts": "npm 12 runs a dependency's install script only when this block approves it, and it skips the rest SILENTLY: a warning at the end of npm install or npm ci, exit 0 (HTOO-542). esbuild's postinstall selects its platform binary. electron-winstaller is denied: its script only selects a 7-Zip binary for Squirrel.Windows installers, and electron-builder.yml ships NSIS and portable only. fsevents is the macOS file watcher behind vite, rollup and Playwright; it is optional and installs on macOS only, so it is approved for a checkout that runs the unit tests on a Mac, although Midir builds for Windows only. electron is absent: since Electron 42 it has no install script. The project's OWN postinstall runs install-electron instead (a no-op when the binary is there), because electron-vite dev reads the binary's path without require(), so a fresh clone could not run npm run dev ('Electron uninstall') without it (HTOO-553). The workspace addon packages/da-pcap is not gated by this block: npm 12 runs a workspace member's own gyp build. The postinstall's install-app-deps then rebuilds it for Electron's ABI. Approvals are by name, never pkg@version: a pinned approval stops matching at the next bump. npm install-scripts ls reports anything new.",
   "allowScripts": {

@@ -18,6 +18,7 @@ import {
   renderEpf
 } from '@eriscorp/dalib-ts'
 import type { Logger } from '../log'
+import { hasPixels } from './epfFrame'
 import { encodePng } from './png'
 import { itemSheetFor, itemSheetName, itemSpriteId, iconCacheKey } from './itemSprite'
 
@@ -119,7 +120,7 @@ export function createLegendRenderer(archive: DataArchive, log: Logger): Archive
     renderFrame(fileId, frameId, spriteId, color) {
       const view = sheet(fileId)
       const frame = view?.tryGet(frameId)
-      if (frame === undefined || frame === null) return null
+      if (frame === undefined || frame === null || !hasPixels(frame)) return null
 
       const lookup = palettes()
       if (lookup === null) return null
