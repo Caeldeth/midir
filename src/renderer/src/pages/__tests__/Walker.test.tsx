@@ -22,7 +22,16 @@ const PLACES: WalkerDestination[] = [
   { mapId: 401, name: 'Mileth Black Magic Master', reachable: true, viaUnconfirmed: true }
 ]
 
+/**
+ * The typed keys go with no timer between them. The default waits on a timer
+ * for each key, and these tests type about 25 keys into an Autocomplete: that
+ * took about 1.2 s a test, and ran past the 5 s limit under the full suite's
+ * load (2026-11-18).
+ */
+let user: ReturnType<typeof userEvent.setup>
+
 beforeEach(() => {
+  user = userEvent.setup({ delay: null })
   useWalkerStore.setState({ destinations: PLACES, selectedWindow: '1', destination: '' })
   window.api.assist.windows = vi.fn(async () => [
     {
@@ -42,12 +51,12 @@ describe('a destination Midir cannot reach', () => {
     await waitFor(() => expect(screen.getByTestId('walker-go')).toBeInTheDocument())
 
     const destination = screen.getByLabelText('Destination')
-    await userEvent.type(destination, 'Hidden Cave')
+    await user.type(destination, 'Hidden Cave')
     await waitFor(() => expect(screen.getByTestId('walker-go')).toBeDisabled())
     expect(screen.getByText(/knows no way to walk there/)).toBeInTheDocument()
 
-    await userEvent.clear(destination)
-    await userEvent.type(destination, 'Field')
+    await user.clear(destination)
+    await user.type(destination, 'Field')
     await waitFor(() => expect(screen.getByTestId('walker-go')).toBeEnabled())
   })
 
@@ -56,7 +65,7 @@ describe('a destination Midir cannot reach', () => {
     // it, reporting no route at all (2026-09-27).
     render(<Walker />)
     await waitFor(() => expect(screen.getByTestId('walker-go')).toBeInTheDocument())
-    await userEvent.type(screen.getByLabelText('Destination'), 'Mileth Black Magic Master')
+    await user.type(screen.getByLabelText('Destination'), 'Mileth Black Magic Master')
     await waitFor(() => expect(screen.getByTestId('walker-go')).toBeEnabled())
     expect(screen.getByText(/imported map data, which no walk has confirmed/)).toBeInTheDocument()
   })
@@ -67,15 +76,15 @@ describe('a destination Midir cannot reach', () => {
     useSettingsStore.setState({ walkerPinnedDestinations: [] })
     render(<Walker />)
     await waitFor(() => expect(screen.getByTestId('walker-go')).toBeInTheDocument())
-    await userEvent.type(screen.getByLabelText('Destination'), 'Field')
-    await userEvent.type(screen.getByLabelText('End x'), '12')
-    await userEvent.type(screen.getByLabelText('End y'), '15')
-    await userEvent.click(screen.getByRole('button', { name: 'Pin this destination' }))
+    await user.type(screen.getByLabelText('Destination'), 'Field')
+    await user.type(screen.getByLabelText('End x'), '12')
+    await user.type(screen.getByLabelText('End y'), '15')
+    await user.click(screen.getByRole('button', { name: 'Pin this destination' }))
 
     const name = await screen.findByLabelText('Pin name')
-    await userEvent.clear(name)
-    await userEvent.type(name, 'Mileth Altar')
-    await userEvent.click(screen.getByTestId('walker-pin-save'))
+    await user.clear(name)
+    await user.type(name, 'Mileth Altar')
+    await user.click(screen.getByTestId('walker-pin-save'))
 
     expect(useSettingsStore.getState().walkerPinnedDestinations).toEqual([
       { label: 'Mileth Altar', destination: 'Field', tile: { x: 12, y: 15 } }
@@ -84,13 +93,11 @@ describe('a destination Midir cannot reach', () => {
     expect(chip).toHaveTextContent('Mileth Altar')
 
     // Picking it puts the place and the tile back in the fields.
-    await userEvent.clear(screen.getByLabelText('End x'))
-    await userEvent.click(chip)
+    await user.clear(screen.getByLabelText('End x'))
+    await user.click(chip)
     expect(screen.getByLabelText('End x')).toHaveValue('12')
     expect(screen.getByLabelText('Destination')).toHaveValue('Field')
-    // About 25 typed keys through an Autocomplete: 1.4 s alone, and it ran past
-    // the 5 s default once under the full suite's load on vite 8 (2026-11-18).
-  }, 15_000)
+  })
 
   it('asks main for the destinations of the window it drives', async () => {
     render(<Walker />)
