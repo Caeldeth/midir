@@ -88,7 +88,9 @@ describe('a destination Midir cannot reach', () => {
     await userEvent.click(chip)
     expect(screen.getByLabelText('End x')).toHaveValue('12')
     expect(screen.getByLabelText('Destination')).toHaveValue('Field')
-  })
+    // About 25 typed keys through an Autocomplete: 1.4 s alone, and it ran past
+    // the 5 s default once under the full suite's load on vite 8 (2026-11-18).
+  }, 15_000)
 
   it('asks main for the destinations of the window it drives', async () => {
     render(<Walker />)

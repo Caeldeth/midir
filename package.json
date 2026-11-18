@@ -64,11 +64,11 @@
     "@testing-library/user-event": "^14.6.12",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
-    "@vitejs/plugin-react": "^5.2.0",
+    "@vitejs/plugin-react": "^6.3.0",
     "@vitest/coverage-v8": "^4.1.12",
     "electron": "^45.3.4",
     "electron-builder": "^26.18.0",
-    "electron-vite": "^5.0.0",
+    "electron-vite": "^6.0.0",
     "eslint": "^9.39.5",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^5.2.0",
@@ -77,12 +77,11 @@
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "typescript": "^5.9.3",
-    "vite": "^7.3.8",
+    "vite": "^8.3.8",
     "vitest": "^4.1.12"
   },
-  "//allowScripts": "npm 12 runs a dependency's install script only when this block approves it, and it skips the rest SILENTLY: a warning at the end of npm install or npm ci, exit 0 (HTOO-542). esbuild's postinstall selects its platform binary. electron-winstaller is denied: its script only selects a 7-Zip binary for Squirrel.Windows installers, and electron-builder.yml ships NSIS and portable only. fsevents is the macOS file watcher behind vite, rollup and Playwright; it is optional and installs on macOS only, so it is approved for a checkout that runs the unit tests on a Mac, although Midir builds for Windows only. electron is absent: since Electron 42 it has no install script. The project's OWN postinstall runs install-electron instead (a no-op when the binary is there), because electron-vite dev reads the binary's path without require(), so a fresh clone could not run npm run dev ('Electron uninstall') without it (HTOO-553). The workspace addon packages/da-pcap is not gated by this block: npm 12 runs a workspace member's own gyp build. The postinstall's install-app-deps then rebuilds it for Electron's ABI. Approvals are by name, never pkg@version: a pinned approval stops matching at the next bump. npm install-scripts ls reports anything new.",
+  "//allowScripts": "npm 12 runs a dependency's install script only when this block approves it, and it skips the rest SILENTLY: a warning at the end of npm install or npm ci, exit 0 (HTOO-542). esbuild is absent: since vite 8 and electron-vite 6 nothing installs it, and an approval by name would let a new esbuild run its install script unread. electron-winstaller is denied: its script only selects a 7-Zip binary for Squirrel.Windows installers, and electron-builder.yml ships NSIS and portable only. fsevents is the macOS file watcher behind vite, rollup and Playwright; it is optional and installs on macOS only, so it is approved for a checkout that runs the unit tests on a Mac, although Midir builds for Windows only. electron is absent: since Electron 42 it has no install script. The project's OWN postinstall runs install-electron instead (a no-op when the binary is there), because electron-vite dev reads the binary's path without require(), so a fresh clone could not run npm run dev ('Electron uninstall') without it (HTOO-553). The workspace addon packages/da-pcap is not gated by this block: npm 12 runs a workspace member's own gyp build. The postinstall's install-app-deps then rebuilds it for Electron's ABI. Approvals are by name, never pkg@version: a pinned approval stops matching at the next bump. npm install-scripts ls reports anything new.",
   "allowScripts": {
-    "esbuild": true,
     "electron-winstaller": false,
     "fsevents": true
   }

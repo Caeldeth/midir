@@ -2,6 +2,11 @@ import { resolve } from 'path'
 import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
+  // vite 8 transforms with oxc, which does not follow the root tsconfig's
+  // references to the `jsx` setting. Midir writes `import React`, so the JSX
+  // runtime is the classic one; without this line every .tsx test fails to
+  // parse (HTOO-694).
+  oxc: { jsx: { runtime: 'classic' } },
   resolve: {
     alias: {
       '@renderer': resolve('src/renderer/src'),
