@@ -42,11 +42,14 @@ Keep entries user-facing — internal refactors/tests show up in the appended au
 - Every theme: the accent colour and the status colours (error, warning, info, success) now read as text on the page and on cards. Danaan's status colours are now darker, so they read on the parchment. Chadul's and Dubhaimid's selected chips and filled buttons now have dark labels.
 - The row of tabs under the title bar is now a nav bar in its own colour, with a button for each page, as in the other house apps. Report an issue is at its end. Midir now calls each of these a page: the switch in Settings is **Show the Diagnostics page**.
 - A new Theme gallery page (Settings → Appearance → Theme gallery) shows each control in the active theme, with its measured contrast.
+- Midir now runs on Electron 45.
 
 ### Security
 
 - A session recording no longer holds your account password. Midir removes every game packet that carries one before it writes the file: signing in, creating an account, and changing a password. A recording still holds your character name and that session's keys, so keep treating the file as private. Delete any recording made by an earlier build: the password in it can be recovered.
 - The packaged app can no longer be started as a general-purpose Node.js interpreter, and it refuses to start when its app archive has been changed.
+- Midir reads game files only from the Dark Ages folder you choose with **Choose folder** in Settings, or from the folder already saved when Midir starts. A settings change that names any other folder is refused.
+- The portable Midir no longer passes its launcher's variables to the programs it opens. A Midir started from another app's portable launcher no longer takes itself for a portable launch.
 
 ### Fixed
 

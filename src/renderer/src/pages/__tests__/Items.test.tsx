@@ -181,14 +181,20 @@ describe('a long index', () => {
       return { ...box, toJSON: () => box } as DOMRect
     }
     // The virtualizer reads `borderBoxSize` first and `offsetWidth`/`offsetHeight`
-    // after it, so both are given here.
-    const offsets = ['offsetWidth', 'offsetHeight'] as const
+    // after it, so both are given here. Since virtual-core 3.19 it reads the
+    // scroller's size from `clientWidth`/`clientHeight`, which jsdom reports as
+    // 0, so those are given too.
+    const sizes = {
+      offsetWidth: 900,
+      offsetHeight: height,
+      clientWidth: 900,
+      clientHeight: height
+    } as const
+    const offsets = Object.keys(sizes) as (keyof typeof sizes)[]
     const held = offsets.map((name) => Object.getOwnPropertyDescriptor(HTMLElement.prototype, name))
-    Object.defineProperty(HTMLElement.prototype, 'offsetWidth', { configurable: true, value: 900 })
-    Object.defineProperty(HTMLElement.prototype, 'offsetHeight', {
-      configurable: true,
-      value: height
-    })
+    for (const name of offsets) {
+      Object.defineProperty(HTMLElement.prototype, name, { configurable: true, value: sizes[name] })
+    }
     class Reporter {
       constructor(private readonly notify: ResizeObserverCallback) {}
       observe(target: Element): void {
@@ -212,8 +218,12 @@ describe('a long index', () => {
     ;(globalThis as { ResizeObserver?: unknown }).ResizeObserver = Reporter
     return () => {
       if (rect) Object.defineProperty(Element.prototype, 'getBoundingClientRect', rect)
+      // `clientWidth` and `clientHeight` live on `Element.prototype`, so
+      // `HTMLElement.prototype` held no descriptor of its own: delete the stub.
       offsets.forEach((name, at) => {
-        if (held[at]) Object.defineProperty(HTMLElement.prototype, name, held[at]!)
+        const own = held[at]
+        if (own) Object.defineProperty(HTMLElement.prototype, name, own)
+        else delete (HTMLElement.prototype as unknown as Record<string, unknown>)[name]
       })
       ;(globalThis as { ResizeObserver?: unknown }).ResizeObserver = observer
     }

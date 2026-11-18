@@ -44,7 +44,7 @@ describe('Windows packaging and signing in release.yml (HTOO-517)', () => {
     expect(WORKFLOW).not.toMatch(/uses: sslcom\/esigner-codesign@/)
     expect(WORKFLOW).not.toMatch(/CodeSignTool\.bat|jdk-11/)
     expect(step('Set up Java 17 for CodeSignTool')).toMatch(
-      /uses: actions\/setup-java@v5\n\s+with:\n\s+distribution: temurin\n\s+java-version: '17'/
+      /uses: actions\/setup-java@[0-9a-f]{40} # v5\.\d+\.\d+\n\s+with:\n\s+distribution: temurin\n\s+java-version: '17'/
     )
     expect(step('Sign installer + portable exe')).toContain(
       "Join-Path $env:JAVA_HOME 'bin/java.exe'"
@@ -64,6 +64,7 @@ describe('Windows packaging and signing in release.yml (HTOO-517)', () => {
 
   it('signs unconditionally, so a run without the secrets fails', () => {
     expect(step('Set up Java 17 for CodeSignTool')).not.toMatch(/^\s+if:/m)
+    expect(step('Fetch and verify CodeSignTool')).not.toMatch(/^\s+if:/m)
     expect(step('Sign installer + portable exe')).not.toMatch(/^\s+if:/m)
   })
 
@@ -71,11 +72,13 @@ describe('Windows packaging and signing in release.yml (HTOO-517)', () => {
     const at = (name) => WORKFLOW.indexOf(`- name: ${name}`)
     const fuses = at('Verify Electron fuses')
     const java = at('Set up Java 17 for CodeSignTool')
+    const fetch = at('Fetch and verify CodeSignTool')
     const sign = at('Sign installer + portable exe')
     const upload = at('Upload Windows artifacts')
     expect(fuses).toBeGreaterThan(-1)
     expect(fuses).toBeLessThan(java)
-    expect(java).toBeLessThan(sign)
+    expect(java).toBeLessThan(fetch)
+    expect(fetch).toBeLessThan(sign)
     expect(sign).toBeLessThan(upload)
     const uploadStep = step('Upload Windows artifacts')
     expect(uploadStep).toContain('dist/*-setup.exe')

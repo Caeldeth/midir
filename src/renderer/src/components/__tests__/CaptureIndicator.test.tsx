@@ -1,5 +1,5 @@
 import { cleanup, render, screen } from '@testing-library/react'
-import { ThemeProvider } from '@mui/material/styles'
+import { decomposeColor, ThemeProvider } from '@mui/material/styles'
 import { themesByName } from '@renderer/themes'
 import type { ThemeName } from '@shared/types'
 import { STOPPED_STATUS, type CaptureStatus } from '@shared/types'
@@ -71,7 +71,13 @@ describe('CaptureIndicator', () => {
       const shadow = getComputedStyle(
         screen.getByTestId('capture-indicator').firstElementChild!
       ).boxShadow.toLowerCase()
-      expect(shadow).toContain(theme.palette.secondary.contrastText.toLowerCase())
+      // jsdom 31 serializes the colour (`rgb(240, 230, 204)`); jsdom 29 kept the hex.
+      const ring = theme.palette.secondary.contrastText.toLowerCase()
+      const asRgb = `rgb(${decomposeColor(ring).values.slice(0, 3).join(', ')})`
+      expect(
+        [ring, asRgb].some((form) => shadow.includes(form)),
+        shadow
+      ).toBe(true)
       cleanup()
     }
   )

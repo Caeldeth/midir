@@ -2,6 +2,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { IpcMain } from 'electron'
+import { createFolderGrants } from '../../folderGrants'
 import type { PickerDialog } from '../../pickerStart'
 import { afterAll, describe, expect, it, vi } from 'vitest'
 import { chooseDarkAgesFolder, legendPresent, registerIconsHandlers } from '../icons'
@@ -60,10 +61,16 @@ describe('icons:probe handler', () => {
   const dialog = {} as unknown as PickerDialog
   const BrowserWindow = { fromWebContents: () => null } as never
 
-  it('arms the live path when legend.dat is found', async () => {
+  it('arms the live path when legend.dat is found in a granted folder', async () => {
     const onLegendFound = vi.fn()
     const { ipcMain, call } = fakeIpc()
-    registerIconsHandlers(ipcMain, dialog, BrowserWindow, onLegendFound)
+    registerIconsHandlers(
+      ipcMain,
+      dialog,
+      BrowserWindow,
+      createFolderGrants(Promise.resolve(dir)),
+      onLegendFound
+    )
     // `dir` holds a legend.dat by the time this runs (see the block above).
     expect(await call('icons:probe', dir)).toEqual({ legendFound: true })
     expect(onLegendFound).toHaveBeenCalledWith(dir)
@@ -72,8 +79,50 @@ describe('icons:probe handler', () => {
   it('does not arm the path when legend.dat is absent', async () => {
     const onLegendFound = vi.fn()
     const { ipcMain, call } = fakeIpc()
-    registerIconsHandlers(ipcMain, dialog, BrowserWindow, onLegendFound)
+    const grants = createFolderGrants(Promise.resolve(undefined))
+    grants.grant('C:/no-such-folder')
+    registerIconsHandlers(ipcMain, dialog, BrowserWindow, grants, onLegendFound)
     expect(await call('icons:probe', 'C:/no-such-folder')).toEqual({ legendFound: false })
     expect(onLegendFound).not.toHaveBeenCalled()
+  })
+
+  it('refuses a folder nobody picked, although legend.dat is in it', async () => {
+    // A renderer path alone must not point main's reads at a folder.
+    const onLegendFound = vi.fn()
+    const { ipcMain, call } = fakeIpc()
+    registerIconsHandlers(
+      ipcMain,
+      dialog,
+      BrowserWindow,
+      createFolderGrants(Promise.resolve(undefined)),
+      onLegendFound
+    )
+    expect(await call('icons:probe', dir)).toEqual({ legendFound: false })
+    expect(onLegendFound).not.toHaveBeenCalled()
+  })
+
+  it('grants the folder the user picks, and only that one', async () => {
+    const onLegendFound = vi.fn()
+    const { ipcMain, call } = fakeIpc()
+    const picker = {
+      showOpenDialog: vi.fn(async () => ({ canceled: false, filePaths: [dir] }))
+    } as unknown as PickerDialog
+    const grants = createFolderGrants(Promise.resolve(undefined))
+    registerIconsHandlers(ipcMain, picker, BrowserWindow, grants, onLegendFound)
+    expect(await call('icons:chooseFolder', undefined)).toBe(dir)
+    expect(grants.isGranted(dir)).toBe(true)
+    expect(await call('icons:probe', dir)).toEqual({ legendFound: true })
+    expect(onLegendFound).toHaveBeenCalledWith(dir)
+  })
+
+  it('grants nothing when the user cancels the pick', async () => {
+    const { ipcMain, call } = fakeIpc()
+    const picker = {
+      showOpenDialog: vi.fn(async () => ({ canceled: true, filePaths: [] }))
+    } as unknown as PickerDialog
+    const grants = createFolderGrants(Promise.resolve(undefined))
+    registerIconsHandlers(ipcMain, picker, BrowserWindow, grants)
+    expect(await call('icons:chooseFolder', undefined)).toBeNull()
+    expect(grants.isGranted(dir)).toBe(false)
   })
 })

@@ -2,6 +2,11 @@ import { resolve } from 'path'
 import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
+  // vite 8 transforms with oxc, which does not follow the root tsconfig's
+  // references to the `jsx` setting. Midir writes `import React`, so the JSX
+  // runtime is the classic one; without this line every .tsx test fails to
+  // parse (HTOO-694).
+  oxc: { jsx: { runtime: 'classic' } },
   resolve: {
     alias: {
       '@renderer': resolve('src/renderer/src'),
@@ -37,6 +42,12 @@ export default defineConfig({
         test: {
           name: 'jsdom',
           environment: 'jsdom',
+          // A test that types into an MUI Autocomplete renders the page once a
+          // key. Walker.test.tsx measured 0.6 to 1.2 s a test alone and ran past
+          // the 5 s default twice under the full suite's load (2026-11-18). A
+          // real hang is now reported later, which is the trade (as in the
+          // template and oghma).
+          testTimeout: 15_000,
           include: [
             'src/renderer/src/__tests__/**/*.test.{ts,tsx}',
             'src/renderer/src/{components,pages,hooks,store}/**/__tests__/**/*.test.{ts,tsx}',
