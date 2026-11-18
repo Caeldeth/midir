@@ -57,6 +57,7 @@ import {
 import { createLogger, messageOf } from './log'
 import { pruneRecordings } from './recordings'
 import { createSettingsManager } from './settingsManager'
+import { createFolderGrants } from './folderGrants'
 import { createSplashWindow, type SplashController } from './splash'
 import { installGlobalErrorHandlers } from './errorHandlers'
 import { formatErrorLine } from '../shared/diagnostics'
@@ -440,14 +441,20 @@ const speaker = createSpeaker({
 let darkAgesPath: string | undefined
 /** Walk by right-click, from the settings (WP35). Off until the settings load. */
 let walkerRightClick = false
-void settingsManager
-  .load()
-  .then((settings) => {
+const startupDarkAgesPath = settingsManager.load().then(
+  (settings) => {
     darkAgesPath = settings.darkAgesPath
-  })
-  .catch(() => {
+    return settings.darkAgesPath
+  },
+  () => {
     /* the settings manager already logged; icons simply stay off */
-  })
+    return undefined
+  }
+)
+// The Dark Ages folders main trusts: the one on disk at startup, and each one
+// the user picks in the folder dialog. A renderer path alone is never one
+// (folderGrants.ts).
+const folderGrants = createFolderGrants(startupDarkAgesPath)
 
 const iconService = createIconService({ getDarkAgesPath: () => darkAgesPath, log })
 // The character doll (WP37), from the khan archives beside legend.dat.
@@ -624,6 +631,7 @@ const ctx: HandlerContext = {
     })
   },
   legendIcons: legendService,
+  folderGrants,
   updateDarkAgesPath: (path) => {
     darkAgesPath = path
   }

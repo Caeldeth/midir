@@ -15,6 +15,7 @@ import {
   type CharacterHandlerContext,
   type SettingsHandlerContext
 } from '../handlers'
+import { createFolderGrants } from '../folderGrants'
 import { emptyCharacterFile, type CharacterFile } from '../store/characterStore'
 import { emptyCharacter } from '../../shared/character'
 import type { LogEntry } from '../../shared/log'
@@ -38,15 +39,22 @@ export function fakeLogger(filePath = ''): Logger & { entries: LogEntry[] } {
   }
 }
 
-function settingsContext(): SettingsHandlerContext & {
+/**
+ * A settings context. `onDisk` is the Dark Ages folder in the settings file at
+ * startup, which is a grant, and the folder main reads now.
+ */
+function settingsContext(onDisk?: string): SettingsHandlerContext & {
   settingsManager: { load: ReturnType<typeof vi.fn>; save: ReturnType<typeof vi.fn> }
+  log: ReturnType<typeof fakeLogger>
 } {
   return {
     log: fakeLogger(),
     settingsManager: {
       load: vi.fn(async () => ({ ...DEFAULT_SETTINGS })),
       save: vi.fn(async () => undefined)
-    }
+    },
+    folderGrants: createFolderGrants(Promise.resolve(onDisk)),
+    gameFolder: () => onDisk
   }
 }
 
@@ -115,13 +123,68 @@ describe('settings handlers', () => {
     expect(ctx.settingsManager.save).toHaveBeenCalledWith(settings)
   })
 
-  it('saves the optional Dark Ages folder and notifies the listener', async () => {
+  it('saves a picked Dark Ages folder and notifies the listener', async () => {
     const ctx = settingsContext()
+    ctx.folderGrants.grant('C:/Dark Ages')
     const onSettingsSaved = vi.fn()
     const settings = { ...DEFAULT_SETTINGS, darkAgesPath: 'C:/Dark Ages' }
     await saveSettings({ ...ctx, onSettingsSaved }, settings)
     expect(ctx.settingsManager.save).toHaveBeenCalledWith(settings)
     expect(onSettingsSaved).toHaveBeenCalledWith(settings)
+  })
+
+  it('saves the folder that was on disk at startup', async () => {
+    const ctx = settingsContext('C:/Dark Ages')
+    const settings = { ...DEFAULT_SETTINGS, darkAgesPath: 'c:/dark ages' }
+    await saveSettings(ctx, settings)
+    expect(ctx.settingsManager.save).toHaveBeenCalledWith(settings)
+    expect(ctx.log.entries).toEqual([])
+  })
+
+  it('refuses a folder nobody picked, keeps the one in use, and saves the rest', async () => {
+    // A compromised renderer cannot point main's reads at a folder of its choice.
+    const ctx = settingsContext('C:/Dark Ages')
+    const onSettingsSaved = vi.fn()
+    await saveSettings(
+      { ...ctx, onSettingsSaved },
+      { ...DEFAULT_SETTINGS, theme: 'grinneal', darkAgesPath: 'C:/Users/me/secrets' }
+    )
+    const kept = { ...DEFAULT_SETTINGS, theme: 'grinneal', darkAgesPath: 'C:/Dark Ages' }
+    expect(ctx.settingsManager.save).toHaveBeenCalledWith(kept)
+    expect(onSettingsSaved).toHaveBeenCalledWith(kept)
+    expect(ctx.log.entries.map((e) => [e.level, e.scope])).toEqual([['warn', 'settings']])
+  })
+
+  it('refuses a folder nobody picked when none is in use, and saves none', async () => {
+    const ctx = settingsContext()
+    await saveSettings(ctx, { ...DEFAULT_SETTINGS, darkAgesPath: 'C:/Users/me/secrets' })
+    expect(ctx.settingsManager.save).toHaveBeenCalledWith({ ...DEFAULT_SETTINGS })
+  })
+
+  it('always allows a clear', async () => {
+    const ctx = settingsContext('C:/Dark Ages')
+    await saveSettings(ctx, { ...DEFAULT_SETTINGS })
+    expect(ctx.settingsManager.save).toHaveBeenCalledWith({ ...DEFAULT_SETTINGS })
+    expect(ctx.log.entries).toEqual([])
+  })
+
+  it('waits for the startup folder before it judges a save', async () => {
+    // A save that lands before the startup load must not lose the user's folder.
+    let finish: (path: string) => void = () => undefined
+    const ctx = {
+      ...settingsContext(),
+      folderGrants: createFolderGrants(new Promise<string>((done) => (finish = done))),
+      // Main knows no folder until the startup load lands, as in index.ts.
+      gameFolder: () => undefined
+    }
+    const save = saveSettings(ctx, { ...DEFAULT_SETTINGS, darkAgesPath: 'C:/Dark Ages' })
+    finish('C:/Dark Ages')
+    await save
+    expect(ctx.settingsManager.save).toHaveBeenCalledWith({
+      ...DEFAULT_SETTINGS,
+      darkAgesPath: 'C:/Dark Ages'
+    })
+    expect(ctx.log.entries).toEqual([])
   })
 
   it('rejects an unknown theme and saves nothing', async () => {

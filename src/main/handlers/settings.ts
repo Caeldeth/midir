@@ -1,12 +1,17 @@
 import type { IpcMain } from 'electron'
 import { z } from 'zod'
 import { MAX_RECORDING_CAP_MB, THEME_NAMES, type MidirSettings } from '../../shared/types'
+import type { FolderGrants } from '../folderGrants'
 import type { Logger } from '../log'
 import type { createSettingsManager } from '../settingsManager'
 
 export interface SettingsHandlerContext {
   settingsManager: ReturnType<typeof createSettingsManager>
   log: Logger
+  /** The Dark Ages folders main trusts. A save keeps a folder only from here. */
+  folderGrants: FolderGrants
+  /** The Dark Ages folder main reads now. A refused save keeps this one. */
+  gameFolder: () => string | undefined
   /**
    * Called after a save lands, with the saved settings. index.ts uses it to
    * keep the live `darkAgesPath` the icon service reads in step with the file.
@@ -23,7 +28,9 @@ export const settingsSchema = z.object({
   // Zero means no limit. The maximum only stops an absurd value reaching disk.
   recordingCapMb: z.number().int().min(0).max(MAX_RECORDING_CAP_MB),
   showDiagnostics: z.boolean(),
-  // The Dark Ages install folder. Optional, and only used to draw item icons.
+  // The Dark Ages install folder. Optional. Main reads the icons, the doll, the
+  // legend badges and the map cache from it. A save keeps a new value only when
+  // it is a grant (`keepGrantedFolder` below).
   darkAgesPath: z.string().optional(),
   // The driving assistants. The global stop hotkey, the focus-loss rule, and
   // the Speaker's lines and interval floor.
@@ -50,6 +57,32 @@ export async function loadSettings(ctx: SettingsHandlerContext): Promise<MidirSe
   return ctx.settingsManager.load()
 }
 
+/**
+ * Keep the Dark Ages folder only when main trusts it.
+ *
+ * The renderer writes the settings, so its folder alone must not choose where
+ * main reads game files (`folderGrants.ts`). A new folder that the user did not
+ * pick in the folder dialog is refused: the save keeps the folder in use and
+ * logs the refusal. Every other field is saved. A clear is always allowed,
+ * because it removes access and adds none.
+ */
+async function keepGrantedFolder(
+  ctx: SettingsHandlerContext,
+  settings: MidirSettings
+): Promise<void> {
+  const folder = settings.darkAgesPath
+  if (folder === undefined || folder === '') return
+  await ctx.folderGrants.ready
+  if (ctx.folderGrants.isGranted(folder)) return
+  ctx.log.warn(
+    'settings',
+    'Refused a Dark Ages folder that was not picked in the folder dialog. The folder in use is kept.'
+  )
+  const kept = ctx.gameFolder()
+  if (kept === undefined || kept === '') delete settings.darkAgesPath
+  else settings.darkAgesPath = kept
+}
+
 export async function saveSettings(ctx: SettingsHandlerContext, settings: unknown): Promise<void> {
   const parsed = settingsSchema.safeParse(settings)
   if (!parsed.success) {
@@ -57,6 +90,7 @@ export async function saveSettings(ctx: SettingsHandlerContext, settings: unknow
     throw new Error('Invalid settings payload')
   }
   const valid = parsed.data as MidirSettings
+  await keepGrantedFolder(ctx, valid)
   await ctx.settingsManager.save(valid)
   ctx.onSettingsSaved?.(valid)
 }

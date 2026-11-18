@@ -5,6 +5,7 @@
 import type { BrowserWindow as BrowserWindowType, IpcMain } from 'electron'
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
+import type { FolderGrants } from '../folderGrants'
 import type { PickerDialog } from '../pickerStart'
 
 /**
@@ -39,22 +40,34 @@ export async function chooseDarkAgesFolder(
   return result.filePaths[0]
 }
 
+/**
+ * The folder IPC. A folder the user picks becomes a grant (`folderGrants.ts`).
+ * A probe answers, and arms the live path, only for a granted folder: a
+ * renderer path alone must not point main's reads at a folder.
+ */
 export function registerIconsHandlers(
   ipcMain: IpcMain,
   dialog: PickerDialog,
   BrowserWindow: typeof BrowserWindowType,
+  grants: FolderGrants,
   onLegendFound?: (path: string) => void,
   legend?: { palette: () => Promise<string[] | null> }
 ): void {
-  ipcMain.handle('icons:chooseFolder', (event) =>
-    chooseDarkAgesFolder(dialog, BrowserWindow.fromWebContents(event.sender))
-  )
-  ipcMain.handle('icons:probe', (_event, folderPath: unknown) => {
+  ipcMain.handle('icons:chooseFolder', async (event) => {
+    const chosen = await chooseDarkAgesFolder(dialog, BrowserWindow.fromWebContents(event.sender))
+    if (chosen !== null) grants.grant(chosen)
+    return chosen
+  })
+  ipcMain.handle('icons:probe', async (_event, folderPath: unknown) => {
+    await grants.ready
+    if (typeof folderPath !== 'string' || !grants.isGranted(folderPath)) {
+      return { legendFound: false }
+    }
     const legendFound = legendPresent(folderPath)
     // The renderer turns icons on the moment this reports a hit. Arm the live
     // path here so the service can serve before the (debounced) settings save
     // lands. Without this, the first icons after picking a folder 404.
-    if (legendFound && typeof folderPath === 'string') onLegendFound?.(folderPath)
+    if (legendFound) onLegendFound?.(folderPath)
     return { legendFound }
   })
   // The colours a legend mark's `color` byte indexes. 256 short strings, asked

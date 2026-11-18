@@ -100,7 +100,14 @@ export function registerHandlers(deps: RegisterDeps, ctx: HandlerContext): void 
   registerCaptureHandlers(ipcMain, ctx)
   registerCharacterHandlers(ipcMain, ctx)
   registerDiagnosticsHandlers(ipcMain, shell, ctx)
-  registerIconsHandlers(ipcMain, dialog, BrowserWindow, ctx.updateDarkAgesPath, ctx.legendIcons)
+  registerIconsHandlers(
+    ipcMain,
+    dialog,
+    BrowserWindow,
+    ctx.folderGrants,
+    ctx.updateDarkAgesPath,
+    ctx.legendIcons
+  )
   registerAssistHandlers(ipcMain, ctx)
   registerBoardHandlers(ipcMain, dialog, BrowserWindow, ctx)
   registerMapHandlers(ipcMain, ctx)
