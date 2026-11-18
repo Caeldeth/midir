@@ -43,3 +43,4 @@ Cut the first release. `package.json` is `0.1.0`, the changelog holds one `[Unre
 2. `npm run build:win:portable` produces a runnable portable build.
 3. GUI (hand to Sabrael): install the portable build on a clean machine and confirm it launches.
 4. GUI (hand to Sabrael): on a build whose version is older than the manifest entry, the update notice names the new version and its link opens the release page. WP44 could only prove `no-entry` against the live file, because Midir had no entry to compare against.
+5. The open checks in `docs/hand-testing.md` are ticked, its "The first release" section among them. Since PR #58 (2026-11-18), `release.yml` pins every action to a SHA and checks the CodeSignTool digest, so the first tag is also the first run of that workflow (HTOO-692).

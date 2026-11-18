@@ -8,7 +8,7 @@ Run `unset ELECTRON_RUN_AS_NODE` (or `Remove-Item Env:ELECTRON_RUN_AS_NODE` in P
 
 ## The automated gate
 
-The gate is green on Windows at `64a4a7f` (2026-11-18): `npm run validate` (2554 passed, 6 skipped), `test:coverage`, `build`, `verify:preload` (one specifier, `electron`) and `npm run e2e` (12 passed).
+The gate is green on Windows at `64a4a7f` (2026-11-18), merged to `main` as `16e608f`: `npm run validate` (2554 passed, 6 skipped), `test:coverage`, `build`, `verify:preload` (one specifier, `electron`) and `npm run e2e` (12 passed).
 
 These are covered on each run, so they need no pass by hand:
 
