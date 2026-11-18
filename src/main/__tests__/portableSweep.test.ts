@@ -3,7 +3,14 @@ import { mkdir, mkdtemp, readdir, rm, symlink, utimes, writeFile } from 'node:fs
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { MIN_AGE_MS, ownUnpackDir, sweepPortableLeftovers } from '../portableSweep'
+import {
+  isOwnPortableLaunch,
+  MIN_AGE_MS,
+  ownUnpackDir,
+  PORTABLE_ENV_KEYS,
+  sweepPortableLeftovers,
+  takePortableLaunch
+} from '../portableSweep'
 
 /**
  * The portable sweep (HTOO-494), over a fake `%TEMP%`.
@@ -199,5 +206,60 @@ describe('sweepPortableLeftovers', () => {
     })
     expect(result).toEqual({ removed: [], skipped: [] })
     expect(errors[0]).toMatch(/cannot read/)
+  })
+})
+
+describe('isOwnPortableLaunch and takePortableLaunch (HTOO-667)', () => {
+  // The values Balor's portable stub set, as recorded on the card. A child
+  // of Balor (VS Code, then a terminal, then Midir) inherits all three.
+  const BALOR_ENV = {
+    PORTABLE_EXECUTABLE_DIR: 'C:\\Users\\me\\Downloads',
+    PORTABLE_EXECUTABLE_FILE: 'C:\\Users\\me\\Downloads\\balor-1.3.0-portable.exe',
+    PORTABLE_EXECUTABLE_APP_FILENAME: 'balor'
+  }
+
+  it("is true for this app's own stub, case folded", () => {
+    expect(
+      isOwnPortableLaunch({ ...BALOR_ENV, PORTABLE_EXECUTABLE_APP_FILENAME: 'Midir' }, 'midir')
+    ).toBe(true)
+  })
+
+  it("is false for another app's inherited variables", () => {
+    expect(isOwnPortableLaunch(BALOR_ENV, 'midir')).toBe(false)
+  })
+
+  it('is false without the stub variables, or with the directory only', () => {
+    expect(isOwnPortableLaunch({}, 'midir')).toBe(false)
+    expect(isOwnPortableLaunch({ PORTABLE_EXECUTABLE_DIR: 'C:\\x' }, 'midir')).toBe(false)
+    expect(isOwnPortableLaunch({ PORTABLE_EXECUTABLE_APP_FILENAME: 'midir' }, 'midir')).toBe(false)
+  })
+
+  it('removes all three variables, and keeps the rest of the environment', () => {
+    const env: Record<string, string | undefined> = { ...BALOR_ENV, PATH: 'C:\\bin' }
+    expect(takePortableLaunch(env, 'midir')).toBe(false)
+    for (const key of PORTABLE_ENV_KEYS) expect(env).not.toHaveProperty(key)
+    expect(env['PATH']).toBe('C:\\bin')
+  })
+
+  it('removes them on its own launch too, and still answers true', () => {
+    const env: Record<string, string | undefined> = {
+      ...BALOR_ENV,
+      PORTABLE_EXECUTABLE_APP_FILENAME: 'midir'
+    }
+    expect(takePortableLaunch(env, 'midir')).toBe(true)
+    for (const key of PORTABLE_ENV_KEYS) expect(env).not.toHaveProperty(key)
+  })
+
+  it("does not sweep, and logs nothing, under another app's variables", async () => {
+    // An old leftover of ours: a sweep that runs removes it.
+    const leftover = await unpack('nsOLD2.tmp')
+    const errors: string[] = []
+    const result = await run({
+      isPortable: takePortableLaunch({ ...BALOR_ENV }, 'midir'),
+      onError: (m) => errors.push(m)
+    })
+    expect(result).toEqual({ removed: [], skipped: [] })
+    expect(existsSync(leftover)).toBe(true)
+    expect(errors).toEqual([])
   })
 })

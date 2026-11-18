@@ -141,3 +141,19 @@ describe('remote-session rendering (HTOO-325)', () => {
     expect(MAIN.lastIndexOf('if (isRemoteSession)', inject)).toBeGreaterThan(createWindowAt)
   })
 })
+
+describe('portable launch variables (HTOO-667)', () => {
+  it('reads and removes them before any other statement reads process.env', () => {
+    // Every later reader of process.env (LOCALAPPDATA, the GPU check, the
+    // renderer URL, MIDIR_REPLAY) runs after the stub's variables are gone, and
+    // so does every process Midir starts. The sweep reads the saved answer, not
+    // the variable.
+    const take = at(/^const isOwnPortable = takePortableLaunch\(process\.env, PACKAGE_NAME\)/m)
+    const firstEnv = MAIN.indexOf('process.env')
+    expect(firstEnv).toBeGreaterThan(-1)
+    expect(MAIN.indexOf('takePortableLaunch(process.env')).toBeLessThanOrEqual(firstEnv)
+    expect(take).toBeLessThan(at("app.setPath('userData'"))
+    expect(MAIN).not.toMatch(/process\.env\[?['".]?PORTABLE_EXECUTABLE/)
+    expect(MAIN).toMatch(/isPortable: app\.isPackaged && isOwnPortable/)
+  })
+})

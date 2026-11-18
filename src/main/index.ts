@@ -62,7 +62,8 @@ import { installGlobalErrorHandlers } from './errorHandlers'
 import { formatErrorLine } from '../shared/diagnostics'
 import { REMOTE_SESSION_CSS, shouldDisableHardwareAcceleration } from './remoteSession'
 import originalFs from 'original-fs'
-import { sweepPortableLeftovers } from './portableSweep'
+import { sweepPortableLeftovers, takePortableLaunch } from './portableSweep'
+import { name as PACKAGE_NAME } from '../../package.json'
 import {
   cspForEnvironment,
   guardIpc,
@@ -75,6 +76,13 @@ import { createCharacterStore } from './store/characterStore'
 import { createBoardStore, readPostIds } from './store/boardStore'
 import { createMapStore } from './store/mapStore'
 import { createTransitionStore } from './store/transitionStore'
+
+// First, before anything can start a child process: read whether THIS app's
+// portable stub started us, then remove the stub's variables from our own
+// environment, so that no app we start (a folder or a link we open) inherits
+// them (HTOO-667). `bootOrder.test.ts` asserts that this stays the first
+// statement that reads `process.env`.
+const isOwnPortable = takePortableLaunch(process.env, PACKAGE_NAME)
 
 // Settings + cache both under %LOCALAPPDATA%/Erisco/Midir (local). On Windows,
 // Electron's appData path is the ROAMING dir, so we resolve %LOCALAPPDATA%
@@ -781,7 +789,7 @@ app.whenReady().then(() => {
       // holds it, so every rename is refused.
       fs: originalFs.promises,
       execPath: process.execPath,
-      isPortable: app.isPackaged && Boolean(process.env['PORTABLE_EXECUTABLE_DIR']),
+      isPortable: app.isPackaged && isOwnPortable,
       onError: (message) => log.error('portable-sweep', message)
     }).then((result) => {
       if (result.removed.length === 0 && result.skipped.length === 0) return
