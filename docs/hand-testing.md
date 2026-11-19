@@ -30,34 +30,34 @@ Already done:
 
 ### Development build
 
-- [ ] **The window opens (HTOO-694).** Run `npm run dev`. The splash closes, the main window opens, and no white window shows. The DevTools console has no preload error and no sandbox error. The gate cannot see these errors.
-- [ ] **A change shows without a restart (HTOO-694).** With `npm run dev` running, change a text in a renderer file and save it. The window shows the change.
+- [x] **The window opens (HTOO-694).** Run `npm run dev`. The splash closes, the main window opens, and no white window shows. The DevTools console has no preload error and no sandbox error. The gate cannot see these errors. (`cae4ac2`, Sabrael, 2026-11-19)
+- [x] **A change shows without a restart (HTOO-694).** With `npm run dev` running, change a text in a renderer file and save it. The window shows the change. (`cae4ac2`, Sabrael, 2026-11-19)
 
 ### The Dark Ages folder
 
-- [ ] **A picked folder works.** In Settings, click **Choose folder** and pick the Dark Ages folder. The folder dialog opens in that folder if one is set already. The card says "Icons are on." The Items page shows the item icons. The session log has no "Refused a Dark Ages folder" line.
-- [ ] **The folder stays after a restart.** Close Midir and start it again. The icons are on with no new pick.
-- [ ] **Clear works.** Click **Clear**. The card says "Icons are off. No folder is chosen." Pick the folder again, and the icons come back.
-- [ ] **A hand edit of the settings file is trusted.** Close Midir. In `%LOCALAPPDATA%\Erisco\Midir\settings.json`, set `darkAgesPath` to a different folder that holds `legend.dat`, or to the same folder with different letter case. Start Midir. The icons come from that folder, and the log has no refusal line.
+- [x] **A picked folder works.** In Settings, click **Choose folder** and pick the Dark Ages folder. The folder dialog opens in that folder if one is set already. The card says "Icons are on." The Items page shows the item icons. The session log has no "Refused a Dark Ages folder" line. (`cae4ac2`, Sabrael, 2026-11-19)
+- [x] **The folder stays after a restart.** Close Midir and start it again. The icons are on with no new pick. (`cae4ac2`, Sabrael, 2026-11-19)
+- [x] **Clear works.** Click **Clear**. The card says "Icons are off. No folder is chosen." Pick the folder again, and the icons come back. (`cae4ac2`, Sabrael, 2026-11-19)
+- [x] **A hand edit of the settings file is trusted.** Close Midir. In `%LOCALAPPDATA%\Erisco\Midir\settings.json`, set `darkAgesPath` to a different folder that holds `legend.dat`, or to the same folder with different letter case. Start Midir. The icons come from that folder, and the log has no refusal line. (`cae4ac2`, Sabrael, 2026-11-19)
 
 ### Live capture
 
 These need Npcap, an adapter and a real game session.
 
-- [ ] **Capture reads a login (HTOO-694).** Start capture, then log in. The title bar names the character, and the character sheet fills.
-- [ ] **The game files read from the granted folder.** With a character logged in, the Map page draws the current map, and the doll on the Equip card draws the character.
-- [ ] **The Walker takes typed fields (HTOO-694).** On the Walker page, type a destination and an end tile, and pin it under a new name. The pin shows the name, and a click on it fills the fields again.
+- [x] **Capture reads a login (HTOO-694).** Start capture, then log in. The title bar names the character, and the character sheet fills. (`cae4ac2`, Sabrael, 2026-11-19)
+- [x] **The game files read from the granted folder.** With a character logged in, the Map page draws the current map, and the doll on the Equip card draws the character. (`cae4ac2`, Sabrael, 2026-11-19)
+- [x] **The Walker takes typed fields (HTOO-694).** On the Walker page, type a destination and an end tile, and pin it under a new name. The pin shows the name, and a click on it fills the fields again. (`cae4ac2`, Sabrael, 2026-11-19)
 
 ### The portable build
 
-- [ ] **The portable exe starts (HTOO-667).** Run `npm run build:win:portable`, then start the portable exe from Explorer. The window opens, and no NSIS box asks to close Midir.
-- [ ] **Midir's own portable launch still sweeps (HTOO-667, HTOO-494).** The sweep now runs only when the launcher's variables name Midir. In Task Manager, end the portable exe's process tree. This leaves its `%TEMP%\ns*.tmp` folder. Wait ten minutes, then start the portable exe again. After 30 s, the session log has a `portable-sweep` line that says it removed one unpack folder, and the old `ns*.tmp` folder is gone. A sweep that did not run writes no line at all, so the line is the proof.
+- [x] **The portable exe starts (HTOO-667).** Run `npm run build:win:portable`, then start the portable exe from Explorer. The window opens, and no NSIS box asks to close Midir. (`cae4ac2`, Sabrael, 2026-11-19)
+- [x] **Midir's own portable launch still sweeps (HTOO-667, HTOO-494).** The sweep now runs only when the launcher's variables name Midir. In Task Manager, end the portable exe's process tree. This leaves its `%TEMP%\ns*.tmp` folder. Wait ten minutes, then start the portable exe again. After 30 s, the session log has a `portable-sweep` line that says it removed one unpack folder, and the old `ns*.tmp` folder is gone. A sweep that did not run writes no line at all, so the line is the proof. (`cae4ac2`, Sabrael, 2026-11-19)
 
 ## Carried from WP45 (owed since 2026-10-11)
 
-- [ ] **A fresh clone runs.** Clone the repository to a new folder, then run `npm install` and `npm run dev`. The window opens.
-- [ ] **The export picker start folder (HTOO-553).** Export a board. The save dialog opens in the last folder picked this session, or else in the Dark Ages folder.
-- [ ] **Every theme by eye (HTOO-572).** In each of the eight themes, open Settings → Appearance → Theme gallery and each page. Text, chips, buttons and alerts read on their backgrounds, and a selected chip looks different from a plain one.
+- [x] **A fresh clone runs.** Clone the repository to a new folder, then run `npm install` and `npm run dev`. The window opens. (`cae4ac2`, Sabrael, 2026-11-19)
+- [x] **The export picker start folder (HTOO-553).** Export a board. The save dialog opens in the last folder picked this session, or else in the Dark Ages folder. (`cae4ac2`, Sabrael, 2026-11-19)
+- [x] **Every theme by eye (HTOO-572).** In each of the eight themes, open Settings → Appearance → Theme gallery and each page. Text, chips, buttons and alerts read on their backgrounds, and a selected chip looks different from a plain one. (`cae4ac2`, Sabrael, 2026-11-19)
 
 ## The first release (HTOO-76)
 
